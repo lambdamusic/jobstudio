@@ -94,3 +94,6 @@ src/web/local_settings.py
 collectstatic/
 tools/db-bootstrap
 build/
+
+# Personal denylist for tools/make-public-tree — see .private-terms.example
+.private-terms

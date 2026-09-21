@@ -103,9 +103,21 @@ ALLOW_NAME='tools/smoke-test|tools/build-example-fixture|tools/make-public-tree|
 # author's employment history employer by employer. The check below already matched some
 # of those strings — the directory exemption was the only reason they were not caught.
 #
-# So: employer, home town and job-search content are exempt NOWHERE except this script,
-# whose own grep literals would otherwise match. Add to PRIVATE, never to ALLOW_NAME.
-PRIVATE='st albans|digital science|springer nature|nature research|klue'
+# So: employer, home town and job-search content are exempt NOWHERE.
+#
+# The TERMS themselves live in a gitignored `.private-terms`, one per line, and not in
+# this file — because the list is itself personal. A denylist naming a former employer
+# discloses that employer to anyone reading it, which is how the first public push of
+# this repo shipped five such terms in one line: the script was exempt from its own
+# checks so that it *could* hold them, and shipping the script shipped the list.
+# See `.private-terms.example`. Same move as `jobs/scan-config.yaml`: keep the
+# mechanism in the repo, keep the data in files that never leave the machine.
+PRIVATE_FILE="$SRC/.private-terms"
+if [ -f "$PRIVATE_FILE" ]; then
+    PRIVATE=$(grep -vE '^[[:space:]]*(#|$)' "$PRIVATE_FILE" | paste -sd'|' -)
+else
+    PRIVATE=""
+fi
 ALLOW_PRIVATE='tools/make-public-tree'
 
 # The home-path check gets a SEPARATE, narrower list, and the difference is the point.
@@ -123,9 +135,14 @@ hits=$(cd "$DEST" && grep -ril "michele\|pasin" . 2>/dev/null \
        | sed 's|^\./||' | grep -Ev "$ALLOW_NAME" || true)
 [ -z "$hits" ] || fail $'personal identity in:\n'"$hits"
 
-hits=$(cd "$DEST" && grep -rilE "$PRIVATE" . 2>/dev/null \
-       | sed 's|^\./||' | grep -Ev "$ALLOW_PRIVATE" || true)
-[ -z "$hits" ] || fail $'employer / job-search specifics in:\n'"$hits"
+if [ -n "$PRIVATE" ]; then
+    hits=$(cd "$DEST" && grep -rilE "$PRIVATE" . 2>/dev/null \
+           | sed 's|^\./||' | grep -Ev "$ALLOW_PRIVATE" || true)
+    [ -z "$hits" ] || fail $'employer / job-search specifics in:\n'"$hits"
+else
+    echo "  NOTE: no .private-terms file — employer/job-search check SKIPPED" >&2
+    echo "        copy .private-terms.example to .private-terms and list your own" >&2
+fi
 
 # Same exemption, same reason: backlog/ and log/ quote the citation strings while
 # recording that they were REMOVED from the shipping docs (commit 31e547b). A document

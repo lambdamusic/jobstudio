@@ -1,0 +1,24 @@
+# Terms that must never appear in the public tree, one per line, matched
+# case-insensitively as extended regex alternatives by tools/make-public-tree.
+#
+# Copy this file to `.private-terms` (gitignored) and list your own. If no such file
+# exists the check is skipped and the build says so — it is never silently weakened.
+#
+# WHY THIS IS A SEPARATE, IGNORED FILE. The list is personal in its own right: naming a
+# former employer here discloses that employer to anyone who reads it. The first public
+# push of this repo shipped five such terms on one line, in the very script whose job was
+# to keep them out — the script was exempt from its own checks so it could hold them, and
+# shipping the script shipped the list. The mechanism belongs in the repo; the terms do
+# not.
+#
+# What belongs here: employers, your home town, clients, internal tools or vendors you
+# used, anything that identifies your search rather than the toolkit. Keep each term
+# broad enough to catch variants — "acme" rather than "Acme Corporation Ltd".
+#
+# What does NOT belong here: your own name. That has its own check (ALLOW_NAME), which
+# deliberately exempts `backlog/` and `log/` — a byline in a signed design document is
+# expected; a former employer in the roadmap is not.
+
+# acme corp
+# some city
+# internal-tool-name

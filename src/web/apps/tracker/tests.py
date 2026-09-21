@@ -967,6 +967,16 @@ class ScanConfigTests(TestCase):
         workday…) but never a company or its endpoint — that is data, and it lives in
         the data root now."""
         src = (Path(settings.SITE_ROOT) / "src" / "scan-portals.py").read_text()
-        for literal in ("harborglobal", "COMPANY_OVERRIDES", "KNOWN_UNSUPPORTED_REASONS"):
+        for literal in ("COMPANY_OVERRIDES", "KNOWN_UNSUPPORTED_REASONS"):
             self.assertNotIn(literal, src,
                              f"{literal!r} is back in scan-portals.py — it belongs in scan-config.yaml")
+
+        # The first-party fetcher must take its endpoint from the override, never a
+        # literal. Naming the company's domain here would only move the disclosure from
+        # the scanner into the test, so assert the shape instead: no absolute http(s)
+        # URL in that branch that isn't built from `source`.
+        self.assertIn('source["url"]', src,
+                      "the firstparty_entries branch should read its endpoint from the override")
+        branch = src.split('if platform == "firstparty_entries":', 1)[-1].split("\n        if ")[0]
+        self.assertNotRegex(branch, r'"https?://[^"]+"',
+                            "a company endpoint is hardcoded in the firstparty_entries branch")
