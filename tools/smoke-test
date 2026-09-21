@@ -95,6 +95,24 @@ assert authenticate(username='admin', password='admin') is not None, 'default ad
 print('  ok    admin account exists and the default login works')
 " 2>&1 | grep -vE "^Environment|objects imported" || fail "no usable admin account after init"
 
+# Re-running `init` against a DIFFERENT data root must repoint the checkout. The
+# "never clobber what exists" rule is right for data files and was wrong for the
+# generated wiring: a second init printed `kept .jobstudio-data` and then `Done. Data
+# root: <new>`, while every later command still read the old root. Moving from the
+# example to real data is the normal second run, so this was on the main path.
+DATA2="$WORK/data2"
+"$PY" "$REPO/src/jobsinit.py" --data-root "$DATA2" --skip-global --venv-python "$PY" \
+      --name "Second Root" --email second@example.com > "$WORK/init2.log" 2>&1 \
+      || { cat "$WORK/init2.log"; fail "second init failed"; }
+# Compare resolved paths: on macOS $TMPDIR is /var/... which is a symlink to
+# /private/var/..., and init stores the resolved form.
+WANT="$(cd "$DATA2" && pwd -P)"
+POINTER="$(cd "$(cat "$REPO/.jobstudio-data")" && pwd -P)"
+[ "$POINTER" = "$WANT" ] || fail "pointer still says '$POINTER', expected '$WANT'"
+RESOLVED="$(cd "$("$REPO/tools/py" "$REPO/src/config.py" --path)" && pwd -P)"
+[ "$RESOLVED" = "$WANT" ] || fail "config resolves to '$RESOLVED', expected '$WANT'"
+ok "re-running init against a new data root repoints the checkout"
+
 # Nothing personal may survive into a fresh install.
 if grep -rqil "michele\|pasin" "$DATA" 2>/dev/null; then
     grep -rlil "michele\|pasin" "$DATA" | head -5 >&2

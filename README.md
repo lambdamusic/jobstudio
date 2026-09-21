@@ -47,7 +47,21 @@ outside this repo. Nothing personal is ever committed here.
 
 ```bash
 git clone https://github.com/lambdamusic/jobstudio.git && cd jobstudio
+claude                      # then: /jobstudio init
 ```
+
+**That is the whole thing.** The skill ships in the repo, so a Claude Code session
+opened in the clone can already run `/jobstudio init` — it finds or creates the
+virtualenv (asking first), sets up a data root wherever you want it, wires the two
+together, and checks the result. It also asks *how* you want to start: from the example
+job search, from a CV you have, from what it can find about you online, or from a blank
+interview.
+
+You need Python >= 3.11 on the machine. Nothing else.
+
+<details>
+<summary><b>Or do it by hand</b> — the same three steps, if you would rather not hand
+setup to an agent, or you are debugging one of them</summary>
 
 **1. A virtualenv** (Python >=3.11). Either works — what matters is knowing the path to
 its `python`, because step 2 needs it.
@@ -88,9 +102,12 @@ your own in. Substitute your interpreter path from step 1:
 **3. From here on, go through the generated wrapper:**
 
 ```bash
-tools/py src/jobsdb.py status
+tools/py src/config.py --chain  # which layer resolved the data root, and to what
+tools/py src/jobsdb.py status   # should say "3 applications tracked" for the example
 tools/run-dev-local-db          # the web app, http://127.0.0.1:8010
 ```
+
+</details>
 
 **Signing in.** Browsing needs no login; *editing* happens in the Django admin at
 `/admin/`, and `init` creates an account for it — **`admin` / `admin`** by default. The
@@ -122,12 +139,12 @@ the process list.
 > and `workon` freely in your own terminal — just point `--venv-python` at the
 > interpreter, and let `tools/py` do the rest.
 
-Then open a Claude Code session in the repo and run `/jobstudio help`.
+### Once it is running
 
-To start with your own data instead of the example, run `/jobstudio init` from a
-Claude Code session — it asks where the data should live and how you want to begin:
-from an existing CV, from public information it looks up about you, or from a blank
-interview.
+`/jobstudio help` lists the subcommands. If you started from the example, browse it
+first — the web app, a company page, a logged application — then re-run
+`/jobstudio init` when you want your own data in. Starting from the example and
+starting for real are the same command; the second run just picks a different on-ramp.
 
 Check the install at any time with `tools/smoke-test`, which clones the repo into a
 temp directory, runs `init` from scratch and exercises the pipeline end to end.

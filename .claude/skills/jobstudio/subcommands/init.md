@@ -75,25 +75,69 @@ Once confirmed, write `<DATA>/config.yaml` (name, email, location), draft the ba
 via `cv --rebuild` using the confirmed facts as the starting material rather than a
 blank interview, and then run `stocktake`.
 
+## First: find or create the interpreter
+
+`init` writes `tools/py`, a wrapper that `exec`s one specific Python — so it has to know
+which one before it can run, and on a fresh clone there may not be one yet. **This is
+yours to sort out, not the user's**: they should be able to clone the repo, open a
+session and say `/jobstudio init`. Resolve in this order and tell them which you took:
+
+1. **`tools/py` already exists** — read the interpreter path out of it and reuse it.
+   Re-running `init` is normal (switching from the example to real data), and silently
+   building a second virtualenv would be rude.
+2. **A virtualenv already on disk** — one the user names, or a conventional location:
+   `~/.venvs/jobstudio`, `$WORKON_HOME/jobstudio` (or `~/.virtualenvs/`, `~/Envs/`), or
+   `.venv/` in the repo.
+3. **Otherwise create one.** Ask first — it installs packages and writes outside the
+   repo, so it is not yours to decide silently:
+
+   ```bash
+   python3 -m venv ~/.venvs/jobstudio
+   ~/.venvs/jobstudio/bin/python -m pip install -e .
+   ```
+
+Check it before going on, because the failure is otherwise deferred to a confusing
+place: Python >= 3.11, and `import django, yaml, docx, httpx` all resolve.
+
 ## Then run
 
+Call `jobsinit.py` **with that interpreter**. `--venv-python` defaults to whichever
+interpreter is running the script, so if you invoke it with the venv's python the flag
+is redundant — pass it only when they differ:
+
 ```bash
-tools/py src/jobsinit.py --data-root <path> --from-example
+<venv>/bin/python src/jobsinit.py --data-root <path> --from-example
 ```
 
 or, for an empty start:
 
 ```bash
-tools/py src/jobsinit.py --data-root <path> \
+<venv>/bin/python src/jobsinit.py --data-root <path> \
     --name "<full name>" --email "<email>" --location "<city>"
 ```
 
-On a fresh clone `tools/py` does not exist yet — `init` is what creates it — so use the
-interpreter directly that first time:
+Once that has run, `tools/py` exists and everything afterwards goes through it:
 
 ```bash
-python src/jobsinit.py --data-root <path> --from-example --venv-python <path-to-venv-python>
+tools/py src/jobsdb.py status
 ```
+
+## Then check it worked
+
+Don't just report success because the command exited 0 — run the two things that prove
+the wiring, and show the output:
+
+```bash
+tools/py src/config.py --chain     # which layer resolved the data root, and to what
+tools/py src/jobsdb.py status      # reads the database through that data root
+```
+
+With `--from-example` that status should report **3 applications tracked**. If it
+reports something else, the checkout is pointing at the wrong data root — read the
+chain output rather than guessing.
+
+Offer to start the web app (`tools/run-dev-local-db`, http://127.0.0.1:8010) rather
+than launching it unasked: it runs in the foreground until interrupted.
 
 ## What it writes
 
