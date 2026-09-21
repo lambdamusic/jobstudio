@@ -821,8 +821,15 @@ def _md_to_cover_letter_html(md_text: str) -> str:
         css=_COVER_LETTER_CSS, title=_e(title), body="\n".join(parts))
 
 
-def export_cover_letter(md_path: Path, label: str | None = None) -> Path | None:
-    """Render a cover letter markdown file to HTML, DOCX, and (if Chrome is present) PDF."""
+def export_cover_letter(md_path: Path, label: str | None = None,
+                        fmt: str = "html") -> Path | None:
+    """Render a cover letter markdown file to HTML and DOCX.
+
+    A PDF is produced only when `fmt` is "pdf" (`--format pdf`). The CV exporters have
+    always honoured --format this way; cover letters used to print one unconditionally,
+    which meant every routine re-render shelled out to headless Chrome for a file nobody
+    had asked for.
+    """
     md_text = md_path.read_text()
     label_part = f"_{label}" if label else ""
     stem = f"{date.today().isoformat()}_cover-letter{label_part}"
@@ -844,13 +851,14 @@ def export_cover_letter(md_path: Path, label: str | None = None) -> Path | None:
         print(f"  DOCX: skipped — {_DOCX_HINT}")
 
     pdf_path = None
-    try:
-        pdf_path = _export_dir("pdf") / f"{stem}.pdf"
-        _chrome_print_pdf(html_path, pdf_path)
-        print(f"  PDF:  {pdf_path.name}")
-    except RuntimeError as e:
-        pdf_path = None
-        print(f"  PDF:  skipped — {e}")
+    if fmt == "pdf":
+        try:
+            pdf_path = _export_dir("pdf") / f"{stem}.pdf"
+            _chrome_print_pdf(html_path, pdf_path)
+            print(f"  PDF:  {pdf_path.name}")
+        except RuntimeError as e:
+            pdf_path = None
+            print(f"  PDF:  skipped — {e}")
 
     return pdf_path or docx_path or html_path
 
@@ -876,7 +884,7 @@ def main():
             print("Error: --cover-letter requires --file")
             sys.exit(1)
         print(f"Rendering cover letter: {Path(args.file).name}")
-        out = export_cover_letter(Path(args.file), label=args.label)
+        out = export_cover_letter(Path(args.file), label=args.label, fmt=args.format)
         print(f"Saved to: {out.parent}")
         return
 

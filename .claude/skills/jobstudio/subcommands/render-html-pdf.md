@@ -20,11 +20,15 @@ tools/py src/render.py --functional --file {path_to_cv_file} --label {folder_nam
 
 (swap `--functional` for `--chronological` if the CV file is the chronological base)
 
-3. **Cover letter** — find the latest `*cover-letter*.md` file in the folder (by date). If one exists, render it (one call emits HTML + DOCX + PDF; the DOCX is also copied back into the application folder under the naming convention):
+3. **Cover letter** — find the latest `*cover-letter*.md` file in the folder (by date). If one exists, render it (one call emits HTML + DOCX, plus a PDF because `--format pdf` is passed; the DOCX is also copied back into the application folder under the naming convention):
 
 ```bash
-tools/py src/render.py --cover-letter --file {path_to_cover_letter} --label {folder_name}
+tools/py src/render.py --cover-letter --file {path_to_cover_letter} --label {folder_name} --format pdf
 ```
+
+`--format pdf` is required here: without it the cover-letter exporter emits HTML + DOCX
+only. This subcommand is the one place a PDF is wanted by default — everywhere else,
+a cover letter renders without shelling out to headless Chrome.
 
 4. Optionally also emit an ATS-friendly `.docx` of the CV (also copied back into the application folder under the naming convention, since `{path_to_cv_file}` is inside it):
 
