@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}All portal scans · Job search{% endblock %}
+{% block content %}
+<div class="crumb"><a href="/scans/">Portal scans</a> / All</div>
+<div class="page-head">
+  <h1>All portal scans</h1>
+  <p class="lede">Reports from <code>src/scan-portals.py</code>, newest first.</p>
+</div>
+<div class="panel">
+  {% for s in scans %}
+    <div style="display:flex;justify-content:space-between;padding:5px 0">
+      <a href="/scans/{{ s.label }}/">{{ s.label }}</a>
+      <span class="muted">{{ s.date|date:"j M Y" }}</span>
+    </div>
+  {% empty %}
+    <p class="empty">No scans yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}

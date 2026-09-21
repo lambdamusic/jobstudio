@@ -1,0 +1,28 @@
+name: Data Platform & Infrastructure
+description: >
+  Companies building the platforms other engineers run their data on — warehouses,
+  pipelines, observability, streaming and the tooling around them. Roles that sit
+  between platform engineering and product, where the users are themselves technical.
+
+emphasis:
+  - Eight years building and running production data platforms, most recently for a team of 60+ internal consumers
+  - "Pipeline reliability as a product concern, not a ticket queue: SLOs, lineage, and an on-call rota that shrank rather than grew"
+  - Hands-on with dbt, Airflow, Kafka and Snowflake — still writing the code, not only reviewing it
+  - "Cost work with a number attached: cut warehouse spend 40% without a drop in query throughput"
+  - Migrated a monolithic nightly batch to incremental models, taking the critical path from 6 hours to 35 minutes
+
+key_terms:
+  - data platform
+  - data engineering
+  - dbt
+  - Airflow
+  - streaming
+  - data reliability
+  - analytics engineering
+
+expand_sections:
+  - Platform engineering
+  - Reliability & cost
+
+condense_sections:
+  - Community & writing

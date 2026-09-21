@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# From-scratch smoke test (plan §6, M1.5): clone the repo, `init` a data root from the
+# example, and check the toolkit actually works — failing loudly on any leftover
+# personal assumption.
+#
+# Runs against a FRESH CLONE, not this working tree, for two reasons. `init` writes
+# into the repo (.jobstudio-data, tools/py, the workspace file), so running it here
+# would modify the checkout. And a clone contains only committed files — no
+# local_settings.py, no tools/py, no db.sqlite3 — which is exactly the state a new
+# user starts from, and exactly what `init` claims to fix.
+#
+# Cheap enough to re-run after any change. Deliberately not part of `manage.py test`:
+# it clones, shells out and renders documents, which is a different kind of slow.
+set -euo pipefail
+
+PY="${SMOKE_PY:-$(cd "$(dirname "$0")" && pwd)/py}"
+if [ ! -x "$PY" ]; then echo "tools/py not found — run \`/jobstudio init\`" >&2; exit 1; fi
+cd "$(dirname "$0")/.."
+SRC_REPO="$PWD"
+
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+REPO="$WORK/repo"
+DATA="$WORK/data"
+
+fail() { echo "SMOKE FAIL: $*" >&2; exit 1; }
+ok()   { echo "  ok    $*"; }
+
+echo
+echo "smoke test in $WORK"
+echo
+
+git clone -q "$SRC_REPO" "$REPO"
+[ -f "$REPO/src/web/local_settings.py" ] && fail "clone contains local_settings.py — it should be gitignored"
+[ -f "$REPO/tools/py" ] && fail "clone contains tools/py — it should be gitignored"
+ok "fresh clone has none of the per-user files"
+
+# --skip-global: never touch the real ~/.jobstudio.ini from a test.
+"$PY" "$REPO/src/jobsinit.py" --data-root "$DATA" --from-example --skip-global \
+      --venv-python "$PY" > "$WORK/init.log" 2>&1 || { cat "$WORK/init.log"; fail "init failed"; }
+ok "init --from-example completed"
+
+for f in config.yaml db.sqlite3 jobs/cv/base/cv_functional.md jobs/profile/stocktake.md; do
+    [ -e "$DATA/$f" ] || fail "init did not create $f"
+done
+ok "data root has config.yaml, a database and the example files"
+
+[ -f "$REPO/.jobstudio-data" ] || fail "init did not write the .jobstudio-data pointer"
+[ -x "$REPO/tools/py" ] || fail "init did not write an executable tools/py"
+ok "checkout wired: pointer + tools/py"
+
+# The real question: does the toolkit run against a data root it has never seen?
+STATUS="$("$REPO/tools/py" "$REPO/src/jobsdb.py" status 2>&1)" || { echo "$STATUS"; fail "status failed"; }
+echo "$STATUS" | grep -q "3 applications tracked" || { echo "$STATUS"; fail "status did not report the 3 example applications"; }
+ok "status runs and sees the example data"
+
+JOBSTUDIO_DATA="$DATA" SMOKE_REPO="$REPO" "$PY" - <<'PYRENDER' || fail "docx render failed"
+import sys, os
+sys.path.insert(0, os.path.join(os.environ["SMOKE_REPO"], "src"))
+import render
+p = render.export_docx_functional()
+assert p.is_file() and p.stat().st_size > 10_000, p
+print(f"  ok    rendered {p.name} ({p.stat().st_size} bytes)")
+PYRENDER
+
+# Generate a file, and check whose name ends up in it. This is the check that was
+# missing when app_filename() hardcoded the toolkit author's slug: every other test
+# passed, because none of them ever created an application folder.
+JOBSTUDIO_DATA="$DATA" SMOKE_REPO="$REPO" "$PY" - <<'PYGEN' || fail "generating an application folder failed"
+import os, sys
+sys.path.insert(0, os.path.join(os.environ["SMOKE_REPO"], "src"))
+import appfolder
+folder = appfolder.ensure_folder({"num": "42", "company": "Smoke Test Co",
+                                  "role": "Data Engineer", "status": "saved"})
+names = [p.name for p in folder.iterdir()]
+assert names, "ensure_folder created nothing"
+generated = [n for n in names if "-cover-letter-" in n or "-cv-" in n]
+assert generated, f"no generated filename to check: {names}"
+for n in generated:
+    assert "michele" not in n.lower() and "pasin" not in n.lower(), \
+        f"generated file carries the toolkit author's name: {n}"
+    assert "alex-rivera" in n, f"generated file does not carry this user's slug: {n}"
+print(f"  ok    generated {generated[0]} — carries this user's name, not the author's")
+PYGEN
+
+# init must leave a usable admin account. Since Phase 6 the admin is the editing
+# surface, so an install without one browses fine and can change nothing — silently.
+# The absence of this check is exactly why that shipped unnoticed.
+JOBSTUDIO_DATA="$DATA" "$PY" "$REPO/src/web/manage.py" shell -c "
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+assert User.objects.filter(is_superuser=True).exists(), 'init left no admin account'
+assert authenticate(username='admin', password='admin') is not None, 'default admin login fails'
+print('  ok    admin account exists and the default login works')
+" 2>&1 | grep -vE "^Environment|objects imported" || fail "no usable admin account after init"
+
+# Nothing personal may survive into a fresh install.
+if grep -rqil "michele\|pasin" "$DATA" 2>/dev/null; then
+    grep -rlil "michele\|pasin" "$DATA" | head -5 >&2
+    fail "the example data root mentions the toolkit author — a personal assumption leaked"
+fi
+ok "no personal identity anywhere in the new data root"
+
+echo
+echo "SMOKE PASS"

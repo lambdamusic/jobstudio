@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}{{ title }} · Job search{% endblock %}
+{% block content %}
+<div class="crumb"><a href="/notes/">Notes</a> / {{ title }}</div>
+<div class="page-head"><h1>{{ title }}</h1></div>
+<div class="panel prose">{{ body|strip_h1|markdown|blank_links }}</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+name: Developer Advocacy & Technical Enablement
+description: >
+  Roles where the job is helping other engineers succeed with a technical product —
+  developer relations, solutions engineering, technical enablement and documentation
+  leadership. Suits someone who has done the engineering and would rather teach it.
+
+emphasis:
+  - "Ran an internal enablement programme that took 40+ analysts from SQL-only to shipping their own dbt models"
+  - Conference speaking and workshop delivery — four talks, two of them keynotes at regional meetups
+  - "Writes for engineers: a data-engineering blog with a small but real readership, and the internal docs everyone actually cites"
+  - Solutions work alongside sales engineers on three enterprise onboardings
+  - Maintains a small open-source dbt package with ~400 GitHub stars
+
+key_terms:
+  - developer relations
+  - developer advocacy
+  - solutions engineering
+  - technical enablement
+  - documentation
+  - community
+  - public speaking
+
+expand_sections:
+  - Community & writing
+  - Enablement
+
+condense_sections:
+  - Reliability & cost

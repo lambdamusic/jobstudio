@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}Applications · Job search{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Applications</h1>
+  <p class="lede">
+    {% if default_active %}{{ applications|length }} active (applied + interviewing), newest first —
+      <a href="/applications/all/">show all {{ nav_counts.applications }}</a>
+    {% elif show_all %}All {{ applications|length }}, newest first.
+    {% elif is_filtered %}{{ applications|length }} of {{ nav_counts.applications }} shown, newest first.
+    {% else %}{{ applications|length }} shown, newest first.{% endif %}
+  </p>
+</div>
+
+{% comment %}
+  The boxed status header is shared with the dashboard (tracker/_statbar.html) so every
+  tracker list page reads the same. Its links point at real paths
+  (/applications/status/<s>/), not querystrings, so every filtered view is publishable.
+{% endcomment %}
+{% include "tracker/_statbar.html" %}
+
+<div class="chips">
+  {% for a in areas %}
+    <a class="chip {% if filter_area == a.slug %}active{% endif %}" href="/applications/area/{{ a.slug }}/">
+      {{ a.name }}</a>
+  {% endfor %}
+</div>
+
+{% include "tracker/_app_table.html" %}
+
+{% endblock %}

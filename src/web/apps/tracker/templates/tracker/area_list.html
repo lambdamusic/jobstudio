@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}Target areas · Job search{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Target areas</h1>
+  <p class="lede">The positioning behind each CV variant, from <code>jobs/targets/*.yaml</code>.</p>
+</div>
+
+{# Areas become tabs when tabs.js loads; without it they stack as a plain document. #}
+<div data-tabs>
+  <div class="tablist" role="tablist" aria-label="Target areas">
+    {% for area in areas %}
+      <button class="tab" data-tab="{{ area.slug }}" role="tab" type="button" title="{{ area.name }}">
+        {{ area.name }}
+      </button>
+    {% endfor %}
+  </div>
+
+  {% for area in areas %}
+    <section class="tabpanel" data-panel="{{ area.slug }}" role="tabpanel">
+      <h2 class="panel-heading">{{ area.name }}</h2>
+
+      <p class="meta" style="margin:0 0 12px">
+        <span class="stars">{{ area.fit|stars }}</span>
+        · {{ area.n_apps }} application{{ area.n_apps|pluralize }}
+      </p>
+
+      {% if area.description %}<div class="panel">{{ area.description }}</div>{% endif %}
+
+      <div class="grid2">
+        {% if area.emphasis %}
+          <div>
+            <h3>What to emphasise</h3>
+            <div class="panel"><ul style="margin:0;padding-left:18px;font-size:13.5px">
+              {% for e in area.emphasis %}<li style="margin:5px 0">{{ e }}</li>{% endfor %}
+            </ul></div>
+          </div>
+        {% endif %}
+
+        <div>
+          {% if area.key_terms %}
+            <h3>Key terms</h3>
+            <div class="panel"><div class="tag-list">
+              {% for t in area.key_terms %}<span class="pill">{{ t }}</span>{% endfor %}
+            </div></div>
+          {% endif %}
+
+          {% if area.notes %}
+            <h3>Notes</h3>
+            <div class="panel prose">{{ area.notes|markdown|blank_links }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <h3>Applications</h3>
+      {% include "tracker/_app_table.html" with applications=area.apps_list %}
+    </section>
+  {% endfor %}
+</div>
+
+{% endblock %}

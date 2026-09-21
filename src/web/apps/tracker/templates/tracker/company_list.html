@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}Companies · Job search{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Companies</h1>
+  <p class="lede">{{ total }} tracked, grouped by category.</p>
+</div>
+
+{# Categories become tabs when tabs.js loads; without it they stack as a plain document. #}
+<div data-tabs>
+  <div class="tablist" role="tablist" aria-label="Company categories">
+    {% for group in categories %}
+      <button class="tab" data-tab="{{ group.key }}" role="tab" type="button" title="{{ group.category.name }}">
+        {{ group.category.name }} <span class="tab-n">{{ group.companies|length }}</span>
+      </button>
+    {% endfor %}
+  </div>
+
+  {% for group in categories %}
+    <section class="tabpanel" data-panel="{{ group.key }}" role="tabpanel">
+      <h2 class="panel-heading">{{ group.category.name }}</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th class="nowrap">#</th><th>Company</th><th class="col-target">Role target</th>
+                <th class="nowrap">Fit</th><th class="nowrap">Status</th><th class="nowrap">Apps</th></tr>
+          </thead>
+          <tbody>
+            {% for c in group.companies %}
+              <tr>
+                <td class="num">{{ c.num }}</td>
+                <td class="col-notes">
+                  <a href="/companies/{{ c.slug }}/" class="role">{{ c.name }}</a>
+                  {% if c.notes %}<span class="sub">{{ c.notes|truncatechars:120 }}</span>{% endif %}
+                </td>
+                <td class="col-target">{{ c.role_target }}</td>
+                <td class="stars nowrap">{{ c.fit|stars }}</td>
+                <td class="nowrap">{% include "tracker/_status.html" with status=c.status %}</td>
+                <td class="num">{{ c.n_apps|default:"" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% endfor %}
+</div>
+
+{% endblock %}

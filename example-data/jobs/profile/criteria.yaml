@@ -1,0 +1,55 @@
+# Machine-readable "what I'm looking for in my next role".
+#
+# Source: Step 1 of a structured career-transition process ("taking stock").
+# Populated via /jobstudio stocktake. Prose nuance lives in stocktake.md.
+#
+# EXAMPLE DATA — Alex Rivera is fictional. Replace this file with your own by
+# running /jobstudio stocktake.
+
+last_updated: 2026-09-20
+
+# --- Hard filters ------------------------------------------------------------
+# A role that fails any of these should score low / be flagged, not silently pass.
+hard_filters:
+  geography: [UK, fully-remote]
+  salary_floor_gbp: 75000
+  self_employment_ok: false
+  exclude:
+    - Sole data person with no platform peers — done twice, not again
+    - Non-technical audiences as the primary users of the work
+    - Roles where "advocacy" means marketing with an engineering job title
+    - On-call as the defining feature of the job rather than a part of it
+
+# --- Preferences ------------------------------------------------------------
+# Strong signals, not absolutes.
+preferences:
+  sectors:
+    - developer tools and infrastructure
+    - observability and data reliability
+    - analytics engineering / modern data stack vendors
+    - open-source companies with a real commercial product
+  sectors_open_to_with_a_leap:
+    - fintech (current domain — familiar, but not a reason on its own)
+    - retail and customer analytics
+    - public sector data platforms
+  company_size: Series B to ~1000 people; big enough to have peers, small enough to matter
+  working_pattern: Remote or hybrid with a Bristol-reachable office; not London five days
+  team: At least two other platform engineers
+
+# --- Bonus signals ----------------------------------------------------------
+bonus_signals:
+  - Public engineering writing that is actually technical
+  - Open-source core with the commercial product built around it
+  - An existing developer-relations function, not a plan to start one
+  - Conference or workshop budget treated as normal rather than exceptional
+
+# --- Weighted motivators ----------------------------------------------------
+# What actually decides between two acceptable offers.
+weighted_motivators:
+  work_I_want_to_do_not_just_can_do: 5
+  technical_audience: 5
+  writing_and_speaking_count_as_work: 4
+  platform_peers_to_learn_from: 4
+  product_I_would_use_anyway: 3
+  compensation: 3
+  title: 1

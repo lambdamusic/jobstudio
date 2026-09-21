@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;1,300;1,400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #1B2948;
+    --gold: #C49B2E;
+    --date: #6B82A8;
+    --body: #1a1a1a;
+    --rule: rgba(196,155,46,0.35);
+  }
+
+  @page { size: A4; margin: 0; }
+
+  html, body {
+    width: 210mm;
+    font-family: 'Lato', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 9.2pt;
+    line-height: 1.42;
+    color: var(--body);
+    background: #fff;
+  }
+
+  .page { padding: 12mm 14mm 14mm; }
+
+  /* ── Header ─────────────────────────────── */
+  .name {
+    font-size: 25pt;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1.05;
+  }
+
+  .role {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--navy);
+    font-size: 10.5pt;
+    margin-top: 1.5mm;
+  }
+
+  .contact {
+    margin-top: 3mm;
+    font-size: 8.6pt;
+    color: var(--navy);
+  }
+
+  .contact a {
+    color: var(--navy);
+    text-decoration: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .contact .dot { color: var(--gold); }
+
+  .rule {
+    border: none;
+    border-top: 2px solid var(--navy);
+    margin: 5mm 0 0;
+  }
+
+  /* ── Section headings ───────────────────── */
+  .section-title {
+    font-size: 8pt;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 4.5mm 0 2.5mm;
+    padding-bottom: 1.5mm;
+    border-bottom: 1px solid var(--rule);
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* ── Summary ────────────────────────────── */
+  .summary p {
+    margin-bottom: 2mm;
+    font-size: 9pt;
+    line-height: 1.5;
+  }
+
+  /* ── Competencies ───────────────────────── */
+  .comp {
+    margin-bottom: 3.2mm;
+    break-inside: auto;
+  }
+
+  .comp-title {
+    font-size: 10pt;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 1mm;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .comp-statement {
+    font-style: italic;
+    color: #444;
+    margin-bottom: 1.2mm;
+    font-size: 8.8pt;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .comp ul { list-style: none; padding-left: 4mm; }
+
+  .comp ul li {
+    position: relative;
+    padding-left: 4mm;
+    margin-bottom: 0.8mm;
+    font-size: 8.9pt;
+    line-height: 1.4;
+    break-inside: avoid;
+  }
+
+  .comp ul li::before {
+    content: '\2013';
+    position: absolute;
+    left: 0;
+    color: var(--body);
+  }
+
+  .comp-tech {
+    margin-top: 1.5mm;
+    padding-left: 4mm;
+    font-size: 8.6pt;
+    color: #555;
+  }
+
+  .comp-tech span { color: var(--gold); font-weight: 700; }
+
+  .comp a, .summary a, .cr-org a, .pubs a {
+    color: var(--navy);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ── Career history ─────────────────────── */
+  .cr-entry {
+    margin-bottom: 2mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cr-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px dotted rgba(27,41,72,0.25);
+    padding-bottom: 0.8mm;
+  }
+
+  .cr-org {
+    font-weight: 700;
+    color: var(--navy);
+    font-size: 9.8pt;
+  }
+
+  .cr-dates {
+    font-size: 8.2pt;
+    color: var(--date);
+    white-space: nowrap;
+    padding-left: 4mm;
+  }
+
+  .cr-dates .dot { color: var(--gold); margin: 0 1mm; }
+
+  .cr-summary {
+    font-style: italic;
+    font-size: 8.6pt;
+    color: #555;
+    margin: 1mm 0 0;
+    padding-left: 4mm;
+  }
+
+  .cr-entry ul { list-style: none; padding-left: 4mm; margin-top: 1mm; }
+
+  .cr-entry ul li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 9pt;
+    margin-bottom: 0.6mm;
+  }
+
+  .cr-role { color: var(--body); }
+
+  .cr-role-date {
+    color: var(--date);
+    font-size: 8pt;
+    white-space: nowrap;
+    padding-left: 4mm;
+  }
+
+  /* ── Education ──────────────────────────── */
+  .edu-degree {
+    font-weight: 700;
+    color: var(--navy);
+    display: block;
+    font-size: 9.4pt;
+  }
+
+  .edu-inst { display: block; color: #444; font-size: 8.8pt; }
+
+  .edu-year {
+    display: block;
+    font-style: italic;
+    color: var(--date);
+    font-size: 8.2pt;
+    margin-bottom: 2.5mm;
+  }
+
+  .edu-focus {
+    display: block;
+    font-style: italic;
+    color: #666;
+    font-size: 8.4pt;
+    margin-bottom: 2.5mm;
+  }
+
+  /* ── Skills ─────────────────────────────── */
+  .skill-group { margin-bottom: 1.8mm; font-size: 9pt; line-height: 1.5; }
+
+  .skill-label { font-weight: 700; color: var(--gold); }
+  .skill-label::after { content: ': '; color: var(--body); font-weight: 400; }
+  .skill-text { color: var(--body); }
+
+  .langs { list-style: none; padding: 0; font-size: 9pt; }
+  .langs li { display: inline; }
+  .langs li:not(:last-child)::after { content: '  ·  '; color: var(--gold); }
+
+  /* ── Publications ───────────────────────── */
+  .pubs { list-style: none; padding-left: 4mm; }
+
+  .pubs li {
+    position: relative;
+    padding-left: 4mm;
+    margin-bottom: 1mm;
+    font-size: 8.6pt;
+    font-style: italic;
+    color: #444;
+    line-height: 1.45;
+  }
+
+  .pubs li::before {
+    content: '\2013';
+    position: absolute;
+    left: 0;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="name">${first_name} ${last_name}</div>
+  <div class="role">${current_role}</div>
+  <div class="contact">${contact_html}</div>
+
+  <hr class="rule">
+
+  <div class="section-title">Summary</div>
+  <div class="summary">
+${summary_html}
+  </div>
+
+  <div class="section-title">Core Competencies</div>
+${competencies_html}
+
+  <div class="section-title">Career History</div>
+${career_html}
+
+  <div class="section-title">Education</div>
+  <div class="education">
+${education_html}
+  </div>
+
+  <div class="section-title">Skills</div>
+  <div class="skills">
+${skills_html}
+  </div>
+
+  <div class="section-title">Languages</div>
+  <ul class="langs">
+${languages_html}
+  </ul>
+
+  <div class="section-title">Selected Publications</div>
+  <ul class="pubs">
+${publications_html}
+  </ul>
+
+</div>
+</body>
+</html>

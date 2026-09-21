@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Notes · Job search{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Notes</h1>
+  <p class="lede">Strategy notes from <code>jobs/notes/</code>. See also the <a href="/profile/">career stocktake</a>.</p>
+</div>
+<div class="panel">
+  {% for n in notes %}
+    <div style="padding:5px 0"><a href="/notes/{{ n.slug }}/">{{ n.title }}</a></div>
+  {% empty %}
+    <p class="empty">No notes yet.</p>
+  {% endfor %}
+</div>
+{% endblock %}

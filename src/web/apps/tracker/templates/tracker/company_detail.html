@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}{{ company.name }} · Job search{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="/companies/">Companies</a> / {{ company.name }}</div>
+
+<div class="page-head">
+  <h1>{{ company.name }}</h1>
+  <p class="lede">
+    {% if company.category %}{{ company.category.name }} · {% endif %}
+    <span class="stars">{{ company.fit|stars }}</span> ·
+    {% include "tracker/_status.html" with status=company.status %}
+  </p>
+</div>
+
+{% if company.url or company.notes_path or IS_LOCAL %}
+  <div class="actions">
+    {% if company.url %}<a class="btn btn-primary" href="{{ company.url }}" target="_blank" rel="noopener">Careers page ↗</a>{% endif %}
+    {% if IS_LOCAL %}
+      {% if company.notes_path %}
+        <a class="btn local-only" href="/actions/reveal-company/{{ company.slug }}/">Open folder</a>
+        <a class="btn local-only" href="{{ EDITOR_URL_SCHEME }}{{ company.notes_path }}">Open in VS Code</a>
+      {% endif %}
+      <a class="btn local-only" href="/admin/tracker/company/{{ company.pk }}/change/"
+         target="_blank" rel="noopener">Edit in admin</a>
+    {% endif %}
+  </div>
+{% endif %}
+
+<div class="panel">
+  <dl class="dl-inline">
+    <dt>Role target</dt><dd>{{ company.role_target|default:"—" }}</dd>
+  </dl>
+  {% if company.notes %}<p style="margin:12px 0 0">{{ company.notes }}</p>{% endif %}
+</div>
+
+{% if company.notes_md %}
+  <h2>Notes</h2>
+  <div class="panel prose">{{ company.notes_md|strip_h1|markdown|blank_links }}</div>
+{% endif %}
+
+<h2>Applications</h2>
+{% include "tracker/_app_table.html" %}
+
+{% endblock %}

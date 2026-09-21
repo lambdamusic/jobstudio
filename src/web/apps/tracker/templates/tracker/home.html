@@ -1,0 +1,118 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}Dashboard · Job search{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Job search</h1>
+  <p class="lede">{{ total }} applications tracked across {{ areas|length }} target areas.</p>
+</div>
+
+{% include "tracker/_statbar.html" %}
+
+{% if activity %}
+  <h2>Activity</h2>
+  <div class="timeline panel">
+    <div class="tl-legend">
+      <span><i class="tl-sw added"></i>added</span>
+      <span><i class="tl-sw applied"></i>applied</span>
+      <span><i class="tl-sw rejected"></i>rejected</span>
+    </div>
+    <div class="tl-bars">
+      {% for w in activity %}
+        <div class="tl-col" title="Week of {{ w.start|date:'j M Y' }} — {{ w.added }} added, {{ w.applied }} applied, {{ w.rejected }} rejected">
+          <div class="tl-stack">
+            {% if w.h_rejected %}<div class="tl-seg rejected" style="height:{{ w.h_rejected }}px"></div>{% endif %}
+            {% if w.h_applied %}<div class="tl-seg applied" style="height:{{ w.h_applied }}px"></div>{% endif %}
+            {% if w.h_added %}<div class="tl-seg added" style="height:{{ w.h_added }}px"></div>{% endif %}
+          </div>
+          <div class="tl-tick">{{ w.label }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<h2>Recently logged</h2>
+{% include "tracker/_app_table.html" with applications=recent %}
+
+<h2>Recently applied</h2>
+{% if recently_applied %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th class="nowrap">#</th><th>Company</th><th>Role</th><th class="nowrap">Status</th><th class="nowrap">Applied</th></tr></thead>
+      <tbody>
+        {% for row in recently_applied %}
+          {% with a=row.application %}
+          <tr>
+            <td class="num">{{ a.num }}</td>
+            <td class="nowrap">
+              {% if a.company %}<a href="/companies/{{ a.company.slug }}/">{{ a.company_name }}</a>
+              {% else %}{{ a.company_name }}{% endif %}
+            </td>
+            <td><a href="/applications/{{ a.num }}/" class="role">{{ a.role }}</a></td>
+            <td class="nowrap">{% include "tracker/_status.html" with status=a.status %}</td>
+            <td class="num nowrap">{{ row.changed_at|ago }}</td>
+          </tr>
+          {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="empty">No applications logged as applied yet.</p>
+{% endif %}
+
+<h2>Recently added companies</h2>
+{% if recent_companies %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th class="nowrap">#</th><th>Company</th><th class="nowrap">Site</th>
+            <th class="nowrap">Apps</th><th class="nowrap">Added</th></tr>
+      </thead>
+      <tbody>
+        {% for c in recent_companies %}
+          <tr>
+            <td class="num">{{ c.num }}</td>
+            <td><a href="/companies/{{ c.slug }}/" class="role">{{ c.name }}</a></td>
+            <td class="nowrap">
+              {% if c.url %}<a href="{{ c.url }}" target="_blank" rel="noopener">Site ↗</a>
+              {% else %}<span class="muted">—</span>{% endif %}
+            </td>
+            <td class="num">{{ c.n_apps|default:"0" }}</td>
+            <td class="num nowrap">{{ c.date_added|ago }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p style="margin:10px 0 0"><a href="/companies/">All companies →</a></p>
+{% else %}
+  <p class="empty">No companies added yet.</p>
+{% endif %}
+
+{% if scans %}
+  <h2>Latest portal scans</h2>
+  <div class="panel">
+    {% for s in scans %}
+      <div style="padding:8px 0;{% if not forloop.last %}border-bottom:1px solid #f0f0f3;{% endif %}">
+        <div style="display:flex;justify-content:space-between">
+          <a href="/scans/{{ s.label }}/">{{ s.label }}</a>
+          <span class="muted">{{ s.date|ago }}</span>
+        </div>
+        {% if s.stats %}
+          <div class="muted" style="font-size:.85em;margin-top:3px">
+            {{ s.stats.companies_scanned|default:"—" }} companies scanned ·
+            {{ s.stats.roles_found|default:"—" }} roles found ·
+            {{ s.stats.scored_matches|default:"—" }} scored matches
+            {% if s.stats.strong_matches is not None %}
+              ({{ s.stats.strong_matches }} strong, {{ s.stats.other_matches }} other)
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}

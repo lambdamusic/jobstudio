@@ -1,0 +1,321 @@
+[
+{
+  "model": "tracker.area",
+  "pk": 1,
+  "fields": {
+    "slug": "data-platform",
+    "name": "Data Platform & Infrastructure",
+    "heading": "",
+    "fit": 0,
+    "description": "Companies building the platforms other engineers run their data on — warehouses, pipelines, observability, streaming and the tooling around them. Roles that sit between platform engineering and product, where the users are themselves technical.",
+    "notes": "",
+    "emphasis": [
+      "Eight years building and running production data platforms, most recently for a team of 60+ internal consumers",
+      "Pipeline reliability as a product concern, not a ticket queue: SLOs, lineage, and an on-call rota that shrank rather than grew",
+      "Hands-on with dbt, Airflow, Kafka and Snowflake — still writing the code, not only reviewing it",
+      "Cost work with a number attached: cut warehouse spend 40% without a drop in query throughput",
+      "Migrated a monolithic nightly batch to incremental models, taking the critical path from 6 hours to 35 minutes"
+    ],
+    "key_terms": [
+      "data platform",
+      "data engineering",
+      "dbt",
+      "Airflow",
+      "streaming",
+      "data reliability",
+      "analytics engineering"
+    ],
+    "expand_sections": [
+      "Platform engineering",
+      "Reliability & cost"
+    ],
+    "condense_sections": [
+      "Community & writing"
+    ],
+    "order": 0
+  }
+},
+{
+  "model": "tracker.area",
+  "pk": 2,
+  "fields": {
+    "slug": "developer-advocacy",
+    "name": "Developer Advocacy & Technical Enablement",
+    "heading": "",
+    "fit": 0,
+    "description": "Roles where the job is helping other engineers succeed with a technical product — developer relations, solutions engineering, technical enablement and documentation leadership. Suits someone who has done the engineering and would rather teach it.",
+    "notes": "",
+    "emphasis": [
+      "Ran an internal enablement programme that took 40+ analysts from SQL-only to shipping their own dbt models",
+      "Conference speaking and workshop delivery — four talks, two of them keynotes at regional meetups",
+      "Writes for engineers: a data-engineering blog with a small but real readership, and the internal docs everyone actually cites",
+      "Solutions work alongside sales engineers on three enterprise onboardings",
+      "Maintains a small open-source dbt package with ~400 GitHub stars"
+    ],
+    "key_terms": [
+      "developer relations",
+      "developer advocacy",
+      "solutions engineering",
+      "technical enablement",
+      "documentation",
+      "community",
+      "public speaking"
+    ],
+    "expand_sections": [
+      "Community & writing",
+      "Enablement"
+    ],
+    "condense_sections": [
+      "Reliability & cost"
+    ],
+    "order": 1
+  }
+},
+{
+  "model": "tracker.category",
+  "pk": 1,
+  "fields": {
+    "name": "Developer tools",
+    "order": 0
+  }
+},
+{
+  "model": "tracker.category",
+  "pk": 2,
+  "fields": {
+    "name": "Data infrastructure",
+    "order": 1
+  }
+},
+{
+  "model": "tracker.category",
+  "pk": 3,
+  "fields": {
+    "name": "Fintech",
+    "order": 2
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 1,
+  "fields": {
+    "num": 1,
+    "name": "Grafana Labs",
+    "slug": "grafana-labs",
+    "url": "https://grafana.com/careers/",
+    "role_target": "Developer Advocate",
+    "fit": 4,
+    "status": "applied",
+    "category": 1,
+    "notes": "Open-source observability. Real DevRel function, not marketing.",
+    "date_added": "2026-09-10"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 2,
+  "fields": {
+    "num": 2,
+    "name": "dbt Labs",
+    "slug": "dbt-labs",
+    "url": "https://www.getdbt.com/careers",
+    "role_target": "Solutions Engineer",
+    "fit": 4,
+    "status": "watching",
+    "category": 2,
+    "notes": "The enablement programme was teaching dbt for a year.",
+    "date_added": "2026-09-12"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 3,
+  "fields": {
+    "num": 3,
+    "name": "Monzo",
+    "slug": "monzo",
+    "url": "https://monzo.com/careers/",
+    "role_target": "Data Platform Engineer",
+    "fit": 3,
+    "status": "watching",
+    "category": 3,
+    "notes": "Closest to the current job — the appeal and the problem.",
+    "date_added": "2026-09-14"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 4,
+  "fields": {
+    "num": 4,
+    "name": "Elastic",
+    "slug": "elastic",
+    "url": "https://www.elastic.co/careers/",
+    "role_target": "Developer Advocate",
+    "fit": 3,
+    "status": "watching",
+    "category": 1,
+    "notes": "Search and observability. Watching for a UK-eligible DevRel opening.",
+    "date_added": "2026-09-16"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 5,
+  "fields": {
+    "num": 5,
+    "name": "PostHog",
+    "slug": "posthog",
+    "url": "https://posthog.com/careers",
+    "role_target": "Customer Success Engineer",
+    "fit": 3,
+    "status": "watching",
+    "category": 1,
+    "notes": "Open-source product analytics; unusually public engineering culture.",
+    "date_added": "2026-09-17"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 6,
+  "fields": {
+    "num": 6,
+    "name": "Snowplow",
+    "slug": "snowplow",
+    "url": "https://snowplow.io/careers/",
+    "role_target": "Solutions Architect",
+    "fit": 2,
+    "status": "watching",
+    "category": 2,
+    "notes": "Behavioural data pipelines — close to the Meridian event work.",
+    "date_added": "2026-09-19"
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 1,
+  "fields": {
+    "num": 1,
+    "date": "2026-09-15",
+    "company": 1,
+    "company_name": "Grafana Labs",
+    "role": "Senior Developer Advocate",
+    "job_url": "https://grafana.com/careers/",
+    "area": 2,
+    "cv_base": "functional",
+    "status": "applied",
+    "next_action": "Follow up if nothing by 2026-09-29",
+    "summary": "The target role: advocacy at a company whose product is already in the stack.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "strong",
+    "fit_pros": "Real DevRel function\nOpen-source core\nSpeaking and writing count as work",
+    "fit_cons": "Go is reading-level only\nObservability is adjacent, not held",
+    "fit_unknowns": "Whether they want a Go engineer who speaks, or a speaker who reads Go",
+    "folder": "jobs/applications/001-grafana-labs",
+    "status_order": 0
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 2,
+  "fields": {
+    "num": 2,
+    "date": "2026-09-18",
+    "company": 2,
+    "company_name": "dbt Labs",
+    "role": "Solutions Engineer",
+    "job_url": "https://www.getdbt.com/careers",
+    "area": 2,
+    "cv_base": "functional",
+    "status": "saved",
+    "next_action": "Decide by 2026-09-24",
+    "summary": "Closest to what I already do, but the role leans build-the-tool rather than teach-it.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "moderate",
+    "fit_pros": "Already in the ecosystem\nMaintain a package in their community",
+    "fit_cons": "Solutions engineering is adjacent — paired on three onboardings, never owned one",
+    "fit_unknowns": "How much of the role is pre-sales versus enablement",
+    "folder": "jobs/applications/002-dbt-labs",
+    "status_order": 3
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 3,
+  "fields": {
+    "num": 3,
+    "date": "2026-09-20",
+    "company": null,
+    "company_name": "Incident.io",
+    "role": "Developer Advocate",
+    "job_url": "https://incident.io/careers",
+    "area": 2,
+    "cv_base": "functional",
+    "status": "reviewing",
+    "next_action": "Read the posting",
+    "summary": "Spotted on a scan — not yet looked at properly.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "stretch",
+    "fit_pros": "",
+    "fit_cons": "",
+    "fit_unknowns": "",
+    "folder": "",
+    "status_order": 2
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 1,
+  "fields": {
+    "application": 1,
+    "changed_at": "2026-09-21T08:04:53.291Z",
+    "from_status": "",
+    "to_status": "applied"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 2,
+  "fields": {
+    "application": 2,
+    "changed_at": "2026-09-21T08:04:53.293Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 3,
+  "fields": {
+    "application": 3,
+    "changed_at": "2026-09-21T08:04:53.294Z",
+    "from_status": "",
+    "to_status": "reviewing"
+  }
+},
+{
+  "model": "cvs.basecv",
+  "pk": 1,
+  "fields": {
+    "slug": "cv_chronological",
+    "label": "Chronological CV",
+    "path": "jobs/cv/base/cv_chronological.md",
+    "is_functional": false,
+    "order": 0
+  }
+},
+{
+  "model": "cvs.basecv",
+  "pk": 2,
+  "fields": {
+    "slug": "cv_functional",
+    "label": "Functional CV",
+    "path": "jobs/cv/base/cv_functional.md",
+    "is_functional": true,
+    "order": 1
+  }
+}
+]

@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}{{ cv.label }} · Job search{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="/cvs/">CVs</a> / {{ cv.label }}</div>
+
+<div class="page-head">
+  <h1>{{ cv.label }}</h1>
+  <p class="lede">
+    {% if cv.is_functional %}Competency-first format — the default base, tailored per
+    application on request.
+    {% else %}Chronological format — an alternative base, tailored per application on
+    request.{% endif %}
+    <code>{{ cv.path }}</code>
+  </p>
+</div>
+
+{% if IS_LOCAL %}
+  <div class="actions">
+    <a class="btn local-only" href="{{ EDITOR_URL_SCHEME }}{{ cv.full_path }}">Open in VS Code</a>
+  </div>
+{% endif %}
+
+<div class="panel prose">{{ cv.body_md|markdown }}</div>
+
+{% if others %}
+  <h2>Other master CVs</h2>
+  <div class="panel">
+    {% for o in others %}
+      <div style="padding:3px 0"><a href="/cvs/base/{{ o.slug }}/">{{ o.label }}</a></div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}

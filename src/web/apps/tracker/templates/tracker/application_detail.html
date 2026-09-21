@@ -1,0 +1,215 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}{{ app.company_name }} — {{ app.role }}{% endblock %}
+{% block content %}
+
+<div class="crumb"><a href="/applications/">Applications</a> / #{{ app.num }}</div>
+
+<div class="page-head">
+  <h1>{{ app.role }}</h1>
+  <p class="lede">
+    {% if app.company %}<a href="/companies/{{ app.company.slug }}/">{{ app.company_name }}</a>
+    {% else %}{{ app.company_name }}{% endif %}
+    · {% include "tracker/_status.html" with status=app.status %}
+    {% if app.area %} · <a href="/areas/#{{ app.area.slug }}">{{ app.area.name }}</a>{% endif %}
+  </p>
+</div>
+
+<div class="actions">
+  {% if app.job_url %}<a class="btn btn-primary" href="{{ app.job_url }}" target="_blank" rel="noopener">Job posting ↗</a>{% endif %}
+  {% if IS_LOCAL %}
+    {% if app.folder %}
+      <a class="btn local-only" href="/actions/reveal/{{ app.num }}/">Open folder</a>
+      <a class="btn local-only" href="{{ EDITOR_URL_SCHEME }}{{ app.folder_path }}">Open in VS Code</a>
+    {% else %}
+      <a class="btn local-only" href="/actions/create-folder/{{ app.num }}/">Create folder</a>
+    {% endif %}
+    {% if app.status != "reviewing" %}
+      <a class="btn local-only" href="/actions/mark-reviewing/{{ app.num }}/">Mark reviewing</a>
+    {% endif %}
+    <a class="btn local-only" href="/admin/tracker/application/{{ app.pk }}/change/"
+       target="_blank" rel="noopener">Edit in admin</a>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <dl class="dl-inline">
+    <dt>Logged</dt><dd>{{ app.date|date:"j F Y"|default:"—" }}</dd>
+    <dt>Next action</dt><dd>{{ app.next_action|default:"—" }}</dd>
+    {% if app.contact %}<dt>Contact</dt><dd>{{ app.contact }}</dd>{% endif %}
+    <dt>CV base</dt><dd>{{ app.get_cv_base_display }}</dd>
+    {% if app.folder %}<dt>Folder</dt><dd><code>{{ app.folder }}</code></dd>{% endif %}
+  </dl>
+  {% if app.summary %}<p style="margin:12px 0 0">{{ app.summary }}</p>{% endif %}
+</div>
+
+{# Sections become tabs when tabs.js loads; without it they stack as a plain document. #}
+<div data-tabs>
+  <div class="tablist" role="tablist" aria-label="Application sections">
+    {% if app.notes or app.has_fit_summary %}
+      <button class="tab" data-tab="record" role="tab" type="button">Record</button>
+    {% endif %}
+    {% if app.job_md %}
+      <button class="tab" data-tab="job" role="tab" type="button">Job description</button>
+    {% endif %}
+    {% if app.notes_md %}
+      <button class="tab" data-tab="notes" role="tab" type="button">My notes</button>
+    {% endif %}
+    {% if app.cv_snapshots %}
+      <button class="tab" data-tab="cv" role="tab" type="button">
+        CV <span class="tab-n">{{ app.cv_snapshots|length }}</span></button>
+    {% endif %}
+    {% if cover_letters %}
+      <button class="tab" data-tab="letters" role="tab" type="button">
+        Cover letters <span class="tab-n">{{ cover_letters|length }}</span></button>
+    {% endif %}
+    {% if app.extra_files %}
+      <button class="tab" data-tab="files" role="tab" type="button">
+        Other files <span class="tab-n">{{ app.extra_files|length }}</span></button>
+    {% endif %}
+    <button class="tab" data-tab="history" role="tab" type="button">History</button>
+    {% if siblings %}
+      <button class="tab" data-tab="siblings" role="tab" type="button">
+        Also at {{ app.company_name }} <span class="tab-n">{{ siblings|length }}</span></button>
+    {% endif %}
+  </div>
+
+  {% if app.notes or app.has_fit_summary %}
+    <section class="tabpanel" data-panel="record" role="tabpanel">
+      <h2 class="panel-heading">Record</h2>
+      {% if app.has_fit_summary %}
+        {% with fit=app.fit_summary %}
+          <div class="fit-summary">
+            {% if fit.level %}
+              <div class="fit-banner is-{{ fit.level }}">{{ fit.level_label }}</div>
+            {% endif %}
+            <div class="fit-grid">
+              {% if fit.pros %}
+                <div class="fit-col pros">
+                  <h3>Pros</h3>
+                  <ul>{% for p in fit.pros %}<li>{{ p }}</li>{% endfor %}</ul>
+                </div>
+              {% endif %}
+              {% if fit.cons %}
+                <div class="fit-col cons">
+                  <h3>Cons</h3>
+                  <ul>{% for c in fit.cons %}<li>{{ c }}</li>{% endfor %}</ul>
+                </div>
+              {% endif %}
+              {% if fit.unknowns %}
+                <div class="fit-col unknowns">
+                  <h3>Unknowns</h3>
+                  <ul>{% for u in fit.unknowns %}<li>{{ u }}</li>{% endfor %}</ul>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        {% endwith %}
+      {% endif %}
+      {% if app.notes %}<div class="panel prose">{{ app.notes|markdown|blank_links }}</div>{% endif %}
+    </section>
+  {% endif %}
+
+  {% if app.job_md %}
+    <section class="tabpanel" data-panel="job" role="tabpanel">
+      <h2 class="panel-heading">Job description</h2>
+      <div class="panel prose panel-sunk">{{ app.job_md|strip_h1|markdown|blank_links }}</div>
+    </section>
+  {% endif %}
+
+  {% if app.notes_md %}
+    <section class="tabpanel" data-panel="notes" role="tabpanel">
+      <h2 class="panel-heading">My notes</h2>
+      <div class="panel prose">{{ app.notes_md|strip_h1|markdown|blank_links }}</div>
+    </section>
+  {% endif %}
+
+  {% if app.cv_snapshots %}
+    <section class="tabpanel" data-panel="cv" role="tabpanel">
+      <h2 class="panel-heading">CV</h2>
+      {% for cv in app.cv_files %}
+        <div class="panel prose panel-sunk" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+            <code style="font-size:12.5px">{{ cv.name }}</code>
+            {% if IS_LOCAL %}
+              <span>
+                <a href="{{ EDITOR_URL_SCHEME }}{{ cv.path }}">Open in VS Code</a>
+                {% if cv.docx %} · <a href="{{ EDITOR_URL_SCHEME }}{{ cv.docx }}">Open .docx</a>{% endif %}
+              </span>
+            {% endif %}
+          </div>
+          {{ cv.body_md|strip_h1|markdown|blank_links }}
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  {% if cover_letters %}
+    <section class="tabpanel" data-panel="letters" role="tabpanel">
+      <h2 class="panel-heading">Cover letters</h2>
+      {% for letter in cover_letters %}
+        <div class="panel prose">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+            <h3 style="margin-top:0">{{ letter.label }}{% if letter.date %} · {{ letter.date|date:"j M Y" }}{% endif %}</h3>
+            {% if IS_LOCAL and letter.docx_path %}
+              <a href="{{ EDITOR_URL_SCHEME }}{{ letter.docx_path }}">Open .docx</a>
+            {% endif %}
+          </div>
+          {{ letter.body_md|strip_h1|markdown|blank_links }}
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  {% if app.extra_files %}
+    <section class="tabpanel" data-panel="files" role="tabpanel">
+      <h2 class="panel-heading">Other files</h2>
+      {% for f in app.extra_files %}
+        {% if f.is_md %}
+          <div class="panel prose panel-sunk" style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+              <code style="font-size:12.5px">{{ f.rel }}</code>
+              {% if IS_LOCAL %}<a href="{{ EDITOR_URL_SCHEME }}{{ f.path }}">Open in VS Code</a>{% endif %}
+            </div>
+            {{ f.body_md|strip_h1|markdown|blank_links }}
+          </div>
+        {% else %}
+          <div class="panel" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 16px">
+            <code style="font-size:12.5px">{{ f.rel }}</code>
+            <span>
+              <span style="color:var(--faint)">{{ f.size_kb }} KB</span>
+              {% if IS_LOCAL %} · <a href="{{ EDITOR_URL_SCHEME }}{{ f.path }}">Open in VS Code</a>{% endif %}
+            </span>
+          </div>
+        {% endif %}
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  <section class="tabpanel" data-panel="history" role="tabpanel">
+    <h2 class="panel-heading">History</h2>
+    <div class="panel">
+      {% for change in app.status_changes.all %}
+        <div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--line){% endif %}">
+          <span style="color:var(--faint);font-size:12.5px;white-space:nowrap">{{ change.changed_at|date:"j M Y" }}</span>
+          {% if change.from_status %}
+            {% include "tracker/_status.html" with status=change.from_status %} →
+          {% else %}
+            <span style="color:var(--faint)">logged as</span>
+          {% endif %}
+          {% include "tracker/_status.html" with status=change.to_status %}
+        </div>
+      {% empty %}
+        <p style="color:var(--faint);margin:0">No status history recorded yet.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if siblings %}
+    <section class="tabpanel" data-panel="siblings" role="tabpanel">
+      <h2 class="panel-heading">Other applications to {{ app.company_name }}</h2>
+      {% include "tracker/_app_table.html" with applications=siblings %}
+    </section>
+  {% endif %}
+</div>
+
+{% endblock %}

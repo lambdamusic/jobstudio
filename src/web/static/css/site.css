@@ -1,0 +1,351 @@
+/* Job search front end.
+   Structure follows a reference mockup: a light sidebar whose sections
+   carry live counts, a wide airy content pane, one accent colour.
+   Palette is the navy/gold already used by the CV templates (src/templates/cv_navy.html)
+   so the site and the CVs read as the same family. */
+
+:root {
+  --navy:      #1B2948;
+  --navy-soft: #2a3a5c;
+  --gold:      #C49B2E;
+  --ink:       #1a1a2e;
+  --muted:     #6b6b76;
+  --faint:     #9a9aa5;
+  --line:      #e6e6ea;
+  --bg:        #ffffff;
+  --bg-side:   #f7f7f9;
+  --bg-sunk:   #fafafb;
+  --link:      #1a5c9a;
+  --radius:    7px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---------- layout ---------- */
+
+.layout { display: flex; min-height: 100vh; align-items: stretch; }
+
+.sidebar {
+  width: 246px; flex: 0 0 246px;
+  background: var(--bg-side);
+  border-right: 1px solid var(--line);
+  padding: 22px 0 18px;
+  display: flex; flex-direction: column;
+}
+
+.brand {
+  padding: 0 20px 18px;
+  font-size: 15px; font-weight: 650; letter-spacing: -0.01em;
+  color: var(--navy);
+}
+.brand span { display: block; font-weight: 400; font-size: 12px; color: var(--faint); margin-top: 2px; }
+
+.nav-group { padding: 0 12px; margin-bottom: 18px; }
+.nav-label {
+  padding: 0 8px 6px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--faint); font-weight: 600;
+}
+.nav-group a {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 8px; margin: 1px 0;
+  border-radius: 6px;
+  color: #3a3a44; font-size: 14px;
+}
+.nav-group a:hover { background: #eeeef2; text-decoration: none; }
+.nav-group a.active { background: #e8ebf3; color: var(--navy); font-weight: 600; }
+.nav-group a.nav-sub { padding-left: 20px; font-size: 13px; color: #6a6a74; }
+.nav-count { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.nav-group a.active .nav-count { color: var(--navy-soft); }
+
+.sidebar-foot {
+  margin-top: auto; padding: 14px 20px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px; color: var(--faint);
+}
+
+.content { flex: 1; min-width: 0; padding: 34px 44px 72px; }
+.content-inner { max-width: 1080px; }
+
+/* ---------- page header ---------- */
+
+.page-head { margin-bottom: 26px; }
+.page-head h1 { margin: 0; font-size: 25px; font-weight: 650; letter-spacing: -0.02em; }
+.page-head .lede { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+.crumb { font-size: 12.5px; color: var(--faint); margin-bottom: 8px; }
+.crumb a { color: var(--faint); }
+
+h2 { font-size: 15px; font-weight: 650; margin: 34px 0 12px; letter-spacing: -0.01em; }
+h2:first-child { margin-top: 0; }
+h3 { font-size: 14px; font-weight: 600; margin: 22px 0 8px; }
+
+/* ---------- stat row ---------- */
+
+.stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.stat {
+  flex: 1 1 116px; min-width: 116px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px 14px; background: var(--bg);
+}
+.stat .n { font-size: 22px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.stat.is-zero { opacity: .5; }
+a.stat:hover { border-color: #cfd4e0; background: var(--bg-sunk); text-decoration: none; }
+
+/* ---------- cards / panels ---------- */
+
+.panel {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; background: var(--bg); margin-bottom: 14px;
+}
+.panel-sunk { background: var(--bg-sunk); }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+
+/* ---------- tables ---------- */
+
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+th {
+  text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--faint); font-weight: 600;
+  padding: 9px 12px; background: var(--bg-sunk); border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+td { padding: 9px 12px; border-bottom: 1px solid #f0f0f3; vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: #fafbfd; }
+td.num { color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.nowrap, th.nowrap { white-space: nowrap; }
+td.col-target, th.col-target { min-width: 172px; }
+td.col-notes { max-width: 460px; }
+.role { font-weight: 500; }
+.sub { display: block; font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+
+/* ---------- status badges (same semantics as make-docs.py / dashboard.py) ---------- */
+
+.badge {
+  display: inline-block; padding: 1px 8px; border-radius: 11px;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
+}
+.st-applied      { background: #c3e6cb; color: #155724; }
+.st-interviewing { background: #e3c6f5; color: #5a1a78; }
+.st-reviewing    { background: #bee3e8; color: #0c5460; }
+.st-saved        { background: #e2e3e5; color: #383d41; }
+.st-discarded    { background: #e2e3e5; color: #6c757d; text-decoration: line-through; }
+.st-closed       { background: #f1d7d7; color: #7a2e2e; }
+.st-rejected     { background: #f5c6cb; color: #721c24; text-decoration: line-through; }
+.st-watching, .st-researching, .st-contacted { background: #e7ecf5; color: #2a3a5c; }
+
+.pill {
+  display: inline-block; padding: 1px 7px; border-radius: 4px;
+  background: #eef0f5; color: var(--navy-soft);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+}
+
+.stars { color: var(--gold); letter-spacing: 1px; font-size: 13px; white-space: nowrap; }
+.star-off { color: #dcdce2; }
+
+/* ---------- chips / filters ---------- */
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px; border: 1px solid var(--line); border-radius: 20px;
+  font-size: 13px; color: #3a3a44; background: var(--bg);
+}
+.chip:hover { background: var(--bg-sunk); text-decoration: none; }
+.chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+.chip.active .chip-n { color: #c9d2e6; }
+.chip-n { font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+/* Local-only affordances: dashed outline on buttons, a small marker in the sidebar.
+   Neither appears in the published mirror — the nav group is wrapped in {% if IS_LOCAL %}. */
+.btn.local-only { border-style: dashed; }
+.nav-group a.local-only { color: var(--muted); }
+.nav-group a.local-only::after {
+  content: "local"; font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--faint); border: 1px dashed #ccccd4; border-radius: 4px; padding: 0 4px;
+}
+
+/* ---------- prose (rendered markdown) ---------- */
+
+.prose { font-size: 14.5px; line-height: 1.7; }
+/* Constrain the measure: the content pane is ~1050px, which is ~140 characters per line —
+   far past comfortable reading. Applied to text only, so tables, code and images can still
+   use the full width. */
+.prose p, .prose li { max-width: 78ch; }
+.prose p { margin: 0 0 1.05em; }
+.prose p:last-child { margin-bottom: 0; }
+.prose h1 { font-size: 20px; margin: 0 0 12px; }
+.prose h2 {
+  font-size: 15.5px; margin: 26px 0 8px; padding-bottom: 4px;
+  border-bottom: 2px solid var(--gold); display: inline-block;
+}
+.prose h3 { font-size: 14px; margin: 18px 0 6px; color: var(--navy-soft); }
+.prose p, .prose li { color: #26262e; }
+.prose ul, .prose ol { padding-left: 20px; }
+.prose li { margin: 3px 0; }
+.prose code {
+  background: #f3f3f6; padding: 1px 5px; border-radius: 4px;
+  font-size: 12.5px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.prose pre { background: var(--bg-sunk); padding: 12px 14px; border-radius: var(--radius); overflow-x: auto; }
+.prose pre code { background: none; padding: 0; }
+.prose blockquote {
+  margin: 12px 0; padding: 2px 14px; border-left: 3px solid var(--line); color: var(--muted);
+}
+.prose table { margin: 12px 0; font-size: 13.5px; }
+.prose th, .prose td { border: 1px solid var(--line); }
+.prose hr { border: 0; border-top: 1px solid var(--line); margin: 22px 0; }
+
+/* ---------- misc ---------- */
+
+.meta { font-size: 13px; color: var(--muted); }
+.meta dt { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); }
+.meta dd { margin: 2px 0 12px; }
+.dl-inline { display: grid; grid-template-columns: 128px 1fr; gap: 2px 16px; font-size: 13.5px; }
+.dl-inline dt { color: var(--faint); }
+.dl-inline dd { margin: 0; }
+
+.empty { color: var(--faint); font-style: italic; font-size: 13.5px; }
+.muted { color: var(--muted); }
+.tag-list { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.btn {
+  display: inline-block; padding: 5px 12px; border: 1px solid var(--line);
+  border-radius: 6px; font-size: 13px; color: #3a3a44; background: var(--bg);
+}
+.btn:hover { background: var(--bg-sunk); text-decoration: none; }
+.btn-primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+.btn-primary:hover { background: var(--navy-soft); }
+
+.notice {
+  border-left: 3px solid var(--gold); background: #fffdf5;
+  padding: 9px 13px; border-radius: 3px; font-size: 13px; margin-bottom: 16px;
+}
+
+@media (max-width: 800px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: auto; flex: none; border-right: 0; border-bottom: 1px solid var(--line); }
+  .content { padding: 24px 20px 48px; }
+}
+
+
+/* ---------- tabbed sections ---------- */
+
+/* Panels are visible by default; .js-tabs (added by tabs.js) is what hides the inactive
+   ones, so the page degrades to a plain stacked document without JavaScript. */
+.tablist { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--line); margin: 26px 0 16px; }
+.tab {
+  appearance: none; background: none; border: 0; border-bottom: 2px solid transparent;
+  padding: 8px 14px; margin-bottom: -1px;
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--muted);
+  cursor: pointer; border-radius: 6px 6px 0 0;
+}
+.tab:hover { color: var(--ink); background: var(--bg-sunk); }
+.tab.active { color: var(--navy); font-weight: 650; border-bottom-color: var(--gold); background: none; }
+.tab .tab-n {
+  font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums;
+  margin-left: 5px; font-weight: 400;
+}
+.tab.active .tab-n { color: var(--navy-soft); }
+.tab:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+
+/* Without JS every panel keeps its own heading so the stack still reads properly;
+   with JS the tab bar names the section, so the duplicate heading is redundant. */
+.js-tabs .panel-heading { display: none; }
+.tabpanel[hidden] { display: none; }
+
+/* ---------- fit summary (Record tab) ---------- */
+
+.fit-summary { margin-bottom: 16px; }
+.fit-banner {
+  display: inline-block; padding: 4px 12px; border-radius: var(--radius);
+  font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.fit-banner.is-strong   { background: #c3e6cb; color: #155724; }
+.fit-banner.is-moderate { background: #d7ecf5; color: #0c5460; }
+.fit-banner.is-stretch  { background: #fbe6c4; color: #7a5a12; }
+.fit-banner.is-weak     { background: #f5c6cb; color: #721c24; }
+
+.fit-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;
+}
+.fit-col {
+  border: 1px solid var(--line); border-left-width: 3px; border-radius: var(--radius);
+  padding: 10px 14px; background: var(--bg);
+}
+.fit-col h3 {
+  margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em;
+}
+.fit-col ul { margin: 0; padding-left: 18px; }
+.fit-col li { margin: 3px 0; font-size: 13.5px; color: #26262e; }
+.fit-col.pros        { border-left-color: #2e9c4f; background: #f4faf5; }
+.fit-col.pros h3     { color: #1f7a3c; }
+.fit-col.cons        { border-left-color: #d64550; background: #fdf5f5; }
+.fit-col.cons h3     { color: #a5303a; }
+.fit-col.unknowns    { border-left-color: var(--gold); background: #fffdf5; }
+.fit-col.unknowns h3 { color: #8a6a1e; }
+
+/* ---------- company-jump (scan report: jump-to-company summary) ---------- */
+
+.company-jump {
+  display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 16px;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--bg-sunk);
+}
+.company-jump a {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border: 1px solid var(--line); border-radius: 20px;
+  font-size: 12.5px; color: #3a3a44; background: var(--bg);
+}
+.company-jump a:hover { background: var(--bg-sunk); border-color: #cfd4e0; text-decoration: none; }
+.company-jump a .n { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+/* ---------- plain-list (scan report: unscored location split) ---------- */
+
+.plain-list { margin: 0; padding-left: 18px; }
+.plain-list li { margin: 5px 0; font-size: 13.5px; color: #26262e; }
+
+/* ---------- activity timeline (dashboard) ---------- */
+
+.timeline { padding: 14px 16px 10px; }
+.tl-legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.tl-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+.tl-sw.added    { background: var(--navy-soft); }
+.tl-sw.applied  { background: #2e9c4f; }
+.tl-sw.rejected { background: #d64550; }
+
+.tl-bars { display: flex; align-items: flex-end; gap: 3px; overflow-x: auto; padding-top: 4px; }
+.tl-col { flex: 1 0 14px; min-width: 14px; display: flex; flex-direction: column; align-items: stretch; }
+.tl-stack { display: flex; flex-direction: column; justify-content: flex-end; min-height: 1px; }
+.tl-seg { width: 100%; }
+.tl-seg:first-child { border-radius: 2px 2px 0 0; }
+.tl-seg.added    { background: var(--navy-soft); }
+.tl-seg.applied  { background: #2e9c4f; }
+.tl-seg.rejected { background: #d64550; }
+.tl-col:hover .tl-seg { opacity: .82; }
+.tl-tick {
+  margin-top: 4px; font-size: 10px; color: var(--faint); text-align: left;
+  white-space: nowrap; height: 13px;
+}
+
+/* ---------- shared status header: current view ---------- */
+
+.stat.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); }
+.stat.is-active .k { color: var(--navy); font-weight: 600; }
+a.stat.is-active:hover { background: var(--bg); }

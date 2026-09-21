@@ -1,0 +1,59 @@
+{% load jobs_extras %}
+{% comment %}
+Shared applications table. Expects `applications`. Date column shows the relative
+form ("N days ago") as the main text with the exact Y-m-d date as a small subtitle
+underneath, same two-line pattern as the Role column's summary.
+
+{% comment %}, not {# #}: Django's {# #} comment is SINGLE-LINE only, so a multi-line
+one is not a comment at all — every line of it rendered straight into the page, visible
+to the reader, on /, /applications/, /applications/all/ and /areas/.
+{% endcomment %}
+{% if applications %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="nowrap">#</th>
+          <th>Company</th>
+          <th>Role</th>
+          <th class="nowrap">Area</th>
+          <th class="nowrap">Status</th>
+          <th>Next action</th>
+          <th class="nowrap">Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in applications %}
+          <tr>
+            <td class="num">{{ a.num }}</td>
+            <td class="nowrap">
+              {% if a.company %}<a href="/companies/{{ a.company.slug }}/">{{ a.company_name }}</a>
+              {% else %}{{ a.company_name }}{% endif %}
+            </td>
+            <td>
+              <a href="/applications/{{ a.num }}/" class="role">{{ a.role }}</a>
+              {% if a.summary %}<span class="sub">{{ a.summary|truncatechars:110 }}</span>{% endif %}
+            </td>
+            <td class="nowrap">
+              {% if a.area %}<a href="/areas/#{{ a.area.slug }}" class="pill">{{ a.area.abbr }}</a>{% endif %}
+            </td>
+            <td class="nowrap">
+              {% if IS_LOCAL %}
+                <a href="/admin/tracker/application/{{ a.pk }}/change/" title="Change status"
+                   target="_blank" rel="noopener">
+                  {% include "tracker/_status.html" with status=a.status %}</a>
+              {% else %}{% include "tracker/_status.html" with status=a.status %}{% endif %}
+            </td>
+            <td>{{ a.next_action|default:"—"|truncatechars:80 }}</td>
+            <td class="num nowrap">
+              {% if a.date %}{{ a.date|ago }}<span class="sub">{{ a.date|date:"Y-m-d" }}</span>
+              {% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="empty">Nothing here.</p>
+{% endif %}

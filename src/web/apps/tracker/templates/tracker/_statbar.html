@@ -1,0 +1,24 @@
+{% comment %}
+  Boxed status stats — the shared sub-header for the dashboard and every /applications/
+  list view (preserve the dashboard header on all pages). Expects `status_summary` (in
+  both view contexts) and the global `nav_counts`. On the list views `filter_status` /
+  `filter_active` / `show_all` mark the current box; on the dashboard none is set, so
+  nothing is highlighted. {# #} is single-line only — this needs the block tag.
+{% endcomment %}
+<div class="stats">
+  <a class="stat{% if filter_active %} is-active{% endif %}" href="/applications/">
+    <div class="n">{{ nav_counts.active }}</div>
+    <div class="k">active</div>
+  </a>
+  {% for s in status_summary %}
+    <a class="stat{% if not s.count %} is-zero{% endif %}{% if filter_status == s.status %} is-active{% endif %}"
+       href="/applications/status/{{ s.status }}/">
+      <div class="n">{{ s.count }}</div>
+      <div class="k">{{ s.status }}</div>
+    </a>
+  {% endfor %}
+  <a class="stat{% if show_all %} is-active{% endif %}" href="/applications/all/">
+    <div class="n">{{ nav_counts.applications }}</div>
+    <div class="k">all</div>
+  </a>
+</div>

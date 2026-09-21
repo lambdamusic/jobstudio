@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}CVs · Job search{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>CVs</h1>
+  <p class="lede">{{ base_cvs|length }} master CVs — tailored per application on request,
+     never pre-generated.</p>
+</div>
+
+<h2>Master CVs</h2>
+<div class="panel">
+  {% for cv in base_cvs %}
+    <div style="padding:5px 0;
+                {% if not forloop.last %}border-bottom:1px solid #f0f0f3;{% endif %}">
+      <a href="/cvs/base/{{ cv.slug }}/">{{ cv.label }}</a>
+    </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

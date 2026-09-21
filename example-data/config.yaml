@@ -1,0 +1,17 @@
+# Identity for this job search. `init` writes this from your answers; everything
+# that needs your name, email or location reads it from here rather than having it
+# baked into code. See the plan's §3.4.
+#
+# This is the EXAMPLE dataset: Alex Rivera is fictional, and so are the CV, the
+# profile and the applications. The companies are real, because `scan` hits live
+# ATS job boards and an example full of invented companies would be broken on its
+# first run.
+
+identity:
+  full_name: Alex Rivera
+  slug: alex-rivera          # used in generated filenames
+  email: alex.rivera@example.com
+  location: Bristol
+
+site:
+  footer_name: Alex Rivera

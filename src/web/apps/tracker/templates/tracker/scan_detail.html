@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}{% if scan %}{{ scan.label }}{% else %}Portal scans{% endif %} · Job search{% endblock %}
+{% block content %}
+<div class="crumb"><a href="/scans/all/">All portal scans</a>{% if scan %} / {{ scan.label }}{% endif %}</div>
+
+{% if scan %}
+  <div class="page-head">
+    <h1>{{ scan.date|date:"j F Y" }}{% if is_latest %} <span class="pill">Latest</span>{% endif %}</h1>
+    <p class="lede"><code>{{ scan.path }}</code></p>
+  </div>
+
+  {# Sections become tabs when tabs.js loads; without it they stack as a plain document. #}
+  <div data-tabs>
+    <div class="tablist" role="tablist" aria-label="Scan report sections">
+      {% for section in sections %}
+        <button class="tab" data-tab="{{ section.key }}" role="tab" type="button" title="{{ section.title }}">
+          {{ section.short_title }}{% if section.count %} <span class="tab-n">{{ section.count }}</span>{% endif %}
+        </button>
+      {% endfor %}
+    </div>
+
+    {% for section in sections %}
+      <section class="tabpanel" data-panel="{{ section.key }}" role="tabpanel">
+        <h2 class="panel-heading">{{ section.title }}</h2>
+        {% if section.key == "unscored" %}
+          <p class="muted" style="margin:-4px 0 14px;font-size:13px">
+            Roles at companies with no scored target-area profile — not scored, but
+            pre-filtered for plausibility. Split below by a plain keyword check on the
+            raw location text, not the per-posting judgement the scored Matches table
+            gets — treat "other" as unverified, not excluded.
+          </p>
+          <div class="grid2">
+            <div class="panel panel-sunk">
+              <h3>UK or remote hint <span class="muted">({{ unscored_likely|length }})</span></h3>
+              <ul class="plain-list">
+                {% for e in unscored_likely %}
+                  <li><strong>{{ e.company }}</strong> —
+                    <a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.title }}</a>
+                    {% if e.location %}<span class="sub">{{ e.location }}</span>{% endif %}
+                  </li>
+                {% empty %}
+                  <li class="empty">None.</li>
+                {% endfor %}
+              </ul>
+            </div>
+            <div class="panel panel-sunk">
+              <h3>Other locations <span class="muted">({{ unscored_other|length }})</span></h3>
+              <ul class="plain-list">
+                {% for e in unscored_other %}
+                  <li><strong>{{ e.company }}</strong> —
+                    <a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.title }}</a>
+                    {% if e.location %}<span class="sub">{{ e.location }}</span>{% endif %}
+                  </li>
+                {% empty %}
+                  <li class="empty">None.</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        {% else %}
+          {% if section.companies %}
+            <nav class="company-jump" aria-label="Jump to a company">
+              {% for co in section.companies %}
+                <a href="#{{ co.anchor }}">{{ co.name }}{% if co.count %} <span class="n">{{ co.count }}</span>{% endif %}</a>
+              {% endfor %}
+            </nav>
+          {% endif %}
+          <div class="panel prose">{{ section.body|markdown|blank_links }}</div>
+        {% endif %}
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="page-head"><h1>Portal scans</h1></div>
+  <p class="empty">No scans yet — run <code>/jobstudio scan</code>.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+# Scan settings for this job search — read by src/scan_config.py.
+#
+# These are facts about THIS search, not about how scanning works, so they live with
+# the data rather than in the toolkit. The whole file is optional: without it the
+# scanner still runs and detects each company's ATS from its careers URL. What you
+# lose is the hand-researched part below, which no URL pattern can infer.
+
+# Fallback when a company's category has no entry in category_to_area — a safety net
+# for a category you add to the tracker but haven't placed here yet.
+default_area: data-platform
+
+# Company category → CV target area (a file in jobs/targets/). The two are orthogonal:
+# a category groups companies by domain, an area is a CV positioning. Several
+# categories can share one area — don't invent an area per category just to score it.
+category_to_area:
+  Data Platform & Modern Data Stack: data-platform
+  Developer Tools & Observability: developer-advocacy
+
+# Companies whose tracked careers URL is a generic corporate page with the real ATS
+# hidden underneath — found by inspecting redirects and embedded widgets. Keyed by
+# company name exactly as recorded in the tracker, because the URL is what's wrong.
+#
+# Shape per platform:
+#   greenhouse / lever / workable / ashby / smartrecruiters: {platform, token}
+#   workday:     {platform, tenant, wd, site}
+#   teamtailor:  {platform, domain}
+company_overrides:
+  Grafana Labs: {platform: greenhouse, token: grafanalabs}
+  dbt Labs: {platform: greenhouse, token: dbtlabsinc}
+  Incident.io: {platform: ashby, token: incident-io}
+
+# Companies confirmed running on a specific ATS you have no fetcher for. Gives a
+# precise "not scanned" reason in the report instead of the generic bespoke-page one.
+known_unsupported:
+  Example Analytics Ltd: BambooHR — not yet integrated
+  Northwind Foundation: Webitrent (UK public-sector ATS) — no public API found

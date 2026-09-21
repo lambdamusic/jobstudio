@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Serve the built static site from site/ for checking before publishing.
+
+cd "$(dirname "$0")/../site"
+open "http://127.0.0.1:9111/"
+python3 -m http.server 9111 --bind 127.0.0.1

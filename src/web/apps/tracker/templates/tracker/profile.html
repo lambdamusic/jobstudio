@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}{{ title }} · Job search{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ title }}</h1>
+  <p class="lede">Step 1 of the career-transition process, structured — from <code>jobs/profile/</code>. Built via <code>/jobstudio stocktake</code>.</p>
+</div>
+{% if body %}
+  <div class="panel prose">{{ body|strip_h1|markdown|blank_links }}</div>
+{% else %}
+  <p class="empty">No <code>stocktake.md</code> yet.</p>
+{% endif %}
+{% if criteria %}
+  <div class="page-head"><h2>criteria.yaml</h2></div>
+  <div class="panel"><pre style="overflow-x:auto"><code>{{ criteria }}</code></pre></div>
+{% endif %}
+{% endblock %}
