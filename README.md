@@ -59,6 +59,16 @@ interview.
 
 You need Python >= 3.11 on the machine. Nothing else.
 
+**Then start the web app** — it is how you actually look at any of this:
+
+```bash
+tools/run-dev-local-db          # http://127.0.0.1:8010
+```
+
+Leave it running in its own terminal; it serves until you stop it with Ctrl-C. Browsing
+needs no login. The agent can start it for you too, but it holds that session until you
+interrupt it, so a separate terminal is usually what you want.
+
 <details>
 <summary><b>Or do it by hand</b> — the same three steps, if you would rather not hand
 setup to an agent, or you are debugging one of them</summary>
@@ -163,8 +173,22 @@ temp directory, runs `init` from scratch and exercises the pipeline end to end.
 | `/jobstudio scan` | Scan tracked companies' ATS boards for new postings and score them |
 | `/jobstudio status` | Where everything stands |
 
-Plus a local Django app for browsing applications, companies, CVs and scan reports, and
-an optional static-site export.
+## The web app
+
+The skill writes; the web app is how you read. Everything the subcommands produce —
+applications, companies, tailored CVs, cover letters, scan reports — is browsable, and
+it is the fastest way to see where a search actually stands.
+
+```bash
+tools/run-dev-local-db          # http://127.0.0.1:8010
+```
+
+Runs on `127.0.0.1` only, in the foreground, until Ctrl-C. Browsing needs no login;
+*editing* happens in the Django admin at `/admin/` (see **Signing in** above). If 8010
+is busy, pass another port: `tools/run-dev-local-db 8020`.
+
+`tools/site-build` renders the same content as a static site you can host or keep as a
+snapshot.
 
 ## How it is laid out
 
