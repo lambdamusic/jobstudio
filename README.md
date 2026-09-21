@@ -4,6 +4,32 @@ An agent-native job-search toolkit: track companies, log applications, tailor a 
 role, draft cover letters, and scan ATS job boards for new postings — driven end to end
 from a Claude Code session, with a local Django web app for browsing.
 
+> ### ⚠️ Early days — in active development
+>
+> This works, and it is used daily for a real job search. But it has been used daily by
+> **one person**, on **one machine**, and that is the honest limit of what is proven.
+>
+> **What is actually verified.** An automated from-scratch install (`tools/smoke-test`),
+> an 82-case test suite, and a clean-room pass — fresh clone, fresh virtualenv, fresh home
+> directory, following the Quick Start below literally — all pass. So setup is not
+> guesswork.
+>
+> **What is not.** Nobody else has run it yet. Expect the things a second user finds
+> first: assumptions nobody knew were assumptions, and error messages that made sense to
+> the author. Three paths in particular are written but never yet run end to end —
+> `/jobstudio cv --rebuild`, `cv --import`, and chronological CV tailoring. Those are
+> agent-driven procedures defined in the skill rather than Python, so the test suite
+> does not cover them at all. They are also, awkwardly, the first thing a new user meets:
+> `--rebuild` and `--import` are how you get your own CV in. Start with `--from-example`
+> (below) if you want to look around before trusting them with your own documents.
+>
+> **Nothing here touches your files without you.** A scan never writes to the tracker,
+> the data root is a directory you choose, and every generated document lands there for
+> you to read before it goes anywhere. The risk is wasted time, not lost work.
+>
+> Issues and pull requests welcome — a confusing error or a step that didn't work as
+> written is exactly the useful kind of report.
+
 **No API key needed.** Every default workflow runs inside your Claude Code session.
 There is one opt-in path (`scan --api`, for scoring a scan headlessly, e.g. from cron)
 that wants an Anthropic key; nothing else does.
