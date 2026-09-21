@@ -46,7 +46,7 @@ outside this repo. Nothing personal is ever committed here.
 ## Quick start
 
 ```bash
-git clone <this repo> jobstudio && cd jobstudio
+git clone https://github.com/lambdamusic/jobstudio.git && cd jobstudio
 ```
 
 **1. A virtualenv** (Python >=3.11). Either works — what matters is knowing the path to
