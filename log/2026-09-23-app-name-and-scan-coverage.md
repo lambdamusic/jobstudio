@@ -111,3 +111,28 @@ Two things fell out of that choice worth recording:
 
 The monogram variant is worth a warning if this is ever revisited: "JS" in a tile reads
 as JavaScript.
+
+## The lockup shipped broken, and the suite did not notice
+
+The lockup commit also carried a stray `</div>`, which closed `<nav class="sidebar">`
+early and threw every page's content out of the layout. Michele saw it immediately; 101
+tests did not.
+
+**Cause:** the edit was a string replacement whose end anchor was `"    </div>"` — four
+spaces — which is a *substring* of the `"      </div>"` six spaces in. It cut at the
+wrong closing tag and left the outer one behind. Anchoring an edit on indentation is a
+bad idea for exactly this reason.
+
+**Why nothing caught it:** every test in the suite asserts content — a status code, a
+substring, a link being present. An unbalanced tag changes none of those. The HTML was
+all there; only its nesting was wrong, and nothing was looking at nesting.
+
+So `MarkupTests.test_every_page_nests_correctly` now runs twelve pages through
+`html.parser` and fails on a tag that closes the wrong element or is never closed,
+naming the line and what it actually closed. Verified by reintroducing the exact bug:
+
+    line 31: </div> closes <nav> opened on line 14
+
+This is the second time today a visual check found something green tests missed (the
+first was a CSS cache, which was not a real defect). The pattern worth keeping: for
+anything that renders, look at it.

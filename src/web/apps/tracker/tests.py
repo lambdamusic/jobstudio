@@ -402,6 +402,63 @@ class AdminTests(TestCase):
         self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
 
 
+class MarkupTests(TestCase):
+    """Every page's HTML nests correctly.
+
+    Added 2026-09-23 after a stray `</div>` in base.html closed the sidebar early: the
+    whole suite stayed green while the layout was visibly broken, because every other
+    test asserts *content* — status codes and substrings — and an unbalanced tag changes
+    neither. Only the browser caught it, and only because someone looked.
+    """
+
+    fixtures = FIXTURE
+
+    # Tags with no closing form; anything else must be closed in the right order.
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+            "meta", "param", "source", "track", "wbr"}
+
+    def assert_balanced(self, html, url):
+        from html.parser import HTMLParser
+
+        stack, errors = [], []
+
+        class Checker(HTMLParser):
+            def handle_starttag(inner, tag, attrs):
+                if tag not in MarkupTests.VOID:
+                    stack.append((tag, inner.getpos()[0]))
+
+            def handle_startendtag(inner, tag, attrs):
+                pass  # self-closing, e.g. <path .../> in the brand SVG
+
+            def handle_endtag(inner, tag):
+                if tag in MarkupTests.VOID:
+                    return
+                if not stack:
+                    errors.append(f"line {inner.getpos()[0]}: </{tag}> with nothing open")
+                elif stack[-1][0] != tag:
+                    errors.append(
+                        f"line {inner.getpos()[0]}: </{tag}> closes <{stack[-1][0]}> "
+                        f"opened on line {stack[-1][1]}")
+                    stack.pop()
+                else:
+                    stack.pop()
+
+        Checker(convert_charrefs=True).feed(html)
+        unclosed = [f"<{tag}> opened on line {line} and never closed" for tag, line in stack]
+        self.assertEqual(errors + unclosed, [], f"malformed HTML on {url}")
+
+    def test_every_page_nests_correctly(self):
+        app = Application.objects.first()
+        company = Company.objects.first()
+        for url in ["/", "/applications/", "/applications/all/", f"/applications/{app.num}/",
+                    "/companies/", f"/companies/{company.slug}/", "/areas/", "/cvs/",
+                    "/notes/", "/profile/", "/scans/", "/scans/all/"]:
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 200)
+                self.assert_balanced(r.content.decode(), url)
+
+
 class BrandTests(TestCase):
     """The sidebar lockup (`#32`)."""
 
