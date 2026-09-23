@@ -136,3 +136,35 @@ naming the line and what it actually closed. Verified by reintroducing the exact
 This is the second time today a visual check found something green tests missed (the
 first was a CSS cache, which was not a real defect). The pattern worth keeping: for
 anything that renders, look at it.
+
+## `#31` and `#33` — the rest of the sidebar
+
+**Icons.** Nine glyphs, defined once as `<g id="i-…">` in an inline sprite and drawn with
+`<use>`. Same-document symbols rather than an external sprite file, for the same reason
+the lockup is inline: the published site is a plain file mirror, and anything the static
+build has to copy is something that can go missing from it.
+
+`stroke="currentColor"` does the real work — the glyphs inherit the active item's navy
+and the local-only grey without a second set of rules.
+
+Two things the change quietly broke and had to be put back:
+
+- `.nav-group a` was `justify-content: space-between`, which with a glyph in front pushes
+  the icon away from its own label to opposite ends of the row. Switched to `flex-start`,
+  with the count and the local-only `::after` badge each pushed right by `margin-left:
+  auto` instead.
+- Sub-item indent was tuned to the label above it, not the glyph: 8px padding + 16px icon
+  + 8px gap = 32px. They stay text-only on purpose — a second column of glyphs would
+  flatten the hierarchy the indent exists to show.
+
+**The repo link** is the one sidebar link that renders in *both* environments. Everything
+else local-only is hidden from the mirror; this is the opposite case, since the published
+site is exactly where someone might want to know what built it. `test_the_repo_link_
+survives_publishing` asserts it under `ENVIRONMENT="publish"` too, so a future tidy-up
+that sweeps the footer behind `{% if IS_LOCAL %}` fails instead of quietly deleting it.
+
+**Both got a test for their silent failure mode**, which is the lesson from the stray
+`</div>` earlier: a typo'd `<use href>` renders *nothing* — no error, no missing text,
+just a gap — and no content assertion would ever notice. `test_every_nav_icon_points_at_a_
+symbol_that_exists` compares referenced ids against defined ones; verified by breaking
+one and watching it fail.

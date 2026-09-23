@@ -11,6 +11,51 @@
 <body>
 <div class="layout">
 
+  {% comment %}
+  Icon sprite: every nav glyph defined once, drawn with <use>. Same-document symbols, so
+  it still works in the published mirror — an external sprite file would be one more
+  thing the static build has to copy and one more way for the icons to vanish.
+  `stroke="currentColor"` is what lets a glyph pick up the active item's navy.
+  {% endcomment %}
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <g id="i-dashboard">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      </g>
+      <g id="i-applications">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/>
+        <path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>
+      </g>
+      <g id="i-companies">
+        <path d="M4 21V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v15"/><path d="M14 10h5a1 1 0 0 1 1 1v10"/>
+        <path d="M7 9h3M7 13h3M7 17h3M17 14h1M17 17h1"/><path d="M3 21h18"/>
+      </g>
+      <g id="i-areas">
+        <circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>
+        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>
+      </g>
+      <g id="i-cvs">
+        <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10.5" r="2"/>
+        <path d="M6 15.5c.6-1.3 1.8-2 3-2s2.4.7 3 2"/><path d="M15 10h3M15 13.5h3"/>
+      </g>
+      <g id="i-profile">
+        <circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/>
+      </g>
+      <g id="i-notes">
+        <path d="M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M14.5 5.5l4 4"/>
+      </g>
+      <g id="i-scans">
+        <circle cx="11" cy="11" r="6"/><path d="M15.5 15.5 21 21"/>
+      </g>
+      <g id="i-admin">
+        <path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h8M16 17h4"/>
+        <circle cx="16" cy="7" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="17" r="2"/>
+      </g>
+    </defs>
+  </svg>
+
+
   <nav class="sidebar">
     <div class="brand">
       {% comment %}
@@ -41,9 +86,11 @@
 
     <div class="nav-group">
       <div class="nav-label">Tracker</div>
-      <a href="/" class="{% if page == 'home' %}active{% endif %}">Dashboard</a>
+      <a href="/" class="{% if page == 'home' %}active{% endif %}">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dashboard"/></svg><span>Dashboard</span></a>
       <a href="/applications/" class="{% if nav_apps == 'applications' %}active{% endif %}">
-        Applications <span class="nav-count">{{ nav_counts.active }}</span></a>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-applications"/></svg><span>Applications</span>
+        <span class="nav-count">{{ nav_counts.active }}</span></a>
       <a href="/applications/status/reviewing/" class="nav-sub {% if nav_apps == 'reviewing' %}active{% endif %}">
         Reviewing <span class="nav-count">{{ nav_counts.reviewing }}</span></a>
       <a href="/applications/status/saved/" class="nav-sub {% if nav_apps == 'saved' %}active{% endif %}">
@@ -51,19 +98,24 @@
       <a href="/applications/all/" class="nav-sub {% if nav_apps == 'all' %}active{% endif %}">
         All <span class="nav-count">{{ nav_counts.applications }}</span></a>
       <a href="/companies/" class="{% if page == 'companies' %}active{% endif %}">
-        Companies <span class="nav-count">{{ nav_counts.companies }}</span></a>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-companies"/></svg><span>Companies</span>
+        <span class="nav-count">{{ nav_counts.companies }}</span></a>
       <a href="/areas/" class="{% if page == 'areas' %}active{% endif %}">
-        Areas <span class="nav-count">{{ nav_counts.areas }}</span></a>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-areas"/></svg><span>Areas</span>
+        <span class="nav-count">{{ nav_counts.areas }}</span></a>
     </div>
 
     <div class="nav-group">
       <div class="nav-label">Material</div>
       <a href="/cvs/" class="{% if page == 'cvs' %}active{% endif %}">
-        CVs <span class="nav-count">{{ nav_counts.cvs }}</span></a>
-      <a href="/profile/" class="{% if page == 'profile' %}active{% endif %}">Profile</a>
-      <a href="/notes/" class="{% if page == 'notes' %}active{% endif %}">Notes</a>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-cvs"/></svg><span>CVs</span>
+        <span class="nav-count">{{ nav_counts.cvs }}</span></a>
+      <a href="/profile/" class="{% if page == 'profile' %}active{% endif %}">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-profile"/></svg><span>Profile</span></a>
+      <a href="/notes/" class="{% if page == 'notes' %}active{% endif %}">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-notes"/></svg><span>Notes</span></a>
       <a href="/scans/" class="{% if page == 'scans' and nav_scans == 'latest' %}active{% endif %}">
-        Portal scans</a>
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scans"/></svg><span>Portal scans</span></a>
       <a href="/scans/all/" class="nav-sub {% if nav_scans == 'all' %}active{% endif %}">
         All <span class="nav-count">{{ nav_counts.scans }}</span></a>
     </div>
@@ -72,12 +124,20 @@
       {# Local-only: not linked from the published mirror (plan §2.3). #}
       <div class="nav-group">
         <div class="nav-label">Local</div>
-        <a href="/admin/" class="local-only" target="_blank" rel="noopener">Admin</a>
+        <a href="/admin/" class="local-only" target="_blank" rel="noopener">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-admin"/></svg><span>Admin</span></a>
       </div>
     {% endif %}
 
+    {% comment %}
+    The repo link renders in BOTH environments, unlike everything else marked local-only:
+    it is most useful on the published mirror, where a reader who likes the site has no
+    other way to find out what built it.
+    {% endcomment %}
     <div class="sidebar-foot">
-      {% if IS_LOCAL %}Local · sqlite{% else %}Published{% endif %}
+      <span>{% if IS_LOCAL %}Local · sqlite{% else %}Published{% endif %}</span>
+      <a href="https://github.com/lambdamusic/jobstudio"
+         target="_blank" rel="noopener">GitHub ↗</a>
     </div>
   </nav>
 

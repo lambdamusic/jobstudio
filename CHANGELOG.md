@@ -4,6 +4,11 @@ Dated entries, newest first.
 
 ## 2026-09-23
 
+- **The sidebar has icons, and a link to the repo** — each top-level section carries a
+  line glyph that picks up the active item's colour; sub-items stay text-only so the
+  indent still reads as hierarchy. The footer links to the GitHub repo, on the published
+  site as well as locally.
+
 - **The app is called Job Studio** — the sidebar, the dashboard heading, every browser
   tab and the admin header said "Job search". The name now lives in one place
   (`settings.APP_NAME`), and the sidebar carries a logo of its own — a briefcase glyph

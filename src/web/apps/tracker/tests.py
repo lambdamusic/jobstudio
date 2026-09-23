@@ -476,6 +476,23 @@ class BrandTests(TestCase):
         self.assertTrue(drawn, f"no <tspan> wordmark found in {template}")
         self.assertEqual(drawn.strip(), settings.APP_NAME)
 
+    def test_every_nav_icon_points_at_a_symbol_that_exists(self):
+        """`#31`. A typo in a <use href> renders precisely nothing — no error, no missing
+        text, just a gap where a glyph should be. Nothing else in the suite would notice."""
+        html = self.client.get("/").content.decode()
+        used = set(re.findall(r'<use href="#([\w-]+)"', html))
+        defined = set(re.findall(r'<g id="([\w-]+)"', html))
+        self.assertTrue(used, "no nav icons rendered at all")
+        self.assertEqual(used - defined, set(), "referenced icons that are not defined")
+
+    def test_sub_items_carry_no_icon(self):
+        """Sub-items are indented instead; a second column of glyphs would flatten the
+        hierarchy the indent exists to show."""
+        html = self.client.get("/").content.decode()
+        for row in re.findall(r'<a[^>]*class="nav-sub[^"]*"[^>]*>(.*?)</a>', html, re.S):
+            with self.subTest(row=row.strip()[:40]):
+                self.assertNotIn("<use", row)
+
     def test_the_sidebar_renders_the_lockup_on_every_page(self):
         for url in ["/", "/applications/", "/companies/", "/cvs/"]:
             with self.subTest(url=url):
@@ -708,6 +725,16 @@ class ViewTests(TestCase):
                 continue
             with self.subTest(file=md.name):
                 self.assertIn(md.stem, slugs, f"{md.name} matches no company slug")
+
+    def test_the_repo_link_survives_publishing(self):
+        """`#33`. Every other sidebar link is local-only; this one is the exception, and
+        the published mirror is precisely where it earns its place — a reader who likes
+        the site has no other way to find out what built it. A future tidy-up that sweeps
+        the footer behind {% if IS_LOCAL %} should fail here."""
+        repo = "https://github.com/lambdamusic/jobstudio"
+        with self.settings(ENVIRONMENT="publish"):
+            self.assertIn(repo, self.client.get("/applications/").content.decode())
+        self.assertIn(repo, self.client.get("/applications/").content.decode())
 
     def test_admin_links_hidden_when_publishing(self):
         with self.settings(ENVIRONMENT="publish"):

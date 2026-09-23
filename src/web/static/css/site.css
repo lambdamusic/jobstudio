@@ -57,22 +57,40 @@ a:hover { text-decoration: underline; }
   color: var(--faint); font-weight: 600;
 }
 .nav-group a {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  /* Not space-between: with an icon in front, that would push the glyph away from its
+     own label. The count is pushed right on its own instead. */
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
   padding: 6px 8px; margin: 1px 0;
   border-radius: 6px;
   color: #3a3a44; font-size: 14px;
 }
 .nav-group a:hover { background: #eeeef2; text-decoration: none; }
 .nav-group a.active { background: #e8ebf3; color: var(--navy); font-weight: 600; }
-.nav-group a.nav-sub { padding-left: 20px; font-size: 13px; color: #6a6a74; }
-.nav-count { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+/* Sub-items carry no icon — they are already indented, and a second column of glyphs
+   would flatten the hierarchy back out. The indent lines their text up with the labels
+   above: 8px padding + 16px icon + 8px gap. */
+.nav-group a.nav-sub { padding-left: 32px; font-size: 13px; color: #6a6a74; }
+.nav-count { margin-left: auto; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .nav-group a.active .nav-count { color: var(--navy-soft); }
+
+/* Nav glyphs: line art that inherits the link's colour, so the active item's navy and
+   the muted local-only grey both come for free. */
+.ico {
+  flex: none; width: 16px; height: 16px;
+  fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+  opacity: .72;
+}
+.nav-group a.active .ico { opacity: 1; }
 
 .sidebar-foot {
   margin-top: auto; padding: 14px 20px 0;
   border-top: 1px solid var(--line);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   font-size: 12px; color: var(--faint);
 }
+.sidebar-foot a { color: var(--muted); }
+.sidebar-foot a:hover { color: var(--navy); }
 
 .content { flex: 1; min-width: 0; padding: 34px 44px 72px; }
 .content-inner { max-width: 1080px; }
@@ -177,6 +195,9 @@ td.col-scan, th.col-scan { max-width: 230px; }
 .btn.local-only { border-style: dashed; }
 .nav-group a.local-only { color: var(--muted); }
 .nav-group a.local-only::after {
+  /* Pushed right like .nav-count — the row is justify-content: flex-start now, so it no
+     longer drifts to the edge on its own. */
+  margin-left: auto;
   content: "local"; font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
   color: var(--faint); border: 1px dashed #ccccd4; border-radius: 4px; padding: 0 4px;
 }
