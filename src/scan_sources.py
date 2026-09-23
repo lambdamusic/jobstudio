@@ -29,6 +29,11 @@ _ATS_PATTERNS = [
     ("greenhouse", re.compile(r"(?:job-boards|boards)(?:\.\w+)?\.greenhouse\.io/([^/?#]+)")),
     ("lever", re.compile(r"jobs\.lever\.co/([^/?#]+)")),
     ("workable", re.compile(r"apply\.workable\.com/([^/?#]+)")),
+    # Tenant is the subdomain, so anchor to the scheme separator and exclude
+    # BambooHR's own hosts — a company linking to www.bamboohr.com is not a board
+    # called "www". Without the `//` the lookahead is useless: `search` just steps
+    # one character right and matches "ww".
+    ("bamboohr", re.compile(r"//(?!www\.|help\.)([a-z0-9][a-z0-9-]*)\.bamboohr\.com")),
 ]
 
 BESPOKE = "bespoke career page — no public jobs API"

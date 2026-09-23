@@ -239,6 +239,36 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 jobs.append({"title": j["title"], "url": j.get("jobUrl"), "location": loc})
             return jobs, None
 
+        if platform == "bamboohr":
+            # Public JSON behind every BambooHR careers page: no key, no paging, the
+            # whole board in one response (`meta.totalCount` matches `result`).
+            token = source["token"]
+            resp = client.get(f"https://{token}.bamboohr.com/careers/list",
+                              headers={"Accept": "application/json"}, timeout=HTTP_TIMEOUT)
+            resp.raise_for_status()
+            data = resp.json()
+            jobs = []
+            for j in data.get("result", []):
+                # Two location objects, and which one is filled depends on
+                # `locationType`: type 1 (remote) carries `atsLocation`, the office
+                # types carry `location`. Read both and take whichever has content —
+                # the alternative is trusting a numeric code BambooHR doesn't document.
+                loc_obj = j.get("location") or {}
+                ats_obj = j.get("atsLocation") or {}
+                parts = [p for p in (loc_obj.get("city"), loc_obj.get("state")) if p]
+                if not parts:
+                    parts = [p for p in (ats_obj.get("city"), ats_obj.get("province"),
+                                         ats_obj.get("state"), ats_obj.get("country")) if p]
+                loc = ", ".join(dict.fromkeys(parts)) or "unknown"
+                if str(j.get("locationType")) == "1":
+                    loc = f"{loc} (remote)" if loc != "unknown" else "remote"
+                jobs.append({
+                    "title": j["jobOpeningName"],
+                    "url": f"https://{token}.bamboohr.com/careers/{j['id']}",
+                    "location": loc,
+                })
+            return jobs, None
+
         if platform == "smartrecruiters":
             token = source["token"]
             keyword = _search_keyword(role_target)
