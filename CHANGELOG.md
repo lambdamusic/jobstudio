@@ -2,6 +2,13 @@
 
 Dated entries, newest first.
 
+## 2026-09-23
+
+- **Every tailored CV is listed on `/cvs/`** — the page showed only the two master CVs,
+  so a CV written for a role was invisible unless you knew which application folder it
+  was in. It now also lists all tailored CVs, newest first, each naming the application
+  it belongs to and linking through to that application's CV tab.
+
 ## 2026-09-21
 
 Initial public release.

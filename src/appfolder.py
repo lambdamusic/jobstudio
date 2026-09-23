@@ -110,6 +110,21 @@ def is_tailored_cv(name: str) -> bool:
     return is_cv_filename(name)
 
 
+def cv_variant(name: str) -> str:
+    """The target-area slug a tailored CV was named after — the `<area-slug>` in
+    `004-<company>-<person-slug>-cv-<area-slug>-2026-06-23.md`, or the `<target>` in the
+    old `<date>_cv_<target>.md`. Returns "" when the name carries no variant at all.
+
+    Used for labelling a CV in a list where the filename alone is noise. Matches the
+    LAST `cv-`/`cv_` in the name, not the first: a company slug can legitimately contain
+    one (CV-Library is a real UK employer), and the leftmost match would then label every
+    CV of theirs with the rest of their own name.
+    """
+    stem = re.sub(r"\d{4}-\d{2}-\d{2}", "", Path(name).stem).strip("-_ ")
+    m = re.match(r"^.*cv[-_](.+)$", stem)
+    return m.group(1).strip("-_ ") if m else ""
+
+
 def is_cv_filename(name: str) -> bool:
     """Any CV-related markdown file in an application folder, old or new naming."""
     return name.endswith(".md") and (

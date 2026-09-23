@@ -1,11 +1,11 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load jobs_extras %}
 {% block title %}CVs · Job search{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <h1>CVs</h1>
-  <p class="lede">{{ base_cvs|length }} master CVs — tailored per application on request,
-     never pre-generated.</p>
+  <p class="lede">{{ base_cvs|length }} master CVs, tailored per application on request,
+     never pre-generated — and {{ tailored|length }} tailored so far.</p>
 </div>
 
 <h2>Master CVs</h2>
@@ -17,5 +17,49 @@
     </div>
   {% endfor %}
 </div>
+
+<h2>Tailored CVs</h2>
+{% if tailored %}
+  {% comment %}
+  Each row links to the application's own CV tab — tabs.js activates a panel from the URL
+  hash on load, so #cv needs no view of its own. {% comment %}, not {# #}: Django's {# #}
+  is single-line only, so a multi-line one renders straight into the page.
+  {% endcomment %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="nowrap">Date</th>
+          <th>Tailored for</th>
+          <th class="nowrap">#</th>
+          <th>Application</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cv in tailored %}
+          <tr>
+            <td class="num nowrap">
+              {% if cv.date %}{{ cv.date|ago }}<span class="sub">{{ cv.date|date:"Y-m-d" }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              <a href="/applications/{{ cv.app.num }}/#cv" class="role">{{ cv.label|capfirst }}</a>
+              <span class="sub">{{ cv.name }}</span>
+            </td>
+            <td class="num">{{ cv.app.num }}</td>
+            <td class="nowrap">
+              {% if cv.app.company %}
+                <a href="/companies/{{ cv.app.company.slug }}/">{{ cv.app.company_name }}</a>
+              {% else %}{{ cv.app.company_name }}{% endif %}
+              <span class="sub">{{ cv.app.role|truncatechars:60 }}</span>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="empty">No tailored CVs yet — one is written per application, on request.</p>
+{% endif %}
 
 {% endblock %}

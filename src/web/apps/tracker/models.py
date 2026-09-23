@@ -28,8 +28,10 @@ from appfolder import (
     COMPANY_APPLIED_TRIGGER_STATUSES,
     COMPANY_STATUSES,
     STATUS_SORT_ORDER,
+    cv_variant,
     is_cover_letter_filename,
     is_cv_filename,
+    is_tailored_cv,
     slug as slugify_name,
 )
 
@@ -289,6 +291,32 @@ class Application(models.Model):
                 "body_md": _read(path),
                 "docx": docx if docx.is_file() else None,
             })
+        return out
+
+    @property
+    def tailored_cvs(self) -> list[dict]:
+        """The CVs actually written for this role, newest first — `cv_snapshots` minus
+        the untailored base copy `ensure_folder()` scaffolds every folder with.
+
+        Feeds the all-CVs list on /cvs/, so unlike `cv_files` it carries a label and a
+        date rather than the markdown body: the body is rendered on this application's
+        own CV tab, which is where the list links to.
+        """
+        from .parsers import parse_date
+
+        out = []
+        for path in self.cv_snapshots:
+            if not is_tailored_cv(path.name):
+                continue
+            variant = cv_variant(path.name)
+            out.append({
+                "name": path.name,
+                "path": path,
+                "date": parse_date(path.name),
+                "label": variant.replace("_", " ").replace("-", " ") or "Tailored CV",
+            })
+        out.sort(key=lambda c: (c["date"].toordinal() if c["date"] else 0, c["name"]),
+                 reverse=True)
         return out
 
     @property
