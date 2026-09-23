@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #30 -->
+     Next available: #34 -->
 
 ## Architecture
 
@@ -33,6 +33,11 @@
 - [ ] `#10` **Portal scanning — remaining platforms** — BambooHR, SuccessFactors and UKG: platform identified but no fetcher built (1 tracked company each, low priority unless requested)
 - [x] `#11` ~~**Report / summary command** — a `jobs-search report` subcommand that produces a richer narrative summary of the search state (inspired by career-ops report function)~~ — closed 2026-09-17: no longer relevant, `jobs-search status` already covers this
 - [ ] `#22` Create custom parsers for selected companies in the long tail (bespoke career pages with no public jobs API — see `## Not scanned` in any portal scan report for the current list)
+- [ ] `#30` **Show scan coverage on the companies list** — `/companies/` (`tracker/templates/tracker/company_list.html`) says nothing about whether a company is actually being rescanned. Coverage is real and uneven: 29 of 44 tracked companies are scanned, and the other 15 are each unscanned for a specific recorded reason (`#5`). Today the only way to find out is to open the latest scan report and read the "Not scanned" section. Add a column saying whether the company is picked up automatically by `scan`, and when it isn't, why.
+
+  The predicate already exists and is cheap — `resolve_source(company_name, url)` in `src/scan-portals.py:136` returns the ATS source or `None`, reading `company_overrides` from `<DATA>/jobs/scan-config.yaml` and falling back to URL-pattern detection. Pure and offline: no network, so it is safe to call per row. **The obstacle is the filename** — `scan-portals.py` has a hyphen, so it cannot be imported normally. Prefer moving `resolve_source` and `_ATS_PATTERNS` down into `src/scan_config.py` (already importable, already the home of the config they read) over importlib gymnastics in the web app.
+
+  Worth showing the *reason* as well as the yes/no — `known_unsupported` in the same config file holds a hand-written one per company ("BambooHR — not yet integrated"), and that is the difference between "we can't scan this" and "nobody has looked yet". Ties into `#22` (custom parsers for the bespoke long tail), which is exactly the list this column would surface. Added 2026-09-23.
 
 ## CV variants
 - [x] `#13` ~~**Idea:** create `analytics-leadership` variant — less research/scholarly focus, more emphasis on analytics leadership, BI/dashboards, translating customer needs into insights. Revisit when 3–5 strong-fit roles in this space emerge (e.g. analytics director/VP in media, finance, consumer tech)~~ — closed 2026-09-17: no longer needed
@@ -52,6 +57,12 @@
   `views.mark_reviewing` → `views.set_status(request, num, status)` at `/actions/set-status/<num>/<status>/`, still local-only, still saving through `Application.save()` so `status_order` and the post-save History log behave as they do for an admin edit. The status is checked against `STATUS_SORT_ORDER` rather than trusted — it arrives from the URL, so an unknown value 404s instead of writing a status nothing else in the app understands.
 
   **UI shape: a `<details>` dropdown** (Michele's call, 2026-09-23), over a row of six always-visible buttons — seven statuses would crowd the actions row and wrap on a narrow window. `<details>` opens natively, so the menu still works with JavaScript off, the same bargain `tabs.js` makes. Verified in-browser end to end, History tab included.
+
+- [ ] `#31` **Icons for the sidebar's main items** — the nav is an undifferentiated list of words (`src/web/templates-global/base.html`); Dashboard, Applications, Companies, Areas, CVs, Profile, Notes, Portal scans all look identical at a glance. Give each **top-level** item an icon so the eye can find one without reading. Sub-items (Reviewing/Saved/All under Applications, All under Portal scans) stay text-only — they're already indented by `.nav-sub`, and icons on them would flatten that hierarchy back out. Inline SVG rather than an icon font or a CDN: the published site is a plain file mirror with no server behind it, and `build_static` only copies what's referenced locally. Added 2026-09-23.
+- [ ] `#32` **Rename the sidebar title "Job search" → "Job Studio", and make it visually distinctive** — an icon or small logo beside the wordmark (`.brand` in `site.css`, `src/web/templates-global/base.html:15`). Right now the title is the same weight and colour as everything else in the sidebar, so the app has no identity of its own.
+
+  Two things to settle first. **(a) Spelling.** `#2` decided the project ships as `jobstudio` — "unhyphenated, one spelling everywhere" (plan §2e). "Job Studio" with a space is a third form; decide deliberately whether the *display* name may differ from the package name, or whether the sidebar should read "jobstudio". **(b) Scope of the rename.** "Job search" appears 15 times across 13 templates — mostly as the `· Job search` suffix in every `{% block title %}` — plus `home.html`'s `<h1>` and `admin.site_header` in `src/web/urls.py`. Renaming the sidebar alone leaves the browser tab saying the old name on every page, so decide whether this is one string or all of them. Added 2026-09-23.
+- [ ] `#33` **Link the GitHub repo from the sidebar footer** — `https://github.com/lambdamusic/jobstudio`, next to the existing "Local · sqlite" / "Published" marker (`.sidebar-foot`, `src/web/templates-global/base.html`). Unlike the other sidebar links this one should render in **both** environments, not behind `{% if IS_LOCAL %}` — it is most useful on the published mirror, where a reader who likes the site has no other way to find out what built it. `target="_blank" rel="noopener"`, like the other external links in the app. Added 2026-09-23.
 
 ## File naming
 - [ ] `#27` **Re-order the application-folder naming convention to `{type}-{date-created}-{username}-{job-slug}`** — e.g. `cover-letter-2026-09-18-michele-pasin-046-bbc-studios.md`, replacing today's `{job-slug}-{username}-{type}-{date}` (`046-bbc-studios-michele-pasin-cover-letter-2026-09-18.md`, the 2026-09-08 convention in `src/appfolder.py`'s `app_filename()`). Putting the type first makes a folder listing sort by kind rather than by a company name every file in the folder already repeats. **Also apply it to `notes.md` and `job.md`**, which are currently bare names with no date or owner at all — so `notes-2026-09-18-michele-pasin-046-bbc-studios.md`, `job-2026-09-18-michele-pasin-046-bbc-studios.md`.
