@@ -1,9 +1,9 @@
 {% extends "base.html" %}{% load jobs_extras %}
-{% block title %}Dashboard · Job search{% endblock %}
+{% block title %}Dashboard{% endblock %}
 {% block content %}
 
 <div class="page-head">
-  <h1>Job search</h1>
+  <h1>{{ APP_NAME }}</h1>
   <p class="lede">{{ total }} applications tracked across {{ areas|length }} target areas.</p>
 </div>
 

@@ -4,6 +4,14 @@ Dated entries, newest first.
 
 ## 2026-09-23
 
+- **The app is called Job Studio** — the sidebar, the dashboard heading, every browser
+  tab and the admin header said "Job search". The name now lives in one place
+  (`settings.APP_NAME`), and the sidebar carries a wordmark and a small mark of its own.
+  The package, repo and command stay `jobstudio`.
+- **Scan coverage on the companies list** — a new column says whether `scan` picks each
+  company up automatically and on which ATS, or the specific reason it doesn't, with a
+  count at the top of the page.
+
 - **Any status can be set from the application page** — the page offered one hardcoded
   action, "Mark reviewing"; every other transition meant a trip to the Django admin. A
   "Set status" menu now lists all seven statuses (bar the current one), logging the

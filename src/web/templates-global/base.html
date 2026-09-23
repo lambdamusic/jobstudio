@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Job search{% endblock %}</title>
+  {# Page name only in the block — the app name is appended once, here. #}
+  <title>{% block title %}Dashboard{% endblock %} · {{ APP_NAME }}</title>
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
   <script src="{% static 'js/tabs.js' %}" defer></script>
 </head>
@@ -12,8 +13,21 @@
 
   <nav class="sidebar">
     <div class="brand">
-      Job search
-      <span>{{ owner_name }}{% if owner_name %} · {% endif %}{% now 'Y' %}</span>
+      {% comment %}
+      Inline SVG, not an icon file: the published site is a plain file mirror, so a mark
+      that lives in the markup cannot go missing from it. Three bars of decreasing width
+      — a shortlist, which is what the app is — in the existing navy/gold palette.
+      {% endcomment %}
+      <svg class="brand-mark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <rect width="24" height="24" rx="6" fill="#1B2948"/>
+        <rect x="6" y="7"  width="12" height="2.5" rx="1.25" fill="#C49B2E"/>
+        <rect x="6" y="11" width="9"  height="2.5" rx="1.25" fill="#ffffff" opacity=".85"/>
+        <rect x="6" y="15" width="6"  height="2.5" rx="1.25" fill="#ffffff" opacity=".45"/>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-name">Job <em>Studio</em></span>
+        <span>{{ owner_name }}{% if owner_name %} · {% endif %}{% now 'Y' %}</span>
+      </div>
     </div>
 
     <div class="nav-group">

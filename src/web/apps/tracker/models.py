@@ -147,6 +147,17 @@ class Company(models.Model):
     def stars(self) -> str:
         return "★" * self.fit + "☆" * (5 - self.fit)
 
+    @cached_property
+    def scan_coverage(self) -> dict:
+        """Whether `scan` picks this company up automatically, and on what — or the
+        specific reason it doesn't. See src/scan_sources.py.
+
+        Calls the same function the scanner acts on rather than re-deriving it, so the
+        column cannot quietly disagree with the report. Config plus a regex, no network.
+        """
+        import scan_sources
+        return scan_sources.coverage(self.name, self.url)
+
     @property
     def notes_path(self) -> Path | None:
         """jobs/companies/<slug>.md — long-form research, rendered at request time.

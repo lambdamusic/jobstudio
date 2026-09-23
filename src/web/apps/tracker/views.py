@@ -246,6 +246,9 @@ def company_list(request):
         "page": "companies",
         "categories": categories,
         "total": companies.count(),
+        # Coverage is uneven and worth stating up front: the per-row column answers
+        # "this one?", this answers "how much of the tracker is actually watched?".
+        "n_scanned": sum(1 for c in companies if c.scan_coverage["scanned"]),
     })
 
 

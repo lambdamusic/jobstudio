@@ -402,6 +402,51 @@ class AdminTests(TestCase):
         self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
 
 
+class ScanCoverageTests(TestCase):
+    """`#30` — the companies list says whether `scan` picks each company up.
+
+    Runs against example-data/jobs/scan-config.yaml, which the suite is pinned to, so
+    these also guard the config file's shape.
+    """
+
+    fixtures = FIXTURE
+
+    def test_an_override_makes_a_company_scanned(self):
+        """Grafana Labs' tracked URL reveals no ATS; the override is what finds it."""
+        import scan_sources
+        cov = scan_sources.coverage("Grafana Labs", "https://grafana.com/about/careers/")
+        self.assertTrue(cov["scanned"])
+        self.assertEqual(cov["platform"], "greenhouse")
+
+    def test_a_board_url_is_detected_without_any_config(self):
+        import scan_sources
+        cov = scan_sources.coverage("Unknown Co", "https://jobs.lever.co/unknownco")
+        self.assertTrue(cov["scanned"])
+        self.assertEqual(cov["platform"], "lever")
+
+    def test_a_known_unsupported_company_reports_its_own_reason(self):
+        """The hand-written reason is the point — it separates "no fetcher yet" from
+        "nobody has looked", which the generic fallback cannot."""
+        import scan_sources
+        cov = scan_sources.coverage("Example Analytics Ltd", "https://example.com/careers")
+        self.assertFalse(cov["scanned"])
+        self.assertIn("BambooHR", cov["reason"])
+
+    def test_no_url_is_its_own_reason_not_the_bespoke_fallback(self):
+        import scan_sources
+        cov = scan_sources.coverage("Nobody Ltd", "")
+        self.assertFalse(cov["scanned"])
+        self.assertEqual(cov["reason"], scan_sources.NO_URL)
+
+    def test_the_companies_page_shows_a_platform_or_a_reason_for_every_row(self):
+        html = self.client.get("/companies/").content.decode()
+        for company in Company.objects.all():
+            with self.subTest(company=company.name):
+                cov = company.scan_coverage
+                expected = cov["platform"] if cov["scanned"] else cov["reason"]
+                self.assertIn(escape(expected), html)
+
+
 class StatusActionTests(TestCase):
     """The local-only status menu on the application detail page (`#28`, 2026-09-23).
 

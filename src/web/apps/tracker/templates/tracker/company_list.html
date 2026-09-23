@@ -1,10 +1,11 @@
 {% extends "base.html" %}{% load jobs_extras %}
-{% block title %}Companies · Job search{% endblock %}
+{% block title %}Companies{% endblock %}
 {% block content %}
 
 <div class="page-head">
   <h1>Companies</h1>
-  <p class="lede">{{ total }} tracked, grouped by category.</p>
+  <p class="lede">{{ total }} tracked, grouped by category —
+     {{ n_scanned }} picked up automatically by <a href="/scans/">portal scans</a>.</p>
 </div>
 
 {# Categories become tabs when tabs.js loads; without it they stack as a plain document. #}
@@ -24,7 +25,8 @@
         <table>
           <thead>
             <tr><th class="nowrap">#</th><th>Company</th><th class="col-target">Role target</th>
-                <th class="nowrap">Fit</th><th class="nowrap">Status</th><th class="nowrap">Apps</th></tr>
+                <th class="nowrap">Fit</th><th class="nowrap">Status</th><th>Scan</th>
+                <th class="nowrap">Apps</th></tr>
           </thead>
           <tbody>
             {% for c in group.companies %}
@@ -37,6 +39,20 @@
                 <td class="col-target">{{ c.role_target }}</td>
                 <td class="stars nowrap">{{ c.fit|stars }}</td>
                 <td class="nowrap">{% include "tracker/_status.html" with status=c.status %}</td>
+                {% comment %}
+                Why the company isn't scanned is shown, not hidden in a tooltip: "no URL
+                on record" is a one-minute fix, a named ATS is a fetcher someone could
+                write, and a bespoke page is neither. One "not scanned" would flatten all
+                three into something nobody can act on.
+                {% endcomment %}
+                <td class="col-scan">
+                  {% if c.scan_coverage.scanned %}
+                    <span class="pill">{{ c.scan_coverage.platform }}</span>
+                  {% else %}
+                    <span class="muted">not scanned</span>
+                    <span class="sub">{{ c.scan_coverage.reason }}</span>
+                  {% endif %}
+                </td>
                 <td class="num">{{ c.n_apps|default:"" }}</td>
               </tr>
             {% endfor %}
