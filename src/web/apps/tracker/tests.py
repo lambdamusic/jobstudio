@@ -402,6 +402,31 @@ class AdminTests(TestCase):
         self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
 
 
+class BrandTests(TestCase):
+    """The sidebar lockup (`#32`)."""
+
+    fixtures = FIXTURE
+
+    def test_the_wordmark_matches_the_app_name(self):
+        """The lockup DRAWS the name rather than interpolating it — a fixed-width SVG
+        cannot absorb a longer string without overrunning its viewBox. That is a
+        deliberate exception to APP_NAME being the single definition, so this is the
+        thing that stops the two drifting apart silently."""
+        from django.conf import settings
+
+        template = Path(settings.TEMPLATES[0]["DIRS"][0]) / "base.html"
+        drawn = "".join(re.findall(r"<tspan[^>]*>([^<]*)</tspan>", template.read_text()))
+        self.assertTrue(drawn, f"no <tspan> wordmark found in {template}")
+        self.assertEqual(drawn.strip(), settings.APP_NAME)
+
+    def test_the_sidebar_renders_the_lockup_on_every_page(self):
+        for url in ["/", "/applications/", "/companies/", "/cvs/"]:
+            with self.subTest(url=url):
+                html = self.client.get(url).content.decode()
+                self.assertIn('class="brand-mark"', html)
+                self.assertIn(f'aria-label="{settings.APP_NAME}"', html)
+
+
 class ScanCoverageTests(TestCase):
     """`#30` — the companies list says whether `scan` picks each company up.
 

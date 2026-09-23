@@ -83,3 +83,31 @@ column.
 ## Still open from this batch
 
 `#31` (sidebar icons) and `#33` (GitHub link in the footer) — captured, not built.
+
+---
+
+## Addendum — the mark, revised after review
+
+The three-bars tile described above did not survive Michele looking at it. Rather than
+iterate blind, six variants were mocked up in one throwaway page — rendered at real size
+on the real sidebar background, which is the only way to judge a 24px mark — and reviewed
+in the browser: the bars tile, a single lockup, a monogram tile, a wordmark with a gold
+rule, an outline glyph, and the mark stacked above the words.
+
+Michele picked **the outline glyph (E) in the lockup layout (B)**: a briefcase in navy
+stroke with a gold lens, and the wordmark drawn beside it inside the same SVG.
+
+Two things fell out of that choice worth recording:
+
+- **A lockup keeps the parts fixed to each other.** Glyph and words in one SVG cannot
+  drift apart at different zoom levels or font settings the way two flex children can.
+  It is drawn at its exact pixel size and never scaled, so the type stays crisp.
+- **It is a deliberate exception to the `APP_NAME` consolidation made hours earlier.**
+  The words are drawn, not interpolated: a fixed-width viewBox would be overrun by a
+  longer name. An exception nobody can see is a trap, so `BrandTests.
+  test_the_wordmark_matches_the_app_name` reads the tspans out of the template and
+  compares them to `settings.APP_NAME`. Verified it actually bites, by changing the
+  setting and watching it fail.
+
+The monogram variant is worth a warning if this is ever revisited: "JS" in a tile reads
+as JavaScript.
