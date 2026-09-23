@@ -4,7 +4,7 @@ scan-portals.py
 
 Rescan tracked companies (from the tracker database) for new open roles via public
 ATS APIs (Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor,
-Rippling ATS) plus a generic first-party-JSON fetcher. Purely mechanical — fetch,
+Rippling ATS, BambooHR) plus a generic first-party-JSON fetcher. Purely mechanical — fetch,
 dedup, keyword + location pre-filter, classify not-scanned companies. Never imports
 `anthropic` and never calls any model.
 

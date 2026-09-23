@@ -4,6 +4,9 @@ Dated entries, newest first.
 
 ## 2026-09-23
 
+- **BambooHR is scanned** — a fetcher for the public JSON behind every BambooHR careers
+  page, plus tenant detection from the careers subdomain. Ten ATS integrations now.
+
 - **A careers link on the companies a scan can't reach** — the rows that have to be
   checked by hand now link straight out to the company's careers page, instead of a trip
   through the company page to find the URL.
