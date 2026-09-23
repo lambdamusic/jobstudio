@@ -537,6 +537,19 @@ class ScanCoverageTests(TestCase):
         self.assertFalse(cov["scanned"])
         self.assertEqual(cov["reason"], scan_sources.NO_URL)
 
+    def test_a_careers_link_appears_only_where_scanning_cannot_help(self):
+        """`#34`. The shortcut belongs on the rows that have to be checked by hand. On a
+        scanned row it would be noise, and a row with no URL has nothing to link to."""
+        html = self.client.get("/companies/").content.decode()
+        for company in Company.objects.all():
+            with self.subTest(company=company.name):
+                link = f'href="{escape(company.url)}" target="_blank"'
+                wanted = bool(company.url) and not company.scan_coverage["scanned"]
+                if wanted:
+                    self.assertIn(link, html)
+                else:
+                    self.assertNotIn(link, html)
+
     def test_the_companies_page_shows_a_platform_or_a_reason_for_every_row(self):
         html = self.client.get("/companies/").content.decode()
         for company in Company.objects.all():

@@ -50,7 +50,17 @@
                     <span class="pill">{{ c.scan_coverage.platform }}</span>
                   {% else %}
                     <span class="muted">not scanned</span>
-                    <span class="sub">{{ c.scan_coverage.reason }}</span>
+                    {% comment %}
+                    The careers link only appears on rows scanning can't help with: these
+                    are the boards that have to be checked by hand, and this saves a trip
+                    through the company page to reach the URL. A scanned company is
+                    already being watched, so the same link there would be noise. A
+                    company with no URL on record has nothing to link to — that reason is
+                    itself the prompt to go and fill it in.
+                    {% endcomment %}
+                    <span class="sub">{{ c.scan_coverage.reason }}{% if c.url %}
+                      · <a href="{{ c.url }}" target="_blank" rel="noopener">careers ↗</a>
+                    {% endif %}</span>
                   {% endif %}
                 </td>
                 <td class="num">{{ c.n_apps|default:"" }}</td>

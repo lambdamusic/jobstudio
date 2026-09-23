@@ -168,3 +168,22 @@ that sweeps the footer behind `{% if IS_LOCAL %}` fails instead of quietly delet
 just a gap — and no content assertion would ever notice. `test_every_nav_icon_points_at_a_
 symbol_that_exists` compares referenced ids against defined ones; verified by breaking
 one and watching it fail.
+
+## `#34` — the careers link
+
+Small follow-on to `#30`: the coverage column said *why* a company isn't scanned, but
+acting on that still meant opening the company page to find its URL. The reason text on
+those rows now carries a `careers ↗` link.
+
+The condition is the whole design: **only where scanning can't help, and only where there
+is something to link to.** On a scanned row the link would be noise — that company is
+already being watched — and a row reading "no URL on record" has nothing to point at, the
+reason being the prompt to go and fill it in. The test asserts both halves, present and
+absent, so it can't quietly spread to every row later.
+
+**Process note:** while checking that both branches existed in the data, I ran
+`manage.py shell` without `JOBSTUDIO_DATA` and it resolved through `~/.jobstudio.ini` to
+the *real* job search — exactly what CLAUDE.md warns about. It was a read-only print and
+nothing was written, but the habit is wrong: ad-hoc runs against this repo need the env
+var set, every time. (The suite itself is safe regardless — `settings.py` pins it to
+`example-data/` before `local_settings` loads.)

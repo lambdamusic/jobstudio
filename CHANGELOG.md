@@ -4,6 +4,10 @@ Dated entries, newest first.
 
 ## 2026-09-23
 
+- **A careers link on the companies a scan can't reach** — the rows that have to be
+  checked by hand now link straight out to the company's careers page, instead of a trip
+  through the company page to find the URL.
+
 - **The sidebar has icons, and a link to the repo** — each top-level section carries a
   line glyph that picks up the active item's colour; sub-items stay text-only so the
   indent still reads as hierarchy. The footer links to the GitHub repo, on the published
