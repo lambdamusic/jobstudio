@@ -232,6 +232,22 @@ td.col-notes { max-width: 460px; }
 .btn-primary { background: var(--navy); border-color: var(--navy); color: #fff; }
 .btn-primary:hover { background: var(--navy-soft); }
 
+/* Status menu on the application page — a native <details> styled as a button plus a
+   floating list. `position: relative` on the <details> is what the panel anchors to, so
+   the row below it does not reflow when the menu opens. */
+.menu { position: relative; }
+.menu > summary { list-style: none; cursor: pointer; user-select: none; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu[open] > summary { background: var(--bg-sunk); }
+.menu-body {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 100%;
+  display: flex; flex-direction: column; gap: 2px; padding: 5px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 4px 14px rgba(27, 41, 72, .13);
+}
+.menu-body a { padding: 3px 6px; border-radius: 4px; }
+.menu-body a:hover { background: var(--bg-sunk); text-decoration: none; }
+
 .notice {
   border-left: 3px solid var(--gold); background: #fffdf5;
   padding: 9px 13px; border-radius: 3px; font-size: 13px; margin-bottom: 16px;

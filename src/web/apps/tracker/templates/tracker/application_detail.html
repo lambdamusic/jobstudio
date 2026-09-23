@@ -23,9 +23,20 @@
     {% else %}
       <a class="btn local-only" href="/actions/create-folder/{{ app.num }}/">Create folder</a>
     {% endif %}
-    {% if app.status != "reviewing" %}
-      <a class="btn local-only" href="/actions/mark-reviewing/{{ app.num }}/">Mark reviewing</a>
-    {% endif %}
+    {% comment %}
+    Status menu. <details> rather than a scripted dropdown: it opens and closes natively,
+    so it still works with JavaScript off — same progressive-enhancement bargain tabs.js
+    makes. The current status is left out of the list by the view (`other_statuses`).
+    {% endcomment %}
+    <details class="menu local-only">
+      <summary class="btn local-only">Set status ▾</summary>
+      <div class="menu-body">
+        {% for s in other_statuses %}
+          <a href="/actions/set-status/{{ app.num }}/{{ s }}/">
+            {% include "tracker/_status.html" with status=s %}</a>
+        {% endfor %}
+      </div>
+    </details>
     <a class="btn local-only" href="/admin/tracker/application/{{ app.pk }}/change/"
        target="_blank" rel="noopener">Edit in admin</a>
   {% endif %}

@@ -4,6 +4,11 @@ Dated entries, newest first.
 
 ## 2026-09-23
 
+- **Any status can be set from the application page** — the page offered one hardcoded
+  action, "Mark reviewing"; every other transition meant a trip to the Django admin. A
+  "Set status" menu now lists all seven statuses (bar the current one), logging the
+  change to the History tab the same way an admin edit does.
+
 - **Every tailored CV is listed on `/cvs/`** — the page showed only the two master CVs,
   so a CV written for a role was invisible unless you knew which application folder it
   was in. It now also lists all tailored CVs, newest first, each naming the application

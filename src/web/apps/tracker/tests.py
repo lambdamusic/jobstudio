@@ -402,6 +402,49 @@ class AdminTests(TestCase):
         self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
 
 
+class StatusActionTests(TestCase):
+    """The local-only status menu on the application detail page (`#28`, 2026-09-23).
+
+    Replaced a single hardcoded "Mark reviewing" link; these guard the two things that
+    replacement could get wrong — accepting a status the rest of the app doesn't know,
+    and losing the History log that the post_save signal writes.
+    """
+
+    fixtures = FIXTURE
+
+    def test_every_status_can_be_set_from_the_url(self):
+        for status in STATUS_SORT_ORDER:
+            with self.subTest(status=status):
+                r = self.client.get(f"/actions/set-status/1/{status}/")
+                self.assertEqual(r.status_code, 302)
+                self.assertEqual(Application.objects.get(num=1).status, status)
+
+    def test_an_unknown_status_404s_rather_than_being_written(self):
+        """The status arrives from the URL, so it is input, not a given."""
+        before = Application.objects.get(num=1).status
+        self.assertEqual(self.client.get("/actions/set-status/1/banana/").status_code, 404)
+        self.assertEqual(Application.objects.get(num=1).status, before)
+
+    def test_setting_a_status_keeps_status_order_and_logs_the_change(self):
+        app = Application.objects.get(num=1)
+        self.client.get(f"/actions/set-status/{app.num}/interviewing/")
+        app.refresh_from_db()
+        self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
+        self.assertTrue(ApplicationStatusChange.objects.filter(
+            application=app, to_status="interviewing").exists())
+
+    def test_the_menu_offers_every_status_except_the_current_one(self):
+        app = Application.objects.get(num=1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for status in STATUS_SORT_ORDER:
+            with self.subTest(status=status):
+                link = f"/actions/set-status/{app.num}/{status}/"
+                if status == app.status:
+                    self.assertNotIn(link, html)
+                else:
+                    self.assertIn(link, html)
+
+
 class ViewTests(TestCase):
     fixtures = FIXTURE
 

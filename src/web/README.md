@@ -110,6 +110,11 @@ Rendered only when `ENVIRONMENT=local`, and never present in the published mirro
   blocks `file://` navigation from an `http://` page, so a plain link cannot work; the
   endpoint refuses any path outside the repo.
 - **Open in VS Code** → a `vscode://file/...` link, which the browser hands to the app
+- **Set status** → a `<details>` menu on the application detail page listing every status
+  except the current one, each linking to `/actions/set-status/<num>/<status>/`. The
+  status is validated against `STATUS_SORT_ORDER` rather than trusted, since it arrives
+  from the URL. Saving goes through `Application.save()`, so `status_order` and the
+  History tab's log are maintained exactly as they are for an admin edit.
 
 The admin change forms carry Django's **View on site** button (from `get_absolute_url()`),
 linking back to the public page.
