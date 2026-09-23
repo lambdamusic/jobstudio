@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #34 -->
+     Next available: #35 -->
 
 ## Architecture
 
@@ -38,6 +38,9 @@
   The predicate existed but was unreachable: `resolve_source()` lived in `src/scan-portals.py`, whose hyphen makes it unimportable. Moved it, the ATS URL patterns, and the "not scanned" reasons into a new `src/scan_sources.py`, and **`scan-portals.py` now calls the same `coverage()` the page does** — the point of the move was not access but agreement: two copies of these reasons would drift, and a coverage column that disagrees with the report is worse than no column. Not `scan_config.py`, whose docstring is explicit that it holds one person's settings; Greenhouse URL shapes are toolkit knowledge.
 
   The reasons stay graded rather than collapsed into one "not scanned": "no URL on record" is a gap anyone can close in a minute, a `known_unsupported` entry is a confirmed platform with no fetcher written (`#10`), and the bespoke fallback means nobody has found an API (`#22` — this column is exactly that list). Shown as text under the marker, not a tooltip, per the visible-over-hover preference from `#25`.
+- [ ] `#34` **Link out to the careers page from the Scan column when a company isn't scanned** — `#30` now says *why* each company is unscanned, but acting on that still means opening the company detail page to reach its careers URL. For exactly the rows where scanning can't help, add a small external link straight to `Company.url` in that cell (`tracker/templates/tracker/company_list.html`), so checking the 15-odd bespoke boards by hand is one click from the list.
+
+  Only on the not-scanned rows: a scanned company is being watched automatically and doesn't need the shortcut, and putting the link on every row would make the column noise rather than a signal. Follow the existing external-link pattern — `Site ↗` on the dashboard (`home.html:79`) and `Careers page ↗` on the company detail page — including `target="_blank" rel="noopener"`. Handle the `no URL on record` case, which by definition has nothing to link to (that reason is itself the prompt to go and fill the URL in). Added 2026-09-23.
 
 ## CV variants
 - [x] `#13` ~~**Idea:** create `analytics-leadership` variant — less research/scholarly focus, more emphasis on analytics leadership, BI/dashboards, translating customer needs into insights. Revisit when 3–5 strong-fit roles in this space emerge (e.g. analytics director/VP in media, finance, consumer tech)~~ — closed 2026-09-17: no longer needed
