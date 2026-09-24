@@ -15,6 +15,7 @@ convention (`is_cv_filename` / `is_cover_letter_filename`) at request time.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -30,6 +31,7 @@ from appfolder import (
     STATUS_SORT_ORDER,
     cv_variant,
     is_cover_letter_filename,
+    is_interview_filename,
     is_cv_filename,
     is_tailored_cv,
     slug as slugify_name,
@@ -359,9 +361,51 @@ class Application(models.Model):
         return out
 
     @property
+    def interview_files(self) -> list[dict]:
+        """Interview rounds for the Interviews tab, newest first — one file per round,
+        scanned from the application folder by naming convention (like cover letters),
+        with no database row.
+
+        Files-only was a deliberate choice (2026-09-24): prose lives on disk, the tracker
+        keeps status. A round gets a DB model the day scheduling or reminders need one.
+        """
+        folder = self.folder_path
+        if folder is None:
+            return []
+        from .parsers import find_interviews
+
+        out = []
+        for round_ in find_interviews(folder):
+            body = _read(round_["path"])
+            if not body.strip():
+                continue  # a scaffolded round that hasn't been written yet
+            out.append({
+                "name": round_["path"].name,
+                "path": round_["path"],
+                "label": round_["label"],
+                "stage": round_["stage"],
+                "date": round_["date"],
+                "body_md": body,
+            })
+        out.sort(key=lambda r: (r["date"].toordinal() if r["date"] else 0, r["name"]),
+                 reverse=True)
+
+        # Anchor id for the index at the top of the tab. Stage + date reads as a URL
+        # ("#round-hiring-manager-2026-09-24") where the filename stem would not; a
+        # counter keeps it unique if a stage ever repeats on one day.
+        seen: dict[str, int] = {}
+        for round_ in out:
+            base = f"round-{round_['stage'] or 'interview'}"
+            if round_["date"]:
+                base = f"{base}-{round_['date'].isoformat()}"
+            seen[base] = seen.get(base, 0) + 1
+            round_["anchor"] = base if seen[base] == 1 else f"{base}-{seen[base]}"
+        return out
+
+    @property
     def extra_files(self) -> list[dict]:
         """Anything in the folder not already surfaced by another tab — job.md, notes.md,
-        CV snapshots, or cover letters (either one's .docx export included). Markdown
+        CV snapshots, cover letters, or interview rounds (any .docx export included). Markdown
         files render inline; anything else is listed with a local open link, so nothing
         saved into an application folder goes invisible on the page."""
         folder = self.folder_path
@@ -372,10 +416,10 @@ class Application(models.Model):
         for p in self.cv_snapshots:
             known.add(p.name)
             known.add(p.with_suffix(".docx").name)
-        # Any cover-letter-named file belongs to the Cover letters tab, even a still-empty
-        # stub that cover_letter_files chooses not to render — it must not leak in here.
+        # Any cover-letter- or interview-named file belongs to its own tab, even a
+        # still-empty one that tab chooses not to render — it must not leak in here.
         for p in folder.iterdir():
-            if is_cover_letter_filename(p.name):
+            if is_cover_letter_filename(p.name) or is_interview_filename(p.name):
                 known.add(p.name)
                 known.add(p.with_suffix(".docx").name)
 
@@ -393,6 +437,14 @@ class Application(models.Model):
                 out.append({"rel": str(rel), "name": path.name, "path": path,
                            "is_md": False,
                            "size_kb": max(1, path.stat().st_size // 1024)})
+
+        # An id per file, so prose elsewhere in the folder can link a specific one —
+        # `#file-<slug>`, resolved by tabs.js the same way a round anchor is. Without it
+        # the only honest target is the tab, and a bare `<name>.md` link is a broken link
+        # on the published site, where these render into the page rather than ship as
+        # files.
+        for f in out:
+            f["anchor"] = "file-" + re.sub(r"[^a-z0-9]+", "-", f["rel"].lower()).strip("-")
         return out
 
 

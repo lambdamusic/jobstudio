@@ -21,14 +21,6 @@
 - Read three of their RFCs and have an opinion on one.
 - Have the six-hours-to-35-minutes story ready in three minutes, not ten.
 
-## Interview prep
-
-### "Why advocacy, after eight years of building?"
-
-The enablement programme answer. Two years of asking for it, one year of doing it, and
-the measurable outcome — models shipped without platform involvement going from zero to
-the majority. The switch is already underway; this role makes it the job.
-
 ## Contacts
 
 None yet.
@@ -37,3 +29,6 @@ None yet.
 
 - 2026-09-12 — saved
 - 2026-09-15 — applied
+- 2026-09-18 — HR screen with Dana Okonkwo. Study notes:
+  [`001-grafana-labs-alex-rivera-study-plugin-architecture-2026-09-19.md`](#file-001-grafana-labs-alex-rivera-study-plugin-architecture-2026-09-19-md)
+  → [`001-grafana-labs-alex-rivera-interview-hr-screen-2026-09-18.md`](#round-hr-screen-2026-09-18)

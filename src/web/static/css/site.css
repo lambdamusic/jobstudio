@@ -308,6 +308,20 @@ td.col-scan, th.col-scan { max-width: 230px; }
 .js-tabs .panel-heading { display: none; }
 .tabpanel[hidden] { display: none; }
 
+/* ---------- interview round index (Interviews tab) ---------- */
+
+/* Shown only from two rounds up (the template decides) — a one-item index is noise. */
+.round-index { padding: 12px 16px; margin-bottom: 16px; }
+.round-index ol {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-wrap: wrap; gap: 6px 22px;
+}
+.round-index li { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.round-index a { font-weight: 500; }
+.round-index .round-index-date {
+  color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+
 /* ---------- fit summary (Record tab) ---------- */
 
 .fit-summary { margin-bottom: 16px; }

@@ -140,6 +140,62 @@ def is_cover_letter_filename(name: str) -> bool:
     return "cover-letter" in name
 
 
+# ---------------------------------------------------------------------------
+# Interview rounds (2026-09-24)
+#
+# One file per round, not one per process: each round has its own interviewer,
+# its own emphasis, and its own outcome, and the prep for round N+1 is driven by
+# the outcome of round N. They used to be packed into notes.md under a single
+# `## Interview prep` heading, which put prep, outcome and timeline for one round
+# in three places and pushed one real folder to 63% interview content.
+#
+#   <application-folder-name>-<person-slug>-interview-<stage>-<YYYY-MM-DD>.md
+#
+# e.g. 001-grafana-labs-<person-slug>-interview-hiring-manager-2026-09-24.md
+#
+# The date is the date of the INTERVIEW, not the date the file was written —
+# unlike CVs and cover letters, where it is the creation date. That is what makes
+# `parse_date()` on the filename a real chronology and a real "what's next".
+#
+# Built with app_filename(folder, f"interview-{stage}", "md", when=<interview date>);
+# no separate builder, so the one convention keeps one implementation.
+# ---------------------------------------------------------------------------
+
+# The stages `/jobstudio interview --stage` accepts, and the order a process runs in.
+INTERVIEW_STAGES = ["hr-screen", "hiring-manager", "technical", "panel", "final", "informal"]
+
+_INTERVIEW_STAGE_LABELS = {
+    "hr-screen": "HR screen",
+    "hiring-manager": "Hiring manager",
+    "technical": "Technical",
+    "panel": "Panel",
+    "final": "Final round",
+    "informal": "Informal chat",
+}
+
+
+def is_interview_filename(name: str) -> bool:
+    """An interview-round file — `<application-id>-<person-slug>-interview-<stage>-<date>.md`,
+    or a bare `interview-<stage>-<date>.md` written by hand."""
+    return name.endswith(".md") and ("-interview-" in name or name.startswith("interview-"))
+
+
+def interview_stage(name: str) -> str:
+    """The `<stage>` slug an interview file was named after, or "" when it carries none
+    (`...-interview-2026-09-24.md`). Matches up to the date, so a multi-word stage like
+    `hiring-manager` survives intact."""
+    m = re.search(r"interview-(.*?)-?(\d{4}-\d{2}-\d{2})", Path(name).stem)
+    return m.group(1).strip("-_ ") if m else ""
+
+
+def interview_label(stage: str) -> str:
+    """Display name for a stage slug — known stages get real capitalisation, anything
+    else is de-slugified rather than rejected, so a hand-named round still reads."""
+    if not stage:
+        return "Interview"
+    return _INTERVIEW_STAGE_LABELS.get(stage, stage.replace("-", " ").capitalize())
+
+
 def app_folder(row: dict) -> Path:
     """Canonical folder location for this row."""
     return APPS_DIR / _folder_name(row)
@@ -166,11 +222,15 @@ def notes_stub(row: dict) -> str:
     database and used to be duplicated here, in the applications.md table, and in its
     detail block — three copies that drifted apart. This file is for prose only.
     (applications.md was retired in Phase 6.)
+
+    No `## Interview prep` heading either, since 2026-09-24: interview rounds are their
+    own files (see the naming block above). What stays here is what is true of the *role*
+    rather than of a meeting — the notes, the contacts, and a timeline that indexes the
+    round files.
     """
     return (
         f"# {row['company']} — {row['role']}\n\n"
         "## My notes\n\n\n"
-        "## Interview prep\n\n\n"
         "## Contacts\n\n\n"
         "## Timeline\n"
     )

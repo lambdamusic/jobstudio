@@ -15,7 +15,12 @@ from pathlib import Path
 
 import yaml
 
-from appfolder import is_cover_letter_filename
+from appfolder import (
+    interview_label,
+    interview_stage,
+    is_cover_letter_filename,
+    is_interview_filename,
+)
 
 LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 DATE_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
@@ -169,6 +174,29 @@ def find_cover_letters(folder: Path) -> list[dict]:
                     "date": parse_date(entry.name) or parse_date(md.name),
                     "label": f"{entry.name}/{md.stem}",
                 })
+    return out
+
+
+def find_interviews(folder: Path) -> list[dict]:
+    """Interview rounds in an application folder — one file per round, named
+    `<application-id>-<person-slug>-interview-<stage>-<YYYY-MM-DD>.md` (2026-09-24).
+
+    The date in the name is the date of the interview itself, not the date the file was
+    written, so sorting on it is a real chronology of the process. Unlike cover letters
+    there is no directory form to support: the convention is new, so there is no older
+    layout to stay compatible with.
+    """
+    out: list[dict] = []
+    for entry in sorted(p for p in folder.iterdir() if is_interview_filename(p.name)):
+        if not entry.is_file():
+            continue
+        stage = interview_stage(entry.name)
+        out.append({
+            "path": entry,
+            "date": parse_date(entry.name),
+            "stage": stage,
+            "label": interview_label(stage),
+        })
     return out
 
 

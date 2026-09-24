@@ -227,6 +227,9 @@ def application_detail(request, num):
         "nav_apps": "applications",
         "app": app,
         "cover_letters": app.cover_letter_files,
+        # Both are computed by scanning the folder, so resolve each once here
+        # rather than letting the template re-walk it per access.
+        "interviews": app.interview_files,
         # The status menu offers every status except the one it is already in.
         "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],
         "siblings": (Application.objects.filter(company_name=app.company_name)

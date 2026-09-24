@@ -47,8 +47,58 @@ actually builds. Not to be confused with **[career-stocktake-profile.md](career-
 
 ## Where it's written
 
-**Application mode** writes into that application's `notes.md`, under the existing
-`## Interview prep` heading (already scaffolded by `/jobstudio application`).
+**Application mode** writes **one file per interview round**, into the application
+folder:
+
+```
+<application-id>-<person-slug>-interview-<stage>-<YYYY-MM-DD>.md
+001-grafana-labs-alex-rivera-interview-hiring-manager-2026-09-24.md
+```
+
+The date is the date of the **interview**, not the day the file was written — unlike
+CVs and cover letters, where it is the creation date. That makes sorting on the
+filename a real chronology of the process, and `## Timeline` in `notes.md` indexes the
+rounds with a link each.
+
+Stages: `hr-screen`, `hiring-manager`, `technical`, `panel`, `final`, `informal`
+(`appfolder.INTERVIEW_STAGES`). Each file follows one shape:
+
+| Section | Holds |
+|---|---|
+| `## Details` | date, stage, who, format, duration |
+| `## Who I'm meeting` | research on the interviewer |
+| `## Prep` | the drafted Q&A pack |
+| `## Questions to ask them` | |
+| `## Study before` | study-only flags, no drafted answers |
+| `## Private — not for the call` | |
+| `## Outcome` | filled in afterwards — what was asked, what landed, next step |
+
+`## Outcome` is what makes a round self-closing, and it is the first thing the next
+round's prep reads.
+
+**Why one file per round** (decided 2026-09-24): all of this used to live under a
+single `## Interview prep` heading in `notes.md`, which put a round's prep, its
+outcome and its timeline entry in three different places and pushed one real folder to
+63% interview content. Each round has its own interviewer, emphasis and result, so
+the round is the unit.
+
+**Files only — no database row.** Prose lives on disk; the tracker keeps status. A
+round gets a model the day scheduling or reminders need one.
+
+## On the page
+
+Rounds render on an **Interviews** tab, stacked newest first, between *Job description*
+and *My notes* — once a process is live the rounds are what gets reread, and the JD is
+what they're read against.
+
+From two rounds up the panel opens with an index (one per round, newest first), each
+entry linking `#round-<stage>-<date>` — an id on that round's heading. `tabs.js` resolves
+a hash naming an element inside a panel by opening the panel that holds it, so those
+links work on a fresh load and when shared, not only in-session. `## Timeline` in
+`notes.md` uses the same anchors.
+
+A single round shows no index: a one-item list is noise.
+
 **`--practice` mode** writes nothing — it's rehearsal in chat only, for when there's
 no specific interview lined up yet.
 
@@ -58,5 +108,5 @@ After a real interview, if an answer landed well and needs no role-specific
 rewriting, it gets appended to `jobs/notes/interview-technique.md`'s **Standard
 answer bank** section — a short note on which interview validated it and why the
 phrasing matters, then the answer verbatim. The existing "why did you leave Digital
-Science" entry (validated at the Comply HR screen, 2026-09-16) is the template for
+Science" entry (validated at a real HR screen, and dated in the file) is the template for
 new entries.

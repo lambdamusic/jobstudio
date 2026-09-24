@@ -1080,6 +1080,201 @@ class ApplicationFolderTests(TestCase):
                 self.assertFalse(leaked, f"#{app.num}: cover letter(s) leaked into extra_files: {leaked}")
 
 
+class InterviewRoundTests(TestCase):
+    """Interview rounds are one file per round in the application folder (2026-09-24),
+    not a `## Interview prep` heading inside notes.md. Files only — no database row."""
+
+    fixtures = FIXTURE
+
+    def test_filename_recognition_and_stage(self):
+        import appfolder
+
+        cases = [
+            ("001-grafana-labs-alex-interview-hiring-manager-2026-09-24.md", "hiring-manager",
+             "Hiring manager"),
+            ("001-grafana-labs-alex-interview-hr-screen-2026-09-16.md", "hr-screen", "HR screen"),
+            # A multi-word stage must survive intact — matching to the date, not to the
+            # first hyphen, is the whole point.
+            ("interview-technical-2026-10-01.md", "technical", "Technical"),
+            # No stage at all is legal; it just labels generically.
+            ("001-grafana-labs-alex-interview-2026-09-24.md", "", "Interview"),
+        ]
+        for name, stage, label in cases:
+            with self.subTest(name=name):
+                self.assertTrue(appfolder.is_interview_filename(name))
+                self.assertEqual(appfolder.interview_stage(name), stage)
+                self.assertEqual(appfolder.interview_label(stage), label)
+
+    def test_other_folder_files_are_not_interviews(self):
+        import appfolder
+
+        for name in ("notes.md", "job.md", "cv_functional.md",
+                     "001-grafana-labs-alex-rivera-cv-developer-advocacy-2026-09-15.md",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15.md"):
+            with self.subTest(name=name):
+                self.assertFalse(appfolder.is_interview_filename(name))
+
+    def test_rounds_on_disk_are_surfaced_newest_first(self):
+        import appfolder
+
+        for app in Application.objects.exclude(folder=""):
+            with self.subTest(num=app.num):
+                on_disk = [p for p in app.folder_path.iterdir()
+                           if appfolder.is_interview_filename(p.name)
+                           and p.read_text().strip()]
+                self.assertEqual(len(app.interview_files), len(on_disk))
+                dates = [r["date"] for r in app.interview_files if r["date"]]
+                self.assertEqual(dates, sorted(dates, reverse=True),
+                                 "rounds must be newest first — the one being prepped "
+                                 "for is the one at the top")
+
+    def test_rounds_never_leak_into_extra_files(self):
+        """Same bargain as cover letters: a file belonging to a tab must not also show
+        up under "Other files"."""
+        import appfolder
+
+        for app in Application.objects.exclude(folder=""):
+            with self.subTest(num=app.num):
+                leaked = [f["name"] for f in app.extra_files
+                          if appfolder.is_interview_filename(f["name"])]
+                self.assertFalse(leaked, f"#{app.num}: rounds leaked into extra_files: {leaked}")
+
+    def test_interviews_tab_renders(self):
+        app = Application.objects.get(num=1)
+        self.assertTrue(app.interview_files, "fixture app #1 needs a round file on disk")
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertIn('data-tab="interviews"', html)
+        self.assertIn('data-panel="interviews"', html)
+        self.assertIn("HR screen", html)
+
+    def test_interviews_tab_sits_between_job_description_and_notes(self):
+        """Once a process is live the rounds are what gets reread, and the JD is what
+        they're read against — so Interviews follows Job description, ahead of My notes.
+        Asserted on the panel order too: with JS off the panels are the reading order."""
+        app = Application.objects.get(num=1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for attr in ("data-tab", "data-panel"):
+            with self.subTest(attr=attr):
+                order = [t for t in ("record", "job", "interviews", "notes", "cv",
+                                     "letters", "files", "history")
+                         if f'{attr}="{t}"' in html]
+                positions = {t: html.index(f'{attr}="{t}"') for t in order}
+                self.assertLess(positions["job"], positions["interviews"])
+                self.assertLess(positions["interviews"], positions["notes"])
+
+    def test_every_round_has_a_unique_anchor(self):
+        for app in Application.objects.exclude(folder=""):
+            rounds = app.interview_files
+            if not rounds:
+                continue
+            with self.subTest(num=app.num):
+                anchors = [r["anchor"] for r in rounds]
+                self.assertEqual(len(anchors), len(set(anchors)), f"duplicate: {anchors}")
+                for r in rounds:
+                    self.assertTrue(r["anchor"].startswith("round-"))
+                    self.assertNotIn(" ", r["anchor"])
+
+    def test_anchor_collision_is_disambiguated(self):
+        """Two rounds of the same stage on the same day would otherwise share an id, and
+        an anchor that matches two elements jumps to the wrong one."""
+        app = Application.objects.get(num=1)
+        folder = app.folder_path
+        clash = folder / "001-grafana-labs-alex-rivera-interview-hr-screen-2026-09-18-b.md"
+        # Same stage and date as the existing round; the trailing -b keeps the filename
+        # distinct while the derived anchor base collides.
+        clash.write_text("# Second screen\n\nBody.\n")
+        self.addCleanup(clash.unlink)
+
+        anchors = [r["anchor"] for r in app.interview_files]  # a plain property, not cached
+        self.assertEqual(len(anchors), len(set(anchors)), anchors)
+
+    def test_round_index_appears_only_from_two_rounds_up(self):
+        """A one-item index is noise."""
+        app = Application.objects.get(num=1)
+        self.assertEqual(len(app.interview_files), 1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertNotIn("round-index", html)
+
+        folder = app.folder_path
+        second = folder / "001-grafana-labs-alex-rivera-interview-technical-2026-09-25.md"
+        second.write_text("# Technical round\n\nBody.\n")
+        self.addCleanup(second.unlink)
+
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertIn("round-index", html)
+        # Each index entry must point at an id that actually exists on the page.
+        for r in Application.objects.get(num=1).interview_files:
+            self.assertIn(f'href="#{r["anchor"]}"', html)
+            self.assertIn(f'id="{r["anchor"]}"', html)
+
+    def test_extra_files_carry_unique_anchors_rendered_as_ids(self):
+        """Prose in a folder needs a target for a specific file. Without an id the only
+        honest link is the tab, and a bare `<name>.md` link is broken on the published
+        site — these render into the page, they are not shipped as files."""
+        app = Application.objects.get(num=1)
+        files = app.extra_files
+        self.assertTrue(files, "fixture app #1 needs a file under Other files")
+        anchors = [f["anchor"] for f in files]
+        self.assertEqual(len(anchors), len(set(anchors)), f"duplicate anchors: {anchors}")
+
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for f in files:
+            with self.subTest(rel=f["rel"]):
+                self.assertTrue(f["anchor"].startswith("file-"))
+                self.assertIn(f'id="{f["anchor"]}"', html)
+
+    def test_no_folder_markdown_links_a_bare_md_file(self):
+        """Regression, twice over. A relative `.md` link inside an application folder
+        resolves to nothing in the web view and fails build_static's link checker — the
+        file is rendered into a tab, not published. Link the anchor instead.
+
+        Note this only covers the example data the suite runs against; the real guard for
+        a user's own data root is running build_static before publishing.
+        """
+        bad_link = re.compile(r"\]\((?!https?://|#|mailto:)([^)]*\.md)\)")
+        for app in Application.objects.exclude(folder=""):
+            for md in sorted(app.folder_path.rglob("*.md")):
+                with self.subTest(file=md.name):
+                    hits = bad_link.findall(md.read_text())
+                    self.assertFalse(hits, f"{md.name} links bare markdown: {hits}")
+
+    def test_tabs_js_resolves_an_in_panel_anchor(self):
+        """A hash naming a round (not a tab) must open the panel holding it — otherwise a
+        shared link to one round reloads onto the first tab with its target hidden."""
+        js = (Path(settings.SITE_ROOT) / "src/web/static/js/tabs.js").read_text()
+        self.assertIn("activateContaining", js)
+        self.assertIn('closest("[data-panel]")', js)
+
+    def test_tab_is_omitted_when_there_are_no_rounds(self):
+        app = Application.objects.get(num=2)
+        self.assertFalse(app.interview_files)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertNotIn('data-tab="interviews"', html)
+
+    def test_notes_stub_no_longer_scaffolds_an_interview_heading(self):
+        """Retired 2026-09-24 — an empty heading in every folder is what invited packing
+        rounds into notes.md in the first place."""
+        import appfolder
+
+        stub = appfolder.notes_stub({"company": "Test Co", "role": "Architect"})
+        self.assertNotIn("## Interview prep", stub)
+        for heading in ("## My notes", "## Contacts", "## Timeline"):
+            self.assertIn(heading, stub)
+
+    def test_filename_is_built_from_the_shared_convention(self):
+        """app_filename() stays the single implementation — and the date is the date of
+        the interview, not the day the file was written."""
+        import appfolder
+        from datetime import date
+
+        name = appfolder.app_filename(Path("001-grafana-labs"), "interview-hiring-manager",
+                                      "md", when=date(2026, 9, 24))
+        self.assertTrue(name.startswith("001-grafana-labs-"))
+        self.assertTrue(name.endswith("-interview-hiring-manager-2026-09-24.md"))
+        self.assertTrue(appfolder.is_interview_filename(name))
+        self.assertEqual(appfolder.interview_stage(name), "hiring-manager")
+
+
 class CreateFolderActionTests(TestCase):
     """The application page's "Create folder" action (added 2026-09-09, for applications
     logged without one) — appfolder.ensure_folder() run through the view. Writes to the

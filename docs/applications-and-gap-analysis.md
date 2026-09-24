@@ -69,9 +69,11 @@ Idempotent — creates whatever's missing:
 
 - `jobs/applications/NNN-company-slug/` (the folder name comes from `appfolder.slug()` —
   lowercase, non-word characters stripped, spaces/underscores collapsed to hyphens)
-- `notes.md`, from a bare skeleton (`## My notes`, `## Interview prep`, `## Contacts`,
-  `## Timeline`) — deliberately carries no metadata header, since company/role/area/status
-  live in the database and used to drift out of sync across three copies
+- `notes.md`, from a bare skeleton (`## My notes`, `## Contacts`, `## Timeline`) —
+  deliberately carries no metadata header, since company/role/area/status live in the
+  database and used to drift out of sync across three copies. No `## Interview prep`
+  either, since 2026-09-24: interview rounds are their own files (see
+  [interview-prep.md](interview-prep.md)), and `## Timeline` indexes them
 - an **untailored** copy of the functional CV (`appfolder.pick_cv()` — see
   [cv-pipeline.md](cv-pipeline.md) for the tailored-vs-untailored logic)
 - an **empty** cover-letter stub (`<folder>-<person-slug>-cover-letter-<date>.md`) —
