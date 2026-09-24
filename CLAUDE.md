@@ -62,7 +62,15 @@ are safe to run as-is. It is ad-hoc script runs that are not.
 ```bash
 tools/py src/web/manage.py test tracker cvs   # test suite — runs against example-data/
 tools/smoke-test                              # from-scratch install in a temp clone
+tools/make-public-tree --check                # nothing personal about to be published
 ```
 
-Both should pass before anything is considered done. `smoke-test` is the one that
+All three should pass before anything is considered done. `smoke-test` is the one that
 catches assumptions only visible to someone who does not already have the files.
+
+`--check` is the one that matters when you have written prose. **This repo is public and
+pushes `dev` as well as `main`, so every push publishes** — and a changelog entry, a
+TODO, a docstring or a test fixture is where a real company name from the user's own
+search ends up. It has caught exactly that more than once. A `pre-push` hook runs it, but
+run it yourself rather than discovering a leak at push time: use `example-data/`
+(`001-grafana-labs`, `alex-rivera`) for every worked example, never a real application.

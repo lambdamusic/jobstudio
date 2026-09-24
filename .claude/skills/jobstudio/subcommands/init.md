@@ -150,11 +150,31 @@ than launching it unasked: it runs in the foreground until interrupted.
 | `<repo>/.claude/settings.local.json` | the data root in `permissions.additionalDirectories`, so sessions stop prompting on every file outside the repo |
 | `<repo>/jobstudio.code-workspace` | one VS Code window over both folders |
 | `<repo>/src/web/local_settings.py` | copied from the example, if missing |
+| `core.hooksPath` → `tools/git-hooks` | git config, so the pre-push leak check runs (below) |
 | a Django admin account | `admin`/`admin` by default, or your own via `--admin-user` + `$JOBSTUDIO_ADMIN_PASSWORD`; `--no-admin` skips it |
 
 All gitignored except the workspace file. Re-running is safe: it adds what is missing
 and leaves the rest alone. Nothing is overwritten without `--force`, and there is no
 wipe mode — this points at a directory holding someone's whole job search.
+
+## The pre-push check — only if this checkout has a remote
+
+The repo is public, and it pushes `dev` as well as `main`, so **any** push publishes.
+`tools/git-hooks/pre-push` runs `tools/make-public-tree --check` and blocks a push that
+would carry personal data. It is versioned in the repo rather than left in `.git/hooks`,
+which is not backed up and is empty on a fresh clone — but it only takes effect once git
+is told where to look:
+
+```bash
+git config core.hooksPath tools/git-hooks
+```
+
+Set that during `init` when the checkout has an `origin` remote. Skip it silently when
+it does not: someone who cloned the toolkit to *use* it has no repo to leak into, and a
+hook that fires on a push they will never make is noise.
+
+Mention it either way, because it is the one piece of `init` that changes what `git`
+does. `git push --no-verify` bypasses it deliberately.
 
 ## The admin account
 
