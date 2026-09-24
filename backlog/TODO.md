@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #38 -->
+     Next available: #39 -->
 
 ## Architecture
 
@@ -105,5 +105,12 @@
   Touches more than `app_filename()`: the recognisers next to it (`is_cv_filename`, `is_cover_letter_filename`, `is_tailored_cv`) and the web parsers in `src/web/apps/tracker/parsers.py` must keep matching **both** old and new names — real application folders already on disk are not renamed — and `notes.md`/`job.md` are currently looked up by exact filename in the parsers, the skill (`subcommands/application.md`), `appfolder.py`'s scaffolding and `src/web/README.md`'s file-map table. Decide up front whether existing folders get a migration pass or are simply left alone; check `src/web/apps/tracker/tests.py` fixtures either way.
 
 ## Company tracking
+- [ ] `#38` **Bootstrap a starter company list during `init`** — raised 2026-09-24. A fresh data root ends `init` with a CV and a stocktake but an **empty company tracker**, which is the one thing `scan` needs to do anything at all: a first run finds nothing, so the toolkit's most visible feature looks broken on day one. After the CV is in place (on-ramps B/C/D, and after `stocktake` where the target areas get written), propose an initial set of companies drawn from the applicant's own sector and the ones adjacent to it, inferred from the CV and the stocktake's target areas.
+
+  **Ask for direction rather than guessing** — which sectors, sizes, geographies, and any named companies they already have in mind — then research, present the candidates for confirmation, and add only what they approve. Same "confirm before writing" discipline as on-ramp C in `subcommands/init.md`: an unvetted company list is cheaper to be wrong about than a CV line, but a tracker seeded with fifty irrelevant names is worse than an empty one, and `#9` already flags unvetted entries as needing that distinction.
+
+  Capture the **careers/ATS URL** per company where it can be found, not just the name — a tracked company without a resolvable board is invisible to `scan` (see `#5`'s `known_unsupported`), so a bootstrap that only records names hands the user a list that still scans nothing.
+
+  Overlaps `#21` (find similar companies — the same research step, seeded from a tracked company instead of from a CV) and `#9` (discovery beyond the tracked set); these three may well be one implementation with different entry points. Ties into `#2`'s onboarding story.
 - [ ] `#20` Write long-form research files (`jobs/companies/<slug>.md`) for the 64 companies added 2026-09-16 by that extraction — deferred as a separate step at Michele's request; do on demand as each one is actually worth considering, following the template in `jobs/companies/README.md`
 - [ ] `#21` **Idea:** "find similar companies" — pick a company already in the tracker and surface other companies (same space/positioning/stage) worth shortlisting, as a discovery mechanism. Manually prototyped 2026-09-14: given a tracked company in robotics/physical-AI data with no UK presence, asked for similar UK-based alternatives and found one with the same "data layer for physical AI" positioning and a London HQ, via a plain web search — worth automating as a repeatable step (`jobs-search` subcommand or an option on `company`) rather than redoing this research by hand each time
