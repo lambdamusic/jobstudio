@@ -69,9 +69,11 @@ Idempotent — creates whatever's missing:
 
 - `jobs/applications/NNN-company-slug/` (the folder name comes from `appfolder.slug()` —
   lowercase, non-word characters stripped, spaces/underscores collapsed to hyphens)
-- `notes.md`, from a bare skeleton (`## My notes`, `## Interview prep`, `## Contacts`,
-  `## Timeline`) — deliberately carries no metadata header, since company/role/area/status
-  live in the database and used to drift out of sync across three copies
+- `notes.md`, from a bare skeleton (`## My notes`, `## Contacts`, `## Timeline`) —
+  deliberately carries no metadata header, since company/role/area/status live in the
+  database and used to drift out of sync across three copies. No `## Interview prep`
+  either, since 2026-09-24: interview rounds are their own files (see
+  [interview-prep.md](interview-prep.md)), and `## Timeline` indexes them
 - an **untailored** copy of the functional CV (`appfolder.pick_cv()` — see
   [cv-pipeline.md](cv-pipeline.md) for the tailored-vs-untailored logic)
 - an **empty** cover-letter stub (`<folder>-<person-slug>-cover-letter-<date>.md`) —
@@ -153,6 +155,9 @@ recognise them — old-style names from before this date are still recognised, j
 regenerated. This is also how the web app finds CV snapshots and cover letters with no
 database model at all: they're scanned off disk by filename pattern at request time
 (`src/web/README.md`), so a new file shows up on the application page immediately.
+
+Rendered copies (`.docx`) sit one level down, in the folder's `export/` subfolder
+(2026-09-24) — see [workflow.md](workflow.md) "File naming inside an application folder".
 
 ## Application statuses and how they drive company status
 

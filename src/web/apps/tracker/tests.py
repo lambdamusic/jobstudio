@@ -11,6 +11,7 @@ import re
 import shutil
 import tempfile
 from io import StringIO
+from unittest import mock
 from pathlib import Path
 
 from django.conf import settings
@@ -20,7 +21,8 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.utils.html import escape
 
-from appfolder import COMPANY_APPLIED_TRIGGER_STATUSES, COMPANY_STATUSES, STATUS_SORT_ORDER
+from appfolder import (COMPANY_APPLIED_TRIGGER_STATUSES, COMPANY_STATUSES,
+                       STATUS_SORT_ORDER, exported_file)
 from tracker import parsers as P
 from tracker.models import Application, ApplicationStatusChange, Area, Company, Scan
 
@@ -402,6 +404,206 @@ class AdminTests(TestCase):
         self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
 
 
+class MarkupTests(TestCase):
+    """Every page's HTML nests correctly.
+
+    Added 2026-09-23 after a stray `</div>` in base.html closed the sidebar early: the
+    whole suite stayed green while the layout was visibly broken, because every other
+    test asserts *content* — status codes and substrings — and an unbalanced tag changes
+    neither. Only the browser caught it, and only because someone looked.
+    """
+
+    fixtures = FIXTURE
+
+    # Tags with no closing form; anything else must be closed in the right order.
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+            "meta", "param", "source", "track", "wbr"}
+
+    def assert_balanced(self, html, url):
+        from html.parser import HTMLParser
+
+        stack, errors = [], []
+
+        class Checker(HTMLParser):
+            def handle_starttag(inner, tag, attrs):
+                if tag not in MarkupTests.VOID:
+                    stack.append((tag, inner.getpos()[0]))
+
+            def handle_startendtag(inner, tag, attrs):
+                pass  # self-closing, e.g. <path .../> in the brand SVG
+
+            def handle_endtag(inner, tag):
+                if tag in MarkupTests.VOID:
+                    return
+                if not stack:
+                    errors.append(f"line {inner.getpos()[0]}: </{tag}> with nothing open")
+                elif stack[-1][0] != tag:
+                    errors.append(
+                        f"line {inner.getpos()[0]}: </{tag}> closes <{stack[-1][0]}> "
+                        f"opened on line {stack[-1][1]}")
+                    stack.pop()
+                else:
+                    stack.pop()
+
+        Checker(convert_charrefs=True).feed(html)
+        unclosed = [f"<{tag}> opened on line {line} and never closed" for tag, line in stack]
+        self.assertEqual(errors + unclosed, [], f"malformed HTML on {url}")
+
+    def test_every_page_nests_correctly(self):
+        app = Application.objects.first()
+        company = Company.objects.first()
+        for url in ["/", "/applications/", "/applications/all/", f"/applications/{app.num}/",
+                    "/companies/", f"/companies/{company.slug}/", "/areas/", "/cvs/",
+                    "/notes/", "/profile/", "/scans/", "/scans/all/"]:
+            with self.subTest(url=url):
+                r = self.client.get(url)
+                self.assertEqual(r.status_code, 200)
+                self.assert_balanced(r.content.decode(), url)
+
+
+class BrandTests(TestCase):
+    """The sidebar lockup (`#32`)."""
+
+    fixtures = FIXTURE
+
+    def test_the_wordmark_matches_the_app_name(self):
+        """The lockup DRAWS the name rather than interpolating it — a fixed-width SVG
+        cannot absorb a longer string without overrunning its viewBox. That is a
+        deliberate exception to APP_NAME being the single definition, so this is the
+        thing that stops the two drifting apart silently."""
+        from django.conf import settings
+
+        template = Path(settings.TEMPLATES[0]["DIRS"][0]) / "base.html"
+        drawn = "".join(re.findall(r"<tspan[^>]*>([^<]*)</tspan>", template.read_text()))
+        self.assertTrue(drawn, f"no <tspan> wordmark found in {template}")
+        self.assertEqual(drawn.strip(), settings.APP_NAME)
+
+    def test_every_nav_icon_points_at_a_symbol_that_exists(self):
+        """`#31`. A typo in a <use href> renders precisely nothing — no error, no missing
+        text, just a gap where a glyph should be. Nothing else in the suite would notice."""
+        html = self.client.get("/").content.decode()
+        used = set(re.findall(r'<use href="#([\w-]+)"', html))
+        defined = set(re.findall(r'<g id="([\w-]+)"', html))
+        self.assertTrue(used, "no nav icons rendered at all")
+        self.assertEqual(used - defined, set(), "referenced icons that are not defined")
+
+    def test_sub_items_carry_no_icon(self):
+        """Sub-items are indented instead; a second column of glyphs would flatten the
+        hierarchy the indent exists to show."""
+        html = self.client.get("/").content.decode()
+        for row in re.findall(r'<a[^>]*class="nav-sub[^"]*"[^>]*>(.*?)</a>', html, re.S):
+            with self.subTest(row=row.strip()[:40]):
+                self.assertNotIn("<use", row)
+
+    def test_the_sidebar_renders_the_lockup_on_every_page(self):
+        for url in ["/", "/applications/", "/companies/", "/cvs/"]:
+            with self.subTest(url=url):
+                html = self.client.get(url).content.decode()
+                self.assertIn('class="brand-mark"', html)
+                self.assertIn(f'aria-label="{settings.APP_NAME}"', html)
+
+
+class ScanCoverageTests(TestCase):
+    """`#30` — the companies list says whether `scan` picks each company up.
+
+    Runs against example-data/jobs/scan-config.yaml, which the suite is pinned to, so
+    these also guard the config file's shape.
+    """
+
+    fixtures = FIXTURE
+
+    def test_an_override_makes_a_company_scanned(self):
+        """Grafana Labs' tracked URL reveals no ATS; the override is what finds it."""
+        import scan_sources
+        cov = scan_sources.coverage("Grafana Labs", "https://grafana.com/about/careers/")
+        self.assertTrue(cov["scanned"])
+        self.assertEqual(cov["platform"], "greenhouse")
+
+    def test_a_board_url_is_detected_without_any_config(self):
+        import scan_sources
+        cov = scan_sources.coverage("Unknown Co", "https://jobs.lever.co/unknownco")
+        self.assertTrue(cov["scanned"])
+        self.assertEqual(cov["platform"], "lever")
+
+    def test_a_known_unsupported_company_reports_its_own_reason(self):
+        """The hand-written reason is the point — it separates "no fetcher yet" from
+        "nobody has looked", which the generic fallback cannot."""
+        import scan_sources
+        cov = scan_sources.coverage("Example Analytics Ltd", "https://example.com/careers")
+        self.assertFalse(cov["scanned"])
+        self.assertIn("BambooHR", cov["reason"])
+
+    def test_no_url_is_its_own_reason_not_the_bespoke_fallback(self):
+        import scan_sources
+        cov = scan_sources.coverage("Nobody Ltd", "")
+        self.assertFalse(cov["scanned"])
+        self.assertEqual(cov["reason"], scan_sources.NO_URL)
+
+    def test_a_careers_link_appears_only_where_scanning_cannot_help(self):
+        """`#34`. The shortcut belongs on the rows that have to be checked by hand. On a
+        scanned row it would be noise, and a row with no URL has nothing to link to."""
+        html = self.client.get("/companies/").content.decode()
+        for company in Company.objects.all():
+            with self.subTest(company=company.name):
+                link = f'href="{escape(company.url)}" target="_blank"'
+                wanted = bool(company.url) and not company.scan_coverage["scanned"]
+                if wanted:
+                    self.assertIn(link, html)
+                else:
+                    self.assertNotIn(link, html)
+
+    def test_the_companies_page_shows_a_platform_or_a_reason_for_every_row(self):
+        html = self.client.get("/companies/").content.decode()
+        for company in Company.objects.all():
+            with self.subTest(company=company.name):
+                cov = company.scan_coverage
+                expected = cov["platform"] if cov["scanned"] else cov["reason"]
+                self.assertIn(escape(expected), html)
+
+
+class StatusActionTests(TestCase):
+    """The local-only status menu on the application detail page (`#28`, 2026-09-23).
+
+    Replaced a single hardcoded "Mark reviewing" link; these guard the two things that
+    replacement could get wrong — accepting a status the rest of the app doesn't know,
+    and losing the History log that the post_save signal writes.
+    """
+
+    fixtures = FIXTURE
+
+    def test_every_status_can_be_set_from_the_url(self):
+        for status in STATUS_SORT_ORDER:
+            with self.subTest(status=status):
+                r = self.client.get(f"/actions/set-status/1/{status}/")
+                self.assertEqual(r.status_code, 302)
+                self.assertEqual(Application.objects.get(num=1).status, status)
+
+    def test_an_unknown_status_404s_rather_than_being_written(self):
+        """The status arrives from the URL, so it is input, not a given."""
+        before = Application.objects.get(num=1).status
+        self.assertEqual(self.client.get("/actions/set-status/1/banana/").status_code, 404)
+        self.assertEqual(Application.objects.get(num=1).status, before)
+
+    def test_setting_a_status_keeps_status_order_and_logs_the_change(self):
+        app = Application.objects.get(num=1)
+        self.client.get(f"/actions/set-status/{app.num}/interviewing/")
+        app.refresh_from_db()
+        self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
+        self.assertTrue(ApplicationStatusChange.objects.filter(
+            application=app, to_status="interviewing").exists())
+
+    def test_the_menu_offers_every_status_except_the_current_one(self):
+        app = Application.objects.get(num=1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for status in STATUS_SORT_ORDER:
+            with self.subTest(status=status):
+                link = f"/actions/set-status/{app.num}/{status}/"
+                if status == app.status:
+                    self.assertNotIn(link, html)
+                else:
+                    self.assertIn(link, html)
+
+
 class ViewTests(TestCase):
     fixtures = FIXTURE
 
@@ -538,6 +740,16 @@ class ViewTests(TestCase):
                 continue
             with self.subTest(file=md.name):
                 self.assertIn(md.stem, slugs, f"{md.name} matches no company slug")
+
+    def test_the_repo_link_survives_publishing(self):
+        """`#33`. Every other sidebar link is local-only; this one is the exception, and
+        the published mirror is precisely where it earns its place — a reader who likes
+        the site has no other way to find out what built it. A future tidy-up that sweeps
+        the footer behind {% if IS_LOCAL %} should fail here."""
+        repo = "https://github.com/lambdamusic/jobstudio"
+        with self.settings(ENVIRONMENT="publish"):
+            self.assertIn(repo, self.client.get("/applications/").content.decode())
+        self.assertIn(repo, self.client.get("/applications/").content.decode())
 
     def test_admin_links_hidden_when_publishing(self):
         with self.settings(ENVIRONMENT="publish"):
@@ -868,6 +1080,643 @@ class ApplicationFolderTests(TestCase):
                 leaked = [f["name"] for f in app.extra_files
                           if appfolder.is_cover_letter_filename(f["name"])]
                 self.assertFalse(leaked, f"#{app.num}: cover letter(s) leaked into extra_files: {leaked}")
+
+
+class ExportFolderTests(TestCase):
+    """Rendered copies of an application's markdown live in `<folder>/export/` (2026-09-24),
+    so the top level holds only what was authored. Folders written before that keep the
+    .docx beside its markdown and are deliberately not migrated, so every reader here has
+    to go on working against both shapes."""
+
+    fixtures = FIXTURE
+
+    def _cv_markdown(self):
+        app = Application.objects.get(num=1)
+        cvs = app.cv_snapshots
+        self.assertTrue(cvs, "fixture app #1 needs a CV snapshot")
+        return app, cvs[0]
+
+    def _place(self, path: Path) -> Path:
+        """Put a stand-in export on disk, and take it away again afterwards — including
+        the `export/` directory itself when this test is what created it."""
+        if not path.parent.is_dir():
+            path.parent.mkdir(parents=True)
+            self.addCleanup(shutil.rmtree, path.parent, ignore_errors=True)
+        path.write_bytes(b"not really a .docx")
+        self.addCleanup(path.unlink, True)
+        return path
+
+    def test_an_export_is_linked_from_its_tab_and_not_repeated_under_other_files(self):
+        """The CV tab's "Open .docx" link and the Other files tab are the two halves of
+        the same question — a file belongs to exactly one of them."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        docx = self._place(appfolder.export_dir(app.folder_path) / cv_md.with_suffix(".docx").name)
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
+        self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
+
+    def test_a_cover_letter_export_is_linked_from_its_tab(self):
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        letters = [p for p in app.folder_path.iterdir()
+                   if appfolder.is_cover_letter_filename(p.name) and p.suffix == ".md"
+                   and p.read_text().strip()]
+        self.assertTrue(letters, "fixture app #1 needs a written cover letter")
+        md = letters[0]
+        docx = self._place(appfolder.export_dir(app.folder_path) / md.with_suffix(".docx").name)
+
+        linked = [l["docx_path"] for l in app.cover_letter_files if l["name"] == md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
+        self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
+
+    def test_a_docx_beside_its_markdown_is_still_found(self):
+        """Pre-2026-09-24 folders are not migrated; dropping the flat lookup would make
+        every .docx already on disk vanish from the tab that links it."""
+        app, cv_md = self._cv_markdown()
+        docx = cv_md.with_suffix(".docx")
+        docx.write_bytes(b"not really a .docx")
+        self.addCleanup(docx.unlink, True)
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
+        self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
+
+    def test_an_export_rendered_on_a_later_day_is_still_linked(self):
+        """The copy is named with the date of the render, not of the markdown it renders,
+        so a letter re-rendered a week later has a stem its source does not share. Nine
+        of 34 exports in the real job search were orphaned this way."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        later = appfolder.export_dir(app.folder_path) / cv_md.name.replace(
+            "2026-09-15", "2026-09-22").replace(".md", ".docx")
+        self.assertNotEqual(later.stem, cv_md.stem, "this test needs mismatched stems")
+        self._place(later)
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [later.resolve()])
+        self.assertNotIn(later.name, [f["name"] for f in app.extra_files])
+
+    def test_a_superseded_render_stays_visible_rather_than_being_linked(self):
+        """Two renders of one source: the newest is the current one. The older is not
+        wrong, just stale — it keeps its place under Other files."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        export = appfolder.export_dir(app.folder_path)
+        stem = cv_md.name.replace(".md", "")
+        old = self._place(export / f"{stem.replace('2026-09-15', '2026-09-21')}.docx")
+        new = self._place(export / f"{stem.replace('2026-09-15', '2026-09-22')}.docx")
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [new.resolve()])
+        rels = [f["rel"] for f in app.extra_files]
+        self.assertIn(f"{appfolder.EXPORT_DIRNAME}/{old.name}", rels)
+        self.assertNotIn(f"{appfolder.EXPORT_DIRNAME}/{new.name}", rels)
+
+    def test_two_sources_of_one_kind_means_no_guess(self):
+        """`ensure_folder()` scaffolds an untailored `cv_functional.md` beside the
+        tailored CV. With two candidate sources, pairing an export with one of them is a
+        guess — and linking the same file under two headings reads as two documents."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        scaffold = app.folder_path / "cv_functional.md"
+        scaffold.write_text("# Base CV\n")
+        self.addCleanup(scaffold.unlink, True)
+        self._place(appfolder.export_dir(app.folder_path)
+                    / cv_md.name.replace("2026-09-15", "2026-09-22").replace(".md", ".docx"))
+
+        self.assertEqual([c["docx"] for c in app.cv_files if c["docx"]], [])
+
+    def test_the_export_folder_is_not_read_as_a_round_of_cover_letters(self):
+        """`find_cover_letters()` treats a `cover-letter-*/` directory as a folder of
+        drafts. `export/` sits in the same place and holds a file whose name matches the
+        cover-letter pattern — it must not be walked into as if it were one."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        folder = app.folder_path
+        self._place(appfolder.export_dir(folder)
+                    / appfolder.app_filename(folder, "cover-letter", "md"))
+
+        inside_export = [l["path"] for l in P.find_cover_letters(folder)
+                         if appfolder.EXPORT_DIRNAME in l["path"].parts]
+        self.assertFalse(inside_export, f"export/ read as cover letters: {inside_export}")
+
+    def test_anything_else_in_export_still_shows_under_other_files(self):
+        """`extra_files` exists so nothing saved into an application folder goes invisible.
+        Moving exports down one level must not turn `export/` into a blind spot."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        stray = self._place(appfolder.export_dir(app.folder_path) / "recruiter-brief.pdf")
+        self.assertIn(f"{appfolder.EXPORT_DIRNAME}/{stray.name}",
+                      [f["rel"] for f in app.extra_files])
+
+
+class MigrateExportsCommandTests(TestCase):
+    """`manage.py migrate_exports` tidies folders written before 2026-09-24, when a
+    rendered .docx sat flat beside its markdown. Readers accept both shapes, so this is
+    housekeeping, not a prerequisite — which is why it must be conservative about what
+    it touches."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import appfolder
+
+        self.app = Application.objects.get(num=1)
+        self.folder = self.app.folder_path
+        # Whatever this test creates, top level or below, goes away again.
+        self.addCleanup(shutil.rmtree, appfolder.export_dir(self.folder), ignore_errors=True)
+
+    def _flat(self, name: str) -> Path:
+        path = self.folder / name
+        path.write_bytes(b"not really a .docx")
+        self.addCleanup(path.unlink, True)
+        return path
+
+    def _run(self, *args) -> str:
+        out = StringIO()
+        call_command("migrate_exports", *args, stdout=out, stderr=out)
+        return out.getvalue()
+
+    def test_a_flat_export_moves_and_is_then_linked_from_its_tab(self):
+        import appfolder
+
+        cv_md = self.app.cv_snapshots[0]
+        flat = self._flat(cv_md.with_suffix(".docx").name)
+        self.assertIsNotNone(exported_file(cv_md), "precondition: linked where it lies")
+
+        self._run("--apply")
+
+        moved = appfolder.export_dir(self.folder) / flat.name
+        self.assertFalse(flat.exists(), "the flat copy should be gone, not duplicated")
+        self.assertTrue(moved.is_file())
+        self.assertEqual(exported_file(cv_md).resolve(), moved.resolve())
+
+    def test_a_dry_run_writes_nothing(self):
+        """The default. A migration that moves real files on a bare invocation is one
+        you cannot look at before it happens."""
+        import appfolder
+
+        flat = self._flat("001-grafana-labs-alex-rivera-cv-functional-2026-09-15.docx")
+        out = self._run()
+
+        self.assertIn("--apply", out)
+        self.assertTrue(flat.is_file(), "a dry run must leave the file where it is")
+        self.assertFalse(appfolder.export_dir(self.folder).exists())
+
+    def test_authored_and_hand_saved_files_stay_put(self):
+        """Only files following the folder's own naming convention are renders. A JD or
+        a recruiter's PDF dropped in by hand is someone's filing, and moving it would be
+        this command deciding something it has no business deciding."""
+        import appfolder
+
+        by_hand = self._flat("JD Technology Lead Aug 2026.pdf")
+        markdown = sorted(self.folder.glob("*.md"))
+        self.assertTrue(markdown, "fixture app #1 needs markdown to leave alone")
+
+        self._run("--apply")
+
+        self.assertTrue(by_hand.is_file(), "a hand-saved file must not be swept up")
+        for md in markdown:
+            self.assertTrue(md.is_file(), f"{md.name} was moved — only renders should be")
+        self.assertFalse(appfolder.export_dir(self.folder).exists())
+
+    def test_re_running_is_safe_and_never_overwrites(self):
+        import appfolder
+
+        name = "001-grafana-labs-alex-rivera-cv-functional-2026-09-15.docx"
+        self._flat(name)
+        self._run("--apply")
+        moved = appfolder.export_dir(self.folder) / name
+        moved.write_bytes(b"the one that was already there")
+
+        clash = self._flat(name)  # a second flat copy of a name export/ already holds
+        out = self._run("--apply")
+
+        self.assertIn("skip", out)
+        self.assertTrue(clash.is_file(), "the clashing file is left for a human to sort out")
+        self.assertEqual(moved.read_bytes(), b"the one that was already there")
+
+
+class RenderDestinationTests(TestCase):
+    """Since 2026-09-24 a render is written once, where its source lives (`render._home()`).
+    Before that everything went to `exports/` and application .docx were copied back —
+    two copies of each file, and a flat dated tree that named neither the source nor, for
+    22 of them, any application at all."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import render
+
+        self.render = render
+        self.addCleanup(shutil.rmtree, render.CV_EXPORT_DIR, ignore_errors=True)
+
+    def test_a_render_of_an_application_file_goes_to_that_folder(self):
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        src = app.cv_snapshots[0]
+        dest = self.render._home(src, "cv-functional", "docx", stem="2026-09-24_cv_functional")
+        self.addCleanup(shutil.rmtree, appfolder.export_dir(app.folder_path), ignore_errors=True)
+
+        self.assertEqual(dest.parent.resolve(), appfolder.export_dir(app.folder_path).resolve())
+        self.assertTrue(dest.name.startswith(app.folder_path.name), dest.name)
+        self.assertTrue(dest.name.endswith(".docx"))
+
+    def test_a_render_of_a_base_cv_goes_to_jobs_cv_export(self):
+        """Named like jobs/cv/base/archive/, the other place a dated copy of a base CV
+        lives, so the two read as one convention."""
+        src = self.render.BASE_CV_DIR / "cv_functional.md"
+        self.assertTrue(src.is_file(), "example data needs a base functional CV")
+
+        dest = self.render._home(src, "cv-functional", "docx", stem="2026-09-24_cv_functional")
+
+        self.assertEqual(dest.parent.resolve(), self.render.CV_EXPORT_DIR.resolve())
+        self.assertRegex(dest.name, r"^cv_functional-\d{4}-\d{2}-\d{2}\.docx$")
+
+    def test_a_source_with_no_home_falls_back_to_exports(self):
+        """`exports/` is not dead — it is where a document belonging to no folder goes:
+        a career stocktake, or an ad-hoc `--file` from outside the data root."""
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = self.render._home(Path(tmp) / "adhoc.md", "cover-letter", "docx",
+                                     stem="2026-09-24_cover-letter")
+        self.assertIn("exports", dest.parts)
+        self.assertEqual(dest.name, "2026-09-24_cover-letter.docx")
+
+    def test_nothing_is_written_twice(self):
+        """The regression this replaced: a render landed in exports/ AND was copied to the
+        application, so every file existed twice under two different names."""
+        import inspect
+
+        source = inspect.getsource(self.render)
+        self.assertNotIn("_maybe_copy_to_app_folder", source)
+
+
+class CoverLetterFormatTests(TestCase):
+    """`.docx` is the version that gets sent, so it is the only one written by default.
+    HTML used to come out every time because the PDF path needs something for Chrome to
+    print — harmless while renders went to `exports/`, but once they landed in the
+    application folder (2026-09-24) every cover letter left an `.html` beside its `.docx`
+    that nobody had asked for."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import appfolder
+        import render
+
+        self.render = render
+        app = Application.objects.get(num=1)
+        letters = [p for p in app.folder_path.iterdir()
+                   if appfolder.is_cover_letter_filename(p.name) and p.suffix == ".md"]
+        self.assertTrue(letters, "fixture app #1 needs a cover letter")
+        self.letter = letters[0]
+        self.export = appfolder.export_dir(app.folder_path)
+        self.addCleanup(shutil.rmtree, self.export, ignore_errors=True)
+
+    def _rendered(self, ext: str) -> list[str]:
+        if not self.export.is_dir():
+            return []
+        return sorted(p.name for p in self.export.glob(f"*.{ext}"))
+
+    def test_the_default_is_the_docx_alone(self):
+        self.render.export_cover_letter(self.letter)
+
+        self.assertEqual(len(self._rendered("docx")), 1)
+        self.assertEqual(self._rendered("html"), [])
+        self.assertEqual(self._rendered("pdf"), [])
+
+    def test_html_is_written_only_when_it_is_asked_for(self):
+        self.render.export_cover_letter(self.letter, fmt="html")
+
+        self.assertEqual(len(self._rendered("html")), 1)
+        self.assertEqual(len(self._rendered("docx")), 1, "the .docx comes out either way")
+
+    def test_a_pdf_render_prints_from_a_temp_file_and_keeps_no_html(self):
+        seen = {}
+
+        def fake_print(html_path, pdf_path):
+            seen["readable"] = html_path.is_file()
+            seen["parent"] = html_path.parent
+            pdf_path.write_bytes(b"%PDF-1.4 not really")
+
+        with mock.patch.object(self.render, "_chrome_print_pdf", fake_print):
+            self.render.export_cover_letter(self.letter, fmt="pdf")
+
+        self.assertTrue(seen["readable"], "Chrome still needs real HTML to print")
+        self.assertNotEqual(seen["parent"].resolve(), self.export.resolve())
+        self.assertEqual(self._rendered("html"), [])
+        self.assertEqual(len(self._rendered("pdf")), 1)
+
+
+class PruneExportsCommandTests(TestCase):
+    """`manage.py prune_exports` empties the backlog left in exports/ by the old
+    write-then-copy behaviour. It deletes, so what it will not touch matters as much as
+    what it will."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        self.data_root = Path(settings.DATA_ROOT)
+        self.exports = self.data_root / "exports"
+        self.existed = self.exports.is_dir()
+        self.made: list[Path] = []
+        self.addCleanup(self._tidy)
+
+    def _tidy(self):
+        for path in self.made:
+            if path.is_file():
+                path.unlink()
+        if not self.existed:
+            shutil.rmtree(self.exports, ignore_errors=True)
+        shutil.rmtree(self.data_root / "jobs" / "cv" / "export", ignore_errors=True)
+        for app in Application.objects.exclude(folder=""):
+            if app.folder_path:
+                shutil.rmtree(app.folder_path / "export", ignore_errors=True)
+
+    def _export(self, rel: str, body: bytes = b"a render") -> Path:
+        path = self.exports / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+        self.made.append(path)
+        return path
+
+    def _run(self, *args) -> str:
+        out = StringIO()
+        call_command("prune_exports", *args, stdout=out, stderr=out)
+        return out.getvalue()
+
+    def test_a_labelled_render_moves_to_its_application_keeping_its_own_date(self):
+        """The date in the name is when it was rendered. Restamping it with today's would
+        turn a June PDF into a September one — the tree's only record of when it was sent."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        src = self._export(f"pdf/2026-06-23/2026-06-23_cv_data-platform_{app.folder_path.name}.pdf")
+
+        self._run("--apply")
+
+        dest = appfolder.export_dir(app.folder_path)
+        moved = list(dest.glob("*.pdf"))
+        self.assertEqual(len(moved), 1, f"expected one moved pdf, got {moved}")
+        self.assertIn("cv-data-platform", moved[0].name)
+        self.assertIn("2026-06-23", moved[0].name)
+        self.assertFalse(src.exists())
+
+    def test_a_copy_already_in_the_application_is_deleted_not_duplicated(self):
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        dest_dir = appfolder.export_dir(app.folder_path)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / "already-there.docx").write_bytes(b"identical")
+        src = self._export(f"docx/2026-09-22/2026-09-22_cv_functional_{app.folder_path.name}.docx",
+                           b"identical")
+
+        self._run("--apply")
+
+        self.assertFalse(src.exists())
+        self.assertEqual([p.name for p in dest_dir.glob("*")], ["already-there.docx"])
+
+    def test_only_the_newest_base_cv_docx_survives(self):
+        """Older renders of the same base CV are not history — jobs/cv/base/archive/ keeps
+        that, as markdown. And .docx is the format that gets sent."""
+        old = self._export("docx/2026-09-03/2026-09-03_cv_functional.docx")
+        new = self._export("docx/2026-09-22/2026-09-22_cv_functional.docx")
+        as_pdf = self._export("pdf/2026-09-22/2026-09-22_cv_functional.pdf")
+
+        self._run("--apply")
+
+        kept = sorted(p.name for p in (self.data_root / "jobs" / "cv" / "export").glob("*"))
+        self.assertEqual(kept, ["cv_functional-2026-09-22.docx"])
+        for path in (old, new, as_pdf):
+            self.assertFalse(path.exists(), f"{path.name} should have left exports/")
+
+    def test_a_file_that_is_not_a_render_is_left_alone(self):
+        """exports/ stays the home for documents belonging to no folder. Anything not
+        named the way a render is named was put there by a person, and is not this
+        command's to move or delete."""
+        stocktake = self._export("docx/2026-09-18/career-stocktake-sections-1-5.docx")
+
+        out = self._run("--apply")
+
+        self.assertTrue(stocktake.is_file())
+        self.assertIn("LEAVING ALONE", out)
+
+    def test_a_dry_run_writes_nothing(self):
+        unattributable = self._export("docx/2026-09-03/2026-09-03_cv_data-platform.docx")
+        base = self._export("docx/2026-09-22/2026-09-22_cv_functional.docx")
+
+        out = self._run()
+
+        self.assertIn("--apply", out)
+        self.assertTrue(unattributable.is_file())
+        self.assertTrue(base.is_file())
+        self.assertFalse((self.data_root / "jobs" / "cv" / "export").exists())
+
+
+class InterviewRoundTests(TestCase):
+    """Interview rounds are one file per round in the application folder (2026-09-24),
+    not a `## Interview prep` heading inside notes.md. Files only — no database row."""
+
+    fixtures = FIXTURE
+
+    def test_filename_recognition_and_stage(self):
+        import appfolder
+
+        cases = [
+            ("001-grafana-labs-alex-interview-hiring-manager-2026-09-24.md", "hiring-manager",
+             "Hiring manager"),
+            ("001-grafana-labs-alex-interview-hr-screen-2026-09-16.md", "hr-screen", "HR screen"),
+            # A multi-word stage must survive intact — matching to the date, not to the
+            # first hyphen, is the whole point.
+            ("interview-technical-2026-10-01.md", "technical", "Technical"),
+            # No stage at all is legal; it just labels generically.
+            ("001-grafana-labs-alex-interview-2026-09-24.md", "", "Interview"),
+        ]
+        for name, stage, label in cases:
+            with self.subTest(name=name):
+                self.assertTrue(appfolder.is_interview_filename(name))
+                self.assertEqual(appfolder.interview_stage(name), stage)
+                self.assertEqual(appfolder.interview_label(stage), label)
+
+    def test_other_folder_files_are_not_interviews(self):
+        import appfolder
+
+        for name in ("notes.md", "job.md", "cv_functional.md",
+                     "001-grafana-labs-alex-rivera-cv-developer-advocacy-2026-09-15.md",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15.md"):
+            with self.subTest(name=name):
+                self.assertFalse(appfolder.is_interview_filename(name))
+
+    def test_rounds_on_disk_are_surfaced_newest_first(self):
+        import appfolder
+
+        for app in Application.objects.exclude(folder=""):
+            with self.subTest(num=app.num):
+                on_disk = [p for p in app.folder_path.iterdir()
+                           if appfolder.is_interview_filename(p.name)
+                           and p.read_text().strip()]
+                self.assertEqual(len(app.interview_files), len(on_disk))
+                dates = [r["date"] for r in app.interview_files if r["date"]]
+                self.assertEqual(dates, sorted(dates, reverse=True),
+                                 "rounds must be newest first — the one being prepped "
+                                 "for is the one at the top")
+
+    def test_rounds_never_leak_into_extra_files(self):
+        """Same bargain as cover letters: a file belonging to a tab must not also show
+        up under "Other files"."""
+        import appfolder
+
+        for app in Application.objects.exclude(folder=""):
+            with self.subTest(num=app.num):
+                leaked = [f["name"] for f in app.extra_files
+                          if appfolder.is_interview_filename(f["name"])]
+                self.assertFalse(leaked, f"#{app.num}: rounds leaked into extra_files: {leaked}")
+
+    def test_interviews_tab_renders(self):
+        app = Application.objects.get(num=1)
+        self.assertTrue(app.interview_files, "fixture app #1 needs a round file on disk")
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertIn('data-tab="interviews"', html)
+        self.assertIn('data-panel="interviews"', html)
+        self.assertIn("HR screen", html)
+
+    def test_interviews_tab_sits_between_job_description_and_notes(self):
+        """Once a process is live the rounds are what gets reread, and the JD is what
+        they're read against — so Interviews follows Job description, ahead of My notes.
+        Asserted on the panel order too: with JS off the panels are the reading order."""
+        app = Application.objects.get(num=1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for attr in ("data-tab", "data-panel"):
+            with self.subTest(attr=attr):
+                order = [t for t in ("record", "job", "interviews", "notes", "cv",
+                                     "letters", "files", "history")
+                         if f'{attr}="{t}"' in html]
+                positions = {t: html.index(f'{attr}="{t}"') for t in order}
+                self.assertLess(positions["job"], positions["interviews"])
+                self.assertLess(positions["interviews"], positions["notes"])
+
+    def test_every_round_has_a_unique_anchor(self):
+        for app in Application.objects.exclude(folder=""):
+            rounds = app.interview_files
+            if not rounds:
+                continue
+            with self.subTest(num=app.num):
+                anchors = [r["anchor"] for r in rounds]
+                self.assertEqual(len(anchors), len(set(anchors)), f"duplicate: {anchors}")
+                for r in rounds:
+                    self.assertTrue(r["anchor"].startswith("round-"))
+                    self.assertNotIn(" ", r["anchor"])
+
+    def test_anchor_collision_is_disambiguated(self):
+        """Two rounds of the same stage on the same day would otherwise share an id, and
+        an anchor that matches two elements jumps to the wrong one."""
+        app = Application.objects.get(num=1)
+        folder = app.folder_path
+        clash = folder / "001-grafana-labs-alex-rivera-interview-hr-screen-2026-09-18-b.md"
+        # Same stage and date as the existing round; the trailing -b keeps the filename
+        # distinct while the derived anchor base collides.
+        clash.write_text("# Second screen\n\nBody.\n")
+        self.addCleanup(clash.unlink)
+
+        anchors = [r["anchor"] for r in app.interview_files]  # a plain property, not cached
+        self.assertEqual(len(anchors), len(set(anchors)), anchors)
+
+    def test_round_index_appears_only_from_two_rounds_up(self):
+        """A one-item index is noise."""
+        app = Application.objects.get(num=1)
+        self.assertEqual(len(app.interview_files), 1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertNotIn("round-index", html)
+
+        folder = app.folder_path
+        second = folder / "001-grafana-labs-alex-rivera-interview-technical-2026-09-25.md"
+        second.write_text("# Technical round\n\nBody.\n")
+        self.addCleanup(second.unlink)
+
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertIn("round-index", html)
+        # Each index entry must point at an id that actually exists on the page.
+        for r in Application.objects.get(num=1).interview_files:
+            self.assertIn(f'href="#{r["anchor"]}"', html)
+            self.assertIn(f'id="{r["anchor"]}"', html)
+
+    def test_extra_files_carry_unique_anchors_rendered_as_ids(self):
+        """Prose in a folder needs a target for a specific file. Without an id the only
+        honest link is the tab, and a bare `<name>.md` link is broken on the published
+        site — these render into the page, they are not shipped as files."""
+        app = Application.objects.get(num=1)
+        files = app.extra_files
+        self.assertTrue(files, "fixture app #1 needs a file under Other files")
+        anchors = [f["anchor"] for f in files]
+        self.assertEqual(len(anchors), len(set(anchors)), f"duplicate anchors: {anchors}")
+
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for f in files:
+            with self.subTest(rel=f["rel"]):
+                self.assertTrue(f["anchor"].startswith("file-"))
+                self.assertIn(f'id="{f["anchor"]}"', html)
+
+    def test_no_folder_markdown_links_a_bare_md_file(self):
+        """Regression, twice over. A relative `.md` link inside an application folder
+        resolves to nothing in the web view and fails build_static's link checker — the
+        file is rendered into a tab, not published. Link the anchor instead.
+
+        Note this only covers the example data the suite runs against; the real guard for
+        a user's own data root is running build_static before publishing.
+        """
+        bad_link = re.compile(r"\]\((?!https?://|#|mailto:)([^)]*\.md)\)")
+        for app in Application.objects.exclude(folder=""):
+            for md in sorted(app.folder_path.rglob("*.md")):
+                with self.subTest(file=md.name):
+                    hits = bad_link.findall(md.read_text())
+                    self.assertFalse(hits, f"{md.name} links bare markdown: {hits}")
+
+    def test_tabs_js_resolves_an_in_panel_anchor(self):
+        """A hash naming a round (not a tab) must open the panel holding it — otherwise a
+        shared link to one round reloads onto the first tab with its target hidden."""
+        js = (Path(settings.SITE_ROOT) / "src/web/static/js/tabs.js").read_text()
+        self.assertIn("activateContaining", js)
+        self.assertIn('closest("[data-panel]")', js)
+
+    def test_tab_is_omitted_when_there_are_no_rounds(self):
+        app = Application.objects.get(num=2)
+        self.assertFalse(app.interview_files)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertNotIn('data-tab="interviews"', html)
+
+    def test_notes_stub_no_longer_scaffolds_an_interview_heading(self):
+        """Retired 2026-09-24 — an empty heading in every folder is what invited packing
+        rounds into notes.md in the first place."""
+        import appfolder
+
+        stub = appfolder.notes_stub({"company": "Test Co", "role": "Architect"})
+        self.assertNotIn("## Interview prep", stub)
+        for heading in ("## My notes", "## Contacts", "## Timeline"):
+            self.assertIn(heading, stub)
+
+    def test_filename_is_built_from_the_shared_convention(self):
+        """app_filename() stays the single implementation — and the date is the date of
+        the interview, not the day the file was written."""
+        import appfolder
+        from datetime import date
+
+        name = appfolder.app_filename(Path("001-grafana-labs"), "interview-hiring-manager",
+                                      "md", when=date(2026, 9, 24))
+        self.assertTrue(name.startswith("001-grafana-labs-"))
+        self.assertTrue(name.endswith("-interview-hiring-manager-2026-09-24.md"))
+        self.assertTrue(appfolder.is_interview_filename(name))
+        self.assertEqual(appfolder.interview_stage(name), "hiring-manager")
 
 
 class CreateFolderActionTests(TestCase):

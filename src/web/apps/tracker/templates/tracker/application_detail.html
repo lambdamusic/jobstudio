@@ -23,9 +23,20 @@
     {% else %}
       <a class="btn local-only" href="/actions/create-folder/{{ app.num }}/">Create folder</a>
     {% endif %}
-    {% if app.status != "reviewing" %}
-      <a class="btn local-only" href="/actions/mark-reviewing/{{ app.num }}/">Mark reviewing</a>
-    {% endif %}
+    {% comment %}
+    Status menu. <details> rather than a scripted dropdown: it opens and closes natively,
+    so it still works with JavaScript off — same progressive-enhancement bargain tabs.js
+    makes. The current status is left out of the list by the view (`other_statuses`).
+    {% endcomment %}
+    <details class="menu local-only">
+      <summary class="btn local-only">Set status ▾</summary>
+      <div class="menu-body">
+        {% for s in other_statuses %}
+          <a href="/actions/set-status/{{ app.num }}/{{ s }}/">
+            {% include "tracker/_status.html" with status=s %}</a>
+        {% endfor %}
+      </div>
+    </details>
     <a class="btn local-only" href="/admin/tracker/application/{{ app.pk }}/change/"
        target="_blank" rel="noopener">Edit in admin</a>
   {% endif %}
@@ -50,6 +61,10 @@
     {% endif %}
     {% if app.job_md %}
       <button class="tab" data-tab="job" role="tab" type="button">Job description</button>
+    {% endif %}
+    {% if interviews %}
+      <button class="tab" data-tab="interviews" role="tab" type="button">
+        Interviews <span class="tab-n">{{ interviews|length }}</span></button>
     {% endif %}
     {% if app.notes_md %}
       <button class="tab" data-tab="notes" role="tab" type="button">My notes</button>
@@ -116,6 +131,47 @@
     </section>
   {% endif %}
 
+  {% comment %}
+  One panel, rounds stacked newest first — same shape as Cover letters. A tab per round
+  would grow without bound across a long process; a stack stays readable and keeps the
+  most recent round, which is the one being prepped for, at the top.
+
+  Sits after Job description and before My notes: once a process is live, the rounds are
+  what gets reread, and the JD is the thing they're read against.
+  {% endcomment %}
+  {% if interviews %}
+    <section class="tabpanel" data-panel="interviews" role="tabpanel">
+      <h2 class="panel-heading">Interviews</h2>
+      {% comment %}
+      Index only from two rounds up — a list of one is noise. The anchors are real ids on
+      the headings below; tabs.js resolves a hash naming one of them to this panel, so a
+      link straight to a single round survives a reload.
+      {% endcomment %}
+      {% if interviews|length > 1 %}
+        <nav class="panel round-index" aria-label="Interview rounds">
+          <ol>
+            {% for round in interviews %}
+              <li><a href="#{{ round.anchor }}">{{ round.label }}</a>
+                {% if round.date %}<span class="round-index-date">{{ round.date|date:"j M Y" }}</span>{% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+        </nav>
+      {% endif %}
+      {% for round in interviews %}
+        <div class="panel prose">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+            <h3 id="{{ round.anchor }}" style="margin-top:0">{{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}</h3>
+            {% if IS_LOCAL %}
+              <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
+            {% endif %}
+          </div>
+          {{ round.body_md|strip_h1|markdown|blank_links }}
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
   {% if app.notes_md %}
     <section class="tabpanel" data-panel="notes" role="tabpanel">
       <h2 class="panel-heading">My notes</h2>
@@ -167,14 +223,14 @@
         {% if f.is_md %}
           <div class="panel prose panel-sunk" style="margin-bottom:16px">
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-              <code style="font-size:12.5px">{{ f.rel }}</code>
+              <code id="{{ f.anchor }}" style="font-size:12.5px">{{ f.rel }}</code>
               {% if IS_LOCAL %}<a href="{{ EDITOR_URL_SCHEME }}{{ f.path }}">Open in VS Code</a>{% endif %}
             </div>
             {{ f.body_md|strip_h1|markdown|blank_links }}
           </div>
         {% else %}
           <div class="panel" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 16px">
-            <code style="font-size:12.5px">{{ f.rel }}</code>
+            <code id="{{ f.anchor }}" style="font-size:12.5px">{{ f.rel }}</code>
             <span>
               <span style="color:var(--faint)">{{ f.size_kb }} KB</span>
               {% if IS_LOCAL %} · <a href="{{ EDITOR_URL_SCHEME }}{{ f.path }}">Open in VS Code</a>{% endif %}

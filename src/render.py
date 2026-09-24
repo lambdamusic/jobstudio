@@ -16,6 +16,7 @@ import argparse
 import re
 import shutil
 import sys
+import tempfile
 import html as _html
 import subprocess
 from datetime import date
@@ -36,11 +37,45 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 _DOCX_HINT = "python-docx is required for --docx (pip install python-docx)"
 
 
+BASE_CV_DIR = DATA_ROOT / "jobs" / "cv" / "base"
+CV_EXPORT_DIR = DATA_ROOT / "jobs" / "cv" / "export"
+
+
 def _export_dir(fmt: str) -> Path:
     """exports/<fmt>/<YYYY-MM-DD>/ for today, created on demand."""
     d = EXPORTS_DIR / fmt / date.today().isoformat()
     d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _home(src_path: Path | None, filetype: str, ext: str, *, stem: str) -> Path:
+    """Where a render of `src_path` belongs — with whatever it was rendered from, when
+    that has a home of its own (2026-09-24):
+
+        jobs/applications/NNN-*/...   ->  <that folder>/export/
+        jobs/cv/base/*.md             ->  jobs/cv/export/
+        anything else                 ->  exports/<fmt>/<date>/
+
+    Until now every render went to `exports/` and application CVs were *then* copied
+    back, leaving two copies of each file and one flat dated tree that named neither its
+    source nor the application it was for. The cleanup that followed could not attribute
+    22 of those renders to any application at all. So the home is chosen up front and
+    written once; `exports/` stays for documents that genuinely belong to no folder —
+    a career stocktake, an ad-hoc `--file` from outside the data root.
+    """
+    if src_path is not None:
+        src_path = Path(src_path)
+        folder = appfolder.app_folder_of(src_path)
+        if folder is not None:
+            dest_dir = appfolder.export_dir(folder)
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            return dest_dir / appfolder.app_filename(folder, filetype, ext)
+        if src_path.resolve().parent == BASE_CV_DIR.resolve():
+            CV_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+            # Named like jobs/cv/base/archive/, the other place a dated copy of a base
+            # CV lives — `cv_functional-2026-09-22.docx` beside `cv_functional-...md`.
+            return CV_EXPORT_DIR / f"{src_path.stem}-{date.today().isoformat()}.{ext}"
+    return _export_dir(ext) / f"{stem}.{ext}"
 
 
 # ── Inline markdown → HTML ───────────────────────────────────────────────────
@@ -606,12 +641,13 @@ def export_chronological(src_path: Path | None = None, label: str | None = None,
     print(f"  Parsing chronological CV: {src_path.name}")
     html_content = render_html(parse_variant(src_path))
 
-    html_path = _export_dir("html") / f"{date.today().isoformat()}_cv_chronological{label_part}.html"
+    stem = f"{date.today().isoformat()}_cv_chronological{label_part}"
+    html_path = _home(src_path, "cv-chronological", "html", stem=stem)
     html_path.write_text(html_content)
     if fmt != "pdf":
         return html_path
 
-    pdf_path = _export_dir("pdf") / html_path.with_suffix(".pdf").name
+    pdf_path = _home(src_path, "cv-chronological", "pdf", stem=stem)
     _chrome_print_pdf(html_path, pdf_path)
     return pdf_path
 
@@ -644,32 +680,18 @@ def export_functional(src_path: Path | None = None, label: str | None = None,
     print(f"  Parsing functional CV: {src_path.name}")
     html_content = render_functional(parse_functional(src_path))
 
-    html_path = _export_dir("html") / f"{date.today().isoformat()}_cv_functional{label_part}.html"
+    stem = f"{date.today().isoformat()}_cv_functional{label_part}"
+    html_path = _home(src_path, "cv-functional", "html", stem=stem)
     html_path.write_text(html_content)
     if fmt != "pdf":
         return html_path
 
-    pdf_path = _export_dir("pdf") / html_path.with_suffix(".pdf").name
+    pdf_path = _home(src_path, "cv-functional", "pdf", stem=stem)
     _chrome_print_pdf(html_path, pdf_path)
     return pdf_path
 
 
 # ── DOCX export (ATS-friendly) ──────────────────────────────────────────────
-
-def _maybe_copy_to_app_folder(out_path: Path, src_path: Path | None, filetype: str) -> Path | None:
-    """If `src_path` (the markdown that was rendered) lives inside an application folder,
-    also drop a copy of `out_path` there under the application-folder naming convention
-    (jobs/appfolder.py — decided 2026-09-08). Returns the copy's path, or None if
-    `src_path` isn't application-scoped."""
-    if src_path is None:
-        return None
-    folder = appfolder.app_folder_of(Path(src_path))
-    if folder is None:
-        return None
-    dest = folder / appfolder.app_filename(folder, filetype, out_path.suffix.lstrip("."))
-    shutil.copy2(out_path, dest)
-    return dest
-
 
 def export_docx_functional(src_path: Path | None = None, label: str | None = None) -> Path:
     """Render the functional CV to an ATS-friendly .docx."""
@@ -684,12 +706,9 @@ def export_docx_functional(src_path: Path | None = None, label: str | None = Non
 
     label_part = f"_{label}" if label else ""
     print(f"  Parsing functional CV: {src_path.name}")
-    out = _export_dir("docx") / f"{date.today().isoformat()}_cv_functional{label_part}.docx"
-    result = cv_docx.build_functional(parse_functional(src_path), out)
-    dest = _maybe_copy_to_app_folder(result, src_path, "cv-functional")
-    if dest:
-        print(f"  Also copied to: {dest.relative_to(DATA_ROOT)}")
-    return result
+    out = _home(src_path, "cv-functional", "docx",
+                stem=f"{date.today().isoformat()}_cv_functional{label_part}")
+    return cv_docx.build_functional(parse_functional(src_path), out)
 
 
 def export_docx_chronological(src_path: Path | None = None, label: str | None = None) -> Path:
@@ -705,12 +724,9 @@ def export_docx_chronological(src_path: Path | None = None, label: str | None = 
 
     label_part = f"_{label}" if label else ""
     print(f"  Parsing chronological CV: {src_path.name}")
-    out = _export_dir("docx") / f"{date.today().isoformat()}_cv_chronological{label_part}.docx"
-    result = cv_docx.build_chronological(parse_variant(src_path), out)
-    dest = _maybe_copy_to_app_folder(result, src_path, "cv-chronological")
-    if dest:
-        print(f"  Also copied to: {dest.relative_to(DATA_ROOT)}")
-    return result
+    out = _home(src_path, "cv-chronological", "docx",
+                stem=f"{date.today().isoformat()}_cv_chronological{label_part}")
+    return cv_docx.build_chronological(parse_variant(src_path), out)
 
 
 # ── Cover letter export ──────────────────────────────────────────────────────
@@ -821,41 +837,64 @@ def _md_to_cover_letter_html(md_text: str) -> str:
         css=_COVER_LETTER_CSS, title=_e(title), body="\n".join(parts))
 
 
-def export_cover_letter(md_path: Path, label: str | None = None) -> Path | None:
-    """Render a cover letter markdown file to HTML, DOCX, and (if Chrome is present) PDF."""
+def export_cover_letter(md_path: Path, label: str | None = None,
+                        fmt: str = "docx") -> Path | None:
+    """Render a cover letter to .docx, plus HTML or PDF when `fmt` asks for one.
+
+    `.docx` is the version that gets sent, so it is always written. The other two are
+    opt-in, and for the same reason: the HTML used to be written every time because the
+    PDF path needs something for Chrome to print. That was invisible while renders went
+    to `exports/`; once they started landing in the application folder (2026-09-24) every
+    cover letter left an `.html` nobody had asked for sitting next to its `.docx`. The
+    intermediate now goes to a temp file that nothing keeps, and `fmt="html"` is what
+    puts one in the folder for real.
+    """
     md_text = md_path.read_text()
     label_part = f"_{label}" if label else ""
     stem = f"{date.today().isoformat()}_cover-letter{label_part}"
 
-    html_path = _export_dir("html") / f"{stem}.html"
-    html_path.write_text(_md_to_cover_letter_html(md_text))
-    print(f"  HTML: {html_path.name}")
-
     docx_path = None
     try:
         import cv_docx
-        docx_path = _export_dir("docx") / f"{stem}.docx"
+        docx_path = _home(md_path, "cover-letter", "docx", stem=stem)
         cv_docx.build_cover_letter(_parse_cover_letter(md_text), docx_path)
         print(f"  DOCX: {docx_path.name}")
-        dest = _maybe_copy_to_app_folder(docx_path, md_path, "cover-letter")
-        if dest:
-            print(f"  Also copied to: {dest.relative_to(DATA_ROOT)}")
     except ImportError:
         print(f"  DOCX: skipped — {_DOCX_HINT}")
 
+    html_path = None
+    if fmt == "html":
+        html_path = _home(md_path, "cover-letter", "html", stem=stem)
+        html_path.write_text(_md_to_cover_letter_html(md_text))
+        print(f"  HTML: {html_path.name}")
+
     pdf_path = None
-    try:
-        pdf_path = _export_dir("pdf") / f"{stem}.pdf"
-        _chrome_print_pdf(html_path, pdf_path)
-        print(f"  PDF:  {pdf_path.name}")
-    except RuntimeError as e:
-        pdf_path = None
-        print(f"  PDF:  skipped — {e}")
+    if fmt == "pdf":
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / f"{stem}.html"
+            source.write_text(_md_to_cover_letter_html(md_text))
+            try:
+                pdf_path = _home(md_path, "cover-letter", "pdf", stem=stem)
+                _chrome_print_pdf(source, pdf_path)
+                print(f"  PDF:  {pdf_path.name}")
+            except RuntimeError as e:
+                pdf_path = None
+                print(f"  PDF:  skipped — {e}")
 
     return pdf_path or docx_path or html_path
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
+
+def _said(path: Path) -> str:
+    """A rendered file's path for the terminal — relative to the data root when it is
+    inside it, which since 2026-09-24 is where it usually is. The destination now varies
+    with the source, so saying only the directory would no longer tell you much."""
+    try:
+        return str(Path(path).resolve().relative_to(DATA_ROOT.resolve()))
+    except ValueError:
+        return str(path)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Render a CV or cover letter to HTML, PDF, or DOCX.")
@@ -864,7 +903,11 @@ def main():
     parser.add_argument("--chronological", action="store_true",
                         help=f"Render the chronological CV ({CHRONOLOGICAL_CV.name}); --file overrides the source")
     parser.add_argument("--file", "-i", type=Path, help="Specific CV .md file (default: the base CV)")
-    parser.add_argument("--format", "-f", choices=["html", "pdf"], default="html", help="Output format (default: html)")
+    # No default: the branches below want different ones. A CV with no --format renders
+    # HTML as it always has; a cover letter renders only the .docx that gets sent, so
+    # `--format html` has to mean "I actually want the HTML" rather than "I said nothing".
+    parser.add_argument("--format", "-f", choices=["html", "pdf"], default=None,
+                        help="Also render this format (CV default: html; cover letter: .docx only)")
     parser.add_argument("--label", "-l", help="Extra label appended to output filename (e.g. 001-grafana-labs)")
     parser.add_argument("--cover-letter", action="store_true", help="Render a cover letter markdown file (requires --file)")
     parser.add_argument("--docx", action="store_true",
@@ -876,8 +919,8 @@ def main():
             print("Error: --cover-letter requires --file")
             sys.exit(1)
         print(f"Rendering cover letter: {Path(args.file).name}")
-        out = export_cover_letter(Path(args.file), label=args.label)
-        print(f"Saved to: {out.parent}")
+        out = export_cover_letter(Path(args.file), label=args.label, fmt=args.format or "docx")
+        print(f"Saved to: {_said(out)}")
         return
 
     if args.docx:
@@ -890,19 +933,19 @@ def main():
         else:
             print("Error: --docx requires --functional or --chronological")
             sys.exit(1)
-        print(f"DOCX saved to: {out}")
+        print(f"DOCX saved to: {_said(out)}")
         return
 
     if args.functional:
-        print(f"Rendering functional CV ({args.format})")
-        out = export_functional(args.file, label=args.label, fmt=args.format)
-        print(f"{args.format.upper()} saved to: {out}")
+        print(f"Rendering functional CV ({args.format or 'html'})")
+        out = export_functional(args.file, label=args.label, fmt=args.format or "html")
+        print(f"{(args.format or 'html').upper()} saved to: {_said(out)}")
         return
 
     if args.chronological:
-        print(f"Rendering chronological CV ({args.format})")
-        out = export_chronological(args.file, label=args.label, fmt=args.format)
-        print(f"{args.format.upper()} saved to: {out}")
+        print(f"Rendering chronological CV ({args.format or 'html'})")
+        out = export_chronological(args.file, label=args.label, fmt=args.format or "html")
+        print(f"{(args.format or 'html').upper()} saved to: {_said(out)}")
         return
 
     parser.print_help()

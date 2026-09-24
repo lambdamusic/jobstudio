@@ -52,8 +52,27 @@
       });
     });
 
+    // A hash naming a tab opens that tab. A hash naming an element *inside* a panel
+    // (an interview round, say) opens the panel holding it and scrolls there — without
+    // this, a link to one round reloads onto the first tab with its target hidden.
+    function activateContaining(id) {
+      var target = null;
+      try {
+        target = document.getElementById(id);
+      } catch (e) {
+        return false;
+      }
+      if (!target) return false;
+      var panel = target.closest ? target.closest("[data-panel]") : null;
+      if (!panel || !group.contains(panel)) return false;
+      if (!activate(panel.getAttribute("data-panel"), false)) return false;
+      // The panel was hidden until a moment ago, so the browser's own jump missed it.
+      if (target.scrollIntoView) target.scrollIntoView();
+      return true;
+    }
+
     var fromHash = window.location.hash.replace("#", "");
-    if (!fromHash || !activate(fromHash, false)) {
+    if (!fromHash || !(activate(fromHash, false) || activateContaining(fromHash))) {
       activate(tabs[0].getAttribute("data-tab"), false);
     }
   }

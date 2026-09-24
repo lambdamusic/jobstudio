@@ -15,10 +15,6 @@
 
 - Re-read own package's issue tracker before any call — expect to be asked about it.
 
-## Interview prep
-
-Not started — still saved rather than applied.
-
 ## Contacts
 
 None yet.

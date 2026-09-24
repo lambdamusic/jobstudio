@@ -24,6 +24,7 @@ def site_context(request):
         # eight templates and admin.py, which hardcoded one editor for every user
         # (§1 blocker 10). `editor_url_scheme` in ~/.jobstudio.ini overrides it.
         "EDITOR_URL_SCHEME": config.setting("editor_url_scheme", "vscode://file/"),
+        "APP_NAME": settings.APP_NAME,
         "ENVIRONMENT": settings.ENVIRONMENT,
         "IS_LOCAL": settings.ENVIRONMENT == "local",
         "nav_counts": {

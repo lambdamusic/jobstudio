@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load jobs_extras %}
-{% block title %}{% if scan %}{{ scan.label }}{% else %}Portal scans{% endif %} · Job search{% endblock %}
+{% block title %}{% if scan %}{{ scan.label }}{% else %}Portal scans{% endif %}{% endblock %}
 {% block content %}
 <div class="crumb"><a href="/scans/all/">All portal scans</a>{% if scan %} / {{ scan.label }}{% endif %}</div>
 

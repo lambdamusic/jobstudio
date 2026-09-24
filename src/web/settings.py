@@ -110,6 +110,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # fresh clone can run the suite without anyone's personal data root existing.
 FIXTURE_DIRS = [os.path.join(SITE_ROOT, "example-data", "backups", "django")]
 
+# The app's display name, in one place — it was "Job search" written out in 15 spots
+# across 13 templates plus the admin header, so renaming it meant a find-and-replace.
+# Two words with a space is the DISPLAY form only; the package, repo and command stay
+# `jobstudio`, unhyphenated (plan §2e).
+APP_NAME = "Job Studio"
+
 # ---------------------------------------------------------------------------
 # Project-specific paths — the markdown/data tree this app reads from.
 # ---------------------------------------------------------------------------

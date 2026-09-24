@@ -44,8 +44,13 @@ alternative), chosen to fit the role.
    `{folder}/{folder-name}-<person-slug>-cover-letter-YYYY-MM-DD.md` (date = today).
    Print the saved path. Then render the `.docx`:
    ```
-   tools/py src/render.py --cover-letter --docx --file "<saved path>"
+   tools/py src/render.py --cover-letter --file "<saved path>"
    ```
+   The `.docx` is written straight into the application's `export/` subfolder — the
+   markdown stays at the top level. `.docx` is all this produces, deliberately: add
+   `--format pdf` only if the user asked for a PDF, and `--format html` only if they
+   asked for HTML.
+
    The cover letter appears on the application page automatically — no `import_jobs` step
    (letters are scanned from the folder by naming convention).
 

@@ -92,11 +92,12 @@ python src/render.py --docx --chronological --file <path> --label 001-grafana-la
   document with actual heading styles and no pseudo-bullets, rather than converting the
   HTML/PDF layout — that's what makes it reliably ATS-parseable.
 
-**If the source markdown lives inside an application folder**, any HTML/PDF/docx
-rendered from it is *also* copied back into that folder under the application-folder
-naming convention (`_maybe_copy_to_app_folder()`, keyed off `appfolder.app_folder_of()`)
-— so exporting a tailored CV automatically leaves a copy alongside `job.md` and
-`notes.md`, not just in `exports/`.
+**A render is written once, where its source lives** — `render._home()`, keyed off
+`appfolder.app_folder_of()`. A tailored CV or cover letter renders into that
+application's `export/` subfolder (`appfolder.export_dir()`), under the application-folder
+naming convention; a base CV renders into `jobs/cv/export/`; anything else falls back to
+`exports/`. Readers find an application's copy again via `appfolder.exported_file()`,
+which also accepts the flat layout folders used before 2026-09-24.
 
 ## Which export format, and why
 
@@ -109,10 +110,9 @@ naming convention (`_maybe_copy_to_app_folder()`, keyed off `appfolder.app_folde
   linearisation, pseudo-element bullets, letter-spaced headings all confuse parsers. The
   `.docx` sidesteps all of that by construction.
 
-Every export lands at `exports/<format>/<YYYY-MM-DD>/`, created by `_export_dir()` — a
-date subfolder inside `html/` / `pdf/` / `docx/`, with the filename itself keeping the
-same date prefix. This is a different naming convention from the one used inside
-`jobs/applications/NNN-*/` (see
-[applications-and-gap-analysis.md](applications-and-gap-analysis.md) "File naming inside
-an application folder") — the two trees serve different purposes (a dated export archive
-vs. the working set for one specific application) and were never meant to match.
+`exports/<format>/<YYYY-MM-DD>/` (`_export_dir()`) is now the **fallback only** — what a
+render falls back to when its source belongs to no folder, such as an ad-hoc `--file`
+from outside the data root. It used to take every render, with application copies made
+afterwards; `manage.py prune_exports` cleared the 16 MB backlog that left behind
+(2026-09-24). A file already there that a render did not write — a career stocktake, say
+— is left alone by that command and stays.

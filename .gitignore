@@ -97,3 +97,8 @@ build/
 
 # Personal denylist for tools/make-public-tree — see .private-terms.example
 .private-terms
+
+# Allowed-anyway list for the derived tracked-company check in tools/make-public-tree —
+# see .tracked-company-exceptions.example. Ignored for the same reason .private-terms is:
+# the set of companies you track is itself the disclosure.
+.tracked-company-exceptions

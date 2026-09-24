@@ -21,7 +21,7 @@ category_to_area:
 # company name exactly as recorded in the tracker, because the URL is what's wrong.
 #
 # Shape per platform:
-#   greenhouse / lever / workable / ashby / smartrecruiters: {platform, token}
+#   greenhouse / lever / workable / ashby / smartrecruiters / bamboohr: {platform, token}
 #   workday:     {platform, tenant, wd, site}
 #   teamtailor:  {platform, domain}
 company_overrides:

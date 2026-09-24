@@ -1,0 +1,28 @@
+# Companies in YOUR tracker whose names may legitimately appear in the public tree, one
+# per line, matched case-insensitively and whole-word by tools/make-public-tree.
+#
+# Copy this file to `.tracked-company-exceptions` (gitignored) and list your own.
+#
+# WHAT THE CHECK DOES. Every other content check reads a list someone remembered to
+# write. This one derives its terms from your tracker database instead — every company
+# name in it — and fails if one turns up in the tree about to be published. A roadmap,
+# a changelog or a test fixture that names a company you are applying to is exactly the
+# leak `.private-terms` exists to stop, except nobody can maintain a denylist of fifty
+# employers that grows every week. Deriving it means the list is never out of date.
+#
+# WHY THERE HAS TO BE AN ESCAPE HATCH. A tracked company can also be a vendor, a
+# standard, a protocol or the maker of a tool this project legitimately depends on. The
+# check cannot tell "I am interviewing there" from "we call their API", so it asks you
+# once per name and then stops asking.
+#
+# WHY THIS FILE IS GITIGNORED, like `.private-terms`. It is a list of companies you
+# track. That it records them as *allowed* does not make it less disclosing: the set
+# itself is your job search. The mechanism ships; the names do not.
+#
+# Add a name here only when you have read the reported line and it is genuinely about
+# the technology, not about your search. When in doubt, reword the line instead — an
+# exemption is permanent and silent, and an exemption no file needs is a blind spot
+# waiting for the next file that matches.
+
+# an-llm-vendor-whose-api-this-uses
+# a-standards-body-referenced-in-docs

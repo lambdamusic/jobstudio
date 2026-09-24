@@ -211,7 +211,8 @@ jobstudio/                 # this repo — the code. Public, shareable, no perso
 ├── config.yaml                   # who you are
 ├── jobs/                         # CVs, profile, companies, applications, scans
 │   └── scan-config.yaml          # your ATS overrides + category→area mapping
-├── exports/                      # generated .docx / .html / .pdf
+├── exports/                      # one-off documents belonging to no folder
+│                                 #   (renders go beside their source — see docs/workflow.md)
 ├── backups/django/               # timestamped database dumps
 └── db.sqlite3                    # the tracker
 ```
@@ -250,10 +251,25 @@ nothing more.
 ```bash
 tools/py src/web/manage.py test tracker cvs   # the test suite, against example-data/
 tools/smoke-test                              # from-scratch install, in a temp clone
+tools/make-public-tree --check                # refuse-to-publish check, nothing written
 tools/build-example-fixture                   # regenerate the example database fixture
 ```
 
 Tests run against `example-data/`, never against a real job search.
+
+**The publish check.** This repo is public and pushes every branch, so any push is a
+publication. `tools/make-public-tree --check` copies what would ship into a temp
+directory, greps it for personal data — your name, your private terms, absolute home
+paths, credentials in fixtures, and every company name in *your own tracker database* —
+and deletes it again. `tools/git-hooks/pre-push` runs it and blocks the push on a hit;
+`git config core.hooksPath tools/git-hooks` turns that on, and `init` does it for you
+when the checkout has a remote. `git push --no-verify` bypasses it.
+
+The company check derives its terms from your tracker rather than a maintained list, so
+it cannot go stale — which also means it only runs locally, since the database is
+gitignored and CI cannot see it. Names that are genuinely technology rather than your
+search (a vendor whose API you call, say) go in `.tracked-company-exceptions` — see the
+`.example`.
 
 ## Licence
 

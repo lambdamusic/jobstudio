@@ -227,6 +227,11 @@ def application_detail(request, num):
         "nav_apps": "applications",
         "app": app,
         "cover_letters": app.cover_letter_files,
+        # Both are computed by scanning the folder, so resolve each once here
+        # rather than letting the template re-walk it per access.
+        "interviews": app.interview_files,
+        # The status menu offers every status except the one it is already in.
+        "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],
         "siblings": (Application.objects.filter(company_name=app.company_name)
                      .exclude(pk=app.pk).order_by(*BROWSE_ORDER)),
     })
@@ -244,6 +249,9 @@ def company_list(request):
         "page": "companies",
         "categories": categories,
         "total": companies.count(),
+        # Coverage is uneven and worth stating up front: the per-row column answers
+        # "this one?", this answers "how much of the tracker is actually watched?".
+        "n_scanned": sum(1 for c in companies if c.scan_coverage["scanned"]),
     })
 
 
@@ -429,17 +437,25 @@ def create_folder(request, num):
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
 
 
-def mark_reviewing(request, num):
-    """Local-only: one-click status bump to 'reviewing', for the common case of "I've
-    looked at this, it's worth a proper read-through" — without a trip to the admin
-    change form. `Application.save()` handles `status_order` and the status-change log
-    (models.py's post_save signal) the same as any other save."""
+def set_status(request, num, status):
+    """Local-only: move an application to any status from the detail page's status menu,
+    without a trip to the admin change form.
+
+    Replaced a hardcoded one-click bump to 'reviewing' (2026-09-23) — the other six
+    transitions were just as common and all of them meant opening the admin. `status` is
+    checked against STATUS_SORT_ORDER rather than trusted: it arrives from the URL, so an
+    unknown value must 404 rather than write a status nothing else in the app understands.
+    `Application.save()` handles `status_order` and the status-change log (models.py's
+    post_save signal) the same as any other save.
+    """
     if settings.ENVIRONMENT != "local":
         raise Http404("Local only")
+    if status not in STATUS_SORT_ORDER:
+        raise Http404(f"Unknown status: {status}")
 
     app = get_object_or_404(Application, num=num)
-    if app.status != "reviewing":
-        app.status = "reviewing"
+    if app.status != status:
+        app.status = status
         app.save(update_fields=["status"])
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
 

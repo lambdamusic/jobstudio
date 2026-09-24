@@ -39,7 +39,7 @@ When the argument is `help` or no argument is given, output ONLY the following a
 **Usage examples:**
 
 ```
-/jobstudio company Crossref
+/jobstudio company Grafana Labs
 /jobstudio application [paste job description or URL]
 /jobstudio cv #18 --base chronological
 /jobstudio cover-letter Grafana Labs

@@ -1473,8 +1473,9 @@ watching for a month before leaning on it.
 
 ### 8.3 Design notes specific to this codebase
 
-1. **The view pattern already exists.** `#24` added a local-only action view
-   (`/actions/mark-reviewing/<num>/`) plus a button on the application detail page.
+1. **The view pattern already exists.** `#24` added a local-only action view plus a
+   button on the application detail page, generalised by `#28` into
+   `/actions/set-status/<num>/<status>/` behind a status menu.
    An agent-run button is the same shape — `/actions/run/<subcommand>/<num>/` — with
    the same local-only guard.
 2. **Runs are slow and there's no Celery here.** CV tailoring takes a minute or more,

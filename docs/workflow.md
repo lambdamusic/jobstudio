@@ -110,11 +110,24 @@ python src/render.py --functional --file <tailored-copy.md> --label 001-grafana-
 python src/render.py --chronological
 python src/render.py --chronological --file <tailored-copy.md> --label 001-grafana-labs --format pdf
 
-# Render a cover letter — emits HTML + DOCX + PDF in one call
+# Render a cover letter — .docx only; add --format html or --format pdf for more
 python src/render.py --cover-letter --file jobs/applications/001-grafana-labs/cover-letter-2026-06-23.md --label 001-grafana-labs
 ```
 
-Exports are saved to `exports/<format>/<YYYY-MM-DD>/` — a date subfolder inside each of `html/`, `pdf/`, `docx/`; the filename keeps the same date prefix.
+**Where a render lands** is decided by where its source lives (`render._home()`,
+2026-09-24) — one copy, written straight to its home:
+
+| Source | Render goes to |
+|---|---|
+| `jobs/applications/NNN-*/…` | `jobs/applications/NNN-*/export/`, named by the application-folder convention |
+| `jobs/cv/base/*.md` | `jobs/cv/export/`, as `cv_functional-<YYYY-MM-DD>.docx` — the naming `base/archive/` already uses |
+| anything else | `exports/<format>/<YYYY-MM-DD>/`, the generic area for documents belonging to no folder |
+
+Until 2026-09-24 every render went to `exports/` and an application's `.docx` was *then*
+copied back, which left two copies of each file and a flat dated tree naming neither the
+source nor, for 22 of them, any application at all. `exports/` is still there and still
+useful — a career stocktake, an ad-hoc `--file` from outside the data root — it is just
+no longer where work with a home of its own goes.
 
 **Which format when:** the Chrome-rendered **PDF** is the *designed* version — send it when a human reads it, or link it on the portfolio site. The **`.docx`** is the *ATS* version — upload it to applicant tracking systems / online application forms. The two-column `cv_navy.html` PDF (used by `--chronological`) in particular is unreliable for ATS parsing (column linearisation, pseudo-element bullets, letter-spaced headings); the `.docx` avoids all of that.
 
@@ -206,10 +219,20 @@ jobs/applications/001-grafana-labs/
   job.md                                                            ← full job description
   notes.md                                                          ← JD detail + gap analysis + personal notes
   001-grafana-labs-<person-slug>-cv-functional-2026-09-08.md        ← tailored CV
-  001-grafana-labs-<person-slug>-cv-functional-2026-09-08.docx      ← ATS-friendly export
   001-grafana-labs-<person-slug>-cover-letter-2026-09-08.md         ← generated cover letter
-  001-grafana-labs-<person-slug>-cover-letter-2026-09-08.docx       ← ATS-friendly export
+  export/
+    001-grafana-labs-<person-slug>-cv-functional-2026-09-08.docx    ← ATS-friendly export
+    001-grafana-labs-<person-slug>-cover-letter-2026-09-08.docx     ← ATS-friendly export
 ```
+
+**Rendered output goes in `export/`** (2026-09-24) — the top level holds only what was
+authored, so a folder listing reads as a set of sources rather than a pile of files.
+`appfolder.export_dir()` names it and `appfolder.exported_file()` finds a copy again.
+Folders written before that date keep the `.docx` beside its markdown and both shapes
+stay readable, so nothing has to be migrated; `manage.py migrate_exports` tidies them
+anyway (it prints its plan and needs `--apply` to move anything). Not to be confused with
+`exports/` (plural, at the data root), which since 2026-09-24 holds only documents that
+belong to no folder — `manage.py prune_exports` moved the rest to where it belonged.
 
 All application folders live directly under `jobs/applications/`, regardless of status
 — the archive/ split by status was retired 2026-09-08. The database is the source of
@@ -230,7 +253,7 @@ Once the CV variant and cover letter for an application are settled, render them
 /jobstudio render-html-pdf grafana-labs
 ```
 
-This finds the latest tailored CV and cover letter in the application's folder and renders both to `exports/<format>/<today>/`, date-prefixed and labelled with the application folder name. The cover letter render also produces a `.docx`. (No API call — use the "After review" tailoring step in `application.md` first if the CV itself still needs regenerating.)
+This finds the latest tailored CV and cover letter in the application's folder and renders both straight into that application's `export/` subfolder, named by the application-folder convention. The cover letter render also produces a `.docx`. (No API call — use the "After review" tailoring step in `application.md` first if the CV itself still needs regenerating.)
 
 ### Using the local web app
 

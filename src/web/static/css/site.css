@@ -44,12 +44,11 @@ a:hover { text-decoration: underline; }
   display: flex; flex-direction: column;
 }
 
-.brand {
-  padding: 0 20px 18px;
-  font-size: 15px; font-weight: 650; letter-spacing: -0.01em;
-  color: var(--navy);
-}
-.brand span { display: block; font-weight: 400; font-size: 12px; color: var(--faint); margin-top: 2px; }
+.brand { padding: 0 20px 18px; }
+/* The lockup draws its own type, so the brand block itself sets no font — only the
+   owner/year line under it does. */
+.brand-mark { display: block; }
+.brand span { display: block; font-weight: 400; font-size: 12px; color: var(--faint); margin-top: 4px; }
 
 .nav-group { padding: 0 12px; margin-bottom: 18px; }
 .nav-label {
@@ -58,22 +57,40 @@ a:hover { text-decoration: underline; }
   color: var(--faint); font-weight: 600;
 }
 .nav-group a {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  /* Not space-between: with an icon in front, that would push the glyph away from its
+     own label. The count is pushed right on its own instead. */
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
   padding: 6px 8px; margin: 1px 0;
   border-radius: 6px;
   color: #3a3a44; font-size: 14px;
 }
 .nav-group a:hover { background: #eeeef2; text-decoration: none; }
 .nav-group a.active { background: #e8ebf3; color: var(--navy); font-weight: 600; }
-.nav-group a.nav-sub { padding-left: 20px; font-size: 13px; color: #6a6a74; }
-.nav-count { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+/* Sub-items carry no icon — they are already indented, and a second column of glyphs
+   would flatten the hierarchy back out. The indent lines their text up with the labels
+   above: 8px padding + 16px icon + 8px gap. */
+.nav-group a.nav-sub { padding-left: 32px; font-size: 13px; color: #6a6a74; }
+.nav-count { margin-left: auto; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .nav-group a.active .nav-count { color: var(--navy-soft); }
+
+/* Nav glyphs: line art that inherits the link's colour, so the active item's navy and
+   the muted local-only grey both come for free. */
+.ico {
+  flex: none; width: 16px; height: 16px;
+  fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+  opacity: .72;
+}
+.nav-group a.active .ico { opacity: 1; }
 
 .sidebar-foot {
   margin-top: auto; padding: 14px 20px 0;
   border-top: 1px solid var(--line);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   font-size: 12px; color: var(--faint);
 }
+.sidebar-foot a { color: var(--muted); }
+.sidebar-foot a:hover { color: var(--navy); }
 
 .content { flex: 1; min-width: 0; padding: 34px 44px 72px; }
 .content-inner { max-width: 1080px; }
@@ -130,6 +147,9 @@ td.num { color: var(--faint); font-variant-numeric: tabular-nums; white-space: n
 td.nowrap, th.nowrap { white-space: nowrap; }
 td.col-target, th.col-target { min-width: 172px; }
 td.col-notes { max-width: 460px; }
+/* The scan column carries a reason sentence under the "not scanned" marker, so it needs
+   a ceiling or it pushes the narrower columns out of shape. */
+td.col-scan, th.col-scan { max-width: 230px; }
 .role { font-weight: 500; }
 .sub { display: block; font-size: 12.5px; color: var(--muted); margin-top: 1px; }
 
@@ -175,6 +195,9 @@ td.col-notes { max-width: 460px; }
 .btn.local-only { border-style: dashed; }
 .nav-group a.local-only { color: var(--muted); }
 .nav-group a.local-only::after {
+  /* Pushed right like .nav-count — the row is justify-content: flex-start now, so it no
+     longer drifts to the edge on its own. */
+  margin-left: auto;
   content: "local"; font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
   color: var(--faint); border: 1px dashed #ccccd4; border-radius: 4px; padding: 0 4px;
 }
@@ -232,6 +255,22 @@ td.col-notes { max-width: 460px; }
 .btn-primary { background: var(--navy); border-color: var(--navy); color: #fff; }
 .btn-primary:hover { background: var(--navy-soft); }
 
+/* Status menu on the application page — a native <details> styled as a button plus a
+   floating list. `position: relative` on the <details> is what the panel anchors to, so
+   the row below it does not reflow when the menu opens. */
+.menu { position: relative; }
+.menu > summary { list-style: none; cursor: pointer; user-select: none; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu[open] > summary { background: var(--bg-sunk); }
+.menu-body {
+  position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 100%;
+  display: flex; flex-direction: column; gap: 2px; padding: 5px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 4px 14px rgba(27, 41, 72, .13);
+}
+.menu-body a { padding: 3px 6px; border-radius: 4px; }
+.menu-body a:hover { background: var(--bg-sunk); text-decoration: none; }
+
 .notice {
   border-left: 3px solid var(--gold); background: #fffdf5;
   padding: 9px 13px; border-radius: 3px; font-size: 13px; margin-bottom: 16px;
@@ -268,6 +307,20 @@ td.col-notes { max-width: 460px; }
    with JS the tab bar names the section, so the duplicate heading is redundant. */
 .js-tabs .panel-heading { display: none; }
 .tabpanel[hidden] { display: none; }
+
+/* ---------- interview round index (Interviews tab) ---------- */
+
+/* Shown only from two rounds up (the template decides) — a one-item index is noise. */
+.round-index { padding: 12px 16px; margin-bottom: 16px; }
+.round-index ol {
+  margin: 0; padding: 0; list-style: none;
+  display: flex; flex-wrap: wrap; gap: 6px 22px;
+}
+.round-index li { display: flex; align-items: baseline; gap: 8px; font-size: 14px; }
+.round-index a { font-weight: 500; }
+.round-index .round-index-date {
+  color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
 
 /* ---------- fit summary (Record tab) ---------- */
 

@@ -7,8 +7,9 @@ builds the career profile once, before any of this.
 Two modes:
 
 - **Application mode** (default): `/jobstudio interview [company or #N] [--stage
-  screening/technical/panel/final] [free text: specific concerns]` — full prep pack
-  for one application, written into its `notes.md`.
+  hr-screen/hiring-manager/technical/panel/final/informal] [free text: specific
+  concerns]` — full prep pack for one round, written as **its own file** in that
+  application's folder (one file per round, since 2026-09-24 — see Step 4).
 - **Bank mode**: `/jobstudio interview --practice [topic]` (no company) — practise
   answers against `<DATA>/jobs/notes/interview-technique.md` and `stocktake.md` directly,
   with nothing written to an application folder. Use this when there's no specific
@@ -26,6 +27,7 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 | The tracker database (`src/jobsdb.py list`) | Role title, area, status |
 | `job.md` in the application folder | The actual JD — responsibilities/requirements drive the technical & gap questions |
 | `notes.md` in the application folder — **Fit check**, **CV gaps**, **Preparation steps** sections | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
+| **Prior round files** in the folder (`*-interview-*.md`), newest first — their `## Outcome` above all | What was already asked, what landed, what the interviewer corrected or flagged. Never re-prep a round in ignorance of the one before it |
 | The tailored CV in the folder (`*cv-functional*.md`), else `<DATA>/jobs/cv/base/cv_functional.md` | Concrete achievements and phrasing to draw answers from |
 | `<DATA>/jobs/companies/<slug>.md` | Culture signals, "Fit with my mission" — feeds both the "why this role" answer and the questions-to-ask-them list |
 | `<DATA>/jobs/profile/stocktake.md` §1–§3, §7 | §1 orgs/cultures enjoyed & disliked (relationships/culture answers) · §2 six achievements + areas of less success and lessons (behavioural + weakness answers) · §3 anchors/values (keeps "why this role" authentic, not generic) · §7 narratives to have ready |
@@ -39,10 +41,14 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 
 **Application mode:** match by company name or row `#` from `src/jobsdb.py list`.
 Read `job.md`, `notes.md` (all of it — Fit check and CV gaps are prep work already
-done, don't repeat it), the tailored CV if one exists, and
+done, don't repeat it), **every prior round file in the folder** (`*-interview-*.md`,
+especially each `## Outcome`), the tailored CV if one exists, and
 `<DATA>/jobs/companies/<slug>.md` if it exists. Note the `--stage` flag if given — weight
 the mix (a screening call leans EI/culture/why-us; a technical round leans role
 questions; a final/panel round leans both plus seniority/comp).
+
+A prior round's `## Outcome` outranks the JD wherever they disagree: it is what the
+company said about itself, to this candidate, out loud.
 
 **Bank mode:** skip the above; read `stocktake.md` and `interview-technique.md`
 directly, and ask what topic or question type to focus on if not given.
@@ -117,48 +123,103 @@ Ask for edits before writing anything.
 
 ## Step 4 — Write
 
-**Application mode:** write the confirmed pack into that application's `notes.md`,
-under the existing `## Interview prep` heading (already scaffolded by
-`/jobstudio application` — replace it if it already has content from a prior prep
-pass, don't duplicate). Structure:
+**Application mode:** write the confirmed pack into **its own file** in the application
+folder — one file per round, never appended to `notes.md`:
+
+```
+<application-folder-name>-<person-slug>-interview-<stage>-<YYYY-MM-DD>.md
+001-grafana-labs-alex-rivera-interview-hiring-manager-2026-09-24.md
+```
+
+- `<stage>` is one of `hr-screen`, `hiring-manager`, `technical`, `panel`, `final`,
+  `informal` (`appfolder.INTERVIEW_STAGES`) — map `--stage` onto it; ask which, if the
+  user didn't say.
+- **The date is the date of the interview, not today.** Ask for it if it isn't known;
+  it is what orders the process on the page. Don't guess it from the calendar.
+- `<person-slug>` comes from `identity.slug()` — read it, never hardcode it. The whole
+  name is what `appfolder.app_filename(folder, f"interview-{stage}", "md", when=<date>)`
+  builds, so use that rather than assembling the string by hand.
+
+Structure:
 
 ```markdown
-## Interview prep
+# <Stage label> — <interviewer name, title>
+
+## Details
+
+- **Date:** …
+- **Stage:** …
+- **Who:** …
+- **Format / duration:** …
+
+## Who I'm meeting
+
+…research on the interviewer — skip the section if there's nothing real to say…
+
+## Prep
 
 ### Role / technical
-
 - **Q:** …
   **A:** …
 
 ### Behavioural
-
 - **Q:** …
   **A:** …
 
 ### Emotional intelligence
-
 - **Q:** … *(relationships)*
   **A:** …
   [repeat per tip]
 
 ### Why this role
-
 **Q:** …
 **A:** …
 
-### Questions to ask them
+## Questions to ask them
 
 - …
 
-### Study before the call
+## Study before
 
 - …
+
+## Private — not for the call
+
+…honest reservations, comp thinking, read on the company…
+
+## Outcome
+
+_(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
+
+Then **add one line to `## Timeline` in `notes.md`** linking the new file, so the
+folder still reads as one process:
+
+```markdown
+- **2026-09-24** — hiring manager round with Phil Wilkinson, 30 minutes.
+  → [`001-grafana-labs-alex-rivera-interview-hiring-manager-2026-09-24.md`](#round-hiring-manager-2026-09-24)
+```
+
+The link target is the round's anchor on the page — `#round-<stage>-<date>` — **not** the
+file. Round files are rendered into the Interviews tab, never published as raw `.md`, so
+a relative file link is a broken link on the published site and `build_static`'s link
+checker fails the build on it. `tabs.js` resolves a hash naming an element inside a panel
+by opening that panel, so the anchor works on a fresh load too, not just in-session.
+
+`notes.md` itself keeps only what is true of the **role** rather than of a meeting —
+`## My notes`, any domain background, `## Contacts` (people recur across rounds), and
+that `## Timeline`. Never re-create a `## Interview prep` heading there; it was retired
+2026-09-24.
+
+If the application isn't already `interviewing`, offer to set it:
+`tools/py src/jobsdb.py set-status <num> interviewing`.
+
+**After the interview happens**, fill in that round's `## Outcome` — what was asked,
+what landed, what didn't, and the next step. It is the first thing the next round's
+prep reads, and the thing that is worth most when the process runs long.
 
 **Bank mode:** nothing is written to an application folder — just confirm the
 drafted answers in chat, and move to Step 5 for anything worth keeping.
-
----
 
 ## Step 5 — Growing the bank
 
@@ -179,6 +240,7 @@ before ever redrafting something that's already there.
 
 - A company name or `#` row number to identify the application (application mode)
 - `--practice [topic]` — bank mode, no application, no file written
-- `--stage screening|technical|panel|final` — weights which categories get emphasis
+- `--stage hr-screen|hiring-manager|technical|panel|final|informal` — weights which
+  categories get emphasis, and names the round file
 - Free-text additions: specific concerns ("they'll probably grill me on Kubernetes",
   "this is the hiring manager round, not HR")

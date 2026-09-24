@@ -4,7 +4,7 @@ scan-portals.py
 
 Rescan tracked companies (from the tracker database) for new open roles via public
 ATS APIs (Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor,
-Rippling ATS) plus a generic first-party-JSON fetcher. Purely mechanical — fetch,
+Rippling ATS, BambooHR) plus a generic first-party-JSON fetcher. Purely mechanical — fetch,
 dedup, keyword + location pre-filter, classify not-scanned companies. Never imports
 `anthropic` and never calls any model.
 
@@ -43,6 +43,7 @@ from scan_report import Candidate, load_area_profiles
 
 import config
 import scan_config
+import scan_sources
 
 DATA_ROOT = config.data_root()
 JOBS_DIR = DATA_ROOT / "jobs"
@@ -76,7 +77,6 @@ def _extract_url(text: str) -> str | None:
     return m.group(2) if m else None
 
 
-# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # Known-URL collection (dedup)
 # ---------------------------------------------------------------------------
@@ -117,34 +117,14 @@ def collect_known_urls() -> set[str]:
 
 
 # ---------------------------------------------------------------------------
-# ATS detection + fetching
+# Fetching. Which ATS a company is on — and why it isn't scanned when it isn't — moved
+# to src/scan_sources.py (2026-09-23) so the web app can show the same answer.
 # ---------------------------------------------------------------------------
 
 class ScanError(Exception):
     def __init__(self, reason: str):
         self.reason = reason
         super().__init__(reason)
-
-
-_ATS_PATTERNS = [
-    ("greenhouse", re.compile(r"(?:job-boards|boards)(?:\.\w+)?\.greenhouse\.io/([^/?#]+)")),
-    ("lever", re.compile(r"jobs\.lever\.co/([^/?#]+)")),
-    ("workable", re.compile(r"apply\.workable\.com/([^/?#]+)")),
-]
-
-
-def resolve_source(company_name: str, url: str | None) -> dict | None:
-    """Return {"platform": ..., ...params} for a company, preferring a known override
-    (generic corporate careers page hiding a real ATS) over URL-pattern detection."""
-    overrides = scan_config.company_overrides()
-    if company_name in overrides:
-        return overrides[company_name]
-    if url:
-        for platform, pattern in _ATS_PATTERNS:
-            m = pattern.search(url)
-            if m:
-                return {"platform": platform, "token": m.group(1)}
-    return None
 
 
 MAX_RESULTS_PER_COMPANY = 200  # safety cap on pagination, even after server-side keyword filtering
@@ -257,6 +237,36 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 if j.get("isRemote"):
                     loc = f"{loc} (remote)"
                 jobs.append({"title": j["title"], "url": j.get("jobUrl"), "location": loc})
+            return jobs, None
+
+        if platform == "bamboohr":
+            # Public JSON behind every BambooHR careers page: no key, no paging, the
+            # whole board in one response (`meta.totalCount` matches `result`).
+            token = source["token"]
+            resp = client.get(f"https://{token}.bamboohr.com/careers/list",
+                              headers={"Accept": "application/json"}, timeout=HTTP_TIMEOUT)
+            resp.raise_for_status()
+            data = resp.json()
+            jobs = []
+            for j in data.get("result", []):
+                # Two location objects, and which one is filled depends on
+                # `locationType`: type 1 (remote) carries `atsLocation`, the office
+                # types carry `location`. Read both and take whichever has content —
+                # the alternative is trusting a numeric code BambooHR doesn't document.
+                loc_obj = j.get("location") or {}
+                ats_obj = j.get("atsLocation") or {}
+                parts = [p for p in (loc_obj.get("city"), loc_obj.get("state")) if p]
+                if not parts:
+                    parts = [p for p in (ats_obj.get("city"), ats_obj.get("province"),
+                                         ats_obj.get("state"), ats_obj.get("country")) if p]
+                loc = ", ".join(dict.fromkeys(parts)) or "unknown"
+                if str(j.get("locationType")) == "1":
+                    loc = f"{loc} (remote)" if loc != "unknown" else "remote"
+                jobs.append({
+                    "title": j["jobOpeningName"],
+                    "url": f"https://{token}.bamboohr.com/careers/{j['id']}",
+                    "location": loc,
+                })
             return jobs, None
 
         if platform == "smartrecruiters":
@@ -462,8 +472,6 @@ def main() -> None:
 
     category_to_area = scan_config.category_to_area()
     default_area = scan_config.default_area()
-    company_overrides = scan_config.company_overrides()
-    known_unsupported = scan_config.known_unsupported()
 
     with httpx.Client(headers={"User-Agent": "jobstudio-portal-scan/1.0"}) as client:
         for co in companies:
@@ -471,17 +479,13 @@ def main() -> None:
             if args.area and area != args.area:
                 continue
 
-            if not co["url"] and co["name"] not in company_overrides:
-                not_scanned.append((co["name"], "no URL on record", co["url"]))
+            cov = scan_sources.coverage(co["name"], co["url"])
+            if not cov["scanned"]:
+                not_scanned.append((co["name"], cov["reason"], co["url"]))
                 continue
 
-            source = resolve_source(co["name"], co["url"])
-            if not source:
-                reason = known_unsupported.get(co["name"], "bespoke career page — no public jobs API")
-                not_scanned.append((co["name"], reason, co["url"]))
-                continue
-
-            platform = source["platform"]
+            source = cov["source"]
+            platform = cov["platform"]
             try:
                 jobs, total_available = fetch_jobs(source, co["role_target"], client)
             except ScanError as e:

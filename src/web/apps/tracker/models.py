@@ -15,6 +15,7 @@ convention (`is_cv_filename` / `is_cover_letter_filename`) at request time.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -28,8 +29,12 @@ from appfolder import (
     COMPANY_APPLIED_TRIGGER_STATUSES,
     COMPANY_STATUSES,
     STATUS_SORT_ORDER,
+    cv_variant,
+    exported_file,
     is_cover_letter_filename,
+    is_interview_filename,
     is_cv_filename,
+    is_tailored_cv,
     slug as slugify_name,
 )
 
@@ -144,6 +149,17 @@ class Company(models.Model):
     @property
     def stars(self) -> str:
         return "★" * self.fit + "☆" * (5 - self.fit)
+
+    @cached_property
+    def scan_coverage(self) -> dict:
+        """Whether `scan` picks this company up automatically, and on what — or the
+        specific reason it doesn't. See src/scan_sources.py.
+
+        Calls the same function the scanner acts on rather than re-deriving it, so the
+        column cannot quietly disagree with the report. Config plus a regex, no network.
+        """
+        import scan_sources
+        return scan_sources.coverage(self.name, self.url)
 
     @property
     def notes_path(self) -> Path | None:
@@ -278,17 +294,44 @@ class Application(models.Model):
 
     @property
     def cv_files(self) -> list[dict]:
-        """CV snapshots for the CV tab, newest first, with their markdown body and a
-        sibling .docx (same stem) if one was exported alongside it."""
+        """CV snapshots for the CV tab, newest first, with their markdown body and the
+        .docx rendered from it, if one has been. The export lives in the folder's
+        `export/` subfolder, or beside the markdown in folders written before
+        2026-09-24 — `exported_file()` accepts both."""
         out = []
         for path in reversed(self.cv_snapshots):
-            docx = path.with_suffix(".docx")
             out.append({
                 "name": path.name,
                 "path": path,
                 "body_md": _read(path),
-                "docx": docx if docx.is_file() else None,
+                "docx": exported_file(path),
             })
+        return out
+
+    @property
+    def tailored_cvs(self) -> list[dict]:
+        """The CVs actually written for this role, newest first — `cv_snapshots` minus
+        the untailored base copy `ensure_folder()` scaffolds every folder with.
+
+        Feeds the all-CVs list on /cvs/, so unlike `cv_files` it carries a label and a
+        date rather than the markdown body: the body is rendered on this application's
+        own CV tab, which is where the list links to.
+        """
+        from .parsers import parse_date
+
+        out = []
+        for path in self.cv_snapshots:
+            if not is_tailored_cv(path.name):
+                continue
+            variant = cv_variant(path.name)
+            out.append({
+                "name": path.name,
+                "path": path,
+                "date": parse_date(path.name),
+                "label": variant.replace("_", " ").replace("-", " ") or "Tailored CV",
+            })
+        out.sort(key=lambda c: (c["date"].toordinal() if c["date"] else 0, c["name"]),
+                 reverse=True)
         return out
 
     @property
@@ -306,46 +349,98 @@ class Application(models.Model):
             body = _read(path)
             if not body.strip():
                 continue  # an empty stub from ensure_folder() — not a real letter yet
-            docx = path.with_suffix(".docx")
             out.append({
                 "name": path.name,
                 "path": path,
                 "label": letter["label"],
                 "date": letter["date"],
                 "body_md": body,
-                "docx_path": docx if docx.is_file() else None,
+                "docx_path": exported_file(path),
             })
         out.sort(key=lambda l: (l["date"].toordinal() if l["date"] else 0, l["label"]),
                  reverse=True)
         return out
 
     @property
+    def interview_files(self) -> list[dict]:
+        """Interview rounds for the Interviews tab, newest first — one file per round,
+        scanned from the application folder by naming convention (like cover letters),
+        with no database row.
+
+        Files-only was a deliberate choice (2026-09-24): prose lives on disk, the tracker
+        keeps status. A round gets a DB model the day scheduling or reminders need one.
+        """
+        folder = self.folder_path
+        if folder is None:
+            return []
+        from .parsers import find_interviews
+
+        out = []
+        for round_ in find_interviews(folder):
+            body = _read(round_["path"])
+            if not body.strip():
+                continue  # a scaffolded round that hasn't been written yet
+            out.append({
+                "name": round_["path"].name,
+                "path": round_["path"],
+                "label": round_["label"],
+                "stage": round_["stage"],
+                "date": round_["date"],
+                "body_md": body,
+            })
+        out.sort(key=lambda r: (r["date"].toordinal() if r["date"] else 0, r["name"]),
+                 reverse=True)
+
+        # Anchor id for the index at the top of the tab. Stage + date reads as a URL
+        # ("#round-hiring-manager-2026-09-24") where the filename stem would not; a
+        # counter keeps it unique if a stage ever repeats on one day.
+        seen: dict[str, int] = {}
+        for round_ in out:
+            base = f"round-{round_['stage'] or 'interview'}"
+            if round_["date"]:
+                base = f"{base}-{round_['date'].isoformat()}"
+            seen[base] = seen.get(base, 0) + 1
+            round_["anchor"] = base if seen[base] == 1 else f"{base}-{seen[base]}"
+        return out
+
+    @property
     def extra_files(self) -> list[dict]:
         """Anything in the folder not already surfaced by another tab — job.md, notes.md,
-        CV snapshots, or cover letters (either one's .docx export included). Markdown
+        CV snapshots, cover letters, or interview rounds (any .docx export included). Markdown
         files render inline; anything else is listed with a local open link, so nothing
         saved into an application folder goes invisible on the page."""
         folder = self.folder_path
         if folder is None:
             return []
 
-        known = {"job.md", "notes.md"}
+        # Paths, not bare names: a rendered .docx sits in `export/` rather than beside
+        # its markdown (2026-09-24), so "already on another tab" is a question about a
+        # location, and a name alone can no longer answer it.
+        # Resolved, because `exported_file()` builds its answer from appfolder.APPS_DIR
+        # while everything here is rooted at settings.DATA_ROOT — two spellings of the
+        # same directory would compare unequal and let every export through.
+        known: set[Path] = {(folder / "job.md").resolve(), (folder / "notes.md").resolve()}
+
+        def claim(md: Path) -> None:
+            known.add(md.resolve())
+            docx = exported_file(md)
+            if docx:
+                known.add(docx.resolve())
+
         for p in self.cv_snapshots:
-            known.add(p.name)
-            known.add(p.with_suffix(".docx").name)
-        # Any cover-letter-named file belongs to the Cover letters tab, even a still-empty
-        # stub that cover_letter_files chooses not to render — it must not leak in here.
+            claim(p)
+        # Any cover-letter- or interview-named file belongs to its own tab, even a
+        # still-empty one that tab chooses not to render — it must not leak in here.
         for p in folder.iterdir():
-            if is_cover_letter_filename(p.name):
-                known.add(p.name)
-                known.add(p.with_suffix(".docx").name)
+            if p.is_file() and (is_cover_letter_filename(p.name) or is_interview_filename(p.name)):
+                claim(p)
 
         out = []
         for path in sorted(folder.rglob("*")):
             if path.is_dir() or path.name.startswith("."):
                 continue
             rel = path.relative_to(folder)
-            if len(rel.parts) == 1 and rel.name in known:
+            if path.resolve() in known:
                 continue
             if path.suffix == ".md":
                 out.append({"rel": str(rel), "name": path.name, "path": path,
@@ -354,6 +449,14 @@ class Application(models.Model):
                 out.append({"rel": str(rel), "name": path.name, "path": path,
                            "is_md": False,
                            "size_kb": max(1, path.stat().st_size // 1024)})
+
+        # An id per file, so prose elsewhere in the folder can link a specific one —
+        # `#file-<slug>`, resolved by tabs.js the same way a round anchor is. Without it
+        # the only honest target is the tab, and a bare `<name>.md` link is a broken link
+        # on the published site, where these render into the page rather than ship as
+        # files.
+        for f in out:
+            f["anchor"] = "file-" + re.sub(r"[^a-z0-9]+", "-", f["rel"].lower()).strip("-")
         return out
 
 

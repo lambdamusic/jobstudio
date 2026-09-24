@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# Refuse to push anything carrying personal data.
+#
+# Wired via `git config core.hooksPath tools/git-hooks`, so the hook is versioned in the
+# repo rather than living only in .git/hooks — which is not backed up, not shared, and
+# silently absent on a fresh clone.
+#
+# WHY PRE-PUSH AND NOT PRE-COMMIT. A commit is local and revocable; a push is not. This
+# repo is public and pushes `dev` as well as `main`, so a push is a publication whichever
+# branch it is on — that is the moment worth guarding. Committing stays fast.
+#
+# WHY NOT CI. The tracked-company check reads the tracker database in the data root,
+# which is gitignored by design. A GitHub Action has no access to it and could not run
+# this check even in principle. The gate has to be local.
+#
+# To bypass deliberately: `git push --no-verify`.
+set -euo pipefail
+
+repo="$(git rev-parse --show-toplevel)"
+
+# Nothing to guard if the checker is gone (a worktree mid-rebase, say) — say so rather
+# than passing silently. A verifier that reports nothing is how leaks ship.
+if [ ! -x "$repo/tools/make-public-tree" ]; then
+    echo "pre-push: tools/make-public-tree missing or not executable — cannot verify" >&2
+    exit 1
+fi
+
+echo "pre-push: checking for personal data before publishing..."
+if ! "$repo/tools/make-public-tree" --check; then
+    cat >&2 <<'MSG'
+
+  PUSH BLOCKED. This repo is public, and pushing any branch publishes.
+  Fix the lines above, or bypass deliberately with:
+
+      git push --no-verify
+
+MSG
+    exit 1
+fi

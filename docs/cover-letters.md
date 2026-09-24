@@ -73,7 +73,7 @@ application-folder naming convention as everything else in that folder (see
 empty stub that `/jobstudio application` already created. Then rendered to `.docx`:
 
 ```bash
-python src/render.py --cover-letter --docx --file "<saved path>"
+python src/render.py --cover-letter --file "<saved path>"
 ```
 
 **No `import_jobs` step needed afterward** — cover letters have no database model at
