@@ -95,6 +95,100 @@ def app_folder_of(path: Path) -> Path | None:
     return APPS_DIR / rel.parts[0]
 
 
+# ---------------------------------------------------------------------------
+# Rendered exports inside an application folder (2026-09-24)
+#
+# The markdown in an application folder is authored; a .docx rendered from it is
+# output. Keeping both at the top level made the folder read as a pile of files
+# rather than a set of sources, so rendered copies go one level down:
+#
+#   jobs/applications/001-grafana-labs/
+#     job.md, notes.md, ...-cv-....md, ...-cover-letter-....md   <- authored
+#     export/
+#       ...-cv-....docx, ...-cover-letter-....docx               <- rendered
+#
+# Folders written before this are NOT migrated, so every reader has to accept both
+# shapes — which is why finding a rendered copy goes through `exported_file()`
+# rather than `md.with_suffix(".docx")` at each call site.
+# ---------------------------------------------------------------------------
+
+EXPORT_DIRNAME = "export"
+
+
+def export_dir(folder: Path) -> Path:
+    """Where rendered copies go inside application folder `folder`.
+
+    Singular, and per-application — not to be confused with `<DATA>/exports/<fmt>/<date>/`,
+    the global export area every render writes to first (`render._export_dir()`).
+    """
+    return folder / EXPORT_DIRNAME
+
+
+def is_rendered_export(folder: Path, name: str) -> bool:
+    """Is `name`, sitting at the top level of application folder `folder`, a rendered
+    copy that belongs in `export/`?
+
+    Keyed on the naming convention — `<folder-name>-<person-slug>-<filetype>-<date>.<ext>`
+    — rather than on "is there a matching .md next to it". A render done on a later day
+    than the markdown it rendered is named for the render's date, so a quarter of the
+    real ones have no same-stem sibling; a sibling test would leave exactly those behind.
+    Anything a person saved into the folder by hand (a JD, a recruiter's PDF) doesn't
+    carry the folder's own name as a prefix, and so is left where it was put.
+    """
+    return (not name.startswith(".") and not name.endswith(".md")
+            and name.startswith(f"{folder.name}-"))
+
+
+_DATE_IN_NAME_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def document_kind(name: str) -> str | None:
+    """"cv" or "cover-letter" for a file following the naming convention, else None.
+
+    Coarser than the `<filetype>` in the name itself, deliberately: a tailored CV is
+    named after the target area (`...-cv-developer-advocacy-...`) while the .docx
+    rendered from it is named after the base it came from (`...-cv-functional-...`), so
+    the exact token is not something the two ever agree on. Reuses `is_cv_filename()`
+    by asking it about the stem, rather than restating its rules for a second extension.
+    """
+    if is_cover_letter_filename(name):
+        return "cover-letter"
+    if is_interview_filename(name):
+        return None  # nothing renders these; kept explicit so `-cv-` can't be read into one
+    return "cv" if is_cv_filename(f"{Path(name).stem}.md") else None
+
+
+def exported_file(md_path: Path, ext: str = "docx") -> Path | None:
+    """The rendered copy of `md_path` — in `export/`, or beside it for folders written
+    before 2026-09-24 — or None when there isn't one.
+
+    Falls back to the newest export of the same kind when no name matches exactly. It
+    often won't: the copy is named with the date of the *render* (`app_filename()`), so
+    rendering a letter written last week produces a stem its source does not share, and
+    a quarter of the exports in one real job search were orphaned this way. The fallback
+    holds off when the folder has more than one markdown of that kind — then which
+    export belongs to which source is a guess, and a wrong link is worse than none.
+    """
+    folder = app_folder_of(md_path) or md_path.parent
+    beside = md_path.with_suffix(f".{ext}")
+    for candidate in (export_dir(folder) / beside.name, beside):
+        if candidate.is_file():
+            return candidate
+
+    kind = document_kind(md_path.name)
+    if kind is None:
+        return None
+    if sum(1 for p in folder.glob("*.md") if document_kind(p.name) == kind) != 1:
+        return None
+    def by_date_then_name(path: Path) -> tuple[str, str]:
+        m = _DATE_IN_NAME_RE.search(path.name)
+        return (m.group(0) if m else "", path.name)
+
+    same_kind = sorted((p for p in export_dir(folder).glob(f"*.{ext}")
+                        if document_kind(p.name) == kind), key=by_date_then_name)
+    return same_kind[-1] if same_kind else None
+
+
 def is_tailored_cv(name: str) -> bool:
     """A per-application tailored CV — anything `is_cv_filename()` recognises except
     the two untailored starting copies.

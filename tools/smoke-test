@@ -61,7 +61,11 @@ sys.path.insert(0, os.path.join(os.environ["SMOKE_REPO"], "src"))
 import render
 p = render.export_docx_functional()
 assert p.is_file() and p.stat().st_size > 10_000, p
-print(f"  ok    rendered {p.name} ({p.stat().st_size} bytes)")
+# Where it landed matters as much as that it rendered: since 2026-09-24 a base CV goes
+# to jobs/cv/export/, not the generic exports/ tree. Falling back here would mean the
+# data root's own layout wasn't recognised on a machine that has never seen it.
+assert p.parent == render.CV_EXPORT_DIR, f"base CV rendered to {p.parent}, not jobs/cv/export/"
+print(f"  ok    rendered {p.name} -> jobs/cv/export/ ({p.stat().st_size} bytes)")
 PYRENDER
 
 # Generate a file, and check whose name ends up in it. This is the check that was

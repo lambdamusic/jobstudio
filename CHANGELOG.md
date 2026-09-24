@@ -4,6 +4,73 @@ Dated entries, newest first.
 
 ## 2026-09-24
 
+- **A cover letter renders to `.docx` alone unless you ask for more.** HTML was written
+  on every render because the PDF path needs something for Chrome to print. That was
+  invisible while renders went to `exports/`; once they landed in the application folder
+  (above), every cover letter left an `.html` beside its `.docx` that nothing downstream
+  reads. The Chrome intermediate is a temp file now, and `--format html` is what puts one
+  in the folder for real. `--format` lost its default so the cover-letter path can tell
+  "I want HTML" from "I said nothing"; a CV with no `--format` still renders HTML as
+  before.
+
+- **A render is written once, where its source lives** — and the 16 MB backlog in
+  `exports/` is gone. Every render used to go to `exports/<fmt>/<date>/`, with an
+  application's `.docx` copied back afterwards: two copies of each file, under two
+  different names, in a flat dated tree that named neither the source nor — for 22 of
+  them — any application at all.
+
+  `render._home()` picks the destination up front instead. A source in
+  `jobs/applications/NNN-*/` renders into that folder's `export/`; a base CV from
+  `jobs/cv/base/` renders into the new `jobs/cv/export/`, named `cv_functional-<date>.docx`
+  to match the `base/archive/` convention; anything else still goes to `exports/`, which
+  keeps its place as the home for documents belonging to no folder — a career stocktake,
+  an ad-hoc `--file` from outside the data root.
+
+  **`manage.py prune_exports`** clears what the old behaviour left behind. Like
+  `migrate_exports` it prints its plan and writes nothing without `--apply`. It moves a
+  render labelled with an application into that application's `export/`, keeping the date
+  it was rendered on; keeps the newest `.docx` of each base CV; deletes the rest —
+  superseded base renders, the retired variant library, and unlabelled renders that can't
+  be attributed to any application. Anything *not* named the way a render is named was put
+  there by a person: it is listed and left alone.
+
+  In the real job search: 40 moved, 220 deleted, 16.0 MB → 48 KB. Eight applications got
+  back the only rendered artifacts they had (their PDFs existed nowhere else).
+
+- **Rendered exports move into an `export/` subfolder** — a `.docx` rendered from a
+  tailored CV or a cover letter used to land flat in the application folder, beside the
+  markdown it came from, so `applications/NNN-<company>/` mixed sources and output. The
+  copy now goes to `applications/NNN-<company>/export/`, leaving only authored markdown
+  (`job.md`, `notes.md`, the CV, the cover letter, the interview rounds) at the top level.
+
+  Existing folders are **not** migrated, so every reader has to accept both shapes. That
+  is now one function rather than a `md.with_suffix(".docx")` repeated at each call site:
+  `appfolder.exported_file()` looks in `export/` first, then beside the markdown, and the
+  CV tab, the Cover letters tab and `extra_files` all go through it.
+
+  `extra_files` — the "nothing saved here goes invisible" tab — keys its exclusions on
+  **paths** now, not bare filenames: with the export one directory down, "is this already
+  shown on another tab?" became a question a name alone could not answer. Anything else
+  left in `export/` still shows there, listed as `export/<name>`.
+
+  `<DATA>/exports/<fmt>/<date>/` (plural, at the data root) is unchanged — it stays the
+  global export area every render writes to first.
+
+  **A render is linked even when its name doesn't match its source.** The copy is named
+  with the date of the *render*, not of the markdown it renders, so re-rendering a letter
+  written last week produces a stem its source doesn't share — nine of 34 exports in one
+  real job search were orphaned this way, showing under *Other files* with no "Open .docx"
+  on the tab that owns them. `exported_file()` now falls back to the newest export of the
+  same kind (CV or cover letter) in `export/`, and holds off when the folder has more than
+  one markdown of that kind, where pairing would be a guess. A superseded earlier render
+  keeps its place under Other files rather than being linked.
+
+  **`manage.py migrate_exports`** tidies folders written before today. It shows its plan
+  and writes nothing until given `--apply`; it moves only top-level files carrying the
+  folder's own name as a prefix, so a JD or a recruiter's PDF saved in by hand stays
+  where it was put, and it never overwrites a name `export/` already holds. Readers
+  accept both layouts either way, so running it is housekeeping, not a prerequisite.
+
 - **Interview rounds are their own files, and their own tab** — an interview used to be
   written into `notes.md` under a single `## Interview prep` heading. That put one
   round's prep, its outcome and its timeline entry in three different places, and had

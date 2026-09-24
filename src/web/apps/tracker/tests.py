@@ -11,6 +11,7 @@ import re
 import shutil
 import tempfile
 from io import StringIO
+from unittest import mock
 from pathlib import Path
 
 from django.conf import settings
@@ -20,7 +21,8 @@ from django.core.management import call_command
 from django.test import TestCase
 from django.utils.html import escape
 
-from appfolder import COMPANY_APPLIED_TRIGGER_STATUSES, COMPANY_STATUSES, STATUS_SORT_ORDER
+from appfolder import (COMPANY_APPLIED_TRIGGER_STATUSES, COMPANY_STATUSES,
+                       STATUS_SORT_ORDER, exported_file)
 from tracker import parsers as P
 from tracker.models import Application, ApplicationStatusChange, Area, Company, Scan
 
@@ -1078,6 +1080,448 @@ class ApplicationFolderTests(TestCase):
                 leaked = [f["name"] for f in app.extra_files
                           if appfolder.is_cover_letter_filename(f["name"])]
                 self.assertFalse(leaked, f"#{app.num}: cover letter(s) leaked into extra_files: {leaked}")
+
+
+class ExportFolderTests(TestCase):
+    """Rendered copies of an application's markdown live in `<folder>/export/` (2026-09-24),
+    so the top level holds only what was authored. Folders written before that keep the
+    .docx beside its markdown and are deliberately not migrated, so every reader here has
+    to go on working against both shapes."""
+
+    fixtures = FIXTURE
+
+    def _cv_markdown(self):
+        app = Application.objects.get(num=1)
+        cvs = app.cv_snapshots
+        self.assertTrue(cvs, "fixture app #1 needs a CV snapshot")
+        return app, cvs[0]
+
+    def _place(self, path: Path) -> Path:
+        """Put a stand-in export on disk, and take it away again afterwards — including
+        the `export/` directory itself when this test is what created it."""
+        if not path.parent.is_dir():
+            path.parent.mkdir(parents=True)
+            self.addCleanup(shutil.rmtree, path.parent, ignore_errors=True)
+        path.write_bytes(b"not really a .docx")
+        self.addCleanup(path.unlink, True)
+        return path
+
+    def test_an_export_is_linked_from_its_tab_and_not_repeated_under_other_files(self):
+        """The CV tab's "Open .docx" link and the Other files tab are the two halves of
+        the same question — a file belongs to exactly one of them."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        docx = self._place(appfolder.export_dir(app.folder_path) / cv_md.with_suffix(".docx").name)
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
+        self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
+
+    def test_a_cover_letter_export_is_linked_from_its_tab(self):
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        letters = [p for p in app.folder_path.iterdir()
+                   if appfolder.is_cover_letter_filename(p.name) and p.suffix == ".md"
+                   and p.read_text().strip()]
+        self.assertTrue(letters, "fixture app #1 needs a written cover letter")
+        md = letters[0]
+        docx = self._place(appfolder.export_dir(app.folder_path) / md.with_suffix(".docx").name)
+
+        linked = [l["docx_path"] for l in app.cover_letter_files if l["name"] == md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
+        self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
+
+    def test_a_docx_beside_its_markdown_is_still_found(self):
+        """Pre-2026-09-24 folders are not migrated; dropping the flat lookup would make
+        every .docx already on disk vanish from the tab that links it."""
+        app, cv_md = self._cv_markdown()
+        docx = cv_md.with_suffix(".docx")
+        docx.write_bytes(b"not really a .docx")
+        self.addCleanup(docx.unlink, True)
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
+        self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
+
+    def test_an_export_rendered_on_a_later_day_is_still_linked(self):
+        """The copy is named with the date of the render, not of the markdown it renders,
+        so a letter re-rendered a week later has a stem its source does not share. Nine
+        of 34 exports in the real job search were orphaned this way."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        later = appfolder.export_dir(app.folder_path) / cv_md.name.replace(
+            "2026-09-15", "2026-09-22").replace(".md", ".docx")
+        self.assertNotEqual(later.stem, cv_md.stem, "this test needs mismatched stems")
+        self._place(later)
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [later.resolve()])
+        self.assertNotIn(later.name, [f["name"] for f in app.extra_files])
+
+    def test_a_superseded_render_stays_visible_rather_than_being_linked(self):
+        """Two renders of one source: the newest is the current one. The older is not
+        wrong, just stale — it keeps its place under Other files."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        export = appfolder.export_dir(app.folder_path)
+        stem = cv_md.name.replace(".md", "")
+        old = self._place(export / f"{stem.replace('2026-09-15', '2026-09-21')}.docx")
+        new = self._place(export / f"{stem.replace('2026-09-15', '2026-09-22')}.docx")
+
+        linked = [c["docx"] for c in app.cv_files if c["name"] == cv_md.name]
+        self.assertEqual([p.resolve() for p in linked if p], [new.resolve()])
+        rels = [f["rel"] for f in app.extra_files]
+        self.assertIn(f"{appfolder.EXPORT_DIRNAME}/{old.name}", rels)
+        self.assertNotIn(f"{appfolder.EXPORT_DIRNAME}/{new.name}", rels)
+
+    def test_two_sources_of_one_kind_means_no_guess(self):
+        """`ensure_folder()` scaffolds an untailored `cv_functional.md` beside the
+        tailored CV. With two candidate sources, pairing an export with one of them is a
+        guess — and linking the same file under two headings reads as two documents."""
+        import appfolder
+
+        app, cv_md = self._cv_markdown()
+        scaffold = app.folder_path / "cv_functional.md"
+        scaffold.write_text("# Base CV\n")
+        self.addCleanup(scaffold.unlink, True)
+        self._place(appfolder.export_dir(app.folder_path)
+                    / cv_md.name.replace("2026-09-15", "2026-09-22").replace(".md", ".docx"))
+
+        self.assertEqual([c["docx"] for c in app.cv_files if c["docx"]], [])
+
+    def test_the_export_folder_is_not_read_as_a_round_of_cover_letters(self):
+        """`find_cover_letters()` treats a `cover-letter-*/` directory as a folder of
+        drafts. `export/` sits in the same place and holds a file whose name matches the
+        cover-letter pattern — it must not be walked into as if it were one."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        folder = app.folder_path
+        self._place(appfolder.export_dir(folder)
+                    / appfolder.app_filename(folder, "cover-letter", "md"))
+
+        inside_export = [l["path"] for l in P.find_cover_letters(folder)
+                         if appfolder.EXPORT_DIRNAME in l["path"].parts]
+        self.assertFalse(inside_export, f"export/ read as cover letters: {inside_export}")
+
+    def test_anything_else_in_export_still_shows_under_other_files(self):
+        """`extra_files` exists so nothing saved into an application folder goes invisible.
+        Moving exports down one level must not turn `export/` into a blind spot."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        stray = self._place(appfolder.export_dir(app.folder_path) / "recruiter-brief.pdf")
+        self.assertIn(f"{appfolder.EXPORT_DIRNAME}/{stray.name}",
+                      [f["rel"] for f in app.extra_files])
+
+
+class MigrateExportsCommandTests(TestCase):
+    """`manage.py migrate_exports` tidies folders written before 2026-09-24, when a
+    rendered .docx sat flat beside its markdown. Readers accept both shapes, so this is
+    housekeeping, not a prerequisite — which is why it must be conservative about what
+    it touches."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import appfolder
+
+        self.app = Application.objects.get(num=1)
+        self.folder = self.app.folder_path
+        # Whatever this test creates, top level or below, goes away again.
+        self.addCleanup(shutil.rmtree, appfolder.export_dir(self.folder), ignore_errors=True)
+
+    def _flat(self, name: str) -> Path:
+        path = self.folder / name
+        path.write_bytes(b"not really a .docx")
+        self.addCleanup(path.unlink, True)
+        return path
+
+    def _run(self, *args) -> str:
+        out = StringIO()
+        call_command("migrate_exports", *args, stdout=out, stderr=out)
+        return out.getvalue()
+
+    def test_a_flat_export_moves_and_is_then_linked_from_its_tab(self):
+        import appfolder
+
+        cv_md = self.app.cv_snapshots[0]
+        flat = self._flat(cv_md.with_suffix(".docx").name)
+        self.assertIsNotNone(exported_file(cv_md), "precondition: linked where it lies")
+
+        self._run("--apply")
+
+        moved = appfolder.export_dir(self.folder) / flat.name
+        self.assertFalse(flat.exists(), "the flat copy should be gone, not duplicated")
+        self.assertTrue(moved.is_file())
+        self.assertEqual(exported_file(cv_md).resolve(), moved.resolve())
+
+    def test_a_dry_run_writes_nothing(self):
+        """The default. A migration that moves real files on a bare invocation is one
+        you cannot look at before it happens."""
+        import appfolder
+
+        flat = self._flat("001-grafana-labs-alex-rivera-cv-functional-2026-09-15.docx")
+        out = self._run()
+
+        self.assertIn("--apply", out)
+        self.assertTrue(flat.is_file(), "a dry run must leave the file where it is")
+        self.assertFalse(appfolder.export_dir(self.folder).exists())
+
+    def test_authored_and_hand_saved_files_stay_put(self):
+        """Only files following the folder's own naming convention are renders. A JD or
+        a recruiter's PDF dropped in by hand is someone's filing, and moving it would be
+        this command deciding something it has no business deciding."""
+        import appfolder
+
+        by_hand = self._flat("JD Technology Lead Aug 2026.pdf")
+        markdown = sorted(self.folder.glob("*.md"))
+        self.assertTrue(markdown, "fixture app #1 needs markdown to leave alone")
+
+        self._run("--apply")
+
+        self.assertTrue(by_hand.is_file(), "a hand-saved file must not be swept up")
+        for md in markdown:
+            self.assertTrue(md.is_file(), f"{md.name} was moved — only renders should be")
+        self.assertFalse(appfolder.export_dir(self.folder).exists())
+
+    def test_re_running_is_safe_and_never_overwrites(self):
+        import appfolder
+
+        name = "001-grafana-labs-alex-rivera-cv-functional-2026-09-15.docx"
+        self._flat(name)
+        self._run("--apply")
+        moved = appfolder.export_dir(self.folder) / name
+        moved.write_bytes(b"the one that was already there")
+
+        clash = self._flat(name)  # a second flat copy of a name export/ already holds
+        out = self._run("--apply")
+
+        self.assertIn("skip", out)
+        self.assertTrue(clash.is_file(), "the clashing file is left for a human to sort out")
+        self.assertEqual(moved.read_bytes(), b"the one that was already there")
+
+
+class RenderDestinationTests(TestCase):
+    """Since 2026-09-24 a render is written once, where its source lives (`render._home()`).
+    Before that everything went to `exports/` and application .docx were copied back —
+    two copies of each file, and a flat dated tree that named neither the source nor, for
+    22 of them, any application at all."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import render
+
+        self.render = render
+        self.addCleanup(shutil.rmtree, render.CV_EXPORT_DIR, ignore_errors=True)
+
+    def test_a_render_of_an_application_file_goes_to_that_folder(self):
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        src = app.cv_snapshots[0]
+        dest = self.render._home(src, "cv-functional", "docx", stem="2026-09-24_cv_functional")
+        self.addCleanup(shutil.rmtree, appfolder.export_dir(app.folder_path), ignore_errors=True)
+
+        self.assertEqual(dest.parent.resolve(), appfolder.export_dir(app.folder_path).resolve())
+        self.assertTrue(dest.name.startswith(app.folder_path.name), dest.name)
+        self.assertTrue(dest.name.endswith(".docx"))
+
+    def test_a_render_of_a_base_cv_goes_to_jobs_cv_export(self):
+        """Named like jobs/cv/base/archive/, the other place a dated copy of a base CV
+        lives, so the two read as one convention."""
+        src = self.render.BASE_CV_DIR / "cv_functional.md"
+        self.assertTrue(src.is_file(), "example data needs a base functional CV")
+
+        dest = self.render._home(src, "cv-functional", "docx", stem="2026-09-24_cv_functional")
+
+        self.assertEqual(dest.parent.resolve(), self.render.CV_EXPORT_DIR.resolve())
+        self.assertRegex(dest.name, r"^cv_functional-\d{4}-\d{2}-\d{2}\.docx$")
+
+    def test_a_source_with_no_home_falls_back_to_exports(self):
+        """`exports/` is not dead — it is where a document belonging to no folder goes:
+        a career stocktake, or an ad-hoc `--file` from outside the data root."""
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = self.render._home(Path(tmp) / "adhoc.md", "cover-letter", "docx",
+                                     stem="2026-09-24_cover-letter")
+        self.assertIn("exports", dest.parts)
+        self.assertEqual(dest.name, "2026-09-24_cover-letter.docx")
+
+    def test_nothing_is_written_twice(self):
+        """The regression this replaced: a render landed in exports/ AND was copied to the
+        application, so every file existed twice under two different names."""
+        import inspect
+
+        source = inspect.getsource(self.render)
+        self.assertNotIn("_maybe_copy_to_app_folder", source)
+
+
+class CoverLetterFormatTests(TestCase):
+    """`.docx` is the version that gets sent, so it is the only one written by default.
+    HTML used to come out every time because the PDF path needs something for Chrome to
+    print — harmless while renders went to `exports/`, but once they landed in the
+    application folder (2026-09-24) every cover letter left an `.html` beside its `.docx`
+    that nobody had asked for."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import appfolder
+        import render
+
+        self.render = render
+        app = Application.objects.get(num=1)
+        letters = [p for p in app.folder_path.iterdir()
+                   if appfolder.is_cover_letter_filename(p.name) and p.suffix == ".md"]
+        self.assertTrue(letters, "fixture app #1 needs a cover letter")
+        self.letter = letters[0]
+        self.export = appfolder.export_dir(app.folder_path)
+        self.addCleanup(shutil.rmtree, self.export, ignore_errors=True)
+
+    def _rendered(self, ext: str) -> list[str]:
+        if not self.export.is_dir():
+            return []
+        return sorted(p.name for p in self.export.glob(f"*.{ext}"))
+
+    def test_the_default_is_the_docx_alone(self):
+        self.render.export_cover_letter(self.letter)
+
+        self.assertEqual(len(self._rendered("docx")), 1)
+        self.assertEqual(self._rendered("html"), [])
+        self.assertEqual(self._rendered("pdf"), [])
+
+    def test_html_is_written_only_when_it_is_asked_for(self):
+        self.render.export_cover_letter(self.letter, fmt="html")
+
+        self.assertEqual(len(self._rendered("html")), 1)
+        self.assertEqual(len(self._rendered("docx")), 1, "the .docx comes out either way")
+
+    def test_a_pdf_render_prints_from_a_temp_file_and_keeps_no_html(self):
+        seen = {}
+
+        def fake_print(html_path, pdf_path):
+            seen["readable"] = html_path.is_file()
+            seen["parent"] = html_path.parent
+            pdf_path.write_bytes(b"%PDF-1.4 not really")
+
+        with mock.patch.object(self.render, "_chrome_print_pdf", fake_print):
+            self.render.export_cover_letter(self.letter, fmt="pdf")
+
+        self.assertTrue(seen["readable"], "Chrome still needs real HTML to print")
+        self.assertNotEqual(seen["parent"].resolve(), self.export.resolve())
+        self.assertEqual(self._rendered("html"), [])
+        self.assertEqual(len(self._rendered("pdf")), 1)
+
+
+class PruneExportsCommandTests(TestCase):
+    """`manage.py prune_exports` empties the backlog left in exports/ by the old
+    write-then-copy behaviour. It deletes, so what it will not touch matters as much as
+    what it will."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        self.data_root = Path(settings.DATA_ROOT)
+        self.exports = self.data_root / "exports"
+        self.existed = self.exports.is_dir()
+        self.made: list[Path] = []
+        self.addCleanup(self._tidy)
+
+    def _tidy(self):
+        for path in self.made:
+            if path.is_file():
+                path.unlink()
+        if not self.existed:
+            shutil.rmtree(self.exports, ignore_errors=True)
+        shutil.rmtree(self.data_root / "jobs" / "cv" / "export", ignore_errors=True)
+        for app in Application.objects.exclude(folder=""):
+            if app.folder_path:
+                shutil.rmtree(app.folder_path / "export", ignore_errors=True)
+
+    def _export(self, rel: str, body: bytes = b"a render") -> Path:
+        path = self.exports / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+        self.made.append(path)
+        return path
+
+    def _run(self, *args) -> str:
+        out = StringIO()
+        call_command("prune_exports", *args, stdout=out, stderr=out)
+        return out.getvalue()
+
+    def test_a_labelled_render_moves_to_its_application_keeping_its_own_date(self):
+        """The date in the name is when it was rendered. Restamping it with today's would
+        turn a June PDF into a September one — the tree's only record of when it was sent."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        src = self._export(f"pdf/2026-06-23/2026-06-23_cv_data-platform_{app.folder_path.name}.pdf")
+
+        self._run("--apply")
+
+        dest = appfolder.export_dir(app.folder_path)
+        moved = list(dest.glob("*.pdf"))
+        self.assertEqual(len(moved), 1, f"expected one moved pdf, got {moved}")
+        self.assertIn("cv-data-platform", moved[0].name)
+        self.assertIn("2026-06-23", moved[0].name)
+        self.assertFalse(src.exists())
+
+    def test_a_copy_already_in_the_application_is_deleted_not_duplicated(self):
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        dest_dir = appfolder.export_dir(app.folder_path)
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        (dest_dir / "already-there.docx").write_bytes(b"identical")
+        src = self._export(f"docx/2026-09-22/2026-09-22_cv_functional_{app.folder_path.name}.docx",
+                           b"identical")
+
+        self._run("--apply")
+
+        self.assertFalse(src.exists())
+        self.assertEqual([p.name for p in dest_dir.glob("*")], ["already-there.docx"])
+
+    def test_only_the_newest_base_cv_docx_survives(self):
+        """Older renders of the same base CV are not history — jobs/cv/base/archive/ keeps
+        that, as markdown. And .docx is the format that gets sent."""
+        old = self._export("docx/2026-09-03/2026-09-03_cv_functional.docx")
+        new = self._export("docx/2026-09-22/2026-09-22_cv_functional.docx")
+        as_pdf = self._export("pdf/2026-09-22/2026-09-22_cv_functional.pdf")
+
+        self._run("--apply")
+
+        kept = sorted(p.name for p in (self.data_root / "jobs" / "cv" / "export").glob("*"))
+        self.assertEqual(kept, ["cv_functional-2026-09-22.docx"])
+        for path in (old, new, as_pdf):
+            self.assertFalse(path.exists(), f"{path.name} should have left exports/")
+
+    def test_a_file_that_is_not_a_render_is_left_alone(self):
+        """exports/ stays the home for documents belonging to no folder. Anything not
+        named the way a render is named was put there by a person, and is not this
+        command's to move or delete."""
+        stocktake = self._export("docx/2026-09-18/career-stocktake-sections-1-5.docx")
+
+        out = self._run("--apply")
+
+        self.assertTrue(stocktake.is_file())
+        self.assertIn("LEAVING ALONE", out)
+
+    def test_a_dry_run_writes_nothing(self):
+        unattributable = self._export("docx/2026-09-03/2026-09-03_cv_data-platform.docx")
+        base = self._export("docx/2026-09-22/2026-09-22_cv_functional.docx")
+
+        out = self._run()
+
+        self.assertIn("--apply", out)
+        self.assertTrue(unattributable.is_file())
+        self.assertTrue(base.is_file())
+        self.assertFalse((self.data_root / "jobs" / "cv" / "export").exists())
 
 
 class InterviewRoundTests(TestCase):

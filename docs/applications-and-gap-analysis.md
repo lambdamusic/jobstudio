@@ -156,6 +156,9 @@ regenerated. This is also how the web app finds CV snapshots and cover letters w
 database model at all: they're scanned off disk by filename pattern at request time
 (`src/web/README.md`), so a new file shows up on the application page immediately.
 
+Rendered copies (`.docx`) sit one level down, in the folder's `export/` subfolder
+(2026-09-24) — see [workflow.md](workflow.md) "File naming inside an application folder".
+
 ## Application statuses and how they drive company status
 
 The status vocabulary (`saved` → `applied` → `interviewing` → …) and what each one means

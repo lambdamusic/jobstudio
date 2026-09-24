@@ -32,9 +32,11 @@ explicitly (e.g. via `tools/site-build`, or by hand).
 **Cover letters and per-application CV snapshots have no model.** Both are scanned from
 each application folder by naming convention at request time — `*cover-letter*.md` via
 `Application.cover_letter_files`, `is_cv_filename(...)` via `Application.cv_snapshots` —
-so a new file shows on the application page immediately, with no `import_jobs` step. A
-sibling `.docx` with the same stem is linked automatically; an empty cover-letter stub
-(from `ensure_folder()`) is ignored until it has content.
+so a new file shows on the application page immediately, with no `import_jobs` step. The
+`.docx` rendered from one is linked automatically — looked up by `appfolder.exported_file()`,
+which checks the folder's `export/` subfolder first and then beside the markdown, the flat
+layout folders used before 2026-09-24. An empty cover-letter stub (from `ensure_folder()`)
+is ignored until it has content.
 
 `ApplicationStatusChange` (added 2026-09-08, powers the application page's History tab) is
 pure database state, not file-derived — one row per status transition, appended

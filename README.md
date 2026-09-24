@@ -211,7 +211,8 @@ jobstudio/                 # this repo — the code. Public, shareable, no perso
 ├── config.yaml                   # who you are
 ├── jobs/                         # CVs, profile, companies, applications, scans
 │   └── scan-config.yaml          # your ATS overrides + category→area mapping
-├── exports/                      # generated .docx / .html / .pdf
+├── exports/                      # one-off documents belonging to no folder
+│                                 #   (renders go beside their source — see docs/workflow.md)
 ├── backups/django/               # timestamped database dumps
 └── db.sqlite3                    # the tracker
 ```

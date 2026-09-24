@@ -20,15 +20,18 @@ tools/py src/render.py --functional --file {path_to_cv_file} --label {folder_nam
 
 (swap `--functional` for `--chronological` if the CV file is the chronological base)
 
-3. **Cover letter** — find the latest `*cover-letter*.md` file in the folder (by date). If one exists, render it (one call emits HTML + DOCX, plus a PDF because `--format pdf` is passed; the DOCX is also copied back into the application folder under the naming convention):
+3. **Cover letter** — find the latest `*cover-letter*.md` file in the folder (by date). If one exists, render it (this emits the `.docx`, plus a PDF because `--format pdf` is passed; both land in the application's `export/` subfolder):
 
 ```bash
 tools/py src/render.py --cover-letter --file {path_to_cover_letter} --label {folder_name} --format pdf
 ```
 
-`--format pdf` is required here: without it the cover-letter exporter emits HTML + DOCX
-only. This subcommand is the one place a PDF is wanted by default — everywhere else,
-a cover letter renders without shelling out to headless Chrome.
+`--format pdf` is required here: without it the cover-letter exporter writes only the
+`.docx`, which is the version that gets sent. This subcommand is the one place a PDF is
+wanted by default — everywhere else, a cover letter renders without shelling out to
+headless Chrome. **Never pass `--format html` unless the user asked for HTML**: it puts
+a file in the application folder that nothing downstream reads. The PDF path builds its
+own HTML in a temp file.
 
 4. Optionally also emit an ATS-friendly `.docx` of the CV (also copied back into the application folder under the naming convention, since `{path_to_cv_file}` is inside it):
 
@@ -42,6 +45,6 @@ tools/py src/render.py --docx --functional --file {path_to_cv_file} --label {fol
 
 ## Notes
 
-- Output lands in `<DATA>/exports/<format>/<YYYY-MM-DD>/`, filename still date-prefixed with today's date. A `.docx` render whose source file lives inside `<DATA>/jobs/applications/NNN-*/` is also copied into that same folder, renamed to the application-folder naming convention (`<folder>-<person-slug>-<filetype>-<date>.docx`).
+- Output lands where its source lives (2026-09-24): a source inside `<DATA>/jobs/applications/NNN-*/` renders into that application's `export/` subfolder, named by the application-folder convention (`<folder>-<person-slug>-<filetype>-<date>.<ext>`); a base CV from `<DATA>/jobs/cv/base/` renders into `<DATA>/jobs/cv/export/`. One copy, not two — `<DATA>/exports/<format>/<YYYY-MM-DD>/` is now only the fallback for a source that belongs to no folder.
 - Does not call the API — use the **`cv` subcommand** (`subcommands/cv.md`) to tailor a CV first, if you also need to regenerate it.
 - Does not publish to the site — use `publish` after this if needed.

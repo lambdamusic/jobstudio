@@ -30,6 +30,7 @@ from appfolder import (
     COMPANY_STATUSES,
     STATUS_SORT_ORDER,
     cv_variant,
+    exported_file,
     is_cover_letter_filename,
     is_interview_filename,
     is_cv_filename,
@@ -293,16 +294,17 @@ class Application(models.Model):
 
     @property
     def cv_files(self) -> list[dict]:
-        """CV snapshots for the CV tab, newest first, with their markdown body and a
-        sibling .docx (same stem) if one was exported alongside it."""
+        """CV snapshots for the CV tab, newest first, with their markdown body and the
+        .docx rendered from it, if one has been. The export lives in the folder's
+        `export/` subfolder, or beside the markdown in folders written before
+        2026-09-24 — `exported_file()` accepts both."""
         out = []
         for path in reversed(self.cv_snapshots):
-            docx = path.with_suffix(".docx")
             out.append({
                 "name": path.name,
                 "path": path,
                 "body_md": _read(path),
-                "docx": docx if docx.is_file() else None,
+                "docx": exported_file(path),
             })
         return out
 
@@ -347,14 +349,13 @@ class Application(models.Model):
             body = _read(path)
             if not body.strip():
                 continue  # an empty stub from ensure_folder() — not a real letter yet
-            docx = path.with_suffix(".docx")
             out.append({
                 "name": path.name,
                 "path": path,
                 "label": letter["label"],
                 "date": letter["date"],
                 "body_md": body,
-                "docx_path": docx if docx.is_file() else None,
+                "docx_path": exported_file(path),
             })
         out.sort(key=lambda l: (l["date"].toordinal() if l["date"] else 0, l["label"]),
                  reverse=True)
@@ -412,23 +413,34 @@ class Application(models.Model):
         if folder is None:
             return []
 
-        known = {"job.md", "notes.md"}
+        # Paths, not bare names: a rendered .docx sits in `export/` rather than beside
+        # its markdown (2026-09-24), so "already on another tab" is a question about a
+        # location, and a name alone can no longer answer it.
+        # Resolved, because `exported_file()` builds its answer from appfolder.APPS_DIR
+        # while everything here is rooted at settings.DATA_ROOT — two spellings of the
+        # same directory would compare unequal and let every export through.
+        known: set[Path] = {(folder / "job.md").resolve(), (folder / "notes.md").resolve()}
+
+        def claim(md: Path) -> None:
+            known.add(md.resolve())
+            docx = exported_file(md)
+            if docx:
+                known.add(docx.resolve())
+
         for p in self.cv_snapshots:
-            known.add(p.name)
-            known.add(p.with_suffix(".docx").name)
+            claim(p)
         # Any cover-letter- or interview-named file belongs to its own tab, even a
         # still-empty one that tab chooses not to render — it must not leak in here.
         for p in folder.iterdir():
-            if is_cover_letter_filename(p.name) or is_interview_filename(p.name):
-                known.add(p.name)
-                known.add(p.with_suffix(".docx").name)
+            if p.is_file() and (is_cover_letter_filename(p.name) or is_interview_filename(p.name)):
+                claim(p)
 
         out = []
         for path in sorted(folder.rglob("*")):
             if path.is_dir() or path.name.startswith("."):
                 continue
             rel = path.relative_to(folder)
-            if len(rel.parts) == 1 and rel.name in known:
+            if path.resolve() in known:
                 continue
             if path.suffix == ".md":
                 out.append({"rel": str(rel), "name": path.name, "path": path,
