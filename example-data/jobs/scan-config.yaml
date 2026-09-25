@@ -13,8 +13,8 @@ default_area: data-platform
 # a category groups companies by domain, an area is a CV positioning. Several
 # categories can share one area — don't invent an area per category just to score it.
 category_to_area:
-  Data Platform & Modern Data Stack: data-platform
-  Developer Tools & Observability: developer-advocacy
+  Data infrastructure: data-platform
+  Developer tools: developer-advocacy
 
 # Companies whose tracked careers URL is a generic corporate page with the real ATS
 # hidden underneath — found by inspecting redirects and embedded widgets. Keyed by

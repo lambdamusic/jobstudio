@@ -24,7 +24,8 @@ from django.utils.html import escape
 from appfolder import (COMPANY_APPLIED_TRIGGER_STATUSES, COMPANY_STATUSES,
                        STATUS_SORT_ORDER, exported_file)
 from tracker import parsers as P
-from tracker.models import Application, ApplicationStatusChange, Area, Company, Scan
+from tracker.models import (Application, ApplicationStatusChange, Area, Category,
+                            Company, Scan)
 
 FIXTURE = ["dump.json"]
 
@@ -773,6 +774,189 @@ class JobsDbTests(TestCase):
     def test_known_job_urls_are_populated(self):
         import jobsdb
         self.assertTrue(all(u.startswith("http") for u in jobsdb.known_job_urls()))
+
+
+class CategoryBootstrapTests(TestCase):
+    """`#38` — a fresh tracker has no categories, and until now nothing outside the
+    Django admin could make one. These guard the two halves of that fix: creating a
+    category from the CLI layer, and refusing to write a company into one that isn't
+    there rather than dropping the name on the floor."""
+
+    fixtures = FIXTURE
+
+    def test_a_category_can_be_created_and_re_creating_is_a_no_op(self):
+        import jobsdb
+        from tracker.models import Category
+
+        first = jobsdb.add_category(name="Research Infrastructure", order=7)
+        self.assertTrue(first["created"])
+
+        again = jobsdb.add_category(name="Research Infrastructure", order=99)
+        self.assertFalse(again["created"])
+        self.assertEqual(again["order"], 7, "an existing category keeps its hand-set order")
+        self.assertEqual(Category.objects.filter(name="Research Infrastructure").count(), 1)
+
+    def test_an_unknown_category_is_refused_rather_than_silently_dropped(self):
+        """The old behaviour reported success and wrote an uncategorised row — which
+        also sends the company to scan-config's default_area instead of its own."""
+        import jobsdb
+
+        before = Company.objects.count()
+        with self.assertRaises(ValueError) as caught:
+            jobsdb.add_company(name="Ghost Ltd", category="Nope Not A Category")
+        self.assertIn("add-category", str(caught.exception))
+        self.assertEqual(Company.objects.count(), before, "nothing is written on a bad category")
+
+    def test_a_company_lands_in_a_category_that_exists(self):
+        import jobsdb
+
+        jobsdb.add_category(name="Scientific Publishing")
+        row = jobsdb.add_company(name="Ghost Ltd", category="Scientific Publishing",
+                                 url="https://jobs.lever.co/ghostltd")
+        self.assertEqual(row["category"], "Scientific Publishing")
+
+    def test_no_category_at_all_is_still_allowed(self):
+        """Not every company needs one, and `company.md` only requires a category when
+        the user has confirmed a taxonomy — an empty string must not become an error."""
+        import jobsdb
+        row = jobsdb.add_company(name="Ghost Ltd")
+        self.assertEqual(row["category"], "")
+
+
+class ScanCoverageCliTests(TestCase):
+    """`#38` — the same coverage answer, asked before a careers URL is written rather
+    than after. Bootstrapping a tracker picks URLs from research, and one that resolves
+    to no board makes the company invisible to `scan`."""
+
+    fixtures = FIXTURE
+
+    def test_the_cli_names_the_platform_for_a_readable_board(self):
+        import scan_sources
+        out = StringIO()
+        with mock.patch("sys.stdout", out):
+            scan_sources._main(["Unknown Co", "https://jobs.lever.co/unknownco"])
+        self.assertIn("scanned via lever", out.getvalue())
+
+    def test_the_cli_gives_the_specific_reason_when_it_cannot(self):
+        import scan_sources
+        out = StringIO()
+        with mock.patch("sys.stdout", out):
+            scan_sources._main(["Acme Ltd", "https://acme.com/careers"])
+        self.assertIn("NOT scanned", out.getvalue())
+        self.assertIn(scan_sources.BESPOKE, out.getvalue())
+
+    def test_a_missing_url_is_its_own_reason(self):
+        import scan_sources
+        out = StringIO()
+        with mock.patch("sys.stdout", out):
+            scan_sources._main(["Nobody Ltd"])
+        self.assertIn(scan_sources.NO_URL, out.getvalue())
+
+
+class TargetAreaCheckTests(TestCase):
+    """`#39` — `scan_config.check()` is what stops a scan that silently scores against
+    nothing. Every failure it reports is one the scanner itself swallows: it does
+    `profiles.get(area, {})` and carries on, emitting Area Scores that mean nothing."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import scan_config
+        self.scan_config = scan_config
+        self._saved_cache = scan_config._cache
+        self.targets = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.targets, ignore_errors=True)
+
+    def tearDown(self):
+        self.scan_config._cache = self._saved_cache
+
+    def _config(self, **kwargs):
+        self.scan_config._cache = kwargs
+
+    def _target(self, slug, body=None):
+        (self.targets / f"{slug}.yaml").write_text(body if body is not None else (
+            "name: Data Platform\n"
+            "description: Platforms other engineers run their data on.\n"
+            "key_terms:\n  - data platform\n  - dbt\n"))
+
+    def _levels(self, **kwargs):
+        return [(lvl, msg) for lvl, msg in
+                self.scan_config.check(targets=self.targets, **kwargs)]
+
+    def _errors(self, **kwargs):
+        return [msg for lvl, msg in self._levels(**kwargs) if lvl == self.scan_config.ERROR]
+
+    def test_an_empty_targets_dir_is_the_headline_error(self):
+        """The fresh-data-root case: a scan runs, reports, and means nothing."""
+        self._config()
+        errors = self._errors()
+        self.assertEqual(len(errors), 1)
+        self.assertIn("nothing can be scored", errors[0])
+
+    def test_a_target_missing_its_scoring_fields_is_reported(self):
+        self._config()
+        self._target("thin", "name: Thin\n")
+        errors = self._errors()
+        self.assertTrue(any("'description'" in e for e in errors))
+        self.assertTrue(any("'key_terms'" in e for e in errors))
+
+    def test_an_unquoted_colon_entry_is_caught_in_the_source_file(self):
+        """`- SciGraph: a knowledge graph` parses as a mapping, not a string.
+        `parsers._flatten_yaml_list` repairs that for the web app's display; nothing
+        repairs it for the scorer, which gets a dict where a term should be."""
+        self._config()
+        self._target("colon",
+                     "name: Colon\ndescription: x\nkey_terms:\n  - SciGraph: a graph\n")
+        self.assertTrue(any("quote any entry" in e for e in self._errors()))
+
+    def test_a_mapping_pointing_at_a_missing_area_is_an_error(self):
+        self._config(category_to_area={"Fintech": "nonexistent"})
+        self._target("data-platform")
+        self.assertTrue(any("no nonexistent.yaml" in e for e in self._errors()))
+
+    def test_a_default_area_pointing_at_a_missing_area_is_an_error(self):
+        self._config(default_area="gone")
+        self._target("data-platform")
+        self.assertTrue(any("default_area" in e for e in self._errors()))
+
+    def test_an_unmapped_category_is_fine_when_the_fallback_resolves(self):
+        self._config(default_area="data-platform")
+        self._target("data-platform")
+        self.assertEqual(self._errors(tracked_categories=["Fintech"]), [])
+
+    def test_an_unmapped_category_is_an_error_when_there_is_no_fallback(self):
+        self._config()
+        self._target("data-platform")
+        errors = self._errors(tracked_categories=["Fintech"])
+        self.assertTrue(any("no area at all" in e for e in errors))
+
+    def test_a_mapping_for_a_category_nobody_tracks_is_only_a_warning(self):
+        """Usually a renamed category. It does nothing, which is worth saying, but the
+        scan still resolves every company it actually meets."""
+        self._config(default_area="data-platform",
+                     category_to_area={"Old Name": "data-platform"})
+        self._target("data-platform")
+        levels = self._levels(tracked_categories=["Fintech"])
+        self.assertTrue(any(lvl == self.scan_config.WARN and "Old Name" in msg
+                            for lvl, msg in levels))
+        self.assertEqual(self._errors(tracked_categories=["Fintech"]), [])
+
+    def test_the_example_data_root_passes_its_own_check(self):
+        """The shipped example is what on-ramp A hands someone as a working search, and
+        what the test suite is pinned to — its config must actually resolve."""
+        self.scan_config._cache = None
+        with mock.patch.object(self.scan_config, "targets_dir",
+                               return_value=Path(settings.TARGETS_DIR)), \
+             mock.patch.object(self.scan_config, "path",
+                               return_value=Path(settings.JOBS_DIR) / "scan-config.yaml"):
+            results = self.scan_config.check(
+                tracked_categories=[c.name for c in Category.objects.all()])
+        self.assertEqual([m for lvl, m in results if lvl == self.scan_config.ERROR], [])
+        # No warnings either: until 2026-09-25 the example's `category_to_area` was keyed
+        # on two category names its own fixture never had, so both entries were dead and
+        # every example company fell through to `default_area` — which made
+        # `developer-advocacy` unreachable in the dataset shipped to demonstrate it.
+        self.assertEqual([m for lvl, m in results if lvl == self.scan_config.WARN], [])
 
 
 class PipelineTests(TestCase):

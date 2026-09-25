@@ -73,3 +73,36 @@ def coverage(company_name: str, url: str | None) -> dict:
         return {"scanned": False, "platform": "", "reason": reason, "source": None}
 
     return {"scanned": True, "platform": source["platform"], "reason": "", "source": source}
+
+
+def _main(argv: list[str] | None = None) -> int:
+    """`tools/py src/scan_sources.py "<company>" "<careers url>"` — would `scan` see it?
+
+    The same answer the companies page shows, asked one step earlier. A careers URL is
+    chosen when a company is *being* added — from research, or from a bootstrap of a
+    fresh tracker (`#38`) — and a URL that resolves to no board makes the company
+    invisible to the one feature that makes tracking it worth anything. Finding that
+    out from a coverage column afterwards means going back round the loop; finding it
+    out here means trying the other URL while the tab is still open.
+
+    Pure and offline like the rest of this module: it resolves the URL shape and the
+    config, and never fetches the board.
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Whether `scan` can read a company's careers URL, and on what platform.")
+    parser.add_argument("name", help="Company name, exactly as it is (or will be) tracked")
+    parser.add_argument("url", nargs="?", default="", help="Its careers URL")
+    args = parser.parse_args(argv)
+
+    cov = coverage(args.name, args.url)
+    if cov["scanned"]:
+        print(f"{args.name}: scanned via {cov['platform']}")
+    else:
+        print(f"{args.name}: NOT scanned — {cov['reason']}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #39 -->
+     Next available: #40 -->
 
 ## Architecture
 
@@ -37,6 +37,30 @@
   Housekeeping that fetcher creates, wherever a data root has one: a `known_unsupported` entry saying "BambooHR — not yet integrated" is now a **dead letter**. That map is only consulted when `resolve_source()` returns `None`, so a company on a `*.bamboohr.com` URL now resolves and is scanned, and its recorded reason is never read again. Worth clearing those entries so the file stops carrying reasons that no longer apply. (`example-data/jobs/scan-config.yaml` has one, but its URL is not a BambooHR one, so it still behaves as written.)
 - [x] `#11` ~~**Report / summary command** — a `jobs-search report` subcommand that produces a richer narrative summary of the search state (inspired by career-ops report function)~~ — closed 2026-09-17: no longer relevant, `jobs-search status` already covers this
 - [ ] `#22` Create custom parsers for selected companies in the long tail (bespoke career pages with no public jobs API — see `## Not scanned` in any portal scan report for the current list)
+- [x] `#39` **A fresh data root has no target areas, so nothing can be scored** — done 2026-09-25, found the same day while doing `#38`. `init` creates `<DATA>/jobs/targets/` and leaves it empty, and nothing else writes into it: not `stocktake`, not `cv`, not `company`. `scan` still fetches (every company falls to `default_area`, itself unset without a `scan-config.yaml`), but the scoring step has no `<area>.yaml` to substitute into the rubric's `{area_name}` / `{description}` / `{emphasis}` / `{key_terms}`, so the Area Score half of every row is meaningless. `#38` seeds the companies; this is the other half of making the first scan real. Likely shape: derive 2–3 target areas from `stocktake.md` §6 and `criteria.yaml` at the end of the stocktake, confirm them, write the YAMLs, and write `scan-config.yaml` with the `category_to_area` mapping in the same pass — `example-data/jobs/targets/` and its `scan-config.yaml` are working examples of both.
+
+  **Done**: `init.md` §"Define the target areas" — propose two or three from
+  `stocktake.md` §6 and `criteria.yaml`, confirm, write one YAML each (fields
+  documented, `emphasis` drawn from the CV and never invented), `import_jobs`, check.
+  Placed *before* §"Seed the tracker", which now has areas to map its categories onto;
+  `stocktake.md` close-out offers both in that order.
+
+  The mechanical half is **`scan_config.check()`** and `tools/py src/scan_config.py
+  --check`. Every case it reports is one the scanner swallows — `profiles.get(area, {})`
+  returns an empty profile and scoring proceeds against nothing while still emitting an
+  Area Score per row: no targets at all, a `category_to_area` or `default_area` naming a
+  file that does not exist, a tracked category resolving to no area, a target missing
+  `description`/`key_terms`, and the unquoted-colon entry that parses as a mapping.
+  Exits non-zero, so it can gate a first scan. Wired into `scan.md` as step 0.
+
+  Two things it caught on its first run. The **shipped example's `category_to_area` was
+  keyed on two category names its own fixture never had** — both entries dead, every
+  example company falling to `default_area`, and `developer-advocacy` unreachable in the
+  dataset that exists to demonstrate it; fixed, and
+  `test_the_example_data_root_passes_its_own_check` now asserts no warnings either. And
+  `docs/portal-scan-and-scoring.md` claimed "every company always gets a real area now —
+  there's no 'no target profile for this category' case left", which is true only when
+  the mapping names a file that exists; corrected.
 - [x] `#30` **Show scan coverage on the companies list** — done 2026-09-23. `/companies/` said nothing about whether a company is actually being rescanned, and the only way to find out was to open the latest scan report and read its "Not scanned" section. Each row now shows the ATS it is scanned on, or the specific reason it isn't, with a count in the page lede.
 
   The predicate existed but was unreachable: `resolve_source()` lived in `src/scan-portals.py`, whose hyphen makes it unimportable. Moved it, the ATS URL patterns, and the "not scanned" reasons into a new `src/scan_sources.py`, and **`scan-portals.py` now calls the same `coverage()` the page does** — the point of the move was not access but agreement: two copies of these reasons would drift, and a coverage column that disagrees with the report is worse than no column. Not `scan_config.py`, whose docstring is explicit that it holds one person's settings; Greenhouse URL shapes are toolkit knowledge.
@@ -105,12 +129,25 @@
   Touches more than `app_filename()`: the recognisers next to it (`is_cv_filename`, `is_cover_letter_filename`, `is_tailored_cv`) and the web parsers in `src/web/apps/tracker/parsers.py` must keep matching **both** old and new names — real application folders already on disk are not renamed — and `notes.md`/`job.md` are currently looked up by exact filename in the parsers, the skill (`subcommands/application.md`), `appfolder.py`'s scaffolding and `src/web/README.md`'s file-map table. Decide up front whether existing folders get a migration pass or are simply left alone; check `src/web/apps/tracker/tests.py` fixtures either way.
 
 ## Company tracking
-- [ ] `#38` **Bootstrap a starter company list during `init`** — raised 2026-09-24. A fresh data root ends `init` with a CV and a stocktake but an **empty company tracker**, which is the one thing `scan` needs to do anything at all: a first run finds nothing, so the toolkit's most visible feature looks broken on day one. After the CV is in place (on-ramps B/C/D, and after `stocktake` where the target areas get written), propose an initial set of companies drawn from the applicant's own sector and the ones adjacent to it, inferred from the CV and the stocktake's target areas.
+- [x] `#38` **Bootstrap a starter company list during `init`** — done 2026-09-25, raised 2026-09-24. A fresh data root ends `init` with a CV and a stocktake but an **empty company tracker**, which is the one thing `scan` needs to do anything at all: a first run finds nothing, so the toolkit's most visible feature looks broken on day one. After the CV is in place (on-ramps B/C/D, and after `stocktake` where the target areas get written), propose an initial set of companies drawn from the applicant's own sector and the ones adjacent to it, inferred from the CV and the stocktake's target areas.
 
   **Ask for direction rather than guessing** — which sectors, sizes, geographies, and any named companies they already have in mind — then research, present the candidates for confirmation, and add only what they approve. Same "confirm before writing" discipline as on-ramp C in `subcommands/init.md`: an unvetted company list is cheaper to be wrong about than a CV line, but a tracker seeded with fifty irrelevant names is worse than an empty one, and `#9` already flags unvetted entries as needing that distinction.
 
   Capture the **careers/ATS URL** per company where it can be found, not just the name — a tracked company without a resolvable board is invisible to `scan` (see `#5`'s `known_unsupported`), so a bootstrap that only records names hands the user a list that still scans nothing.
 
   Overlaps `#21` (find similar companies — the same research step, seeded from a tracked company instead of from a CV) and `#9` (discovery beyond the tracked set); these three may well be one implementation with different entry points. Ties into `#2`'s onboarding story.
+
+  **Done**: `init.md` §"Seed the tracker" — ask for direction, agree 2–3 categories,
+  research 10–20 candidates, confirm per row, check each careers URL, write, map the
+  categories to target areas, then run `scan` to prove it. Offered again from
+  `stocktake.md` step 7 when the tracker is still empty, since that is where someone
+  who skipped it at `init` will actually be. Two gaps had to be closed first, both of
+  which made the flow unwritable as prose: nothing outside the Django admin could
+  create a category (`jobsdb.py add-category`), and `add-company` silently dropped a
+  category it could not find, so a cold-start bootstrap produced uncategorised rows
+  scored against the wrong area — it now refuses and says how to fix it. `scan_sources.py`
+  grew a CLI so a careers URL can be checked *before* it is written rather than read off
+  a coverage column afterwards. `#21` and `#9` remain the re-runnable entry points onto
+  the same research step.
 - [ ] `#20` Write long-form research files (`jobs/companies/<slug>.md`) for the 64 companies added 2026-09-16 by that extraction — deferred as a separate step at Michele's request; do on demand as each one is actually worth considering, following the template in `jobs/companies/README.md`
 - [ ] `#21` **Idea:** "find similar companies" — pick a company already in the tracker and surface other companies (same space/positioning/stage) worth shortlisting, as a discovery mechanism. Manually prototyped 2026-09-14: given a tracked company in robotics/physical-AI data with no UK presence, asked for similar UK-based alternatives and found one with the same "data layer for physical AI" positioning and a London HQ, via a plain web search — worth automating as a repeatable step (`jobs-search` subcommand or an option on `company`) rather than redoing this research by hand each time

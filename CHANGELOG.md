@@ -2,6 +2,67 @@
 
 Dated entries, newest first.
 
+## 2026-09-25
+
+- **A scan can no longer score against nothing without saying so.** `scan-portals.py`
+  resolves a company's target-area profile with `profiles.get(area, {})` — so an area
+  naming no `jobs/targets/<slug>.yaml` yields an empty profile and the scan carries on:
+  the keyword pre-filter falls back to the company's role target alone, the scorer judges
+  against no `description`, `emphasis` or `key_terms`, and every row still gets an Area
+  Score. Nothing in the report said otherwise. On a fresh data root, where
+  `jobs/targets/` is empty and nothing ever wrote into it, that was *every* row — a scan
+  that looked like it worked.
+
+  **`tools/py src/scan_config.py --check`** reports the whole chain: no target areas at
+  all, a `category_to_area` entry or `default_area` naming a file that doesn't exist, a
+  tracked category resolving to no area, a target missing its scoring fields, and the
+  unquoted-colon list entry that parses as a mapping instead of a string. Exits non-zero,
+  so it can gate a first scan. `scan.md` runs it as step 0 on a data root that has not
+  been scanned before.
+
+- **`init.md` §"Define the target areas"** — propose two or three from the stocktake's §6
+  and `criteria.yaml`, confirm, write one YAML each, `import_jobs`, check. Areas are
+  positionings, not industries: several categories share one, and an area per industry
+  produces files that score identically. Placed before "Seed the tracker", which needs
+  them to map its categories onto.
+
+- **The shipped example's `category_to_area` was keyed on two category names its own
+  fixture never had.** Both entries were dead, every example company fell through to
+  `default_area`, and `developer-advocacy` was unreachable in the dataset that exists to
+  demonstrate it. Fixed, and the check now runs against the example in the test suite.
+
+- **`init` no longer leaves you with a tracker nothing can scan.** A fresh data root
+  finished setup with a CV, a profile and zero companies — and `scan` reads tracked
+  companies, so the first run found nothing and the most visible feature in the toolkit
+  looked broken on day one, for a reason nothing on screen explained.
+
+  `subcommands/init.md` gains a **"Seed the tracker"** step, placed after `stocktake`
+  because that is where the target areas and sectors get written and there is something
+  to infer a starting list from. It asks for direction first — sectors, org size,
+  geography, companies already in mind — then agrees two or three categories, researches
+  10–20 candidates, presents them for a yes per row, and writes only what was approved.
+  A tracker seeded with fifty unvetted names is worse than an empty one. `stocktake.md`
+  offers the same step at close-out when the tracker is still empty, which is where
+  anyone who skipped it at `init` will actually be.
+
+- **`jobsdb.py add-category`** — categories are the user's own taxonomy and the toolkit
+  ships none, but until now nothing outside the Django admin could create one. Idempotent,
+  and an existing category keeps its hand-set `order`.
+
+- **`add-company` refuses a category that doesn't exist** instead of silently writing the
+  company without one. The old behaviour reported success and left an uncategorised row,
+  which then scored against `scan-config.yaml`'s `default_area` rather than the area its
+  category maps to — a mistake that surfaced far from where it was made. Auto-creating the
+  category would have been no better: it turns a typo into a permanent second category
+  with one company in it. The error names the tracked categories and the command to add
+  the missing one.
+
+- **`scan_sources.py` can be run directly** — `tools/py src/scan_sources.py "<name>"
+  "<url>"` prints `scanned via <platform>` or `NOT scanned — <reason>`. The same answer
+  the companies page already showed, asked one step earlier: a careers URL is chosen when
+  a company is being *added*, and one that resolves to no board makes the company
+  invisible to `scan`. Offline, no fetch, so checking twenty candidates costs nothing.
+
 ## 2026-09-24
 
 - **A cover letter renders to `.docx` alone unless you ask for more.** HTML was written

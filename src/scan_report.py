@@ -31,10 +31,11 @@ from pathlib import Path
 import yaml
 
 import config
+import scan_config
 
 DATA_ROOT = config.data_root()
 SCANS_DIR = DATA_ROOT / "jobs" / "scans"
-TARGETS_DIR = DATA_ROOT / "jobs" / "targets"
+TARGETS_DIR = scan_config.targets_dir()
 # Code, not data — manage.py ships with the repo.
 REPO_ROOT = config.REPO_ROOT
 

@@ -28,6 +28,20 @@ promote anything worth pursuing.
 
 ## Steps
 
+0. **Check the configuration resolves** — only worth doing when something looks off, or
+   on a data root that has not been scanned before:
+
+   ```bash
+   tools/py src/scan_config.py --check
+   ```
+
+   Every problem it reports is one the scan itself swallows: no target areas at all, a
+   `category_to_area` entry or `default_area` naming a file that does not exist, a
+   tracked category resolving to no area. In each case `profiles.get(area, {})` returns
+   an empty profile and scoring proceeds against nothing — the report still fills with
+   Area Scores, and they mean nothing. `subcommands/init.md` §"Define the target areas"
+   is how to fix an empty `jobs/targets/`.
+
 1. **Fetch and pre-filter (mechanical, no API call, both paths)**:
    ```bash
    tools/py src/scan-portals.py

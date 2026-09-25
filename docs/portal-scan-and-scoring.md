@@ -54,12 +54,20 @@ dropped.
 
 A company's tracked **category** (an industry grouping, e.g. "Fintech") and a
 CV **target area** (e.g. `data-platform`) are orthogonal — a category doesn't need its
-own bespoke area to be scored. Every category maps to whichever of the 5 existing areas
-fits it best (`category_to_area` in `<DATA>/jobs/scan-config.yaml`); any category not
-listed there falls back to that file's `default_area` as a safety net. This means **every company always
-gets a real area now** — there's no "no target profile for this category" case left
-(decided 2026-09-14; before this, 4 of 8 categories had no mapping at all, and those
-companies' postings never reached the scorer).
+own bespoke area to be scored. Every category maps to whichever existing area fits it
+best (`category_to_area` in `<DATA>/jobs/scan-config.yaml`); any category not listed
+there falls back to that file's `default_area` as a safety net (decided 2026-09-14;
+before this, 4 of 8 categories had no mapping at all, and those companies' postings
+never reached the scorer).
+
+**The safety net only holds if what it names exists.** The lookup is
+`profiles.get(area, {})`, so an area naming no `jobs/targets/<slug>.yaml` — a mapping
+onto a renamed area, a `default_area` never set, or a fresh data root where
+`jobs/targets/` is simply empty — yields an empty profile and the scan carries on
+regardless: the keyword pre-filter falls back to the company's role target alone, and
+the scorer judges against no `description`, `emphasis` or `key_terms` while still
+emitting an Area Score for every row. Nothing in the report says so. `scan_config.check()`
+(`tools/py src/scan_config.py --check`) is what surfaces it — see `#39`.
 
 With the area resolved:
 

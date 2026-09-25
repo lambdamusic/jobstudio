@@ -220,6 +220,17 @@ the next role (type, level, sector, working style). Show it, refine, write it.
    (complete only when no `_(not started)_` remains), `**Last updated:**` → today.
 2. Print a short summary: which sections were filled this session, which remain.
 3. Remind him of any deferred items.
-4. Note the second-pass wiring that's still pending (not for this command to do):
+4. **If `<DATA>/jobs/targets/` is empty**, offer to define the target areas now — §6
+   has just been written, which is what they are derived from. Without them `scan`
+   still runs and scores every posting against nothing, silently. Follow
+   `subcommands/init.md` §"Define the target areas".
+5. **If the company tracker is empty** (`tools/py src/jobsdb.py categories` prints
+   none), offer to seed it now — an empty tracker is the state in which `scan` finds
+   nothing at all. Follow `subcommands/init.md` §"Seed the tracker", which needs the
+   areas from step 4 to map categories onto.
+
+   Both are cold-start steps, not recurring ones — skip the offer when areas or
+   companies already exist.
+6. Note the second-pass wiring that's still pending (not for this command to do):
    feeding `<DATA>/jobs/profile/` into scan scoring, gap analysis, cover letters, and the
    static site.

@@ -22,15 +22,27 @@ Add a new category only if nothing fits — a category is a grouping of companie
 industry or domain, broad enough that several companies share it. Keep the set small;
 one category per company defeats the purpose.
 
+Create one with:
+
+```bash
+tools/py src/jobsdb.py add-category --name "Research Infrastructure" --order 1
+```
+
+Idempotent, and it is the only way in outside the Django admin. `add-company` **refuses**
+a category that does not exist rather than writing the company without one, so this comes
+first.
+
 If the tracker is empty (a brand-new data root), propose two or three categories that
 suit the kinds of company the user is targeting and confirm them before adding the first
-company.
+company. For a cold start with no companies at all, `subcommands/init.md` §"Seed the
+tracker" is the fuller version of this — ask for direction, research a starting set,
+confirm, then add them in one pass.
 
 ## Fields to extract
 
 | Field | Notes |
 |---|---|
-| **Company** | Always format as `[Company](url)`. Use the company's jobs/careers page URL (e.g. `company.com/careers`) as the link target — this is more useful than the homepage. If the user provides a URL, use that; if not, infer the careers page from the company name. |
+| **Company** | Always format as `[Company](url)`. Use the company's jobs/careers page URL (e.g. `company.com/careers`) as the link target — this is more useful than the homepage. If the user provides a URL, use that; if not, infer the careers page from the company name. Check it resolves to a board `scan` can read before writing it: `tools/py src/scan_sources.py "<name>" "<url>"` (offline, no fetch). On `NOT scanned`, see init.md §"Seed the tracker" step 4 — a corporate page often hides a real ATS, which belongs in `company_overrides` rather than in this field. |
 | **Role target** | The kind of role the user would target there — infer from context or company type (VP/Director/Head of Data, PM, Solutions Engineer, etc.) |
 | **Fit** | Star rating ★☆☆☆☆ to ★★★★★ — how well the company matches this user's background and criteria. Read `<DATA>/jobs/profile/stocktake.md` and `<DATA>/jobs/profile/criteria.yaml` rather than assuming a domain. Default to ★★★☆☆ if unclear |
 | **Status** | One of: `watching` · `researching` · `contacted` · `applied` · `interviewing` · `closed` · `rejected`. Default to `watching` |

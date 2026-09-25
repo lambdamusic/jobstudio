@@ -253,14 +253,65 @@ def add_application(*, company: str, role: str, area: str = "", job_url: str = "
     return _app_dict(a)
 
 
+def add_category(*, name: str, order: int = 0) -> dict:
+    """Create a tracked category, or return the existing one untouched.
+
+    Categories are the user's own taxonomy and the toolkit ships none (see
+    `categories()`), but until `#38` nothing outside the Django admin could create one.
+    That made a cold start worse than it looked: `add_company` resolves a category by
+    name, so on an empty tracker every `--category` silently resolved to nothing and the
+    companies landed uncategorised — and an uncategorised company falls to
+    `scan-config.yaml`'s `default_area` rather than the area its category maps to.
+
+    Idempotent, because bootstrapping a tracker means proposing a small set of
+    categories and then adding companies into them; re-running must not duplicate or
+    renumber. An existing category keeps its `order` — that is a hand-set display
+    preference, not something a later add should quietly rewrite.
+    """
+    setup()
+    from tracker.models import Category
+
+    name = name.strip()
+    if not name:
+        raise ValueError("A category needs a name.")
+    c, created = Category.objects.get_or_create(name=name, defaults={"order": order})
+    return {"name": c.name, "order": c.order, "created": created}
+
+
+def _resolve_category(name: str):
+    """Look a category up by name, or say clearly that it does not exist.
+
+    Deliberately strict. Silently dropping an unknown name is the worst of the three
+    options: the command reports success, the row is written, and the mistake only
+    surfaces later as a company missing from its category on the web app and scored
+    against the wrong target area. Auto-creating it is no better — it turns a typo into
+    a permanent second category with one company in it, which is exactly the
+    one-category-per-company sprawl `/jobstudio company` tells the agent to avoid.
+    """
+    from tracker.models import Category
+
+    if not name:
+        return None
+    cat = Category.objects.filter(name=name).first()
+    if cat is not None:
+        return cat
+    known = ", ".join(c.name for c in Category.objects.order_by("order", "name"))
+    raise ValueError(
+        f"No such category: {name!r}. "
+        + (f"Tracked categories: {known}." if known else "The tracker has no categories yet.")
+        + f"\nCreate it first:  jobsdb.py add-category --name {name!r}"
+    )
+
+
 def add_company(*, name: str, url: str = "", role_target: str = "", fit: int = 3,
                 category: str = "", notes: str = "") -> dict:
     setup()
     import datetime as dt
     from django.db.models import Max
-    from tracker.models import Category, Company
+    from tracker.models import Company
     from appfolder import slug as slugify
 
+    cat = _resolve_category(category)
     num = (Company.objects.aggregate(m=Max("num"))["m"] or 0) + 1
     c = Company.objects.create(
         num=num,
@@ -269,7 +320,7 @@ def add_company(*, name: str, url: str = "", role_target: str = "", fit: int = 3
         url=url,
         role_target=role_target,
         fit=fit,
-        category=Category.objects.filter(name=category).first(),
+        category=cat,
         notes=notes,
         date_added=dt.date.today(),
     )
@@ -360,6 +411,11 @@ def _main() -> None:
     p_add.add_argument("--notes", default="", help="The full record")
     p_add.add_argument("--contact", default="")
 
+    p_cat = sub.add_parser("add-category", help="Create a company category (idempotent)")
+    p_cat.add_argument("--name", required=True)
+    p_cat.add_argument("--order", type=int, default=0,
+                       help="Display position; ignored for a category that already exists")
+
     p_co = sub.add_parser("add-company", help="Track a new company")
     p_co.add_argument("--name", required=True)
     p_co.add_argument("--url", default="")
@@ -397,12 +453,24 @@ def _main() -> None:
 
     args = parser.parse_args()
 
+    try:
+        _dispatch(args, json)
+    except ValueError as exc:
+        # A named category that does not exist is a normal typo, not a crash. The
+        # message already says how to fix it; a traceback would bury it.
+        raise SystemExit(str(exc))
+
+
+def _dispatch(args, json) -> None:
     if args.cmd == "add-application":
         row = add_application(
             company=args.company, role=args.role, area=args.area, job_url=args.url,
             date=args.date, status=args.status, next_action=args.next_action,
             summary=args.summary, notes=args.notes, contact=args.contact)
         print(row["num"])
+    elif args.cmd == "add-category":
+        row = add_category(name=args.name, order=args.order)
+        print(f"{row['name']}  ({'created' if row['created'] else 'already tracked'})")
     elif args.cmd == "add-company":
         row = add_company(name=args.name, url=args.url, role_target=args.role_target,
                           fit=args.fit, category=args.category, notes=args.notes)
@@ -432,7 +500,7 @@ def _main() -> None:
     elif args.cmd == "categories":
         rows = categories()
         if not rows:
-            print("No categories yet — the first tracked company creates one.")
+            print("No categories yet — create one with:  jobsdb.py add-category --name '<name>'")
         for c in rows:
             print(f"  {c['name']}  ({c['companies']})")
     elif args.cmd == "status":

@@ -29,6 +29,11 @@ is the conversation — ask, confirm, then call it once.
    history and facts, never motivation, constraints or what they actually want next.
    Those only come from asking.
 
+   And all three end at **"Define the target areas"** and then **"Seed the tracker"**
+   below, in that order. A data root with a CV, a profile, no areas and no companies is
+   not a finished setup — it is the state in which `scan` finds nothing, and then scores
+   what it does find against nothing.
+
 Confirm the data root path back to the user before running. It is the one answer that
 is annoying to change later.
 
@@ -198,9 +203,188 @@ JOBSTUDIO_ADMIN_PASSWORD='<their password>' tools/py src/jobsinit.py \
 process list. That is why `init` takes it from the environment and has no
 `--admin-password`.
 
+## Define the target areas — after `stocktake`, on-ramps B/C/D
+
+A **target area** is a CV positioning — one `<DATA>/jobs/targets/<slug>.yaml`. It is
+what an application is tagged with, what `cv` tailors toward, and what `scan` scores a
+posting against. `init` creates the directory and leaves it empty, and nothing else
+writes into it.
+
+**An empty `jobs/targets/` does not stop a scan; it hollows one out.** `scan-portals.py`
+looks the area profile up with `profiles.get(area, {})` and carries on, so the keyword
+pre-filter quietly falls back to the company's role target alone and the scorer gets no
+`description`, `emphasis` or `key_terms` to judge against — it still emits an Area Score
+for every row, and that number means nothing. The report does not say so. That is worse
+than an error, so do this before the tracker has anything in it to scan.
+
+Skip it on on-ramp A: the example ships two working areas.
+
+### 1. Propose two or three, from the profile
+
+Read `<DATA>/jobs/profile/stocktake.md` §6 (capabilities and career objectives) and
+`criteria.yaml` (`preferences.role_types`, `role_level`, `departments`,
+`sectors_open_to_with_a_leap`). Those two sections exist to answer "what shape of role
+am I going for" — an area is that answer written down in the form the tooling reads.
+
+Two or three. Areas are **positionings, not industries** — a category groups companies
+by domain, an area is how the CV is angled, and several categories can share one. An
+area per industry is the mistake to avoid; it produces files that differ only in their
+`name` and score identically.
+
+One of them may well be a *role-type* target that cuts across industries — solutions
+architecture, developer advocacy — chosen when the role itself is that shape whatever
+the company does. Propose them by name with a sentence each and get a yes before
+writing anything.
+
+### 2. Write one YAML per area
+
+Filename is the slug: `<DATA>/jobs/targets/data-platform.yaml`.
+
+| Key | |
+|---|---|
+| `name` | Human-readable title, shown in the web app |
+| `description` | 2–3 lines: what kind of company, what kind of role, who the users are. The scorer reads this |
+| `emphasis` | The CV bullets that matter most for this positioning — **their real achievements**, in their words, with numbers where they have them |
+| `key_terms` | Words that appear in postings of this shape. Used by the keyword pre-filter, so too few silently drops good postings and too many drown the scan in noise |
+| `expand_sections` / `condense_sections` | Optional: which CV sections `cv` should lengthen or shorten for this area |
+
+`example-data/jobs/targets/data-platform.yaml` is a complete worked example — read it
+before writing the first one.
+
+**`emphasis` is drawn from the CV, never invented.** It is the same rule as on-ramp C:
+these bullets end up in a tailored CV that gets sent to employers. If the base CV does
+not support a bullet, it does not go in.
+
+**Quote any list entry containing `: `** — `- SciGraph: a knowledge graph` parses as a
+mapping rather than a string, and the scorer then gets a dict where a term should be.
+
+### 3. Import them and check
+
+```bash
+tools/py src/web/manage.py import_jobs    # creates the Area rows from the YAMLs
+tools/py src/scan_config.py --check       # do the areas and the config line up?
+```
+
+`--check` is the one that catches the silent failures: an area with no `description` or
+`key_terms`, a `category_to_area` entry or a `default_area` naming a file that does not
+exist, a tracked category that resolves to no area at all, and the unquoted-colon trap.
+It exits non-zero when any of those is true. Run it again after seeding the tracker —
+the category side of it only has something to say once there are categories.
+
+## Seed the tracker — after the target areas exist
+
+`init` finishes with a CV and a profile and **no companies**, which is the one thing
+`scan` needs to do anything at all. The first scan on a fresh data root therefore finds
+nothing — so the most visible feature in the toolkit looks broken on day one, for a
+reason nothing on screen explains. Close that before handing the session back.
+
+Do it **after `stocktake`**, not at CV time. The stocktake is where the target areas,
+sectors and hard filters get written, so by then there is far more to infer a starting
+list from than the CV alone. Skip it entirely on on-ramp A — the example ships real
+companies precisely so `scan` works out of the box.
+
+### 1. Ask for direction rather than guessing
+
+A tracker seeded with fifty irrelevant names is worse than an empty one: it is work to
+undo, it buries the few good rows, and every later scan pays for it. So ask first, in
+one short round — sectors and domains; organisation size (SMEs count, and are easy to
+forget); geography and remote policy; and **any companies they already have in mind**,
+which is usually the best row in the final list and the fastest to confirm.
+
+Read `<DATA>/jobs/profile/criteria.yaml` and `stocktake.md` §6 before asking, and put
+what is already there in the question as a proposal — `preferences.sectors`,
+`org_size`, `hard_filters.geography`. They should be correcting a draft, not filling in
+a blank.
+
+### 2. Agree the categories first
+
+Companies go into categories, and the toolkit ships none. Two or three, broad enough
+that several companies share each one — this is a grouping by domain, not a label per
+company:
+
+```bash
+tools/py src/jobsdb.py add-category --name "Research Infrastructure" --order 1
+```
+
+Idempotent, so re-running is safe. `add-company` will **refuse** a category that does
+not exist rather than quietly writing the company without one, so create them first.
+
+### 3. Research, then present candidates for confirmation
+
+Aim for **10–20**, not an exhaustive sweep. Enough that the first scan has something to
+chew on; few enough that the user can actually read the list and say no to half of it.
+
+Present them as a table — company, what it does in a few words, why it fits *their*
+stated direction, proposed category, careers URL — and get a yes per row. Unvetted
+entries are cheaper to be wrong about than a CV line, but they are not free, and the
+user has the context to reject in seconds what would take you a search to rule out.
+
+Write only what they approve.
+
+### 4. Capture a careers URL that `scan` can actually read
+
+**A name alone is not enough.** A company tracked without a resolvable board is
+invisible to `scan`, so a bootstrap that records only names hands back a list that
+still scans nothing — the exact failure this step exists to prevent. Check each URL
+before writing it, with the same resolver the scanner acts on:
+
+```bash
+tools/py src/scan_sources.py "Grafana Labs" "https://grafana.com/about/careers/"
+```
+
+It prints either `scanned via <platform>` or `NOT scanned — <reason>`. Offline, no
+fetch, so checking twenty is free.
+
+On `NOT scanned`, it is worth one look before settling: many corporate careers pages
+hide a Greenhouse, Lever, Ashby, Workday, SmartRecruiters or Teamtailor board
+underneath — open the page and check where the job links actually go. When you find
+one, record it in `company_overrides` in `<DATA>/jobs/scan-config.yaml` (see `scan.md`)
+rather than putting the board URL in the tracker; the tracker should keep the URL a
+human would want to click. If there is genuinely no API, add the company anyway with
+its real careers page — it shows up in the report's "not scanned" list as a company to
+check by hand, which is the honest answer.
+
+### 5. Write the rows
+
+```bash
+tools/py src/jobsdb.py add-company \
+  --name "Grafana Labs" --url "https://grafana.com/about/careers/" \
+  --role-target "Director of Data Platform" --fit 4 \
+  --category "Research Infrastructure" \
+  --notes "Open-source observability; strong remote-first culture"
+```
+
+`--fit` and `--role-target` come from the profile, exactly as `/jobstudio company`
+derives them — follow `subcommands/company.md` for the per-field judgement rather than
+re-deriving it here.
+
+### 6. Map the categories to target areas, then prove it
+
+`scan` scores each company against a **target area**, picked from the company's category
+via `category_to_area` in `<DATA>/jobs/scan-config.yaml`. A category with no mapping
+falls to that file's `default_area`. Write both — the file is optional and may not exist
+yet; `scan.md` documents its shape and `example-data/jobs/scan-config.yaml` is a working
+one to copy.
+
+Several categories can share one area. That is the normal case, not a compromise — do
+not add an area to give a category its own.
+
+Then check the whole chain resolves, and run the scan:
+
+```bash
+tools/py src/scan_config.py --check
+```
+
+Every problem it reports is one the scanner swallows: a mapping pointing at an area with
+no file, a category falling through to nothing. Fix them before scanning rather than
+after, because a scan with a hollow profile still produces a report full of scores.
+
+Then run `/jobstudio scan` and show them the result. That is what turns the setup from
+a claim into something they have watched work.
+
 ## Afterwards
 
 Confirm it worked by running `/jobstudio status`, then say what is next: `stocktake`
-for an empty start, or just browsing for the example. Mention that
-`tools/smoke-test` re-runs the whole thing from a clean clone if they ever want to
-check the install.
+for an empty start (and then seeding the tracker, above), or just browsing for the
+example. Mention that `tools/smoke-test` re-runs the whole thing from a clean clone if
+they ever want to check the install.
