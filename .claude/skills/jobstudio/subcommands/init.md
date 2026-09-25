@@ -153,13 +153,14 @@ than launching it unasked: it runs in the foreground until interrupted.
 | `~/.jobstudio.ini` | machine-level default, so `<DATA>` resolves even when the working directory is not the repo |
 | `<repo>/tools/py` | venv wrapper, so nothing needs an absolute interpreter path |
 | `<repo>/.claude/settings.local.json` | the data root in `permissions.additionalDirectories`, so sessions stop prompting on every file outside the repo |
-| `<repo>/jobstudio.code-workspace` | one VS Code window over both folders |
+| `<repo>/jobstudio+data.code-workspace` | one VS Code window over both folders — the `+data` names what it opens: a private data root alongside the public repo |
 | `<repo>/src/web/local_settings.py` | copied from the example, if missing |
 | `core.hooksPath` → `tools/git-hooks` | git config, so the pre-push leak check runs (below) |
 | a Django admin account | `admin`/`admin` by default, or your own via `--admin-user` + `$JOBSTUDIO_ADMIN_PASSWORD`; `--no-admin` skips it |
 
-All gitignored except the workspace file. Re-running is safe: it adds what is missing
-and leaves the rest alone. Nothing is overwritten without `--force`, and there is no
+All gitignored — the workspace file included, since it names an absolute path into
+someone's job search. Re-running is safe: it adds what is missing and leaves the rest
+alone. Nothing is overwritten without `--force`, and there is no
 wipe mode — this points at a directory holding someone's whole job search.
 
 ## The pre-push check — only if this checkout has a remote

@@ -34,6 +34,14 @@ EXAMPLE = REPO / "example-data"
 TREE = ["jobs/applications", "jobs/companies", "jobs/cv/base", "jobs/notes",
         "jobs/profile", "jobs/scans", "jobs/targets", "exports", "backups/django"]
 
+# The two-folder VS Code workspace. The `+data` in the name is the point: it says at a
+# glance that opening it puts a private data root alongside the public repo, which
+# matters because this one file is the only place the two are named together. Renamed
+# from `jobstudio.code-workspace` on 2026-09-25; the old name stays in .gitignore so a
+# checkout that ran the earlier `init` keeps its copy ignored rather than suddenly
+# offering to commit a file full of absolute paths into someone's job search.
+WORKSPACE_FILE = "jobstudio+data.code-workspace"
+
 
 def _say(msg: str) -> None:
     print(f"  {msg}")
@@ -157,7 +165,7 @@ def wire_checkout(root: Path, venv_python: Path, force: bool) -> None:
 
     # 4. one VS Code window over two folders, so the code/data boundary stays visible
     #    in Source Control rather than being something to remember (§5.4)
-    _write(REPO / "jobstudio.code-workspace", json.dumps({
+    _write(REPO / WORKSPACE_FILE, json.dumps({
         "folders": [{"path": str(REPO), "name": "toolkit (code)"},
                     {"path": str(root), "name": "my job search (data)"}],
         "settings": {},

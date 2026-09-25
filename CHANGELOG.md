@@ -4,6 +4,14 @@ Dated entries, newest first.
 
 ## 2026-09-25
 
+- **The VS Code workspace `init` writes is now `jobstudio+data.code-workspace`.** The
+  `+data` names what opening it actually does: puts a private data root alongside the
+  public repo. It is the one file where the two are named together, so the filename is
+  the right place to say so. Gitignored, as before — it holds an absolute path into
+  someone's job search — and the old `jobstudio.code-workspace` stays in `.gitignore`
+  so a checkout that ran the earlier `init` keeps its copy ignored rather than
+  suddenly offering to commit it.
+
 - **A scan can no longer score against nothing without saying so.** `scan-portals.py`
   resolves a company's target-area profile with `profiles.get(area, {})` — so an area
   naming no `jobs/targets/<slug>.yaml` yields an empty profile and the scan carries on:
