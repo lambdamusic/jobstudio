@@ -105,10 +105,39 @@ promote anything worth pursuing.
 ## Notes
 
 - **Matches are grouped by company** (alphabetical), sorted by combined score within each — **Strong matches** (Area Score + Ideal-Job Score ≥ 7, `STRONG_THRESHOLD` in `scan_report.py`) and **Other matches** (everything else scored). Each company heading shows its Category → Area once (they're company-level, never vary within one company's group); the table under it is Role | Location | Area Score | Ideal-Job Score | Notes. Area Score is fit against the target-area profile assigned to the posting (skills/domain/seniority); Ideal-Job Score is fit against `<DATA>/jobs/notes/ideal-job-notes.md` and `<DATA>/jobs/profile/criteria.yaml` — the *nature* of the work (hands-on building vs pure management, customer-facing/evangelist-type roles vs backstage, ownership/autonomy, etc.), not skills. The scorer is told to push Ideal-Job Score down for a suspected dealbreaker and nudge it up for a bonus signal, and to call either out in the Notes cell — so scan the Notes column, not just the numbers.
+- **Keep `role_target` and `key_terms` to *qualifiers*, not seniority words.** The
+  pre-filter splits both into words and passes a posting if its title shares *any* of
+  them, so one generic word swamps a large board: on a real run, "Research Engineer" and
+  "Member of Technical Staff" in an area's `key_terms` let through 264 of 353 candidates,
+  with "engineer" alone accounting for almost an entire frontier lab's board. "Safety
+  Systems" was nearly as bad, because it contributes "systems".
+  Trimming those to qualifiers — Alignment, Interpretability, Evaluations, Oversight —
+  cut the same run to 113 without losing a single role at the small, focused companies,
+  where a bare "Research Engineer" *is* the relevant job. The rule that follows: generic
+  titles belong in a **company's** `role_target`, where they only ever match that
+  company's own board; an **area's** `key_terms` should carry only words that
+  discriminate. When a company's board is huge, narrow that company's `role_target` to
+  qualifiers too. Nothing is lost silently — every dropped posting is listed per company
+  under "Filtered out before scoring".
+- **One company, more than one area.** A company whose name appears in `company_areas`
+  (`<DATA>/jobs/scan-config.yaml`) is scanned against every area listed there, in
+  preference order, instead of the single area its category maps to — for an org that
+  genuinely hires into two positionings at once. Each posting is assigned one of those
+  areas by title overlap with the area's `key_terms`, so a posting still gets one score;
+  in the report that company's table gains an **Area** column and its heading says
+  "scored per role" instead of naming one. Its `role_target` should list titles from both
+  angles, since that string is also part of the pre-filter. Use it sparingly — for most
+  companies the category is the right answer, and `--check` warns on a single-area entry
+  that buys nothing.
+- **Soft negatives.** `soft_negatives` in `<DATA>/jobs/profile/criteria.yaml` is the
+  mirror of `bonus_signals`: a reservation that nudges the Ideal-Job Score down a point
+  or two and gets named in the Notes cell, rather than a dealbreaker
+  (`hard_filters.exclude`) which is scored 1–2. Use it for a trait worth knowing about a
+  role but never worth hiding it for.
 - **Category → area mapping.** Company categories (an industry grouping, e.g. "Fintech") and target areas (a CV positioning, e.g. `data-platform`) are orthogonal — a company's category doesn't need its own bespoke area to be scored, it's just mapped to whichever existing area fits best (`category_to_area` in `<DATA>/jobs/scan-config.yaml`; that file's `default_area` is the safety-net fallback for any category not yet listed there). This is why Category and Area are separate columns on every row — they no longer imply each other the way "grouped by area, area = category" used to.
 - Location is classified into `uk` / `remote` / `other` per posting, by whichever scoring path ran. Only `uk` and `remote` roles appear in the main Matches tables; `other` is excluded from them by default. The exception is **"Strong matches — wrong location"**, nested inside the Strong matches section — a strong match (same ≥7 bar) that's excluded purely by location is kept visible there rather than silently discarded, since it's worth knowing it existed. Anything `other`-location that *isn't* strong stays a silent count only, in Coverage notes' Summary block ("Discarded (non-UK/non-remote), weak fit").
 - **Location pre-filter, before scoring.** A second, free pre-filter (`excluded_by_location_prefilter()`) runs alongside the keyword one, before a posting is even queued for scoring — conservatively: excludes only when the location text has *no* UK/remote-adjacent keyword anywhere in it (no country/city/"remote" mention at all); vague or missing location text is never excluded, always sent to scoring. Excluded postings land in **"Excluded by location"**, grouped by company (alphabetical) with the full per-posting list (each posting's raw location text shown too — the actual reason it was excluded), same treatment as "Filtered out before scoring". This cuts real volume — a recent run saw 417 candidates heading to the scorer drop to 62 once this was added, since most large-org multi-location postings never happen to mention the UK or "remote" at all.
-- 8 platforms are supported: Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor, Rippling ATS — plus `firstparty_entries`, a generic fetcher for a company whose own frontend calls a first-party JSON endpoint (the URL comes from the override; the parser expects `{"entries": [{title, url, officeTeamLocation}]}`). Many tracked companies' careers URL is a generic corporate careers page that hides one of these underneath — `company_overrides` in `<DATA>/jobs/scan-config.yaml` maps company name → real board/tenant/domain for those cases. If a new company is added and shows up "not scanned" as a bespoke page, it's worth checking whether it's secretly on one of these platforms before assuming it truly has no API.
+- 8 platforms are supported: Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor, Rippling ATS. **Greenhouse, Lever, Workable, BambooHR, Ashby, SmartRecruiters and Teamtailor are detected from the tracked URL alone** when the company links straight at its board (`jobs.ashbyhq.com/<token>`, `jobs.lever.co/<token>` and so on) — no override needed. Only Workday and Rippling always need one — plus `firstparty_entries`, a generic fetcher for a company whose own frontend calls a first-party JSON endpoint (the URL comes from the override; the parser expects `{"entries": [{title, url, officeTeamLocation}]}`). Many tracked companies' careers URL is a generic corporate careers page that hides one of these underneath — `company_overrides` in `<DATA>/jobs/scan-config.yaml` maps company name → real board/tenant/domain for those cases. If a new company is added and shows up "not scanned" as a bespoke page, it's worth checking whether it's secretly on one of these platforms before assuming it truly has no API.
 - **Rippling ATS has no public API** — its fetcher parses the page's Next.js SSR hydration payload (`__NEXT_DATA__`), which is undocumented and could silently break on a frontend redesign (degrades to a normal "not scanned" ScanError if the expected JSON shape disappears, doesn't crash). Only worth doing for a company specifically requested, not as a default.
 - A few platforms are confirmed but genuinely not reachable or not yet integrated. Which of *your* tracked companies sit on them is recorded per company in `known_unsupported` in `<DATA>/jobs/scan-config.yaml`, so the report gives a precise reason instead of the generic bespoke-page fallback:
   - **Dayforce/Ceridian** — its jobs API is Cloudflare-protected (needs a real browser render + CSRF token + session cookies, not a plain HTTP request). Deliberately not built — that would cross into anti-bot-evasion territory rather than a normal public API integration.

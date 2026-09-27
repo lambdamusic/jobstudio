@@ -959,6 +959,197 @@ class TargetAreaCheckTests(TestCase):
         self.assertEqual([m for lvl, m in results if lvl == self.scan_config.WARN], [])
 
 
+class AreaPickingTests(TestCase):
+    """`scan_match.pick_area` — which rubric a posting is judged against.
+
+    The important property is the first test: for a company with one area this must be
+    byte-identical to the old `is_plausible_match` gate, or multi-area support silently
+    changes every existing scan."""
+
+    PROFILES = {
+        "ai-safety": {"key_terms": ["interpretability", "alignment", "red teaming"]},
+        "ai-knowledge-work": {"key_terms": ["knowledge graph", "LLM orchestration", "product"]},
+    }
+
+    def test_one_area_behaves_exactly_like_the_old_gate(self):
+        import scan_match
+        role_target = "Head of Data Products"
+        for title in ["Research Engineer, Interpretability", "Head of Data Products",
+                      "Chef de Partie", "Alignment Scientist", "Warehouse Operative"]:
+            with self.subTest(title=title):
+                picked = scan_match.pick_area(title, role_target, ["ai-safety"], self.PROFILES)
+                gate = scan_match.is_plausible_match(
+                    title, role_target, self.PROFILES["ai-safety"]["key_terms"])
+                self.assertEqual(picked is not None, gate)
+
+    def test_a_posting_goes_to_the_area_its_title_matches(self):
+        import scan_match
+        self.assertEqual(
+            scan_match.pick_area("Research Engineer, Interpretability", "Head of Data",
+                                 ["ai-knowledge-work", "ai-safety"], self.PROFILES),
+            "ai-safety")
+        self.assertEqual(
+            scan_match.pick_area("Product Manager, Knowledge Graph", "Head of Data",
+                                 ["ai-safety", "ai-knowledge-work"], self.PROFILES),
+            "ai-knowledge-work")
+
+    def test_order_decides_a_tie(self):
+        """Both areas' key terms match once, so the listed preference settles it."""
+        import scan_match
+        title = "Interpretability Product Lead"
+        self.assertEqual(scan_match.pick_area(title, "", ["ai-safety", "ai-knowledge-work"],
+                                              self.PROFILES), "ai-safety")
+        self.assertEqual(scan_match.pick_area(title, "", ["ai-knowledge-work", "ai-safety"],
+                                              self.PROFILES), "ai-knowledge-work")
+
+    def test_a_role_target_only_match_falls_to_the_preferred_area(self):
+        """The company's own role target has always been accepted by the pre-filter; a
+        posting it describes must not be dropped just because no key term matched."""
+        import scan_match
+        self.assertEqual(
+            scan_match.pick_area("Solutions Architect", "Solutions Architect",
+                                 ["ai-safety", "ai-knowledge-work"], self.PROFILES),
+            "ai-safety")
+
+    def test_no_match_anywhere_drops_the_posting(self):
+        import scan_match
+        self.assertIsNone(scan_match.pick_area("Warehouse Operative", "Head of Data",
+                                               ["ai-safety"], self.PROFILES))
+
+    def test_an_area_with_no_profile_on_disk_does_not_crash(self):
+        """The hollow-profile case from `#39` — it degrades to the role_target fallback."""
+        import scan_match
+        self.assertEqual(scan_match.pick_area("Head of Data", "Head of Data",
+                                              ["gone"], {}), "gone")
+        self.assertIsNone(scan_match.pick_area("Warehouse Operative", "Head of Data",
+                                               ["gone"], {}))
+
+
+class CompanyAreasConfigTests(TestCase):
+    """`company_areas` — the per-company override that lets one company be scanned
+    against more than one positioning."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        import scan_config
+        self.scan_config = scan_config
+        self._saved = scan_config._cache
+        self.targets = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.targets, ignore_errors=True)
+        for slug in ("ai-safety", "ai-knowledge-work"):
+            (self.targets / f"{slug}.yaml").write_text(
+                f"name: {slug}\ndescription: x\nkey_terms:\n  - {slug}\n")
+
+    def tearDown(self):
+        self.scan_config._cache = self._saved
+
+    def test_a_bare_slug_is_read_as_a_one_item_list(self):
+        self.scan_config._cache = {"company_areas": {"Anthropic": "ai-safety"}}
+        self.assertEqual(self.scan_config.company_areas(), {"Anthropic": ["ai-safety"]})
+
+    def test_a_non_list_non_string_value_is_refused(self):
+        self.scan_config._cache = {"company_areas": {"Anthropic": {"a": 1}}}
+        with self.assertRaises(ValueError):
+            self.scan_config.company_areas()
+
+    def test_check_flags_an_area_with_no_target_file(self):
+        self.scan_config._cache = {"company_areas": {"Anthropic": ["ai-safety", "nope"]}}
+        results = self.scan_config.check(targets=self.targets)
+        self.assertTrue(any(lvl == self.scan_config.ERROR and "nope" in msg
+                            for lvl, msg in results))
+
+    def test_check_warns_on_a_single_area_entry_that_buys_nothing(self):
+        self.scan_config._cache = {"company_areas": {"Anthropic": ["ai-safety"]}}
+        results = self.scan_config.check(targets=self.targets)
+        self.assertTrue(any(lvl == self.scan_config.WARN and "single area" in msg
+                            for lvl, msg in results))
+
+    def test_check_warns_when_the_company_is_not_tracked(self):
+        """Keyed by name, so a rename makes the entry do nothing — and the company
+        silently reverts to its category's single area."""
+        self.scan_config._cache = {
+            "company_areas": {"Anthropik": ["ai-safety", "ai-knowledge-work"]}}
+        results = self.scan_config.check(targets=self.targets,
+                                         tracked_companies=["Anthropic"])
+        self.assertTrue(any(lvl == self.scan_config.WARN and "Anthropik" in msg
+                            for lvl, msg in results))
+
+    def test_soft_negatives_reads_a_list_or_a_bare_string(self):
+        self.scan_config._cache = {"soft_negatives": "Heavily political orgs"}
+        self.assertEqual(self.scan_config.soft_negatives(), ["Heavily political orgs"])
+        self.scan_config._cache = {}
+        self.assertEqual(self.scan_config.soft_negatives(), [])
+
+    def test_the_rubric_documents_soft_negatives(self):
+        """An unread field is decoration — the scorer only applies what the rubric says."""
+        import config
+        rubric = config.REPO_ROOT / "src" / "prompts" / "scan_score_rubric.md"
+        text = rubric.read_text()
+        self.assertIn("soft_negatives", text)
+        self.assertIn("never let one keep a strong role out of the report", text)
+
+
+class MultiAreaReportTests(TestCase):
+    """The report's one hard assumption was that a company's area never varies inside its
+    group. It does now — but only for companies in `company_areas`, and the single-area
+    output must be untouched."""
+
+    def _cand(self, title, area, **kw):
+        from scan_report import Candidate
+        c = Candidate(company="Anthropic", title=title, url=f"https://x/{title}",
+                      role_target="Head of Data", area=area, category="AI Safety",
+                      location="London", **kw)
+        c.cv_score, c.ideal_score, c.location_category = 4, 4, "uk"
+        return c
+
+    def test_a_single_area_company_keeps_the_old_shape(self):
+        import scan_report
+        lines = scan_report._match_table_by_company(
+            [self._cand("Research Engineer", "ai-safety"),
+             self._cand("Research Scientist", "ai-safety")])
+        body = "\n".join(lines)
+        self.assertIn("*AI Safety → ai-safety*", body)
+        self.assertIn("| Role | Location | Area Score | Ideal-Job Score | Notes |", body)
+        self.assertNotIn("| Area |", body)
+
+    def test_a_multi_area_company_gets_an_area_column(self):
+        import scan_report
+        lines = scan_report._match_table_by_company(
+            [self._cand("Research Engineer", "ai-safety"),
+             self._cand("Product Manager", "ai-knowledge-work")])
+        body = "\n".join(lines)
+        self.assertIn("scored per role", body)
+        self.assertIn("| Role | Area | Location | Area Score | Ideal-Job Score | Notes |", body)
+        self.assertIn("ai-safety", body)
+        self.assertIn("ai-knowledge-work", body)
+
+
+class AtsDetectionTests(TestCase):
+    """Ashby, SmartRecruiters and Teamtailor name their board in the URL as plainly as
+    Lever does; until 2026-09-27 each needed a hand-written override anyway."""
+
+    def test_self_describing_board_urls_are_detected(self):
+        import scan_sources
+        for url, platform, param, value in [
+            ("https://jobs.ashbyhq.com/bluedot", "ashby", "token", "bluedot"),
+            ("https://careers.smartrecruiters.com/AcmeCorp", "smartrecruiters", "token", "AcmeCorp"),
+            ("https://jobs.smartrecruiters.com/AcmeCorp", "smartrecruiters", "token", "AcmeCorp"),
+            ("https://acme.teamtailor.com/jobs", "teamtailor", "domain", "acme.teamtailor.com"),
+        ]:
+            with self.subTest(url=url):
+                src = scan_sources.resolve_source("X", url)
+                self.assertEqual(src["platform"], platform)
+                self.assertEqual(src[param], value,
+                                 "the key must be the one that platform's fetcher reads")
+
+    def test_a_vendors_own_site_is_not_read_as_a_board(self):
+        import scan_sources
+        for url in ["https://www.teamtailor.com/en/", "https://www.bamboohr.com/"]:
+            with self.subTest(url=url):
+                self.assertIsNone(scan_sources.resolve_source("X", url))
+
+
 class PipelineTests(TestCase):
     """The pipeline scripts the web app shares code with."""
 

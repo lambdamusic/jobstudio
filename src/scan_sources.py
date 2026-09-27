@@ -21,19 +21,36 @@ import re
 
 import scan_config
 
-# Platforms whose public careers URL names the board outright. Everything else — Workday,
-# Ashby, SmartRecruiters, Teamtailor, Rippling — hides its tenant behind a corporate page
-# and has to be recorded by hand in `company_overrides`, which is why detection alone
-# leaves real coverage gaps.
+# Platforms whose public careers URL names the board outright.
+#
+# Ashby, SmartRecruiters and Teamtailor joined this list on 2026-09-27. The comment here
+# used to lump them in with Workday and Rippling as platforms that "hide the tenant
+# behind a corporate page and have to be recorded by hand" — true of a company that links
+# to its own careers page, and false whenever it links straight at the board, which many
+# do. That cost real coverage: every Ashby company needed a hand-written override,
+# including ones whose tracked URL already spelled the token out.
+#
+# Workday genuinely still needs an override (tenant + site + host all vary), and so does
+# Rippling (the token is not in the URL at all).
+# Each entry is (platform, pattern, param) — `param` is the key the fetcher in
+# scan-portals.py reads the captured group back out of. It is not always "token":
+# Teamtailor's fetcher wants a whole host in `domain`, and emitting `token` for it would
+# raise a KeyError mid-scan rather than fail a check.
 _ATS_PATTERNS = [
-    ("greenhouse", re.compile(r"(?:job-boards|boards)(?:\.\w+)?\.greenhouse\.io/([^/?#]+)")),
-    ("lever", re.compile(r"jobs\.lever\.co/([^/?#]+)")),
-    ("workable", re.compile(r"apply\.workable\.com/([^/?#]+)")),
+    ("greenhouse", re.compile(r"(?:job-boards|boards)(?:\.\w+)?\.greenhouse\.io/([^/?#]+)"), "token"),
+    ("lever", re.compile(r"jobs\.lever\.co/([^/?#]+)"), "token"),
+    ("workable", re.compile(r"apply\.workable\.com/([^/?#]+)"), "token"),
     # Tenant is the subdomain, so anchor to the scheme separator and exclude
     # BambooHR's own hosts — a company linking to www.bamboohr.com is not a board
     # called "www". Without the `//` the lookahead is useless: `search` just steps
     # one character right and matches "ww".
-    ("bamboohr", re.compile(r"//(?!www\.|help\.)([a-z0-9][a-z0-9-]*)\.bamboohr\.com")),
+    ("bamboohr", re.compile(r"//(?!www\.|help\.)([a-z0-9][a-z0-9-]*)\.bamboohr\.com"), "token"),
+    ("ashby", re.compile(r"jobs\.ashbyhq\.com/([^/?#]+)"), "token"),
+    # Both hosts are in use for a public SmartRecruiters career site.
+    ("smartrecruiters", re.compile(r"(?:careers|jobs)\.smartrecruiters\.com/([^/?#]+)"), "token"),
+    # The whole host, because that is what the fetcher requests `/jobs.json` from.
+    # Excludes Teamtailor's own sites so a link to the vendor is not read as a board.
+    ("teamtailor", re.compile(r"//((?!www\.|blog\.)[a-z0-9][a-z0-9-]*\.teamtailor\.com)"), "domain"),
 ]
 
 BESPOKE = "bespoke career page — no public jobs API"
@@ -47,10 +64,10 @@ def resolve_source(company_name: str, url: str | None) -> dict | None:
     if company_name in overrides:
         return overrides[company_name]
     if url:
-        for platform, pattern in _ATS_PATTERNS:
+        for platform, pattern, param in _ATS_PATTERNS:
             m = pattern.search(url)
             if m:
-                return {"platform": platform, "token": m.group(1)}
+                return {"platform": platform, param: m.group(1)}
     return None
 
 

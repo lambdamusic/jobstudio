@@ -71,10 +71,23 @@ emitting an Area Score for every row. Nothing in the report says so. `scan_confi
 
 With the area resolved:
 
+**A company can be scanned against more than one area** (added 2026-09-27).
+`company_areas` in `<DATA>/jobs/scan-config.yaml` maps a company name to a list of area
+slugs in preference order, overriding its single category-derived area — for an
+organisation that genuinely hires into two of your positionings, where one category
+would drop half the postings before scoring. The *company* declares which areas are
+possible; each *posting* is then assigned one of them by `scan_match.pick_area`, on title
+overlap with each area's `key_terms` (ties and role-target-only matches fall to the first
+listed). One posting still gets one area and one score. For a company with one area the
+function is exactly `is_plausible_match`, so nothing about single-area scanning changed.
+
 - `is_plausible_match(title, role_target, key_terms)` checks whether the posting title
   shares **any word** with the company's tracked `role_target` or the assigned area's
   `key_terms` list (e.g. data-platform's key terms include "data-as-a-product",
-  "BigQuery", "data mesh"...).
+  "BigQuery", "data mesh"...). It lives in `src/scan_match.py` — extracted from
+  `scan-portals.py` on 2026-09-27 for the same reason `scan_sources.py` was: the hyphen
+  in that filename means nothing can import it, so the pre-filter that decides what
+  reaches the scorer at all had no test.
 - No overlap → dropped before ever reaching the model. Grouped by company
   (alphabetical) in **Filtered out before scoring**, full per-posting list under each —
   a high count there is worth a manual look, since it usually means real postings

@@ -43,6 +43,7 @@ from scan_report import Candidate, load_area_profiles
 
 import config
 import scan_config
+import scan_match
 import scan_sources
 
 DATA_ROOT = config.data_root()
@@ -385,14 +386,8 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
 # Pre-filter
 # ---------------------------------------------------------------------------
 
-def _words(text: str) -> set[str]:
-    return {w.lower() for w in re.findall(r"[A-Za-z]{4,}", text)}
-
-
-def is_plausible_match(title: str, role_target: str, key_terms: list[str]) -> bool:
-    title_words = _words(title)
-    reference_words = _words(role_target) | {w for term in key_terms for w in _words(term)}
-    return bool(title_words & reference_words)
+# `words`, `is_plausible_match` and `pick_area` live in scan_match.py — this file cannot
+# be imported (the hyphen), so anything here is untestable. See that module's docstring.
 
 
 # A second, free pre-filter — location — run right alongside the keyword one, before a
@@ -472,12 +467,21 @@ def main() -> None:
 
     category_to_area = scan_config.category_to_area()
     default_area = scan_config.default_area()
+    company_areas = scan_config.company_areas()
 
     with httpx.Client(headers={"User-Agent": "jobstudio-portal-scan/1.0"}) as client:
         for co in companies:
-            area = category_to_area.get(co["category"], default_area)
-            if args.area and area != args.area:
-                continue
+            # Usually one area, via the company's category. `company_areas` overrides that
+            # with an explicit list for a company that plausibly hires into more than one
+            # positioning; each posting then picks whichever of them fits its title.
+            areas = company_areas.get(co["name"]) or [
+                category_to_area.get(co["category"], default_area)]
+            if args.area:
+                # `--area` limits the whole run to one area, so narrow the company to it
+                # rather than merely admitting the company and scoring its other areas.
+                if args.area not in areas:
+                    continue
+                areas = [args.area]
 
             cov = scan_sources.coverage(co["name"], co["url"])
             if not cov["scanned"]:
@@ -505,14 +509,14 @@ def main() -> None:
                 no_roles.append((co["name"], co["url"]))
                 continue
 
-            profile = profiles.get(area, {})
             for job in fresh:
+                area = scan_match.pick_area(job["title"], co["role_target"], areas, profiles)
                 cand = Candidate(
                     company=co["name"], title=job["title"], url=job["url"],
-                    role_target=co["role_target"], area=area, category=co["category"],
+                    role_target=co["role_target"], area=area or "", category=co["category"],
                     location=job.get("location", "unknown"),
                 )
-                if not is_plausible_match(job["title"], co["role_target"], profile.get("key_terms", [])):
+                if area is None:
                     record_prefiltered(co, job)
                 elif excluded_by_location_prefilter(cand.location):
                     record_location_prefiltered(co, job, cand.location)

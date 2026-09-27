@@ -2,6 +2,54 @@
 
 Dated entries, newest first.
 
+## 2026-09-27
+
+- **`scan.md` now says to keep `role_target` and `key_terms` to qualifiers rather than
+  seniority words.** The pre-filter unions both and passes a title sharing any single
+  word, so one generic word swamps a large board: on a live run "Research Engineer" and
+  "Member of Technical Staff" in an area's `key_terms` admitted 264 of 353 candidates,
+  "engineer" alone accounting for nearly one whole frontier-lab board. Trimming to
+  qualifiers cut that run to 113 with no loss at the small, focused companies where a bare
+  "Research Engineer" is the relevant job. Generic titles belong to a *company*, where
+  they only match that company's own board; an *area's* key terms should only discriminate.
+
+- **A company can be scanned against more than one target area.** Every company got
+  exactly one, via its category — so an organisation that genuinely hires into two of
+  your positionings forced a choice that dropped half its postings before scoring, on the
+  title pre-filter, invisibly. `company_areas` in `<DATA>/jobs/scan-config.yaml` maps a
+  company name to a list of area slugs in preference order.
+
+  The company declares which areas are possible; each posting is assigned **one** of them
+  by `scan_match.pick_area`, on how many of its title words each area's `key_terms`
+  account for — ties and role-target-only matches falling to the first listed. Scoring a
+  posting once per area would double the bill to produce two numbers for one job and list
+  it twice in the report. For a company with one area the function is exactly the old
+  `is_plausible_match`, and a test asserts that, so single-area scanning is unchanged.
+
+  In the report, a company whose postings span areas gets an **Area** column and a
+  heading that says "scored per role"; every single-area company's table is byte-identical
+  to before.
+
+- **`src/scan_match.py`** — the keyword pre-filter and the area picker, extracted from
+  `scan-portals.py` for the reason `scan_sources.py` was in September: the hyphen in that
+  filename means nothing can import it, so the function deciding what reaches the scorer
+  at all could not be tested.
+
+- **`soft_negatives` in `criteria.yaml`** — the mirror of `bonus_signals`. A reservation
+  that nudges the Ideal-Job Score down a point or two and gets named in the note, as
+  against `hard_filters.exclude`, which the rubric scores 1–2. "Heavily political large
+  organisations" is the case it was added for: worth knowing about a role, never worth
+  hiding it. The rubric documents it, because an unread field is decoration.
+
+- **Ashby, SmartRecruiters and Teamtailor are now detected from the careers URL.** The
+  comment in `scan_sources.py` had them down as platforms that hide the tenant behind a
+  corporate page and must be recorded by hand — true of a company that links to its own
+  careers page, false whenever it links straight at the board, which many do. Every such
+  company needed an override, including ones whose tracked URL already spelled the token
+  out. The pattern table now carries the parameter name each fetcher reads, because
+  Teamtailor's wants a whole host in `domain` and emitting `token` for it would have
+  raised a KeyError mid-scan.
+
 ## 2026-09-25
 
 - **The VS Code workspace `init` writes is now `jobstudio+data.code-workspace`.** The
