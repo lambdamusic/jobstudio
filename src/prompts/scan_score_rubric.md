@@ -55,6 +55,10 @@ Structured criteria from the candidate's career profile (`jobs/profile/criteria.
   there's no real signal either way.
 - **Bonus signals** (`bonus_signals`) — nudge `ideal_score` up if a posting clearly
   hits one, and say so in the note.
+- **Soft negatives** (`soft_negatives`) — the mirror of bonus signals: nudge
+  `ideal_score` *down* a point or two and name the reason in the note. These are real
+  reservations, not dealbreakers, so never score one down to 1–2 the way a dealbreaker
+  is scored, and never let one keep a strong role out of the report.
 If `jobs/profile/criteria.yaml` doesn't exist, skip this structured half and score
 Dimension 2 from the personal notes alone.)
 

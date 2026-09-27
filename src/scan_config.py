@@ -96,6 +96,53 @@ def default_area() -> str:
     return str(_load().get("default_area") or "")
 
 
+def company_areas() -> dict[str, list[str]]:
+    """Company name → the target areas it plausibly hires into, in preference order.
+
+    The usual route to an area is the company's category (`category_to_area`), which
+    gives every company exactly one. That breaks for an organisation that genuinely
+    hires into two of the user's positionings — a frontier lab with both a safety org
+    and a data-product org — where a single category forces a choice that loses half the
+    postings before scoring.
+
+    Here rather than on the Company model deliberately: it is a fact about how *this*
+    search wants a company scanned, not about the company, and it sits beside
+    `company_overrides`, which is the same kind of hand-researched per-company
+    exception. Promote it to a real field if it ever needs to show on a company page.
+
+    `scan_match.pick_area` assigns each posting one of these by title overlap, so a
+    posting still gets one area and one score.
+    """
+    raw = _mapping("company_areas")
+    out: dict[str, list[str]] = {}
+    for company, areas in raw.items():
+        if isinstance(areas, str):        # a bare slug is an easy thing to write
+            areas = [areas]
+        if not isinstance(areas, list):
+            raise ValueError(f"{path()}: company_areas['{company}'] must be a list of "
+                             f"area slugs, got {type(areas).__name__}")
+        out[company] = [str(a) for a in areas]
+    return out
+
+
+def soft_negatives() -> list[str]:
+    """Things that should push a role down without disqualifying it — the mirror of
+    `bonus_signals`.
+
+    `hard_filters.exclude` already only affects the score (the rubric pulls `ideal_score`
+    to 1–2 rather than dropping the posting), but that is a dealbreaker's weight. Some
+    traits are real reservations rather than dealbreakers — "heavily political large
+    organisations" being the case this was added for: worth knowing about a role, never
+    worth hiding it.
+    """
+    raw = _load().get("soft_negatives") or []
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, list):
+        raise ValueError(f"{path()}: 'soft_negatives' must be a list, got {type(raw).__name__}")
+    return [str(x) for x in raw]
+
+
 def company_overrides() -> dict[str, dict]:
     """Company name (as recorded in the tracker) → {"platform": ..., ...params}, for
     companies whose tracked careers URL is a generic corporate page with the real ATS
@@ -124,8 +171,8 @@ LIST_TARGET_KEYS = ("emphasis", "key_terms", "expand_sections", "condense_sectio
 ERROR, WARN, OK = "error", "warn", "ok"
 
 
-def check(*, targets: Path | None = None, tracked_categories: list[str] | None = None
-          ) -> list[tuple[str, str]]:
+def check(*, targets: Path | None = None, tracked_categories: list[str] | None = None,
+          tracked_companies: list[str] | None = None) -> list[tuple[str, str]]:
     """Whether every company the scanner will meet resolves to a real target area.
 
     This whole chain fails *quietly*. `scan-portals.py` does
@@ -163,6 +210,22 @@ def check(*, targets: Path | None = None, tracked_categories: list[str] | None =
         if area not in slugs:
             results.append((ERROR, f"category_to_area: '{category}' → '{area}', which has "
                                    f"no {area}.yaml."))
+
+    for company, areas in sorted(company_areas().items()):
+        missing = [a for a in areas if a not in slugs]
+        if missing:
+            results.append((ERROR, f"company_areas: '{company}' → {', '.join(missing)}, "
+                                   "which have no target YAML."))
+        elif len(areas) < 2:
+            # Harmless, but it buys nothing and reads as if it does — one area is exactly
+            # what the category would have given.
+            results.append((WARN, f"company_areas: '{company}' lists a single area; the "
+                                  "category mapping already does that."))
+        if tracked_companies is not None and company not in tracked_companies:
+            # Keyed by name, so a rename or a typo makes the entry do nothing at all —
+            # and the company quietly reverts to its category's single area.
+            results.append((WARN, f"company_areas names '{company}', which is not a "
+                                  "tracked company — a rename, or a typo."))
 
     if tracked_categories is not None:
         for category in sorted(set(tracked_categories) - set(mapping)):
@@ -222,11 +285,12 @@ def _main(argv: list[str] | None = None) -> int:
     try:
         import jobsdb
         categories = [c["name"] for c in jobsdb.categories()]
+        companies = [c["name"] for c in jobsdb.companies()]
     except Exception as exc:  # no database yet is a normal state during init
         print(f"  (tracker unavailable, checking config alone — {exc})")
-        categories = None
+        categories = companies = None
 
-    results = check(tracked_categories=categories)
+    results = check(tracked_categories=categories, tracked_companies=companies)
     for level, message in results:
         print(f"  {'ERROR' if level == ERROR else level:<5} {message}")
 

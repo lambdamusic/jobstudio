@@ -125,9 +125,13 @@ def _match_table(candidates: list[Candidate]) -> list[str]:
 
 def _match_table_by_company(candidates: list[Candidate]) -> list[str]:
     """Company-grouped (alphabetical), sorted by combined score within each company.
-    Category/Area are company-level — they never vary within one company's group
-    (the category → area mapping is fixed per run) — so shown once per heading instead of
-    repeated on every row, unlike the flat _match_table."""
+
+    Category and Area are normally company-level, so they go once in the heading rather
+    than on every row (unlike the flat `_match_table`). A company listed in
+    `company_areas` breaks that: its postings are assigned an area each, so the heading
+    cannot state one. Those companies get an Area column instead — and only those, so
+    the output for every single-area company is unchanged.
+    """
     lines: list[str] = []
     by_company: dict[str, list[Candidate]] = {}
     for c in candidates:
@@ -135,15 +139,21 @@ def _match_table_by_company(candidates: list[Candidate]) -> list[str]:
     for company in sorted(by_company, key=str.casefold):
         cands = sorted(by_company[company], key=lambda c: c.combined_score, reverse=True)
         first = cands[0]
+        multi_area = len({c.area for c in cands}) > 1
         lines.append(f"### {company}")
         lines.append("")
-        lines.append(f"*{first.category} → {first.area}*")
+        lines.append(f"*{first.category} → {'scored per role' if multi_area else first.area}*")
         lines.append("")
-        lines.append("| Role | Location | Area Score | Ideal-Job Score | Notes |")
-        lines.append("|---|---|---|---|---|")
+        if multi_area:
+            lines.append("| Role | Area | Location | Area Score | Ideal-Job Score | Notes |")
+            lines.append("|---|---|---|---|---|---|")
+        else:
+            lines.append("| Role | Location | Area Score | Ideal-Job Score | Notes |")
+            lines.append("|---|---|---|---|---|")
         for c in cands:
             loc_label = _cell(f"{c.location} ({c.location_category})")
-            lines.append(f"| [{_cell(c.title)}]({c.url}) | {loc_label} | "
+            area_cell = f" {_cell(c.area)} |" if multi_area else ""
+            lines.append(f"| [{_cell(c.title)}]({c.url}) |{area_cell} {loc_label} | "
                           f"{c.cv_score}/5 | {c.ideal_score}/5 | {_cell(c.notes)} |")
         lines.append("")
     return lines
