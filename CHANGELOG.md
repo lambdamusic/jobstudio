@@ -4,6 +4,15 @@ Dated entries, newest first.
 
 ## 2026-09-27
 
+- **`scan.md` now says to keep `role_target` and `key_terms` to qualifiers rather than
+  seniority words.** The pre-filter unions both and passes a title sharing any single
+  word, so one generic word swamps a large board: on a live run "Research Engineer" and
+  "Member of Technical Staff" in an area's `key_terms` admitted 264 of 353 candidates,
+  "engineer" alone accounting for nearly one whole frontier-lab board. Trimming to
+  qualifiers cut that run to 113 with no loss at the small, focused companies where a bare
+  "Research Engineer" is the relevant job. Generic titles belong to a *company*, where
+  they only match that company's own board; an *area's* key terms should only discriminate.
+
 - **A company can be scanned against more than one target area.** Every company got
   exactly one, via its category — so an organisation that genuinely hires into two of
   your positionings forced a choice that dropped half its postings before scoring, on the

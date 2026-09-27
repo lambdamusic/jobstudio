@@ -105,6 +105,20 @@ promote anything worth pursuing.
 ## Notes
 
 - **Matches are grouped by company** (alphabetical), sorted by combined score within each — **Strong matches** (Area Score + Ideal-Job Score ≥ 7, `STRONG_THRESHOLD` in `scan_report.py`) and **Other matches** (everything else scored). Each company heading shows its Category → Area once (they're company-level, never vary within one company's group); the table under it is Role | Location | Area Score | Ideal-Job Score | Notes. Area Score is fit against the target-area profile assigned to the posting (skills/domain/seniority); Ideal-Job Score is fit against `<DATA>/jobs/notes/ideal-job-notes.md` and `<DATA>/jobs/profile/criteria.yaml` — the *nature* of the work (hands-on building vs pure management, customer-facing/evangelist-type roles vs backstage, ownership/autonomy, etc.), not skills. The scorer is told to push Ideal-Job Score down for a suspected dealbreaker and nudge it up for a bonus signal, and to call either out in the Notes cell — so scan the Notes column, not just the numbers.
+- **Keep `role_target` and `key_terms` to *qualifiers*, not seniority words.** The
+  pre-filter splits both into words and passes a posting if its title shares *any* of
+  them, so one generic word swamps a large board: on a real run, "Research Engineer" and
+  "Member of Technical Staff" in an area's `key_terms` let through 264 of 353 candidates,
+  with "engineer" alone accounting for almost an entire frontier lab's board. "Safety
+  Systems" was nearly as bad, because it contributes "systems".
+  Trimming those to qualifiers — Alignment, Interpretability, Evaluations, Oversight —
+  cut the same run to 113 without losing a single role at the small, focused companies,
+  where a bare "Research Engineer" *is* the relevant job. The rule that follows: generic
+  titles belong in a **company's** `role_target`, where they only ever match that
+  company's own board; an **area's** `key_terms` should carry only words that
+  discriminate. When a company's board is huge, narrow that company's `role_target` to
+  qualifiers too. Nothing is lost silently — every dropped posting is listed per company
+  under "Filtered out before scoring".
 - **One company, more than one area.** A company whose name appears in `company_areas`
   (`<DATA>/jobs/scan-config.yaml`) is scanned against every area listed there, in
   preference order, instead of the single area its category maps to — for an org that
