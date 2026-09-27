@@ -234,7 +234,16 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
             data = resp.json()
             jobs = []
             for j in data.get("jobs", []):
-                loc = j.get("location", "unknown")
+                # `location` is the PRIMARY location only. A posting open in several places
+                # carries the rest in `secondaryLocations`, and ignoring them silently lost
+                # UK-eligible roles: found 2026-09-27 on a posting whose primary location
+                # was "San Francisco" and whose secondaries were "London" and "Remote" —
+                # the location pre-filter saw no UK signal and dropped it before scoring.
+                # Every Ashby company was affected, not one.
+                parts = [j.get("location") or "unknown"]
+                parts += [sl.get("location") for sl in (j.get("secondaryLocations") or [])
+                          if sl.get("location")]
+                loc = "; ".join(dict.fromkeys(parts))
                 if j.get("isRemote"):
                     loc = f"{loc} (remote)"
                 jobs.append({"title": j["title"], "url": j.get("jobUrl"), "location": loc})

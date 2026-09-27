@@ -4,6 +4,18 @@ Dated entries, newest first.
 
 ## 2026-09-27
 
+- **The Ashby fetcher was reading only a posting's primary location**, so every
+  multi-location Ashby posting lost its other locations — and the location pre-filter,
+  seeing no UK or remote signal, dropped it before scoring. Found on a posting whose
+  primary location was "San Francisco" and whose `secondaryLocations` were "London" and
+  "Remote": silently discarded as non-UK. It read as a location filter working correctly,
+  which is why it survived.
+
+  Every Ashby company was affected, not one. On the run that surfaced it, reading
+  `secondaryLocations` recovered **eight postings, five of them UK-eligible**, including
+  four core safety-research roles with London listed. Locations are joined
+  primary-first and de-duplicated.
+
 - **`scan.md` now says to keep `role_target` and `key_terms` to qualifiers rather than
   seniority words.** The pre-filter unions both and passes a title sharing any single
   word, so one generic word swamps a large board: on a live run "Research Engineer" and
