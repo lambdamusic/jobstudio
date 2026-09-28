@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #42 -->
+     Next available: #44 -->
 
 ## Architecture
 
@@ -133,6 +133,51 @@
 - [ ] `#27` **Re-order the application-folder naming convention to `{type}-{date-created}-{username}-{job-slug}`** — e.g. `cover-letter-2026-09-18-michele-pasin-046-bbc-studios.md`, replacing today's `{job-slug}-{username}-{type}-{date}` (`046-bbc-studios-michele-pasin-cover-letter-2026-09-18.md`, the 2026-09-08 convention in `src/appfolder.py`'s `app_filename()`). Putting the type first makes a folder listing sort by kind rather than by a company name every file in the folder already repeats. **Also covers interview-round files** (`<id>-<person>-interview-<stage>-<date>.md`, added 2026-09-24) — whose date is the interview's, not the file's, so the reorder must not assume a creation date. **Also apply it to `notes.md` and `job.md`**, which are currently bare names with no date or owner at all — so `notes-2026-09-18-michele-pasin-046-bbc-studios.md`, `job-2026-09-18-michele-pasin-046-bbc-studios.md`.
 
   Touches more than `app_filename()`: the recognisers next to it (`is_cv_filename`, `is_cover_letter_filename`, `is_tailored_cv`) and the web parsers in `src/web/apps/tracker/parsers.py` must keep matching **both** old and new names — real application folders already on disk are not renamed — and `notes.md`/`job.md` are currently looked up by exact filename in the parsers, the skill (`subcommands/application.md`), `appfolder.py`'s scaffolding and `src/web/README.md`'s file-map table. Decide up front whether existing folders get a migration pass or are simply left alone; check `src/web/apps/tracker/tests.py` fixtures either way.
+
+## Dashboard charts
+
+- [ ] `#42` **Richer dashboard charts** — raised 2026-09-28. The dashboard has one chart: the weekly Activity bars, three event types, stacked. Everything else is counts in boxes. Several views would say more than a number does.
+
+  **Rendering: a JavaScript charting library — decided 2026-09-28.** Today's chart is `div`s with server-computed inline pixel heights (`tl-bars` in `home.html`), and the app has no JavaScript at all. That works for stacked bars and cannot work for a Sankey, whose proportional ribbons need real geometry. Server-generated inline SVG was the dependency-free alternative and was rejected as not worth the authoring effort for four chart types.
+
+  **The static export is not a blocker**: `build_static._copy_static()` already copies every `STATICFILES_DIRS` tree into `site/`, so a library vendored under `static/` ships with the export and needs no change to the builder. **Vendor it rather than using a CDN** — the site then stays self-contained, works offline, and makes no third-party request while someone browses their own job search.
+
+  Library choice, still open. One library should cover all four charts rather than accumulating several:
+  - **Apache ECharts** — Sankey, stacked area and pie all native, one file, sane defaults, MIT. The pragmatic pick for four charts and the least code.
+  - **Plotly.js** — same coverage, noticeably larger.
+  - **d3 + d3-sankey** — smallest and the most control, but every chart is authored by hand. Worth it only if the look matters more than the effort; there is a `gen-d3` skill if this route is taken.
+
+  Two things the decision brings with it: this is the **first runtime dependency the web app has ever had**, so record the version and where it came from; and a vendored minified bundle is a third-party file in a public repo, so check it does not trip `tools/make-public-tree --check` and that the licence is noted.
+
+  Load the `dataviz` skill before building any of these: they should read as one system rather than four separately-styled charts, and it carries the palette and accessibility rules.
+
+  **The data is already there.** `ApplicationStatusChange(application, changed_at, from_status, to_status)` is written automatically by a `post_save` signal and was backfilled for older applications on 2026-09-08. That is exactly a Sankey edge list and exactly a time series — no new model, no new writes. Statuses come from `STATUS_SORT_ORDER`: `applied`, `interviewing`, `reviewing`, `saved`, `discarded`, `closed`, `rejected`.
+
+  **Keep the CLI mirror honest.** `dashboard_summary()` and `tracker.views.home()` share one query layer on purpose (see `docs/dashboard-status.md`, "One function, two consumers"). New chart data belongs in a shared `_helper()` the same way, or `/jobstudio status` and the web dashboard start disagreeing — which was the 2026-09-16 bug.
+
+  ### Requested
+
+  - [ ] **Sankey of status flow** — how applications move between statuses. Three decisions to make before drawing anything: **(a) where the flow starts** — applications begin at `saved`, not `applied`, so the honest funnel is `saved → reviewing → applied → interviewing → rejected/closed`; starting at `applied` shows the outcome of applying but hides the discard rate before it. **(b) Cycles** — a Sankey is a DAG, and real transitions go backwards (`interviewing → applied`, a re-open). Pick a rule (keep first-time transitions only, or order nodes by `STATUS_SORT_ORDER` and drop backward edges) and **show the count of what the rule dropped** rather than silently losing it. **(c) Applications that have not moved** need a terminal "still here" stub per node or they vanish from a flow diagram entirely. With the current volume the ribbons will be thin — check it does not read worse than a plain funnel before committing to it.
+  - [ ] **Status over time** — flagged as an experiment, and worth being precise about which of two different charts is wanted. **Flow**: how many transitions happened per week — that is what today's Activity chart already does for three event types. **Stock**: how many applications sat in each status at each point in time, as a stacked area. The second is the one not currently shown and the more informative, and it is computable by replaying `ApplicationStatusChange` forward. Caveat to surface in the chart itself: backfilled rows take their date from `Application.date`, so the early history is reconstructed rather than observed, and a smooth area chart would imply a precision that is not there.
+  - [ ] **Pie: companies tracked vs companies applied to** — one query, since `Company.status` is already derived (`watching` / `applied`). Two slices is thin material for a pie; a single proportion bar or a donut with the ratio in the middle reads better at a glance. Cosmetic, decide when building.
+  - [ ] **Pie: total companies vs total applications** — ⚠️ **these are not parts of a whole.** An application belongs to a company and one company can have several, so the two numbers do not sum to anything, and a pie asserts that they do. The question behind it — "how much of my tracker have I acted on?" — is better answered by the chart above, or by a stated ratio ("152 companies tracked, 56 applications, roughly one in three acted on"). Confirm the intent before drawing a misleading shape.
+
+  ### Suggested, not requested — strike any of these
+
+  - [ ] **Funnel conversion rates** — the same nodes as the Sankey but with percentages between stages: applied → interviewing → offer. The single most actionable view in a job search, because it shows *where* applications die rather than how many did.
+  - [ ] **Ageing / time-in-status** — how long applications sit before moving, and which have not moved in N weeks. Probably more useful as a list than a chart, and it pairs with `next_action`, which already exists and nothing currently surfaces by staleness.
+  - [ ] **Outcome rate by target area** — applications per `Application.area` with their interview rate. Answers "which positioning is actually working", which feeds straight back into CV tailoring and into which `jobs/targets/*.yaml` deserves the effort.
+  - [ ] **Scan → application conversion** — of the roles a scan scored strong, how many became applications? The only real measure of whether scanning earns its run cost, and the data exists across `Scan` and `Application` already.
+  - [ ] **Fit rating calibration** — do companies rated ★★★★★ actually convert better than ★★★? A check on one's own judgement, and the sort of thing only a tracker with history can answer.
+
+
+- [ ] `#43` **A features list in the public README, leading on "it is yours to change"** — raised 2026-09-28. `README.md` has a `## What it does` table, which is a *command* list: one line per subcommand, phrased as what you type. It answers "how do I drive it" and never answers "why would I want this", which is the question a reader arriving from a link actually has. There is no features section at all.
+
+  **The angle that is currently missing entirely: this is open source, and the skills are the product.** Every subcommand is a markdown file under `.claude/skills/jobstudio/subcommands/` — prose, not code. So anyone can fork it, open the file for the step they dislike, and change how their CV is tailored, how a cover letter is structured, or what a scan scores against, without touching Python or understanding the Django app. That is a genuinely unusual property and the README never mentions it. Most job-search tools are a SaaS with someone else's opinions baked in; here the opinions are editable text files, and the MIT licence means a fork is fine.
+
+  Worth pairing with the other honest selling points, which are also unstated: the data lives in **your own directory**, not a vendor's database, and nothing personal is ever committed; it runs **locally**, so a job search that is nobody's business stays that way; and the CV pipeline produces real `.docx` from markdown rather than a locked-in format.
+
+  Placement: a `## Features` section before `## What it does`, so the command table becomes the "how" that follows the "why", rather than being the first thing a reader meets. Keep the existing ⚠️ early-days warning above it — the honesty in that block is part of the pitch, not in tension with it.
 
 ## Company tracking
 - [x] `#38` **Bootstrap a starter company list during `init`** — done 2026-09-25, raised 2026-09-24. A fresh data root ends `init` with a CV and a stocktake but an **empty company tracker**, which is the one thing `scan` needs to do anything at all: a first run finds nothing, so the toolkit's most visible feature looks broken on day one. After the CV is in place (on-ramps B/C/D, and after `stocktake` where the target areas get written), propose an initial set of companies drawn from the applicant's own sector and the ones adjacent to it, inferred from the CV and the stocktake's target areas.
