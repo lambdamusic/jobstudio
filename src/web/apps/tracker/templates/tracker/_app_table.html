@@ -4,13 +4,19 @@ Shared applications table. Expects `applications`. Date column shows the relativ
 form ("N days ago") as the main text with the exact Y-m-d date as a small subtitle
 underneath, same two-line pattern as the Role column's summary.
 
+Each row carries what the toolbar sorts and filters on (see static/js/tabletools.js):
+`data-search` is what the search box looks in, `data-area` and `data-status` are what the
+dropdowns match, and `data-sort-*` are the sort keys — dates as epoch seconds so they
+compare as numbers, and `moved` from the status-change log rather than from
+`Application.date`, which is when the row was created and never changes.
+
 {% comment %}, not {# #}: Django's {# #} comment is SINGLE-LINE only, so a multi-line
 one is not a comment at all — every line of it rendered straight into the page, visible
 to the reader, on /, /applications/, /applications/all/ and /areas/.
 {% endcomment %}
 {% if applications %}
   <div class="table-wrap">
-    <table>
+    <table data-table="apps">
       <thead>
         <tr>
           <th class="nowrap">#</th>
@@ -19,12 +25,20 @@ to the reader, on /, /applications/, /applications/all/ and /areas/.
           <th class="nowrap">Area</th>
           <th class="nowrap">Status</th>
           <th>Next action</th>
+          <th class="nowrap">Last moved</th>
           <th class="nowrap">Date</th>
         </tr>
       </thead>
       <tbody>
         {% for a in applications %}
-          <tr>
+          <tr data-search="{{ a.company_name }} {{ a.role }}"
+              data-area="{{ a.area.slug|default:'' }}"
+              data-status="{{ a.status }}"
+              data-sort-num="{{ a.num }}"
+              data-sort-company="{{ a.company_name }}"
+              data-sort-status="{{ a.status }}"
+              data-sort-date="{{ a.date|date:'U' }}"
+              data-sort-moved="{{ a.last_change|date:'U' }}">
             <td class="num">{{ a.num }}</td>
             <td class="nowrap">
               {% if a.company %}<a href="/companies/{{ a.company.slug }}/">{{ a.company_name }}</a>
@@ -45,6 +59,7 @@ to the reader, on /, /applications/, /applications/all/ and /areas/.
               {% else %}{% include "tracker/_status.html" with status=a.status %}{% endif %}
             </td>
             <td>{{ a.next_action|default:"—"|truncatechars:80 }}</td>
+            <td class="num nowrap">{{ a.last_change|ago }}</td>
             <td class="num nowrap">
               {% if a.date %}{{ a.date|ago }}<span class="sub">{{ a.date|date:"Y-m-d" }}</span>
               {% else %}—{% endif %}

@@ -136,7 +136,7 @@
 
 ## Dashboard charts
 
-- [ ] `#42` **Richer dashboard charts** — raised 2026-09-28. **Requirements settled 2026-09-28 against live data — see [`dashboard-charts-plan.md`](dashboard-charts-plan.md), which supersedes the sketch below.** The dashboard has one chart: the weekly Activity bars, three event types, stacked. Everything else is counts in boxes. Several views would say more than a number does.
+- [x] `#42` **Richer dashboard charts** — built 2026-09-28 on `/stats/`, raised 2026-09-28. **Requirements settled 2026-09-28 against live data — see [`dashboard-charts-plan.md`](dashboard-charts-plan.md), which supersedes the sketch below.** The dashboard has one chart: the weekly Activity bars, three event types, stacked. Everything else is counts in boxes. Several views would say more than a number does.
 
   **Rendering: a JavaScript charting library — decided 2026-09-28.** Today's chart is `div`s with server-computed inline pixel heights (`tl-bars` in `home.html`), and the app has no JavaScript at all. That works for stacked bars and cannot work for a Sankey, whose proportional ribbons need real geometry. Server-generated inline SVG was the dependency-free alternative and was rejected as not worth the authoring effort for four chart types.
 
@@ -155,19 +155,36 @@
 
   **Keep the CLI mirror honest.** `dashboard_summary()` and `tracker.views.home()` share one query layer on purpose (see `docs/dashboard-status.md`, "One function, two consumers"). New chart data belongs in a shared `_helper()` the same way, or `/jobstudio status` and the web dashboard start disagreeing — which was the 2026-09-16 bug.
 
+  **Done 2026-09-28 — all four charts plus ageing, on a new `/stats/` page.** Not on the
+  dashboard: the page used daily should not churn while the designs are judged, and
+  `/stats/` can carry the numbers beside each chart that a finished dashboard should not
+  (plan §2a). Promotion to `/` is a separate decision, chart by chart, and has not been
+  taken. **Library: Apache ECharts 6.1.0**, Apache-2.0, vendored — the web app's first
+  runtime dependency; see `src/web/static/vendor/README.md`.
+
+  Two things the build changed in the plan, both recorded there with the reasoning:
+  R-S3's node order (`STATUS_SORT_ORDER` is the triage order and would have dropped the
+  commonest transition — the code has its own `FUNNEL_ORDER`), and §7's shape (a list
+  became age bands; the rows belong on `/applications/`, which wants a sort by last-moved
+  to finish the trade).
+
+  Left open: promotion to the dashboard, the sortable applications list, §8's four
+  suggestions, and dark mode — the chart palette is already CSS custom properties, but the
+  app has no dark scheme for the charts to follow.
+
   ### Requested
 
   Decided: the Sankey shows **both** the full funnel and the post-application view behind a toggle; the over-time chart is **stock, with reconstructed periods marked**; the companies-vs-applications pie is replaced by an **applications-per-company histogram**; ageing flags at **30 days**. Rationale and per-chart rules are in the plan doc.
 
-  - [ ] **Sankey of status flow** — how applications move between statuses. Three decisions to make before drawing anything: **(a) where the flow starts** — applications begin at `saved`, not `applied`, so the honest funnel is `saved → reviewing → applied → interviewing → rejected/closed`; starting at `applied` shows the outcome of applying but hides the discard rate before it. **(b) Cycles** — a Sankey is a DAG, and real transitions go backwards (`interviewing → applied`, a re-open). Pick a rule (keep first-time transitions only, or order nodes by `STATUS_SORT_ORDER` and drop backward edges) and **show the count of what the rule dropped** rather than silently losing it. **(c) Applications that have not moved** need a terminal "still here" stub per node or they vanish from a flow diagram entirely. With the current volume the ribbons will be thin — check it does not read worse than a plain funnel before committing to it.
-  - [ ] **Status over time** — flagged as an experiment, and worth being precise about which of two different charts is wanted. **Flow**: how many transitions happened per week — that is what today's Activity chart already does for three event types. **Stock**: how many applications sat in each status at each point in time, as a stacked area. The second is the one not currently shown and the more informative, and it is computable by replaying `ApplicationStatusChange` forward. Caveat to surface in the chart itself: backfilled rows take their date from `Application.date`, so the early history is reconstructed rather than observed, and a smooth area chart would imply a precision that is not there.
-  - [ ] **Pie: companies tracked vs companies applied to** — one query, since `Company.status` is already derived (`watching` / `applied`). Two slices is thin material for a pie; a single proportion bar or a donut with the ratio in the middle reads better at a glance. Cosmetic, decide when building.
-  - [ ] **Pie: total companies vs total applications** — ⚠️ **these are not parts of a whole.** An application belongs to a company and one company can have several, so the two numbers do not sum to anything, and a pie asserts that they do. The question behind it — "how much of my tracker have I acted on?" — is better answered by the chart above, or by a stated ratio ("152 companies tracked, 56 applications, roughly one in three acted on"). Confirm the intent before drawing a misleading shape.
+  - [x] **Sankey of status flow** — done 2026-09-28. — how applications move between statuses. Three decisions to make before drawing anything: **(a) where the flow starts** — applications begin at `saved`, not `applied`, so the honest funnel is `saved → reviewing → applied → interviewing → rejected/closed`; starting at `applied` shows the outcome of applying but hides the discard rate before it. **(b) Cycles** — a Sankey is a DAG, and real transitions go backwards (`interviewing → applied`, a re-open). Pick a rule (keep first-time transitions only, or order nodes by `STATUS_SORT_ORDER` and drop backward edges) and **show the count of what the rule dropped** rather than silently losing it. **(c) Applications that have not moved** need a terminal "still here" stub per node or they vanish from a flow diagram entirely. With the current volume the ribbons will be thin — check it does not read worse than a plain funnel before committing to it.
+  - [x] **Status over time** — done 2026-09-28, as stock. — flagged as an experiment, and worth being precise about which of two different charts is wanted. **Flow**: how many transitions happened per week — that is what today's Activity chart already does for three event types. **Stock**: how many applications sat in each status at each point in time, as a stacked area. The second is the one not currently shown and the more informative, and it is computable by replaying `ApplicationStatusChange` forward. Caveat to surface in the chart itself: backfilled rows take their date from `Application.date`, so the early history is reconstructed rather than observed, and a smooth area chart would imply a precision that is not there.
+  - [x] **Pie: companies tracked vs companies applied to** — done 2026-09-28, as a donut. — one query, since `Company.status` is already derived (`watching` / `applied`). Two slices is thin material for a pie; a single proportion bar or a donut with the ratio in the middle reads better at a glance. Cosmetic, decide when building.
+  - [x] **Pie: total companies vs total applications** — replaced 2026-09-28 by an applications-per-company histogram, for the reason below. — ⚠️ **these are not parts of a whole.** An application belongs to a company and one company can have several, so the two numbers do not sum to anything, and a pie asserts that they do. The question behind it — "how much of my tracker have I acted on?" — is better answered by the chart above, or by a stated ratio ("152 companies tracked, 56 applications, roughly one in three acted on"). Confirm the intent before drawing a misleading shape.
 
   ### Suggested, not requested — strike any of these
 
   - [ ] **Funnel conversion rates** — the same nodes as the Sankey but with percentages between stages: applied → interviewing → offer. The single most actionable view in a job search, because it shows *where* applications die rather than how many did.
-  - [ ] **Ageing / time-in-status** — how long applications sit before moving, and which have not moved in N weeks. Probably more useful as a list than a chart, and it pairs with `next_action`, which already exists and nothing currently surfaces by staleness.
+  - [x] **Ageing / time-in-status** — done 2026-09-28, as age bands, and it does pair with `next_action`. — how long applications sit before moving, and which have not moved in N weeks. Probably more useful as a list than a chart, and it pairs with `next_action`, which already exists and nothing currently surfaces by staleness.
   - [ ] **Outcome rate by target area** — applications per `Application.area` with their interview rate. Answers "which positioning is actually working", which feeds straight back into CV tailoring and into which `jobs/targets/*.yaml` deserves the effort.
   - [ ] **Scan → application conversion** — of the roles a scan scored strong, how many became applications? The only real measure of whether scanning earns its run cost, and the data exists across `Scan` and `Application` already.
   - [ ] **Fit rating calibration** — do companies rated ★★★★★ actually convert better than ★★★? A check on one's own judgement, and the sort of thing only a tracker with history can answer.

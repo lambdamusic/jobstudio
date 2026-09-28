@@ -7,6 +7,7 @@ are still exercised against the real jobs/ tree, because the thing most likely t
 there is a file naming convention drifting.
 """
 
+import datetime as dt
 import re
 import shutil
 import tempfile
@@ -18,10 +19,13 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
+from django.db.models import Count
 from django.test import TestCase
+from django.utils import timezone
 from django.utils.html import escape
 
-from appfolder import (COMPANY_APPLIED_TRIGGER_STATUSES, COMPANY_STATUSES,
+from appfolder import (COMPANY_APPLIED_TRIGGER_STATUSES,
+                       COMPANY_REVIEWING_TRIGGER_STATUSES, COMPANY_STATUSES,
                        STATUS_SORT_ORDER, exported_file)
 from tracker import parsers as P
 from tracker.models import (Application, ApplicationStatusChange, Area, Category,
@@ -243,21 +247,26 @@ class DataTests(TestCase):
 
 
 class CompanyStatusTests(TestCase):
-    """Two states. `applied` requires an application that was actually submitted
-    (COMPANY_APPLIED_TRIGGER_STATUSES) — not merely logged (decided 2026-09-08)."""
+    """Three states since 2026-09-28. `applied` requires an application that was actually
+    submitted (COMPANY_APPLIED_TRIGGER_STATUSES) — not merely logged (decided 2026-09-08);
+    `reviewing` is a live application that has not been sent; `watching` is everything
+    else, which covers both "never applied to" and "every application ended without being
+    sent"."""
 
     fixtures = FIXTURE
 
-    def test_every_status_is_in_the_two_state_model(self):
+    def test_every_status_is_in_the_model(self):
         for company in Company.objects.all():
             self.assertIn(company.status, COMPANY_STATUSES, company.name)
 
     def test_status_matches_trigger_statuses(self):
         for company in Company.objects.all():
-            expected = ("applied"
-                       if company.applications.filter(
-                           status__in=COMPANY_APPLIED_TRIGGER_STATUSES).exists()
-                       else "watching")
+            if company.applications.filter(status__in=COMPANY_APPLIED_TRIGGER_STATUSES).exists():
+                expected = "applied"
+            elif company.applications.filter(status__in=COMPANY_REVIEWING_TRIGGER_STATUSES).exists():
+                expected = "reviewing"
+            else:
+                expected = "watching"
             self.assertEqual(company.status, expected, company.name)
 
     def test_status_updates_when_a_submitted_application_is_added(self):
@@ -269,9 +278,10 @@ class CompanyStatusTests(TestCase):
         company.refresh_from_db()
         self.assertEqual(company.status, "applied")
 
-    def test_saved_or_reviewing_does_not_trigger_applied(self):
-        """A `saved`/`reviewing` row is a placeholder before submission — it must not
-        flip the company to `applied` on its own."""
+    def test_saved_or_reviewing_makes_a_company_reviewing_not_applied(self):
+        """A `saved`/`reviewing` row is a live application that has not been sent. It must
+        not flip the company to `applied` — but it is not nothing either, which is what the
+        two-state model used to say about it."""
         for num, status in [(9006, "saved"), (9007, "reviewing")]:
             with self.subTest(status=status):
                 company = Company.objects.filter(applications__isnull=True).first()
@@ -279,7 +289,17 @@ class CompanyStatusTests(TestCase):
                                            company_name=company.name,
                                            role="Test", status=status)
                 company.refresh_from_db()
-                self.assertEqual(company.status, "watching")
+                self.assertEqual(company.status, "reviewing")
+
+    def test_a_submitted_application_outranks_a_live_one(self):
+        """A company with both keeps the stronger claim: it has been applied to."""
+        company = Company.objects.filter(applications__isnull=True).first()
+        Application.objects.create(num=9008, company=company, company_name=company.name,
+                                   role="Saved one", status="saved")
+        Application.objects.create(num=9009, company=company, company_name=company.name,
+                                   role="Sent one", status="applied")
+        company.refresh_from_db()
+        self.assertEqual(company.status, "applied")
 
     def test_rejected_application_still_counts_as_applied(self):
         """A rejection does not revert a company to `watching` — the application still
@@ -290,9 +310,11 @@ class CompanyStatusTests(TestCase):
         company.refresh_from_db()
         self.assertEqual(company.status, "applied")
 
-    def test_closed_and_discarded_do_not_count(self):
+    def test_closed_and_discarded_leave_a_company_watching(self):
         """`closed` (deadline passed before applying) and `discarded` (dropped before
-        applying) both mean no application was ever submitted."""
+        applying) both mean no application was ever submitted and none is live — so the
+        company reads the same as one that was never applied to, which is the truth about
+        where it stands now."""
         for num, status in [(9004, "closed"), (9005, "discarded")]:
             with self.subTest(status=status):
                 company = Company.objects.filter(applications__isnull=True).first()
@@ -454,8 +476,8 @@ class MarkupTests(TestCase):
         app = Application.objects.first()
         company = Company.objects.first()
         for url in ["/", "/applications/", "/applications/all/", f"/applications/{app.num}/",
-                    "/companies/", f"/companies/{company.slug}/", "/areas/", "/cvs/",
-                    "/notes/", "/profile/", "/scans/", "/scans/all/"]:
+                    "/companies/", f"/companies/{company.slug}/", "/areas/", "/stats/",
+                    "/cvs/", "/notes/", "/profile/", "/scans/", "/scans/all/"]:
             with self.subTest(url=url):
                 r = self.client.get(url)
                 self.assertEqual(r.status_code, 200)
@@ -610,7 +632,8 @@ class ViewTests(TestCase):
 
     def test_index_pages(self):
         for url in ["/", "/applications/", "/applications/all/", "/applications/active/",
-                    "/companies/", "/areas/", "/cvs/", "/notes/", "/scans/", "/scans/all/"]:
+                    "/companies/", "/areas/", "/stats/", "/cvs/", "/notes/", "/scans/",
+                    "/scans/all/"]:
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
 
@@ -705,8 +728,8 @@ class ViewTests(TestCase):
 
     def test_no_querystring_links_in_html(self):
         import re
-        for url in ["/", "/applications/", "/applications/all/", "/companies/", "/areas/", "/cvs/",
-                    "/scans/", "/scans/all/"]:
+        for url in ["/", "/applications/", "/applications/all/", "/companies/", "/areas/",
+                    "/stats/", "/cvs/", "/scans/", "/scans/all/"]:
             html = self.client.get(url).content.decode()
             hrefs = re.findall(r'href="([^"]+)"', html)
             with self.subTest(url=url):
@@ -719,8 +742,8 @@ class ViewTests(TestCase):
         self.assertIn("<h2", html)
 
     def test_templates_have_no_leaked_comment_markup(self):
-        for url in ["/", "/applications/", "/applications/all/", "/companies/", "/areas/", "/cvs/",
-                    "/scans/", "/scans/all/"]:
+        for url in ["/", "/applications/", "/applications/all/", "/companies/", "/areas/",
+                    "/stats/", "/cvs/", "/scans/", "/scans/all/"]:
             html = self.client.get(url).content.decode()
             with self.subTest(url=url):
                 self.assertNotIn("{#", html)
@@ -758,6 +781,717 @@ class ViewTests(TestCase):
             self.assertNotIn("/admin/", html)
         html = self.client.get("/applications/").content.decode()
         self.assertIn("/admin/tracker/application/", html)
+
+
+class StatsPageTests(TestCase):
+    """`/stats/` — the charts page (backlog/dashboard-charts-plan.md §2a).
+
+    What these pin is the frame every chart lands into rather than any one chart: the
+    volume readout the charts get checked against, and R3's three data tiers — what a
+    chart renders when it cannot draw honestly. Those states are a permanent requirement
+    rather than scaffolding: most people meet this page on a tracker with almost nothing
+    in it, and a page that looks broken on day one is worse than one with fewer charts.
+    """
+
+    fixtures = FIXTURE
+
+    # Anchor -> the plan section that specifies it. One entry per chart the plan asks for,
+    # built or not, so a chart nobody got to is visible on the page instead of forgotten.
+    PLANNED = {"ageing": "§7", "flow": "§3", "companies": "§5",
+               "per-company": "§6", "stock": "§4"}
+
+    def sections(self, html=None):
+        """The page split at its chart headings, keyed by anchor — so an assertion can be
+        about one chart rather than about the whole page."""
+        if html is None:
+            html = self.client.get("/stats/").content.decode()
+        parts = re.split(r'<h2 id="([\w-]+)"', html)
+        return dict(zip(parts[1::2], parts[2::2]))
+
+    def test_the_page_renders_and_the_nav_links_it(self):
+        self.assertEqual(self.client.get("/stats/").status_code, 200)
+        self.assertIn('href="/stats/"', self.client.get("/").content.decode())
+
+    def test_every_planned_chart_has_a_section(self):
+        self.assertEqual(set(self.sections()), set(self.PLANNED))
+
+    def test_a_section_with_nothing_to_draw_names_its_plan_section(self):
+        """However a slot fills its panel, it says where the chart is specified — the one
+        thing that turns "this is blank" into "this is blank, and here is why"."""
+        for anchor, body in self.sections().items():
+            if "chart-plan" in body:
+                with self.subTest(anchor=anchor):
+                    self.assertIn(self.PLANNED[anchor], body)
+
+    def test_an_entry_is_not_counted_as_a_transition(self):
+        """The split the whole page turns on. A status change with a blank `from_status`
+        records where an application was first logged; only a move between two statuses is
+        an edge in a flow diagram or a step in a history."""
+        from tracker.views import _stats_volumes
+
+        volumes = _stats_volumes()
+        self.assertEqual(volumes["entries"] + volumes["transitions"],
+                         volumes["status_changes"])
+        self.assertEqual(volumes["status_changes"], ApplicationStatusChange.objects.count())
+        # The example tier, and the sharp case in R3: three status changes and not one of
+        # them a transition. If the fixture grows past this, the example-tier assertions
+        # below are the ones to revisit.
+        self.assertEqual(volumes["applications"], 3)
+        self.assertEqual(volumes["transitions"], 0)
+
+    def test_at_example_volume_the_history_charts_say_why_they_cannot_draw(self):
+        """R3's example tier: there is data, but nothing has moved between statuses, so
+        the charts built from transitions have nothing to plot and say so. The ones that
+        do not need history are not held back by it."""
+        sections = self.sections()
+        self.assertIn("no ribbons to draw", sections["flow"])
+        self.assertIn("needs transitions to replay", sections["stock"])
+        for anchor in ("ageing", "companies", "per-company"):
+            with self.subTest(anchor=anchor):
+                self.assertNotIn("transitions", sections[anchor])
+
+    def test_an_empty_tracker_states_the_absence_and_how_to_start(self):
+        Application.objects.all().delete()
+        Company.objects.all().delete()
+        response = self.client.get("/stats/")
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn("/jobstudio application", html)
+        for anchor, body in self.sections(html).items():
+            with self.subTest(anchor=anchor):
+                self.assertIn("Nothing tracked yet", body)
+
+    def test_companies_with_no_applications_says_which_of_the_two_is_missing(self):
+        """The real cold-start state, not the truly empty one: `init` seeds a company
+        watchlist, so the first thing anyone sees here has companies and nothing applied
+        to. "Nothing tracked yet" on its own would be wrong about half of it."""
+        Application.objects.all().delete()
+        html = self.client.get("/stats/").content.decode()
+        self.assertIn("tracked, but nothing applied to", html)
+
+    def test_unlinked_applications_are_declared(self):
+        """R-A1. `Application.company` is nullable, so a per-company chart covers fewer
+        applications than it claims unless the number it excludes is stated."""
+        self.assertTrue(Application.objects.filter(company__isnull=True).exists(),
+                        "fixture needs an application with no company for this to mean anything")
+        self.assertIn("no company linked", self.client.get("/stats/").content.decode())
+
+        Application.objects.filter(company__isnull=True).delete()
+        self.assertNotIn("no company linked", self.client.get("/stats/").content.decode())
+
+
+class AgeingTests(TestCase):
+    """Ageing at `applied` (plan §7) — which submitted applications have gone quiet.
+
+    A list rather than a chart: every row is individually actionable, and the point of the
+    view is that it changes how the rest of the site reads. An `applied` count that
+    contains dead applications is not a pipeline of that size (R-G3).
+    """
+
+    fixtures = FIXTURE
+
+    def applied(self, num, *, days_quiet, next_action=""):
+        """An application at `applied` whose last status change was `days_quiet` ago."""
+        app = Application.objects.create(num=num, company_name=f"Co {num}", role="Role",
+                                         status="applied", next_action=next_action)
+        moved = timezone.now() - dt.timedelta(days=days_quiet)
+        ApplicationStatusChange.objects.filter(application=app).update(changed_at=moved)
+        return app
+
+    def test_stale_only_past_the_threshold(self):
+        from tracker.views import STALE_AFTER_DAYS, _ageing_at_applied
+
+        fresh = self.applied(9101, days_quiet=STALE_AFTER_DAYS - 1)
+        stale = self.applied(9102, days_quiet=STALE_AFTER_DAYS + 1)
+        rows = {r["application"].num: r for r in _ageing_at_applied()}
+        self.assertFalse(rows[fresh.num]["stale"])
+        self.assertTrue(rows[stale.num]["stale"])
+
+    def test_the_quietest_are_listed_first(self):
+        from tracker.views import _ageing_at_applied
+
+        self.applied(9103, days_quiet=5)
+        self.applied(9104, days_quiet=90)
+        days = [r["days"] for r in _ageing_at_applied() if r["days"] is not None]
+        self.assertEqual(days, sorted(days, reverse=True))
+
+    def test_an_application_with_no_date_at_all_is_kept_and_sorted_last(self):
+        """It is a real state — logged with no date, no recorded change — and inventing an
+        age for it would put it in the wrong half of a list sorted by staleness."""
+        from tracker.views import _ageing_at_applied
+
+        app = Application.objects.create(num=9105, company_name="Undated Co",
+                                         role="Role", status="applied")
+        ApplicationStatusChange.objects.filter(application=app).delete()
+        self.applied(9106, days_quiet=2)
+
+        rows = _ageing_at_applied()
+        self.assertEqual(rows[-1]["application"].num, app.num)
+        self.assertIsNone(rows[-1]["days"])
+        self.assertFalse(rows[-1]["stale"])
+        self.assertEqual(self.client.get("/stats/").status_code, 200)
+
+    def test_stale_with_nothing_planned_is_flagged(self):
+        """R-G2. The strongest signal on the page is a row that has gone quiet and has no
+        next action — `next_action` already exists and nothing else surfaced it."""
+        from tracker.views import _ageing_at_applied
+
+        adrift = self.applied(9107, days_quiet=60)
+        planned = self.applied(9108, days_quiet=60, next_action="Chase the recruiter")
+        rows = {r["application"].num: r for r in _ageing_at_applied()}
+        self.assertTrue(rows[adrift.num]["adrift"])
+        self.assertFalse(rows[planned.num]["adrift"])
+        self.assertIn("no next action recorded", self.client.get("/stats/").content.decode())
+
+    def test_the_bands_break_at_the_threshold(self):
+        """The stale line is a property of the bands, not a rule drawn over them: no band
+        may straddle it, or a bar would be half quiet and half not."""
+        from tracker.views import AGE_BANDS, STALE_AFTER_DAYS
+
+        ends = [high for _, high in AGE_BANDS]
+        self.assertIn(STALE_AFTER_DAYS, ends, "no band ends at the staleness threshold")
+        self.assertGreater(AGE_BANDS[ends.index(STALE_AFTER_DAYS) + 1][0], STALE_AFTER_DAYS,
+                           "the band after the threshold starts inside it")
+
+    def test_every_application_at_applied_lands_in_exactly_one_band(self):
+        """The bands are the chart, so anything that falls between them is invisible. The
+        undated are the one deliberate exception, and they are counted separately."""
+        from tracker.views import _ageing_bands
+
+        for num, days in ((9120, 0), (9121, 7), (9122, 8), (9123, 30), (9124, 31), (9125, 900)):
+            self.applied(num, days_quiet=days)
+        undated = Application.objects.create(num=9126, company_name="Undated Co",
+                                             role="Role", status="applied")
+        ApplicationStatusChange.objects.filter(application=undated).delete()
+
+        bands = _ageing_bands()
+        self.assertEqual(sum(b["count"] for b in bands["bands"]) + bands["undated"],
+                         bands["total"])
+
+    def test_the_chart_renders_and_the_dashboard_points_at_it(self):
+        """R-G3's "done when": the view is reachable from the `applied` stat box, which is
+        where the count that contains these applications is shown.
+
+        The dashboard only. On the applications list the same sentence sat above a table
+        that already sorts by longest-without-moving — telling someone looking at the rows
+        what the rows say."""
+        self.applied(9109, days_quiet=45)
+        html = self.client.get("/stats/").content.decode()
+        self.assertIn('data-chart="ageing"', html)
+        self.assertIn("/applications/9109/", html)  # the row itself, linked from the band
+        self.assertIn("45d", html)                  # and how long it has been quiet
+        self.assertIn("/stats/#ageing", self.client.get("/").content.decode())
+        self.assertNotIn("/stats/#ageing",
+                         self.client.get("/applications/status/applied/").content.decode())
+
+    def test_nothing_stale_says_nothing_on_the_stat_bar(self):
+        """A note that is always there is furniture. This one only appears when something
+        has actually gone quiet."""
+        self.applied(9110, days_quiet=1)
+        self.assertNotIn("/stats/#ageing", self.client.get("/").content.decode())
+
+    def test_the_cli_status_report_shows_the_same_rows(self):
+        """R1 — one query layer. `/jobstudio status` and the page both count
+        `_ageing_at_applied()`, so they cannot come to disagree about what "gone quiet"
+        means."""
+        import io
+        from contextlib import redirect_stdout
+
+        import jobsdb
+
+        self.applied(9111, days_quiet=75)
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            jobsdb.print_status_report(jobsdb.dashboard_summary())
+        report = buffer.getvalue()
+        self.assertIn("Gone quiet", report)
+        self.assertIn("Co 9111", report)
+
+
+class ChartDataTests(TestCase):
+    """The four charts' data (plan §3–§6).
+
+    These test the arithmetic, not the drawing — the drawing is ECharts' problem, and the
+    page ships every one of these numbers as a table anyway. What is worth pinning is the
+    part a chart cannot show you is wrong: that the ribbons balance, that a dropped edge is
+    counted rather than lost, and that a count means what the label says it means.
+    """
+
+    fixtures = FIXTURE
+
+    def history(self, num, path, **kwargs):
+        """An application that walked `path`, one recorded change per step."""
+        app = Application.objects.create(num=num, company_name=f"Co {num}", role="Role",
+                                         status=path[-1], **kwargs)
+        ApplicationStatusChange.objects.filter(application=app).delete()
+        when = timezone.now() - dt.timedelta(days=7 * len(path))
+        for i, status in enumerate(path):
+            ApplicationStatusChange.objects.create(
+                application=app, changed_at=when + dt.timedelta(days=7 * i),
+                from_status=path[i - 1] if i else "", to_status=status)
+        return app
+
+    # ---------------------------------------------------------------- §3 flow
+    def test_every_node_reconciles(self):
+        """R-S2, and the reason the terminal stubs exist: for each status, what came in
+        minus what went out is what is sitting there now. A Sankey whose nodes do not
+        balance looks broken, and this is the check that catches it before anyone sees it."""
+        from tracker.views import _status_flow
+
+        self.history(9201, ["saved", "reviewing", "applied"])
+        self.history(9202, ["saved", "discarded"])
+        self.history(9203, ["applied", "rejected"])
+        self.assertTrue(_status_flow()["reconciles"])
+
+    def test_a_status_written_without_logging_the_change_fails_reconciliation(self):
+        """The check has to be able to fail, or it is decoration. A status changed behind
+        the signal's back is exactly the corruption it exists to catch."""
+        from tracker.views import _status_flow
+
+        app = self.history(9204, ["saved", "applied"])
+        Application.objects.filter(pk=app.pk).update(status="interviewing")  # no signal
+        self.assertFalse(_status_flow()["reconciles"])
+
+    def test_backward_edges_are_dropped_and_counted(self):
+        """R-S3. A Sankey is a DAG and a re-opened application runs against the funnel, so
+        the edge cannot be drawn — but silently losing it is how a diagram starts lying."""
+        from tracker.views import _status_flow
+
+        self.history(9205, ["saved", "applied", "reviewing"])  # the last step goes back
+        flow = _status_flow()
+        self.assertEqual(flow["dropped"], 1)
+        drawn = [(l["source"], l["target"]) for l in flow["links"] if l["kind"] == "move"]
+        self.assertNotIn(("applied", "reviewing"), drawn)
+        self.assertIn(("saved", "applied"), drawn)
+
+    def test_an_application_that_appears_mid_funnel_keeps_its_own_ribbon(self):
+        """R-S1. An application logged straight into `closed` never passed through the
+        statuses to its left, and a diagram that quietly routed it through them would be
+        lying. Starting at `saved` needs no ribbon — that node *is* the start."""
+        from tracker.views import _status_flow
+
+        self.history(9206, ["closed"])
+        self.history(9207, ["saved"])
+        flow = _status_flow()
+        entries = {l["target"]: l["value"] for l in flow["links"] if l["kind"] == "entry"}
+        self.assertEqual(entries["closed"], 1)
+        self.assertNotIn("saved", entries)
+        # `mid_funnel` is exactly what is drawn as a stub — the fixture has its own
+        # arrivals at `applied` and `reviewing`, and they are counted the same way.
+        self.assertEqual(flow["mid_funnel"], sum(entries.values()))
+        self.assertGreaterEqual(flow["entered"], 1)
+
+    def test_the_applied_node_carries_the_stale_count(self):
+        """R-S4: `applied` is the largest node and includes applications nobody has heard
+        about in months. It says so on itself rather than letting the diagram overstate
+        how much is in flight."""
+        from tracker.views import STALE_AFTER_DAYS, _status_flow
+
+        app = self.history(9208, ["saved", "applied"])
+        ApplicationStatusChange.objects.filter(application=app).update(
+            changed_at=timezone.now() - dt.timedelta(days=STALE_AFTER_DAYS + 5))
+        label = next(n["label"] for n in _status_flow()["nodes"] if n["name"] == "applied")
+        self.assertIn("quiet", label)
+
+    def test_the_post_application_view_treats_arrivals_as_entries(self):
+        """§3's second view starts at `applied`, so an application that got there from
+        `reviewing` entered the diagram at `applied` — the pre-application attrition is out
+        of the window, not silently missing from it."""
+        from tracker.views import POST_APPLICATION_ORDER, _status_flow
+
+        self.history(9209, ["saved", "reviewing", "applied"])
+        post = _status_flow(POST_APPLICATION_ORDER)
+        self.assertNotIn("reviewing", [n["name"] for n in post["nodes"]])
+        self.assertTrue(post["reconciles"])
+        # `applied` is where this window starts, so the arrival is counted but not drawn as
+        # a stub — the node itself is the entry point.
+        self.assertGreaterEqual(post["entered"], 1)
+        self.assertNotIn("applied", [l["target"] for l in post["links"]
+                                     if l["kind"] == "entry"])
+
+    def test_an_application_that_leaves_the_window_is_counted_not_absorbed(self):
+        """Moving back out of the submitted set is a real thing that happens; the post
+        view reports it rather than quietly losing an application."""
+        from tracker.views import POST_APPLICATION_ORDER, _status_flow
+
+        self.history(9210, ["applied", "saved"])
+        post = _status_flow(POST_APPLICATION_ORDER)
+        self.assertEqual(post["left"], 1)
+        self.assertTrue(post["reconciles"])
+
+    # --------------------------------------------------------------- §4 stock
+    def test_what_moved_in_a_week_is_not_what_sits_there(self):
+        """The two views measure different things, which is the whole reason both exist: a
+        quiet week has stock and no movement, and a chart that drew a flat line for both
+        would be saying the same thing twice."""
+        from tracker.views import _status_stock
+
+        self.history(9214, ["saved", "applied"])
+        weeks = _status_stock()["weeks"]
+        self.assertTrue(any(w["total"] and not w["moved"] for w in weeks),
+                        "no quiet week to tell the two views apart")
+        for week in weeks:
+            with self.subTest(week=week["label"]):
+                self.assertEqual(sum(week["moves"].values()), week["moved"])
+                self.assertEqual(len(week["flow"]), len(week["cells"]))
+
+    def test_every_recorded_change_is_counted_once_as_movement(self):
+        """Flow is the change log itself, bucketed — so the weeks must add up to it exactly,
+        with nothing double-counted when an application moves twice in a week."""
+        from tracker.views import _status_stock
+
+        self.history(9215, ["saved", "reviewing", "applied"])
+        stock = _status_stock()
+        self.assertEqual(sum(w["moved"] for w in stock["weeks"]),
+                         ApplicationStatusChange.objects.count())
+
+    def test_the_bands_total_the_applications_that_existed(self):
+        """Every application is in exactly one band at every point, so the top of the stack
+        is the tracker's own size — including at the end, where it is today's count."""
+        from tracker.views import _status_stock
+
+        self.history(9211, ["saved", "applied"])
+        self.history(9212, ["saved"])
+        weeks = _status_stock()["weeks"]
+        self.assertEqual(weeks[-1]["total"], Application.objects.count())
+        for week in weeks:
+            with self.subTest(week=week["label"]):
+                self.assertEqual(sum(week["counts"].values()), week["total"])
+
+    def test_backfilled_weeks_are_marked_reconstructed(self):
+        """R-T2/R4. The 2026-09-08 backfill dated its rows from `Application.date`, so they
+        land at exactly local midnight — which is what makes this detectable rather than
+        guessed at. Unmarked, those weeks read as a burst of activity that never happened."""
+        from tracker.views import _status_stock
+
+        app = self.history(9213, ["saved", "applied"])
+        midnight = timezone.make_aware(
+            dt.datetime.combine(timezone.localdate() - dt.timedelta(days=21), dt.time(0, 0)))
+        ApplicationStatusChange.objects.filter(application=app).update(changed_at=midnight)
+        marked = [w for w in _status_stock()["weeks"] if w["reconstructed"]]
+        self.assertTrue(marked, "a week of midnight-stamped rows was not marked")
+
+    def test_a_thin_history_says_so_instead_of_drawing(self):
+        """R-T4. The chart needs several weeks of history that was lived rather than typed
+        in one sitting; below that it says what it is waiting for, which is a legitimate
+        outcome and improves on its own."""
+        from tracker.views import _status_stock
+
+        stock = _status_stock()
+        self.assertFalse(stock["ready"])
+        self.assertContains(self.client.get("/stats/"), "before the shape of a pipeline")
+
+    def test_a_band_that_was_never_occupied_is_not_a_series(self):
+        """R3: a legend entry for a series that does not exist is worse than one fewer
+        band. The example tracker has never had an application at `interviewing`."""
+        from tracker.views import _status_stock
+
+        self.assertNotIn("interviewing", _status_stock()["statuses"])
+
+    # -------------------------------------------------------------- the page
+    def test_the_flow_toggle_needs_no_page_load(self):
+        """§3's "done when". Both views ship in the payload the page already carries, so
+        the switch is a redraw. It could not be a link either way: a querystring cannot be
+        published as a static page (see build_static)."""
+        import json
+
+        self.history(9220, ["saved", "reviewing", "applied"])
+        html = self.client.get("/stats/").content.decode()
+        self.assertIn('data-view="full"', html)
+        self.assertIn('data-view="post"', html)
+        self.assertNotIn("/stats/?", html)
+
+        payload = re.search(r'id="chart-data"[^>]*>(.*?)</script>', html, re.S).group(1)
+        flow = json.loads(payload.replace("\\u0022", '"'))["flow"]
+        self.assertEqual(set(flow), {"full", "post"})
+
+    def test_every_chart_ships_its_numbers_as_a_table(self):
+        """R5, and §2a's debugging affordance, are the same markup: the table is in the
+        page before the chart is. So it reads with no JavaScript, a screen reader gets
+        values rather than a drawing, and the numbers can be checked against the shape."""
+        for num, path in enumerate([["saved", "reviewing", "applied", "interviewing"],
+                                    ["saved", "reviewing", "applied", "rejected"],
+                                    ["saved", "discarded"]], start=9230):
+            self.history(num, path)
+
+        html = self.client.get("/stats/").content.decode()
+        for key in ("ageing", "flow", "coverage", "perCompany", "stock"):
+            with self.subTest(chart=key):
+                self.assertIn('data-chart="%s"' % key, html)
+        self.assertEqual(html.count('<details class="numbers"'), 5)
+
+    # ----------------------------------------------------- §5 and §6 companies
+    def test_the_donut_segments_sum_to_the_tracked_companies(self):
+        from tracker.views import _company_coverage
+
+        coverage = _company_coverage()
+        self.assertEqual(sum(s["count"] for s in coverage["states"]), coverage["total"])
+        self.assertEqual(coverage["total"], Company.objects.count())
+
+    def test_a_company_with_only_unsent_applications_is_its_own_state(self):
+        """The reason the donut went from two slices to three (2026-09-28): a company with
+        an application open on the desk is not "not acted on", which is what the two-state
+        model said about it."""
+        from tracker.views import _company_coverage
+
+        company = Company.objects.create(num=9300, name="Saved Only Co", slug="saved-only-co")
+        Application.objects.create(num=9301, company=company, company_name=company.name,
+                                   role="Role", status="saved")
+        coverage = _company_coverage()
+        self.assertGreaterEqual(coverage["reviewing"], 1)
+        company.refresh_from_db()
+        self.assertEqual(company.status, "reviewing")
+
+    def test_watching_says_how_much_of_it_was_never_acted_on(self):
+        """R-C1's descendant. `watching` covers both "never applied to" and "tried and it
+        ended", which mean the same thing about now and different things about history —
+        so the page states the split rather than leaving the reading to the reader."""
+        from tracker.views import _company_coverage
+
+        company = Company.objects.create(num=9302, name="Closed Only Co", slug="closed-only-co")
+        Application.objects.create(num=9303, company=company, company_name=company.name,
+                                   role="Role", status="closed")
+        coverage = _company_coverage()
+        self.assertLess(coverage["never"], coverage["watching"])
+        self.assertContains(self.client.get("/stats/"), "never applied to")
+
+    def test_the_buckets_plus_the_unlinked_account_for_every_application(self):
+        """R-A1. `Application.company` is nullable, so a per-company chart covers fewer
+        applications than it claims unless the number outside it is stated."""
+        from tracker.views import _applications_per_company
+
+        data = _applications_per_company()
+        counted = Application.objects.exclude(company__isnull=True).count()
+        self.assertEqual(counted + data["unlinked"], data["applications"])
+        self.assertEqual(sum(b["count"] for b in data["buckets"]), data["companies"])
+
+    def test_each_bucket_names_the_companies_in_it(self):
+        """A count answers "how many"; the next question is always "which". The names are
+        capped so the page does not become a directory, and `more` says how many were left
+        for the link to the companies list."""
+        from tracker.views import _applications_per_company
+
+        for bucket in _applications_per_company()["buckets"]:
+            with self.subTest(bucket=bucket["label"]):
+                self.assertEqual(len(bucket["companies"]) + bucket["more"], bucket["count"])
+                self.assertTrue(bucket["phrase"])
+                for company in bucket["companies"]:
+                    self.assertTrue(Company.objects.filter(slug=company["slug"]).exists())
+
+
+class TableToolbarTests(TestCase):
+    """The search / filter / sort bar on the two long lists (2026-09-28).
+
+    It works in the browser, so what can be pinned here is the contract between the server
+    and `tabletools.js`: the controls exist, and every row carries the attributes they
+    filter and sort on. A row missing one of those is invisible to the toolbar — it does
+    not error, it just never matches, which is the failure worth catching early.
+    """
+
+    fixtures = FIXTURE
+
+    def test_the_applications_toolbar_replaced_the_area_chips(self):
+        html = self.client.get("/applications/all/").content.decode()
+        self.assertIn('class="toolbar" data-table="apps"', html)
+        self.assertIn('class="tb-search"', html)
+        self.assertIn('data-field="area"', html)
+        self.assertIn('value="moved:asc"', html)  # longest without moving
+        self.assertNotIn('class="chips"', html)
+
+    def test_every_application_row_carries_what_the_toolbar_needs(self):
+        html = self.client.get("/applications/all/").content.decode()
+        rows = re.findall(r"<tr data-search=.*?</tr>", html, re.S)
+        self.assertEqual(len(rows), Application.objects.count())
+        for app in Application.objects.select_related("area"):
+            row = next(r for r in rows if f'data-sort-num="{app.num}"' in r)
+            with self.subTest(num=app.num):
+                self.assertIn(escape(app.company_name), row)
+                self.assertIn(f'data-status="{app.status}"', row)
+                self.assertIn(f'data-area="{app.area.slug if app.area else ""}"', row)
+
+    def test_last_moved_comes_from_the_change_log_not_the_logged_date(self):
+        """The two differ for every application that has moved since it was logged, and
+        sorting by the wrong one would put a long-dead application at the top of "longest
+        without moving"."""
+        app = Application.objects.get(num=1)
+        ApplicationStatusChange.objects.filter(application=app).update(
+            changed_at=timezone.now())
+        response = self.client.get("/applications/all/")
+        row = next(r for r in re.findall(r"<tr data-search=.*?</tr>",
+                                         response.content.decode(), re.S)
+                   if 'data-sort-num="1"' in r)
+        self.assertIn("today", row)  # `ago` of the change, not of app.date
+        self.assertGreater(int(re.search(r'data-sort-moved="(\d+)"', row).group(1)),
+                           int(re.search(r'data-sort-date="(\d+)"', row).group(1)))
+
+    def test_the_companies_page_is_one_table_with_category_as_a_column(self):
+        html = self.client.get("/companies/").content.decode()
+        self.assertNotIn("data-tabs", html)
+        self.assertEqual(html.count('<table data-table="companies"'), 1)
+        self.assertIn("<th class=\"nowrap\">Category</th>", html)
+        self.assertIn("<th class=\"nowrap\">Added</th>", html)
+        for category in Category.objects.all():
+            with self.subTest(category=category.name):
+                self.assertIn(f'<option value="{escape(category.name)}"', html)
+
+    def test_every_company_row_carries_what_the_toolbar_needs(self):
+        html = self.client.get("/companies/").content.decode()
+        rows = re.findall(r"<tr data-search=.*?</tr>", html, re.S)
+        self.assertEqual(len(rows), Company.objects.count())
+        for company in Company.objects.annotate(n=Count("applications")):
+            row = next(r for r in rows if f'/companies/{company.slug}/' in r)
+            bucket = "none" if not company.n else "3+" if company.n >= 3 else str(company.n)
+            with self.subTest(slug=company.slug):
+                self.assertIn(f'data-apps="{bucket}"', row)
+                self.assertIn(f'data-status="{company.status}"', row)
+
+    def test_the_per_company_chart_links_into_the_companies_list(self):
+        """A fragment, not a querystring: the static build can publish the one page the
+        link lands on, and `tabletools.js` reads the fragment to preselect the filter. A
+        `?apps=2` would fail the build's link check instead."""
+        html = self.client.get("/stats/").content.decode()
+        self.assertIn('href="/companies/#apps=', html)
+        self.assertNotIn("/companies/?", html)
+
+    def test_the_toolbar_is_hidden_until_the_script_says_otherwise(self):
+        """Progressive enhancement, same as tabs.js and charts.js: with no JavaScript the
+        table below is complete, and a row of controls that do nothing is worse than none."""
+        css = (Path(settings.STATICFILES_DIRS[0]) / "css" / "site.css").read_text()
+        self.assertIn(".toolbar { display: none;", css)
+        self.assertIn(".toolbar.js-tools { display: flex; }", css)
+
+
+class SavedEntryBackfillTests(TestCase):
+    """`backfill_saved_entry` — every application starts at `saved` (2026-09-28).
+
+    Applications logged straight into `closed` or `applied` are an artefact of how the
+    tracker was used while it was being built, not a real difference: nobody applies to a
+    role they never looked at. This is the one command that edits existing rows, so what is
+    pinned here is that it edits exactly what it says and nothing else.
+    """
+
+    fixtures = FIXTURE
+
+    def run_command(self, **options):
+        out = StringIO()
+        call_command("backfill_saved_entry", stdout=out, stderr=StringIO(), **options)
+        return out.getvalue()
+
+    def logged_at(self, num, status, when):
+        app = Application.objects.create(num=num, company_name=f"Co {num}",
+                                         role="Role", status=status)
+        ApplicationStatusChange.objects.filter(application=app).update(changed_at=when)
+        return app
+
+    def test_an_application_logged_straight_into_a_late_status_gains_a_saved_entry(self):
+        when = timezone.now() - dt.timedelta(days=10)
+        app = self.logged_at(9401, "closed", when)
+
+        self.run_command()
+
+        changes = list(app.status_changes.order_by("changed_at", "pk"))
+        self.assertEqual([(c.from_status, c.to_status) for c in changes],
+                         [("", "saved"), ("saved", "closed")])
+        # Dated the day before, so the order is unambiguous and the new row is not
+        # pretending to have happened at the same moment.
+        self.assertEqual(changes[0].changed_at, when - dt.timedelta(days=1))
+
+    def test_an_application_that_already_starts_at_saved_is_untouched(self):
+        app = self.logged_at(9402, "saved", timezone.now() - dt.timedelta(days=3))
+        before = list(app.status_changes.values_list("pk", "from_status", "to_status"))
+
+        self.run_command()
+
+        self.assertEqual(list(app.status_changes.values_list("pk", "from_status", "to_status")),
+                         before)
+
+    def test_running_it_twice_changes_nothing_the_second_time(self):
+        self.logged_at(9403, "rejected", timezone.now() - dt.timedelta(days=5))
+        self.run_command()
+        count = ApplicationStatusChange.objects.count()
+
+        self.assertIn("0 application(s) gained", self.run_command())
+        self.assertEqual(ApplicationStatusChange.objects.count(), count)
+
+    def test_a_dry_run_writes_nothing(self):
+        self.logged_at(9404, "applied", timezone.now() - dt.timedelta(days=5))
+        count = ApplicationStatusChange.objects.count()
+
+        output = self.run_command(dry_run=True)
+
+        self.assertIn("would gain", output)
+        self.assertEqual(ApplicationStatusChange.objects.count(), count)
+
+    def test_an_application_with_no_history_is_reported_not_guessed_at(self):
+        """There is nothing to date the new row from, and inventing one would be worse than
+        leaving a gap someone can see."""
+        app = self.logged_at(9405, "applied", timezone.now())
+        app.status_changes.all().delete()
+
+        self.run_command()
+
+        self.assertFalse(app.status_changes.exists())
+
+    def test_afterwards_the_flow_diagram_has_one_entry_point(self):
+        """The point of the exercise: every application enters at `saved`, so the funnel
+        starts where a funnel should — and the reconciliation still holds, which is what
+        proves the rewrite was consistent rather than merely quiet."""
+        from tracker.views import _status_flow
+
+        self.logged_at(9406, "closed", timezone.now() - dt.timedelta(days=9))
+        self.logged_at(9407, "applied", timezone.now() - dt.timedelta(days=8))
+        self.run_command()
+
+        flow = _status_flow()
+        # Nothing arrives part-way along any more, so there is no entry stub left to draw:
+        # `saved` is simply where the funnel starts.
+        self.assertEqual([l for l in flow["links"] if l["kind"] == "entry"], [])
+        self.assertEqual(flow["mid_funnel"], 0)
+        self.assertEqual(flow["entered"], Application.objects.count())
+        self.assertTrue(flow["reconciles"])
+
+
+class CvPageTests(TestCase):
+    """`/cvs/` — the master-CV cards and the tailored table (2026-09-28)."""
+
+    fixtures = FIXTURE
+
+    def test_each_master_cv_is_a_card_with_its_own_figures(self):
+        from cvs.models import BaseCv
+
+        html = self.client.get("/cvs/").content.decode()
+        self.assertEqual(html.count('class="card"'), BaseCv.objects.count())
+        for cv in BaseCv.objects.all():
+            with self.subTest(slug=cv.slug):
+                self.assertIn(f'href="/cvs/base/{cv.slug}/"', html)
+                self.assertIn(str(cv.stats["words"]), html)
+
+    def test_the_figures_are_read_off_the_file(self):
+        """Not stored: the file is the source of truth, and a CV edited in an editor rather
+        than through the app would leave a stored copy quietly wrong."""
+        from cvs.models import BaseCv
+
+        cv = BaseCv.objects.first()
+        self.assertTrue(cv.stats["exists"])
+        self.assertEqual(cv.stats["words"], len(cv.full_path.read_text().split()))
+        self.assertIsNotNone(cv.stats["modified"])
+
+    def test_a_missing_file_says_so_rather_than_showing_zeroes(self):
+        from cvs.models import BaseCv
+
+        BaseCv.objects.create(slug="gone", label="Missing CV", path="jobs/cv/base/gone.md")
+        html = self.client.get("/cvs/").content.decode()
+        self.assertIn("file missing", html)
+
+    def test_the_tailored_table_shows_each_application_status(self):
+        from cvs.views import tailored_cvs
+
+        rows = tailored_cvs()
+        self.assertTrue(rows, "fixture has no tailored CVs to show a status for")
+        html = self.client.get("/cvs/").content.decode()
+        for row in rows:
+            with self.subTest(num=row["app"].num):
+                self.assertIn(f'st-{row["app"].status}', html)
 
 
 class JobsDbTests(TestCase):

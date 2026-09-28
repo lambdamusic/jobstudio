@@ -29,17 +29,30 @@ import identity
 DATA_ROOT = config.data_root()
 APPS_DIR = DATA_ROOT / "jobs" / "applications"
 
-# A company is either being watched, or has been applied to. Nothing else — the richer
-# per-application statuses live in applications.md and would only drift here.
+# Three states, derived from the company's applications and nothing else. It was two
+# (applied / watching) until 2026-09-28; the middle state was missing, and its absence
+# read as "not acted on" for a company with a live application sitting on the desk.
+#
+#   applied    — at least one application actually submitted
+#   reviewing  — nothing submitted, but at least one application still being worked on
+#   watching   — nothing live: never applied to, or every application closed or dropped
+#
+# The richer per-application statuses stay on the application; these are the only three a
+# company needs, and each is a question someone actually asks of a watchlist.
 COMPANY_STATUS_APPLIED = "applied"
+COMPANY_STATUS_REVIEWING = "reviewing"
 COMPANY_STATUS_WATCHING = "watching"
-COMPANY_STATUSES = [COMPANY_STATUS_APPLIED, COMPANY_STATUS_WATCHING]
+COMPANY_STATUSES = [COMPANY_STATUS_APPLIED, COMPANY_STATUS_REVIEWING, COMPANY_STATUS_WATCHING]
 
 # Application statuses that mean an application was actually submitted (whatever happened
 # next) — these are what flip a company to COMPANY_STATUS_APPLIED. `saved` and `reviewing`
 # are pre-submission; `closed` means the deadline passed before applying; `discarded`
 # means the role was dropped before applying. See docs/workflow.md "Application statuses".
 COMPANY_APPLIED_TRIGGER_STATUSES = {"applied", "interviewing", "rejected"}
+
+# ...and the ones that mean an application is live but not yet submitted, which is what
+# makes a company `reviewing` rather than merely watched.
+COMPANY_REVIEWING_TRIGGER_STATUSES = {"saved", "reviewing"}
 
 # Single source of truth for the "by status" sort, shared with the web app.
 STATUS_SORT_ORDER = ["applied", "interviewing", "reviewing", "saved", "discarded", "closed", "rejected"]

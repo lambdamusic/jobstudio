@@ -1,0 +1,340 @@
+{% extends "base.html" %}{% load jobs_extras %}
+{% block title %}Stats{% endblock %}
+{% block content %}
+
+{% comment %}
+  The charts page — a staging ground, not the dashboard (plan §2a). Two things it carries
+  that the dashboard should not: the raw numbers each chart was computed from, so a
+  diagram can be checked rather than trusted, and one section per planned chart naming its
+  plan section, so there is a defined place for each to land.
+
+  Sections are in the plan's build order (§10), not its document order: ageing comes first
+  because it changes how everything below it is read — an `applied` count that contains
+  dead applications is not a pipeline of that size (R-G3).
+
+  Every section keeps _chart_slot.html as its else-branch. The three R3 states are a
+  permanent requirement, not scaffolding: a chart that cannot draw honestly says what it
+  is waiting for instead.
+{% endcomment %}
+
+<div class="page-head">
+  <h1>Stats</h1>
+  <p class="lede">Charts over the tracker's own history. A staging page while the designs
+    are judged — anything that earns its place moves to the dashboard later.</p>
+</div>
+
+{% if not volumes.applications %}
+  <p class="notice">Nothing tracked yet, so every chart below states what it is waiting
+    for rather than drawing. Log an application with
+    <code>/jobstudio application</code>. {% if volumes.companies %}The watchlist already
+    holds {{ volumes.companies }} compan{{ volumes.companies|pluralize:"y,ies" }} —
+    tracked, but nothing applied to.{% endif %}</p>
+{% endif %}
+
+<h2>What there is to chart</h2>
+<div class="stats">
+  <div class="stat{% if not volumes.applications %} is-zero{% endif %}">
+    <div class="n">{{ volumes.applications }}</div><div class="k">applications</div></div>
+  <div class="stat{% if not volumes.companies %} is-zero{% endif %}">
+    <div class="n">{{ volumes.companies }}</div><div class="k">companies</div></div>
+  <div class="stat{% if not volumes.entries %} is-zero{% endif %}">
+    <div class="n">{{ volumes.entries }}</div><div class="k">entry events</div></div>
+  <div class="stat{% if not volumes.transitions %} is-zero{% endif %}">
+    <div class="n">{{ volumes.transitions }}</div><div class="k">transitions</div></div>
+  <div class="stat{% if not volumes.at_applied %} is-zero{% endif %}">
+    <div class="n">{{ volumes.at_applied }}</div><div class="k">at applied</div></div>
+  <div class="stat{% if not volumes.unlinked %} is-zero{% endif %}">
+    <div class="n">{{ volumes.unlinked }}</div><div class="k">unlinked apps</div></div>
+</div>
+<p class="muted chart-note">
+  {{ volumes.status_changes }} recorded status change{{ volumes.status_changes|pluralize }}
+  in total, and the split between <strong>entry events</strong> and
+  <strong>transitions</strong> is what decides how much can be drawn: an entry is where an
+  application was first logged, a transition is a move from one status to another. Only
+  transitions are edges in a flow diagram or steps in a history.
+</p>
+{% if volumes.unlinked %}
+  <p class="muted chart-note">{{ volumes.unlinked }}
+    application{{ volumes.unlinked|pluralize }}
+    {{ volumes.unlinked|pluralize:"has,have" }} no company linked, so any per-company
+    chart covers fewer applications than it appears to — either
+    <code>jobsdb.py link-company</code>, or a company row that was never created.</p>
+{% endif %}
+
+{# ---------------------------------------------------------------- §7 ageing #}
+<h2 id="ageing">Ageing at applied</h2>
+<p class="chart-q">Which submitted applications have gone quiet?</p>
+<div class="panel">
+  {% if ageing.total %}
+    {% include "tracker/_chart.html" with key="ageing" height=240 label="Bar chart: applications at applied, grouped by how many days since each last moved" %}
+    <p class="chart-note muted">
+      {{ ageing.stale }} of {{ ageing.total }} at <code>applied</code>
+      {{ ageing.stale|pluralize:"has,have" }} not moved in {{ stale_after_days }} days or
+      more{% if ageing.adrift %}, and {{ ageing.adrift }} of those
+      {{ ageing.adrift|pluralize:"has,have" }} no next action recorded{% endif %}.
+      Every <code>applied</code> count on this site includes them.
+      {% if ageing.undated %}{{ ageing.undated }} application{{ ageing.undated|pluralize }}
+        {{ ageing.undated|pluralize:"has,have" }} no date at all and
+        {{ ageing.undated|pluralize:"is,are" }} left out of the bands rather than guessed
+        into the first one.{% endif %}
+      <a href="/applications/status/applied/">The rows themselves →</a>
+    </p>
+    {% comment %}
+      The rows behind each bar, named and linked. A band is a number until you can see
+      which applications are in it, and this is the one chart on the page whose rows are
+      individually actionable — the point of §7 before it became a chart.
+    {% endcomment %}
+    <details class="numbers" open>
+      <summary>Which applications</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th class="nowrap">Quiet for</th><th class="nowrap">#</th>
+            <th>Company</th><th>Role</th><th>Next action</th></tr></thead>
+          <tbody>
+            {% for band in ageing.bands %}
+              {% for a in band.applications %}
+                <tr class="{% if band.stale %}is-stale{% endif %}">
+                  <td class="num nowrap">{{ a.days }}d{% if band.stale %}
+                    <span class="flag">quiet</span>{% endif %}</td>
+                  <td class="num">{{ a.num }}</td>
+                  <td class="nowrap">{{ a.company }}</td>
+                  <td><a href="/applications/{{ a.num }}/" class="role">{{ a.role }}</a></td>
+                  <td>{% if a.adrift %}<span class="flag">nothing planned</span>
+                      {% else %}<span class="muted">—</span>{% endif %}</td>
+                </tr>
+              {% endfor %}
+            {% endfor %}
+            {% if ageing.undated %}
+              <tr><td class="num nowrap"><span class="muted">—</span></td>
+                  <td colspan="4" class="muted">{{ ageing.undated }}
+                    application{{ ageing.undated|pluralize }} with no date at all, left out
+                    of the bands rather than guessed into one.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% else %}
+    {% include "tracker/_chart_slot.html" with plan="§7" ready=volumes.at_applied needs="Nothing is sitting at applied, so there is nothing that could have gone quiet. This view bands submitted applications by how long they have not moved." %}
+  {% endif %}
+</div>
+
+{# ------------------------------------------------------------------ §3 flow #}
+<h2 id="flow">Status flow</h2>
+<p class="chart-q">Where do applications actually go, and where do they die?</p>
+<div class="panel">
+  {% if volumes.transitions %}
+    <div class="chart-toggle chips" data-toggle="flow">
+      <button type="button" class="chip active" data-view="full">Full funnel</button>
+      <button type="button" class="chip" data-view="post">From applied onward</button>
+    </div>
+    {% include "tracker/_chart.html" with key="flow" height=420 label="Sankey diagram: how applications move between statuses, with an entry ribbon per status and a terminal ribbon for what is still sitting in each" %}
+    {% comment %}
+      One note per view: the dropped count and the reconciliation are properties of the
+      window being drawn, so they change when the toggle does. Both are rendered by the
+      server (R2); charts.js only shows the one that matches. Without JavaScript both are
+      visible, which is why each names its own view.
+    {% endcomment %}
+    <p class="chart-note muted" data-note="flow" data-view="full">
+      <strong>Full funnel.</strong> {{ flow.entered }} application{{ flow.entered|pluralize }}
+      start at <code>saved</code>, which is why nothing precedes it.
+      {% if flow.mid_funnel %}{{ flow.mid_funnel }} arrived part-way along instead — logged
+        straight into a later status, never having passed through the ones before it — and
+        {{ flow.mid_funnel|pluralize:"carries,carry" }} an "added" ribbon of
+        {{ flow.mid_funnel|pluralize:"its,their" }} own.{% endif %}
+      Ribbons run left to right in funnel order, so a re-opened application — a move
+      against that order — cannot be drawn.
+      {% if flow.dropped %}{{ flow.dropped }} of {{ flow.moves }} transitions
+        {{ flow.dropped|pluralize:"runs,run" }} backwards and
+        {{ flow.dropped|pluralize:"is,are" }} not shown.
+      {% else %}No transition so far runs backwards, so nothing is left out.{% endif %}
+      Everything still sitting in a status flows on to one of two ends:
+      <strong>active</strong> ({{ flow.active }}) is anything not <code>discarded</code>,
+      <code>closed</code> or <code>rejected</code> — a wider reading than the
+      <em>active</em> stat box, which counts only what has been submitted and is still in
+      play — and <strong>inactive</strong> ({{ flow.inactive }}) is the rest. Those numbers
+      come from the database, not from the ribbons, so they are also the check:
+      {% if flow.reconciles %}every node reconciles, in minus out equals what is sitting
+        there.{% else %}<strong>at least one node does not reconcile</strong> — in minus
+        out disagrees with the status count, which means something wrote a status without
+        logging the change.{% endif %}
+    </p>
+    <p class="chart-note muted" data-note="flow" data-view="post">
+      <strong>From applied onward.</strong> Everything that reached <code>applied</code>
+      enters here, however it got there, so the pre-application attrition is out of view.
+      {% if flow_post.dropped %}{{ flow_post.dropped }} backward
+        transition{{ flow_post.dropped|pluralize }}
+        {{ flow_post.dropped|pluralize:"is,are" }} not shown.{% endif %}
+      {% if flow_post.left %}{{ flow_post.left }} application{{ flow_post.left|pluralize }}
+        moved back out of the submitted set entirely and
+        {{ flow_post.left|pluralize:"is,are" }} not drawn.{% endif %}
+      {% if not flow_post.reconciles %}<strong>At least one node does not
+        reconcile.</strong>{% endif %}
+    </p>
+    <details class="numbers" open>
+      <summary>The numbers (full funnel)</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>From</th><th>To</th><th class="nowrap">Applications</th></tr></thead>
+          <tbody>
+            {% for link in flow.links %}
+              <tr>
+                <td class="nowrap">{% if link.kind == "entry" %}<span class="muted">added</span>{% else %}{{ link.source }}{% endif %}</td>
+                <td class="nowrap">{% if link.kind == "still" %}<span class="muted">{{ link.target }}</span>{% else %}{{ link.target }}{% endif %}</td>
+                <td class="num">{{ link.value }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% else %}
+    {% include "tracker/_chart_slot.html" with plan="§3" ready=volumes.transitions needs="Every status change so far records where an application entered the tracker rather than a move between two statuses, so a flow diagram has no ribbons to draw. It gets one the first time an application changes status." %}
+  {% endif %}
+</div>
+
+{# ------------------------------------------------------------- §5 companies #}
+<h2 id="companies">Companies tracked vs applied to</h2>
+<p class="chart-q">How much of the watchlist has actually been acted on?</p>
+<div class="panel">
+  {% if coverage.total %}
+    {% include "tracker/_chart.html" with key="coverage" height=280 label="Donut: companies applied to, companies with an application still being worked on, and companies only being watched" %}
+    <p class="chart-note muted">
+      <strong>Applied to</strong> means <em>submitted</em> — an application at
+      <code>applied</code>, <code>interviewing</code> or <code>rejected</code>.
+      <strong>Reviewing</strong> is nothing sent yet but something still being worked on.
+      <strong>Watching</strong> is everything else, and it covers two histories:
+      {{ coverage.never }} compan{{ coverage.never|pluralize:"y,ies" }} never applied to,
+      and the rest tried and ended — closed before the deadline, or dropped.
+    </p>
+    <details class="numbers" open>
+      <summary>The numbers</summary>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Companies</th><th class="nowrap">Count</th></tr></thead>
+          <tbody>
+            {% for state in coverage.states %}
+              <tr>
+                <td>{% include "tracker/_status.html" with status=state.status %}</td>
+                <td class="num"><a href="/companies/#status={{ state.status }}">{{ state.count }}</a></td>
+              </tr>
+            {% endfor %}
+            <tr><td class="muted">of which never applied to</td>
+                <td class="num">{{ coverage.never }}</td></tr>
+            <tr><td><strong>Tracked</strong></td>
+                <td class="num"><strong><a href="/companies/">{{ coverage.total }}</a></strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% else %}
+    {% include "tracker/_chart_slot.html" with plan="§5" ready=volumes.companies needs="No companies tracked yet — add one with /jobstudio company." %}
+  {% endif %}
+</div>
+
+<h2 id="per-company">Applications per company</h2>
+<p class="chart-q">Where has the same company been approached more than once?</p>
+<div class="panel">
+  {% if per_company.companies %}
+    {% include "tracker/_chart.html" with key="perCompany" height=220 label="Horizontal bars: how many companies carry no application, one, two, or three or more" %}
+    <p class="chart-note muted">
+      {{ per_company.companies }} compan{{ per_company.companies|pluralize:"y,ies" }} and
+      {{ per_company.applications }} application{{ per_company.applications|pluralize }}
+      are not parts of a whole — one company can carry several — so this counts companies,
+      not slices of a pie.
+      {% if per_company.unlinked %}<strong>{{ per_company.unlinked }}</strong>
+        application{{ per_company.unlinked|pluralize }}
+        {{ per_company.unlinked|pluralize:"is,are" }} not linked to any company and
+        {{ per_company.unlinked|pluralize:"is,are" }} outside these bars entirely.{% endif %}
+    </p>
+    {% comment %}
+      Names, not a second copy of the bar lengths. A count answers "how many"; the next
+      question is always "which", and each bucket links into the companies list narrowed to
+      itself so the long ones are not simply truncated away.
+    {% endcomment %}
+    <details class="numbers" open>
+      <summary>Which companies</summary>
+      {% for bucket in per_company.buckets %}
+        {% if bucket.count %}
+          <p class="chart-note">
+            <a href="/companies/#apps={{ bucket.label }}"><strong>{{ bucket.count }}</strong>
+              with {{ bucket.phrase }}</a>:
+            {% for company in bucket.companies %}
+              <a href="/companies/{{ company.slug }}/">{{ company.name }}</a>{% if not forloop.last %}, {% endif %}
+            {% endfor %}{% if bucket.more %} …and
+              <a href="/companies/#apps={{ bucket.label }}">{{ bucket.more }} more</a>{% endif %}
+          </p>
+        {% endif %}
+      {% endfor %}
+    </details>
+  {% else %}
+    {% include "tracker/_chart_slot.html" with plan="§6" ready=volumes.companies needs="No companies tracked yet, so there is nothing to count applications against." %}
+  {% endif %}
+</div>
+
+{# ----------------------------------------------------------------- §4 stock #}
+<h2 id="stock">Status over time</h2>
+<p class="chart-q">What shape is the pipeline, and what moved each week?</p>
+<div class="panel">
+  {% if stock.ready %}
+    <div class="chart-toggle chips" data-toggle="stock">
+      <button type="button" class="chip active" data-view="stacked">Where everything sits</button>
+      <button type="button" class="chip" data-view="lines">What moved each week</button>
+    </div>
+    {% include "tracker/_chart.html" with key="stock" height=300 label="Step chart, two views: how many applications sat in each status week by week, and how many arrived in each status each week" %}
+    <p class="chart-note muted" data-note="stock" data-view="stacked">
+      <strong>Stacked.</strong> Stock, not events — the dashboard's Activity chart counts
+      what happened each week; this counts where everything <em>was</em>, so the top of the
+      pile is the size of the tracker. Steps rather than a curve: a status changes on a
+      day, and a smooth line between two weeks would invent the days in between.
+      {% if stock.reconstructed %}{{ stock.reconstructed }} of {{ stock.weeks|length }}
+        week{{ stock.weeks|length|pluralize }} {{ stock.reconstructed|pluralize:"is,are" }}
+        shaded: their history was reconstructed by the 2026-09-08 backfill, which dated
+        rows from the day an application was logged, or arrived in one bulk logging
+        session. The shape there is when things were <em>recorded</em>, not when they
+        happened.{% endif %}
+    </p>
+    <p class="chart-note muted" data-note="stock" data-view="lines">
+      <strong>What moved each week.</strong> Not the same numbers drawn differently — this
+      counts applications that <em>arrived</em> in a status during that week, so it falls
+      back to zero in a quiet week where the other view would hold a flat line. It is the
+      reading that can be followed one status at a time: in a stack a band's thickness is
+      its own value but its height is everyone else's, so a status that never moved still
+      appears to.
+      {% if stock.reconstructed %}The shaded weeks matter more here than anywhere: a bulk
+        logging session is a spike in this chart that never happened on that scale.{% endif %}
+    </p>
+    <details class="numbers" open>
+      <summary>The numbers</summary>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th class="nowrap">Week</th>
+              {% for status in stock.statuses %}<th class="nowrap">{{ status }}</th>{% endfor %}
+              <th class="nowrap">Total</th><th class="nowrap">Moved</th></tr>
+          </thead>
+          <tbody>
+            {% comment %}
+              The stock numbers, with what moved that week beside them — the two views of
+              the chart in one table, since the whole point is that they differ.
+            {% endcomment %}
+            {% for week in stock.weeks %}
+              <tr class="{% if week.reconstructed %}is-stale{% endif %}">
+                <td class="nowrap">{{ week.label }}{% if week.reconstructed %}
+                  <span class="flag">reconstructed</span>{% endif %}</td>
+                {% for cell in week.cells %}<td class="num">{{ cell }}</td>{% endfor %}
+                <td class="num">{{ week.total }}</td>
+                <td class="num">{% if week.moved %}{{ week.moved }}{% else %}<span class="muted">—</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% else %}
+    {% include "tracker/_chart_slot.html" with plan="§4" ready=stock.ready needs="Replaying history forward needs transitions to replay, and then a few weeks of them that were actually lived rather than typed in one sitting, before the shape of a pipeline means anything. It improves on its own as the tracker is used." %}
+  {% endif %}
+</div>
+
+{{ chart_data|json_script:"chart-data" }}
+{% endblock %}

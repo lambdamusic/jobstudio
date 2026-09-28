@@ -168,7 +168,7 @@ when to run it and what to do with the result.
 | `closed` | The deadline passed before I could apply |
 | `discarded` | I decided I'm no longer interested in the role |
 
-A company's derived status on the companies page is `applied` if it has any application in `{applied, interviewing, rejected}` — i.e. one that was actually submitted, whatever happened next — and `watching` otherwise. `closed` and `discarded` don't count: neither implies an application was ever sent.
+A company's derived status on the companies page is `applied` if it has any application in `{applied, interviewing, rejected}` — i.e. one that was actually submitted, whatever happened next — `reviewing` if nothing was submitted but something is still live (`saved`/`reviewing`), and `watching` otherwise. `closed` and `discarded` leave a company `watching`: neither implies an application was ever sent, and neither is still live.
 
 ### Add a new application or job post
 

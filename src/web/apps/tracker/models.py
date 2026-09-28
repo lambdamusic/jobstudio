@@ -27,6 +27,10 @@ from django.utils.functional import cached_property
 # Reuse the pipeline's single source of truth for status handling rather than retyping it.
 from appfolder import (
     COMPANY_APPLIED_TRIGGER_STATUSES,
+    COMPANY_REVIEWING_TRIGGER_STATUSES,
+    COMPANY_STATUS_APPLIED,
+    COMPANY_STATUS_REVIEWING,
+    COMPANY_STATUS_WATCHING,
     COMPANY_STATUSES,
     STATUS_SORT_ORDER,
     cv_variant,
@@ -53,8 +57,8 @@ CV_BASE_CHOICES = [
     ("functional", "Functional"),
     ("chronological", "Chronological"),
 ]
-# Two states only — watched, or applied to. Maintained by refresh_company_status()
-# below, off Application save/delete signals.
+# Three states — applied to, being reviewed, or merely watched. Maintained by
+# refresh_company_status() below, off Application save/delete signals.
 COMPANY_STATUS_CHOICES = [(s, s.title()) for s in COMPANY_STATUSES]
 
 
@@ -125,9 +129,10 @@ class Company(models.Model):
     role_target = models.CharField(max_length=200, blank=True)
     fit = models.PositiveSmallIntegerField(default=0, help_text="Stars, 0-5")
     status = models.CharField(max_length=20, choices=COMPANY_STATUS_CHOICES, default="watching",
-                              help_text="Derived automatically: 'applied' if the company has an "
-                                        "application actually submitted (applied/interviewing/"
-                                        "rejected), else 'watching'")
+                              help_text="Derived automatically: 'applied' if any application was "
+                                        "submitted (applied/interviewing/rejected), 'reviewing' if "
+                                        "one is still being worked on (saved/reviewing), else "
+                                        "'watching'")
     category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL,
                                  related_name="companies")
     notes = models.TextField(blank=True)
@@ -507,19 +512,27 @@ class Scan(models.Model):
 
 def refresh_company_status(company: "Company | None") -> None:
     """A company is `applied` if it has an application that was actually submitted
-    (`applied`, `interviewing`, or `rejected` — see COMPANY_APPLIED_TRIGGER_STATUSES),
-    otherwise `watching`. A `saved`/`reviewing` placeholder row doesn't count, and neither
-    does `closed` (deadline passed before applying) or `discarded` (dropped before
-    applying) — see docs/workflow.md "Application statuses" for the definitions.
+    (`applied`, `interviewing`, or `rejected` — see COMPANY_APPLIED_TRIGGER_STATUSES);
+    failing that, `reviewing` if one is still being worked on (`saved` or `reviewing`);
+    otherwise `watching`. See docs/workflow.md "Application statuses" for the definitions.
+
+    `watching` therefore covers two different histories: never applied to, and applications
+    that all ended without being sent (`closed` — the deadline passed; `discarded` — the
+    role was dropped). Both mean the same thing about *now*, which is what this field is
+    for: there is nothing live here.
 
     Replaces appfolder.sync_company_status(), which maintained an equivalent rule by
     rewriting companies.md back when that file was the source of truth.
     """
     if company is None:
         return
-    wanted = ("applied"
-             if company.applications.filter(status__in=COMPANY_APPLIED_TRIGGER_STATUSES).exists()
-             else "watching")
+    applications = company.applications
+    if applications.filter(status__in=COMPANY_APPLIED_TRIGGER_STATUSES).exists():
+        wanted = COMPANY_STATUS_APPLIED
+    elif applications.filter(status__in=COMPANY_REVIEWING_TRIGGER_STATUSES).exists():
+        wanted = COMPANY_STATUS_REVIEWING
+    else:
+        wanted = COMPANY_STATUS_WATCHING
     # Compare against the database, not company.status — the caller may be holding an
     # instance loaded before an earlier signal updated the row, and a stale value here
     # silently skips the write.

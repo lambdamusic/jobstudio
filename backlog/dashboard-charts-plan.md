@@ -26,14 +26,18 @@ event types, stacked. It is `div`s with server-computed inline pixel heights (`t
   export and the builder needs no change.
 - **Vendor the file; do not use a CDN.** The site then stays self-contained, works
   offline, and makes no third-party request while someone browses their own job search.
-- Library still to pick. One library should cover all charts rather than accumulating
-  several. **Apache ECharts** is the pragmatic default — Sankey, stacked area and pie all
-  native, one file, MIT. **Plotly.js** covers the same ground and is larger. **d3 +
-  d3-sankey** is smallest and most controllable but every chart is authored by hand;
-  there is a `gen-d3` skill if that route is taken.
+- **Picked 2026-09-28: Apache ECharts 6.1.0**, Apache-2.0, vendored at
+  `src/web/static/vendor/echarts-6.1.0.min.js` (1.1 MB minified). It covers Sankey,
+  stepped stacked area, donut and bar in one file; Plotly.js covers the same ground and is
+  larger; d3 + d3-sankey is smaller and more controllable but is four chart types authored
+  by hand. Provenance, hash and the upgrade procedure are in `static/vendor/README.md`.
+  Rendered with the **SVG** renderer rather than canvas, so the marks are in the DOM and
+  the published mirror stays inspectable and printable.
 
-This is the web app's **first runtime dependency**. Record the version and origin, note
-the licence, and check the minified bundle does not trip `tools/make-public-tree --check`.
+This is the web app's **first runtime dependency**. Recorded, licensed and checked:
+`make-public-tree --check` stays clean with the bundle in the tree (it costs the scan
+about ten seconds), and `build_static` ships it into `site/` with no change to the builder,
+exactly as predicted above.
 
 **Load the `dataviz` skill before building any of these.** They must read as one system —
 shared palette, shared type scale, consistent legends — not four separately-styled charts.
@@ -79,6 +83,15 @@ alone to distinguish series (status is also ordered, so use position and labels)
 carry text alternatives — the dashboard is exported to a static site where a screen
 reader is the only fallback.
 
+**Resolved 2026-09-28: one status palette for the whole site.** The charts first used two
+ordinal ramps of their own, which was defensible and wrong in practice — the same seven
+words were one set of colours in a pill and another in a chart. Badges and charts now read
+the same CSS custom properties (`--st-*` in `site.css`). Two hues moved to make that work:
+`closed` went from dusty red to amber, because it was a near-twin of `rejected` and the two
+mean different things, and `discarded` went from the same grey as `saved` to slate. Every
+adjacent pair in funnel order clears the CVD and normal-vision floors; the two greys sit
+below the chroma floor on purpose, because grey *is* their meaning.
+
 **R6 — No new model.** `ApplicationStatusChange(application, changed_at, from_status,
 to_status)` is written automatically by a `post_save` signal and already backfilled. It is
 an edge list and an event stream. Nothing below needs a migration.
@@ -123,22 +136,59 @@ their order come from `STATUS_SORT_ORDER` in `appfolder.py`: `applied`, `intervi
 
 **Rules.**
 
-- **R-S1 — Per-status entry stubs, not one source node.** A row with a blank `from_status`
+- **R-S1 — Entry stubs for mid-funnel arrivals, not one source node.**
+
+  **Superseded in the data and narrowed in the code, 2026-09-28.** The measurement below
+  was real — 24 of 57 applications did not enter at `saved` — but it described how the
+  tracker was used while it was being built, not a difference between those applications
+  and the rest. Nobody applies to a role they never looked at. `manage.py
+  backfill_saved_entry` gave each of them a `saved` entry dated the day before its first
+  recorded status, so the funnel starts in one place.
+
+  The rule then narrowed to match: entering at the window's **first** status is no longer
+  drawn, because that node *is* the start and a stub in front of it only said "these
+  applications exist". Entering anywhere else still gets its own ribbon — an application
+  that appears at `closed` never passed through the statuses to its left, and a diagram
+  that quietly routed it through them would be lying. So there are no entry stubs on this
+  tracker today, and there will be one the next time it happens for real.
+
+  The original argument, which is why the rule survives at all: A row with a blank `from_status`
   is where an application entered. On the tracker measured, of 57 applications only 33
   entered at `saved`; the other 24 were logged directly at `closed`, `applied`,
   `discarded`, `rejected`, `reviewing` or `interviewing`. A single "all applications"
   source node would assert a funnel nobody went through. Each status gets its own entry
   ribbon sized by its blank-`from_status` count.
-- **R-S2 — Terminal "still here" stubs.** An application sitting in a status has no
-  outgoing edge and would vanish from a flow diagram. Each node needs a terminal ribbon
-  for its current occupancy. This is also the correctness check: for every node,
+- **R-S2 — Terminal stubs.** An application sitting in a status has no outgoing edge and
+  would vanish from a flow diagram. Each node needs a terminal ribbon for its current
+  occupancy. This is also the correctness check: for every node,
   `in − out = current count`. That reconciled exactly on the tracker measured, for all
   seven statuses, and a unit test should assert it rather than trusting it.
+
+  **Changed 2026-09-28.** Seven per-status "still here" stubs said the same thing seven
+  times. The occupancy ribbons now run on to **two** end nodes instead — `active`
+  (anything not `discarded`, `closed` or `rejected`) and `inactive` — which is the same
+  information plus where the tracker actually stands. The reconciliation is unchanged:
+  occupancy still comes from the database, not from the ribbons, so it is still the check.
+
+  Note `active` here is **wider than `ACTIVE_STATUSES`** (applied + interviewing), which is
+  what the stat bar's *active* box counts. Two different questions — "submitted and still
+  in play" and "not over yet" — and the note under the chart says which this one is, since
+  the same word now appears on the same site meaning two things.
 - **R-S3 — Backward edges: drop, but report.** A Sankey is a DAG; real transitions go
-  backwards (`applied → reviewing` on a re-open). Order nodes by `STATUS_SORT_ORDER`,
-  drop edges that run against it, and **print the count dropped beneath the chart**. On
+  backwards (`applied → reviewing` on a re-open). Order nodes by funnel position, drop
+  edges that run against it, and **print the count dropped beneath the chart**. On
   the tracker measured this was 2 of 120, so the rule is cheap — but silently losing
   edges is how a diagram starts lying.
+
+  **Correction, 2026-09-28 (building it).** This rule originally said to order nodes by
+  `STATUS_SORT_ORDER`. That is the *triage* order — most active first: `applied`,
+  `interviewing`, `reviewing`, `saved`, … — so orienting the flow by it would make
+  `saved → applied` run backwards and the rule would drop the commonest transition in any
+  tracker, not two edges in a hundred. The measured "2 of 120" is itself the evidence: it
+  can only hold for the funnel order this section's **Shape** already spells out. The code
+  has its own `FUNNEL_ORDER` (`tracker/views.py`) — `saved`, `reviewing`, `applied`,
+  `interviewing`, then the three terminal statuses keeping their `STATUS_SORT_ORDER`
+  sequence relative to each other.
 - **R-S4 — The `applied` node is not what it looks like.** It is the largest node and
   includes applications that have had no response for months. Cross-reference §7: the
   ageing view must be adjacent, or this chart overstates how much is in flight.
@@ -147,9 +197,10 @@ their order come from `STATUS_SORT_ORDER` in `appfolder.py`: `applied`, `intervi
 and `closed` — they mean different things (dropped by the candidate vs closed by the
 employer) and the distinction is the interesting part of pre-application attrition.
 
-**Done when.** Ribbons balance per R-S2 under test; the toggle switches without a page
-load; the empty tracker and the 3-application example both render correctly per R3 — the
-example having no inter-status edges at all is the specific case to get right.
+**Done when.** ✅ 2026-09-28. Reconciliation is asserted for every node, and there is a
+second test that *breaks* it (a status written behind the signal's back) so the check
+cannot quietly become decoration. Both views ship in one payload, so the toggle is a
+redraw. The example tracker has no inter-status edge at all and says so instead of drawing.
 
 ---
 
@@ -162,13 +213,24 @@ but how many applications sat in each status at each point in time.
 application's state; bucket weekly (ISO, Monday-starting, matching `_activity_weeks()`).
 
 **Shape.** Stacked area, one band per status, ordered by funnel position so the bands read
-top-to-bottom as the pipeline.
+top-to-bottom as the pipeline — and, behind a toggle (2026-09-28), **one line per status
+showing what moved that week**.
+
+The second view is deliberately a different *measure*, not the same numbers unstacked. It
+counts applications that arrived in each status during that week, so it falls back to zero
+in a quiet week where the stock view holds a flat line — and it is the reading that can be
+followed one status at a time, which a stack cannot be: a band's thickness is its own value
+but its height is everyone else's, so a status that never moved still appears to.
 
 **Rules.**
 
 - **R-T1 — Stock, not flow.** The existing Activity chart is flow (events per week). This
   is the complement and the one not currently shown. Do not replace the Activity chart;
   they answer different questions.
+
+  *Amended 2026-09-28: the toggle adds flow per status, which the Activity chart does not
+  show — it counts three event types across the whole tracker. Three charts, three
+  questions, and none of them replaces another.*
 - **R-T2 — Mark reconstructed periods.** Per R4. Weeks whose transitions came
   predominantly from the backfill, or from a single bulk-logging day, are shaded
   differently and the legend says "reconstructed". On the tracker measured this covers the
@@ -182,8 +244,11 @@ top-to-bottom as the pipeline.
 
 **Must not.** Back-fill state for applications before their first recorded transition.
 
-**Done when.** The total across bands equals the application count at every point; bulk
-periods are visibly distinct; a tracker with one week of history renders R-T4's message.
+**Done when.** ✅ 2026-09-28. Backfilled rows are detected exactly rather than guessed
+at: the 2026-09-08 backfill dated them from `Application.date`, so they sit at precisely
+local midnight. A bulk logging session is a day holding 5+ transitions. A week where those
+outnumber the organic ones is shaded gold and called reconstructed. Below three weeks
+carrying organic transitions the chart states what it needs instead of drawing.
 
 ---
 
@@ -197,16 +262,24 @@ has an application in a *submitted* status (`applied` / `interviewing` / `reject
 
 **Shape.** Donut with the proportion stated in the middle, rather than a two-slice pie.
 
+**Three slices since 2026-09-28, and a model change behind them.** `Company.status` was two
+states, and two could not tell "I have an application open with them" from "I have never
+done anything about them". It is now `applied` / `reviewing` / `watching`, derived the same
+way off the same signals, and the donut draws it directly — so the chart and the badge on
+the company's own row cannot disagree. See `docs/companies.md`.
+
 **Rules.**
 
-- **R-C1 — Say which definition is being used.** "Applied to" here means *submitted*. A
+- **R-C1 — Say which definition is being used.** *(Still the rule, now about a different
+  ambiguity: with three states, the slippery one is `watching`, which covers both "never
+  applied to" and "tried and it ended". The chart states the split.)* "Applied to" here means *submitted*. A
   company with three applications still at `saved` reads as `watching`. On the tracker
   measured, 23 companies had a submitted application while **35** had at least one
   application of any status — a 50% difference between two readings of the same phrase.
   The chart must name the one it means.
 
-**Done when.** The two segments sum to the tracked company count, and the definition is on
-the chart, not only in documentation.
+**Done when.** ✅ 2026-09-28. Both readings are computed and the looser one is stated
+beneath the donut whenever it differs, so the gap is visible rather than a footnote.
 
 ---
 
@@ -220,7 +293,11 @@ asserts that they do.
 
 **Source.** `Company.objects.annotate(n=Count("applications"))`, bucketed 0 / 1 / 2 / 3+.
 
-**Shape.** Small horizontal bar histogram, with the headline counts stated beside it.
+**Shape.** Small horizontal bar histogram, with the headline counts stated beside it, and
+each bucket naming the companies in it (2026-09-28) — a count answers "how many", and the
+next question is always "which". Long buckets link into `/companies/` narrowed to
+themselves via a `#apps=<bucket>` fragment rather than a querystring, which the static
+build could not publish.
 
 **Rules.**
 
@@ -231,8 +308,8 @@ asserts that they do.
   shown whenever it is non-zero, with a pointer to `jobsdb.py link-company`, rather than
   the chart quietly covering fewer applications than it claims.
 
-**Done when.** Bucket totals plus unlinked equals the application count, and the unlinked
-count is shown.
+**Done when.** ✅ 2026-09-28. Asserted both ways: buckets sum to the company count, and
+linked applications plus unlinked sum to the application count.
 
 ---
 
@@ -246,8 +323,23 @@ every other chart is read.
 **Source.** For each `Application` with `status="applied"`, days since its most recent
 `ApplicationStatusChange`.
 
-**Shape.** Primarily a **list**, not a chart — the rows are individually actionable in a
-way a distribution is not. A small strip plot of the ages alongside it is optional.
+**Shape.** Bars over age bands: 0–7, 8–14, 15–30, 31–60, 60+ days, the third band ending
+exactly at `STALE_AFTER_DAYS` so "past this line is quiet" is a property of the bands
+rather than a rule drawn over them. The two stale bands take the gold ramp and say *quiet*
+in the axis label, so the threshold is carried by colour **and** position **and** words.
+
+**Changed 2026-09-28, mid-build.** This said "primarily a **list**, not a chart — the rows
+are individually actionable in a way a distribution is not", and it was built that way
+first. The list is the applications page's job: it already tabulates rows, and sorting it
+by last-moved would put them where someone is already looking. What a separate page can
+say that a table cannot is the *shape* — whether the quiet end is growing. Applications
+with no recorded date are counted separately rather than swept into the first band; an
+unknown age is not a small one.
+
+The rows came back under the chart the same day, as a linked table. The bars answer "is
+the quiet end growing"; the original objection — that these rows are individually
+actionable — was right about what you do next. `/applications/` has the sortable list, and
+this is the same rows in band order, one click from each application.
 
 **Rules.**
 
@@ -260,8 +352,11 @@ way a distribution is not. A small strip plot of the ages alongside it is option
   node in the Sankey both include these. Say so where they appear: an apparent pipeline of
   17 that contains several dead applications is not a pipeline of 17.
 
-**Done when.** The list is reachable from the `applied` stat box, and the Sankey's
-`applied` node carries the stale count.
+**Done when.** ✅ 2026-09-28. The view is reachable from the `applied` stat box — which
+now carries a one-line note, on every page that shows it, saying how much of that count has
+not moved — and the Sankey's `applied` node is labelled `applied · N quiet`. The same rows
+are in `/jobstudio status` under "Gone quiet", from the same helper, so the terminal and
+the page cannot come to disagree about what quiet means.
 
 ---
 
@@ -319,13 +414,51 @@ small, and in the same family as `#41`.
 
 ## 10. Suggested build order
 
-0. **The `/stats/` page skeleton (§2a)** — view, template, URL, nav entry, `build_static`
-   registration, and the empty/example states from R3 before any chart exists. Doing this
-   first means every chart lands into a page whose cold-start behaviour is already proven.
-1. **Ageing (§7)** — a list, no library needed, highest actionable value, and it
-   establishes the framing the other charts are read through.
-2. **Sankey (§3)** — the requested headline; brings the library in.
-3. **Companies donut (§5)** and **applications-per-company (§6)** — cheap once the
-   library is present; §9 is already done.
-4. **Stock over time (§4)** — last, both because it is the most complex and because it
-   improves as more organic history accumulates.
+0. **The `/stats/` page skeleton (§2a)** — ✅ **done 2026-09-28.** View, template, URL,
+   nav entry, `build_static` registration, and the empty/example states from R3 before any
+   chart exists. Doing this first means every chart lands into a page whose cold-start
+   behaviour is already proven.
+
+   What landed, and what a chart inherits by using it:
+
+   - `tracker.views._stats_volumes()` — the counts every chart's "can I draw this
+     honestly?" turns on, in one helper because the page *states them beside the charts*:
+     a refusal to draw and the readout explaining it have to come from one query. It
+     splits **entry events** (blank `from_status`) from **transitions**, which is the
+     distinction R-S1 and R3 both hang on and the one a bare "status changes" count hides.
+   - `tracker/_chart_slot.html` — the three R3 states in one place: nothing tracked at
+     all, data but not the data this chart needs, and not built yet. A chart keeps the
+     slot as its else-branch rather than replacing it; the tiers are permanent, not
+     scaffolding.
+   - Sections are laid out in this build order rather than the document order above, so
+     ageing sits above the Sankey per R-G3.
+   - Eight tests in `StatsPageTests`, covering all three tiers — including the example
+     tier's sharp case (three status changes, none of them a transition, so only the two
+     history charts are held back) and R-A1's unlinked count appearing and disappearing.
+1. **Ageing (§7)** — ✅ done 2026-09-28. Built as a list, then changed to age bands
+   mid-build (see §7). It does establish the framing: the `applied` stat box and the
+   Sankey's `applied` node both now say how much of that number has gone quiet.
+2. **Sankey (§3)** — ✅ done 2026-09-28. Brought ECharts in (§1), and turned up the
+   node-order correction recorded under R-S3.
+3. **Companies donut (§5)** and **applications-per-company (§6)** — ✅ done 2026-09-28.
+   Cheap once the library was present, as expected.
+4. **Stock over time (§4)** — ✅ done 2026-09-28. The most complex, and the one that
+   improves on its own: it stays behind its "not enough lived history" message until
+   three weeks carry organic transitions.
+
+## 11. What is left
+
+- **Promotion to the dashboard** (§2a) — still an open decision, chart by chart. Nothing
+  has moved to `/` except the one-line staleness note on the stat bar, which is a
+  correction to a number the dashboard already shows rather than a chart.
+- ~~**A sortable applications list.**~~ Done 2026-09-28: `/applications/` has a toolbar —
+  search, target area, status, and sorts including *longest without moving* — and a
+  **Last moved** column taken from the change log rather than from `Application.date`.
+  `/companies/` got the same treatment: one table instead of a tab per category, with
+  category and date-added as columns, filters, and paging.
+- **§8's four suggestions** — none built. Funnel conversion rates are the natural next one:
+  the Sankey's nodes as percentages, which is where applications die rather than how many.
+- **Dark mode.** The chart palette is defined as CSS custom properties in `site.css` and
+  read from there at draw time, so a dark scheme is a change in one place. The app has no
+  dark mode at all today, so there is nothing yet for the charts to follow — which is why
+  R5's light-and-dark requirement is only half met, on purpose.

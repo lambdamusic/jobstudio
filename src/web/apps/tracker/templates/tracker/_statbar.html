@@ -22,3 +22,18 @@
     <div class="k">all</div>
   </a>
 </div>
+{% comment %}
+  R-G3 (backlog/dashboard-charts-plan.md §7): the `applied` box counts applications that
+  have had no response for months alongside the ones still in play, so an apparent
+  pipeline of 17 is not a pipeline of 17. Said where the number is, and only when something
+  has actually gone quiet, because a note that is always there stops being read.
+
+  The dashboard only (2026-09-28): the applications list is where you go to *act* on this,
+  and it already sorts by longest-without-moving, so the same sentence above the table was
+  telling someone looking at the rows what the rows say.
+{% endcomment %}
+{% if stale_applied %}
+  <p class="stat-note">{{ stale_applied }} of the applied
+    application{{ stale_applied|pluralize }} {{ stale_applied|pluralize:"has,have" }} not
+    moved in {{ stale_after_days }}+ days — <a href="/stats/#ageing">which ones</a>.</p>
+{% endif %}

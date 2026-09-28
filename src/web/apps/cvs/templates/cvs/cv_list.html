@@ -8,13 +8,38 @@
      never pre-generated — and {{ tailored|length }} tailored so far.</p>
 </div>
 
+{% comment %}
+  Cards rather than a list of two links (2026-09-28). Two names in a wide panel said
+  nothing a reader could not have guessed from the heading; what is worth knowing before
+  opening one is what it is for, how long it is, and whether it has been touched recently —
+  a CV that has not been edited in months while the search moved on is the thing to notice.
+{% endcomment %}
 <h2>Master CVs</h2>
-<div class="panel">
+<div class="grid2">
   {% for cv in base_cvs %}
-    <div style="padding:5px 0;
-                {% if not forloop.last %}border-bottom:1px solid #f0f0f3;{% endif %}">
-      <a href="/cvs/base/{{ cv.slug }}/">{{ cv.label }}</a>
-    </div>
+    <a class="card" href="/cvs/base/{{ cv.slug }}/">
+      <div class="card-head">
+        <span class="card-title">{{ cv.label }}</span>
+        {% if cv.is_functional %}<span class="pill">default</span>{% endif %}
+      </div>
+      <p class="card-lede">
+        {% if cv.is_functional %}Competency-first: what you can do, clustered, with the
+        employers underneath. The base every application tailors from unless it says
+        otherwise.
+        {% else %}Chronological: role by role, newest first. The alternative base, chosen
+        per application via <code>cv_base</code>.{% endif %}
+      </p>
+      {% if cv.stats.exists %}
+        <div class="card-facts">
+          <span><strong>{{ cv.stats.words }}</strong> words</span>
+          <span><strong>{{ cv.stats.sections }}</strong> sections</span>
+          <span>edited {{ cv.stats.modified|ago }}</span>
+        </div>
+      {% else %}
+        <div class="card-facts"><span class="flag">file missing</span>
+          <span class="muted">{{ cv.path }}</span></div>
+      {% endif %}
+    </a>
   {% endfor %}
 </div>
 
@@ -33,6 +58,7 @@
           <th>Tailored for</th>
           <th class="nowrap">#</th>
           <th>Application</th>
+          <th class="nowrap">Status</th>
         </tr>
       </thead>
       <tbody>
@@ -53,6 +79,12 @@
               {% else %}{{ cv.app.company_name }}{% endif %}
               <span class="sub">{{ cv.app.role|truncatechars:60 }}</span>
             </td>
+            {% comment %}
+              Where the application got to. A tailoring effort that ended in `rejected` and
+              one still at `interviewing` are worth telling apart on the page that lists
+              the effort — and the column makes the CVs sortable by outcome by eye.
+            {% endcomment %}
+            <td class="nowrap">{% include "tracker/_status.html" with status=cv.app.status %}</td>
           </tr>
         {% endfor %}
       </tbody>
