@@ -141,7 +141,8 @@ def dashboard_summary(activity_weeks: int = 8) -> dict:
     setup()
     from tracker.models import ACTIVE_STATUSES, Application
     from tracker.views import (
-        _activity_weeks, _recent_companies, _recent_scans, _recently_applied, _status_summary,
+        STALE_AFTER_DAYS, _activity_weeks, _ageing_at_applied, _recent_companies,
+        _recent_scans, _recently_applied, _status_summary,
     )
 
     applications = Application.objects.select_related("company", "area")
@@ -163,6 +164,13 @@ def dashboard_summary(activity_weeks: int = 8) -> dict:
         ],
         "scans": [{"label": s.label or s.path, "date": s.date, "stats": s.stats}
                  for s in _recent_scans()],
+        # Applications sitting at `applied`, quietest first — the same rows /stats/ lists,
+        # from the same helper, so the two cannot come to disagree about what "gone quiet"
+        # means (see docs/dashboard-status.md, "One function, two consumers").
+        "ageing": [{**_app_dict(row["application"]), "days": row["days"],
+                   "stale": row["stale"], "adrift": row["adrift"]}
+                  for row in _ageing_at_applied()],
+        "stale_after_days": STALE_AFTER_DAYS,
     }
 
 
@@ -350,6 +358,14 @@ def print_status_report(data: dict) -> None:
                 continue
             print(f"  {w['start'].strftime('%-d %b')}: {w['added']} added, "
                   f"{w['applied']} applied, {w['rejected']} rejected")
+
+    stale = [a for a in data.get("ageing", []) if a["stale"]]
+    if stale:
+        print(f"\nGone quiet ({data['stale_after_days']}+ days at applied):")
+        for a in stale:
+            # R-G2: quiet AND nothing planned is the row worth acting on first.
+            tail = f"next: {a['next_action']}" if a["next_action"] else "nothing planned"
+            print(f"  #{a['num']} {a['company']} — {a['role']}  {a['days']}d  ({tail})")
 
     print("\nRecently logged:")
     if data["recent"]:

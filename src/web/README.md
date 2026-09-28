@@ -43,7 +43,11 @@ pure database state, not file-derived — one row per status transition, appende
 automatically by a `post_save` signal in `models.py` whenever `Application.status`
 changes (including the very first save). It only tracks status; document adds/edits are
 not logged. `manage.py backfill_status_history` seeded a starting entry for applications
-that predate the model.
+that predate the model, and `manage.py backfill_saved_entry` (2026-09-28) gave every
+application a `saved` entry dated the day before its first recorded status — applications
+logged straight into `closed` or `applied` were an artefact of how the tracker was used
+while it was being built, not a real difference. That second one is the only command here
+that *edits* existing rows; it takes `--dry-run`, and re-running it is a no-op.
 
 **`tools/db-dump` is the backup that
 matters** — `<data-root>/backups/django/dump-<ts>.json` is the portable record, and `example-data/backups/django/dump.json` is the test fixture the tests load.

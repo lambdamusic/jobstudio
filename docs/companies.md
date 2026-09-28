@@ -29,12 +29,26 @@ tools/py src/jobsdb.py add-company \
 
 ## Status is derived, never set by hand
 
-A company has exactly two states — `watching` or `applied` — maintained by
-`refresh_company_status()` off `Application` save/delete signals
-(`src/web/apps/tracker/models.py`): `applied` the moment the company has any application
-that reached `applied`, `interviewing`, or `rejected`; `watching` otherwise. There's no
-`researching`/`contacted` granularity at the company level — that richer per-application
-status lives on the `Application` row instead (see workflow.md "Application statuses").
+A company has exactly three states, maintained by `refresh_company_status()` off
+`Application` save/delete signals (`src/web/apps/tracker/models.py`):
+
+| State | When |
+|---|---|
+| `applied` | any application reached `applied`, `interviewing` or `rejected` — i.e. was actually submitted, whatever happened next |
+| `reviewing` | nothing submitted, but at least one application is still live (`saved` or `reviewing`) |
+| `watching` | nothing live at all |
+
+It was two states (`applied` / `watching`) until 2026-09-28. The middle one was missing,
+and its absence read as "not acted on" for a company with an application open on the desk.
+
+`watching` covers two different histories — never applied to, and every application ended
+without being sent (`closed`, the deadline passed; `discarded`, the role was dropped).
+They mean the same thing about *now*, which is what this field is for; `/stats/` states
+the split where the difference matters.
+
+There's still no `researching`/`contacted` granularity at the company level — that richer
+per-application status lives on the `Application` row instead (see workflow.md
+"Application statuses").
 
 ## Category vs. target area — two different groupings
 

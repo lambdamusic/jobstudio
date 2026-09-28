@@ -1,0 +1,15 @@
+{% comment %}
+  One chart's box: the drawing, and the numbers behind it.
+
+  The table is not a fallback bolted on afterwards — it is in the markup first and the
+  chart is the enhancement, the same way /areas/'s tabs work. Three things fall out of
+  that order: the page is readable with no JavaScript, a screen reader gets the values
+  rather than a canvas (R5 — the published mirror has no other affordance), and /stats/
+  gets the raw numbers beside each chart that §2a asks for. charts.js collapses the
+  <details> once it has drawn something.
+
+  Expects: key (the chart's id, matched by charts.js), height (px), and label (what the
+  drawing is, for a reader who cannot see it). The caller supplies the table.
+{% endcomment %}
+<div class="chart" data-chart="{{ key }}" style="height:{{ height }}px"
+     role="img" aria-label="{{ label }}"></div>

@@ -17,9 +17,66 @@
   --bg-sunk:   #fafafb;
   --link:      #1a5c9a;
   --radius:    7px;
+
+  /* ---------- status palette ----------
+     ONE set of colours for the status badges and the charts, because the same seven words
+     mean the same seven things on both. A pill is a pale tint of its status colour with a
+     darker ink; a chart mark is the colour itself.
+
+     Hues follow what the badges already said — green applied, purple interviewing, blue
+     reviewing, grey saved, red rejected — with two deliberate departures. `closed` moved
+     from dusty red to amber: it was a near-twin of `rejected` under normal vision and
+     indistinguishable under protanopia, and the two mean different things (the employer
+     closed it vs. they said no) — which is the whole reason the plan refuses to merge
+     them. `discarded` moved from the same grey as `saved` to slate, for the same reason.
+
+     Validated rather than eyeballed: adjacent pairs in funnel order clear the CVD floor
+     (worst ΔE 13.8 protan/deutan) and the normal-vision floor (worst 15.7). Two knowing
+     exceptions, both documented relief: `saved` and `discarded` are below the chroma floor
+     because grey IS their meaning — nothing has happened yet, and I walked away — and
+     `saved` is below 3:1 on white, which every chart answers with a direct label and its
+     numbers as a table. */
+  --st-saved:        #a8aeba;
+  --st-reviewing:    #2b74ad;
+  --st-applied:      #2f7d46;
+  --st-interviewing: #7040a8;
+  --st-discarded:    #6b7180;
+  --st-closed:       #cf7b23;
+  --st-rejected:     #b32d2d;
+  /* Pill ink: the same hue at text weight. Mostly the status colour itself; the two greys
+     need a darker step to clear 4.5:1 on their own tint. */
+  --st-saved-ink:        #454a54;
+  --st-reviewing-ink:    #1d5580;
+  --st-applied-ink:      #1e5c33;
+  --st-interviewing-ink: #542e7d;
+  --st-discarded-ink:    #4c515c;
+  --st-closed-ink:       #8a4f10;
+  --st-rejected-ink:     #8a2222;
+  /* Company states — derived, and deliberately the same three colours as the application
+     statuses they are derived from. */
+  --st-watching:     #a8aeba;
+
+  /* ---------- chart ramps ----------
+     For the charts whose categories are ordered but are NOT statuses: age bands, and the
+     0/1/2/3+ buckets. One hue, monotone lightness, validated as an ordinal ramp (light end
+     2.26:1 on white, adjacent ΔL >= 0.06). Gold marks attention — an application gone
+     quiet, a reconstructed week — the same job it does on .notice and .flag. */
+  --ramp-1: #9aadd2;
+  --ramp-2: #7089c0;
+  --ramp-3: #47639c;
+  --ramp-4: #26386a;
+  --c-quiet:        #c9a13a;
+  --c-quiet-deep:   #8a6a18;
+  /* Entry and terminal ribbons in the flow diagram: structural, not a status, so they must
+     not read as an eighth thing that means something. */
+  --c-stub:         #c4c7d0;
 }
 
 * { box-sizing: border-box; }
+
+/* `hidden` must win over any display rule an element also matches — .btn sets
+   display:inline-block, which silently un-hid every hidden button on the page. */
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -111,7 +168,8 @@ h3 { font-size: 14px; font-weight: 600; margin: 22px 0 8px; }
 
 .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
 .stat {
-  flex: 1 1 116px; min-width: 116px;
+  /* Capped so a row that wraps does not leave one box stretched across the full width. */
+  flex: 1 1 116px; min-width: 116px; max-width: 260px;
   border: 1px solid var(--line); border-radius: var(--radius);
   padding: 12px 14px; background: var(--bg);
 }
@@ -119,6 +177,8 @@ h3 { font-size: 14px; font-weight: 600; margin: 22px 0 8px; }
 .stat .k { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .stat.is-zero { opacity: .5; }
 a.stat:hover { border-color: #cfd4e0; background: var(--bg-sunk); text-decoration: none; }
+/* The one line allowed to sit under the stat row: what the `applied` count is hiding. */
+.stat-note { margin: 4px 0 0; font-size: 12.5px; color: var(--muted); }
 
 /* ---------- cards / panels ---------- */
 
@@ -129,6 +189,22 @@ a.stat:hover { border-color: #cfd4e0; background: var(--bg-sunk); text-decoratio
 .panel-sunk { background: var(--bg-sunk); }
 
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+
+/* A card is a panel you can click: same border and radius, but it lifts on hover and its
+   whole area is the link, so there is no small target to aim at. */
+.card {
+  display: block; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; background: var(--bg); color: inherit;
+}
+.card:hover { border-color: #cfd4e0; background: var(--bg-sunk); text-decoration: none; }
+.card-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.card-title { font-size: 15px; font-weight: 650; color: var(--navy); }
+.card-lede { margin: 0 0 12px; font-size: 13px; color: var(--muted); line-height: 1.55; }
+.card-facts {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  padding-top: 10px; border-top: 1px solid var(--line);
+  font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
 
 /* ---------- tables ---------- */
 
@@ -159,14 +235,17 @@ td.col-scan, th.col-scan { max-width: 230px; }
   display: inline-block; padding: 1px 8px; border-radius: 11px;
   font-size: 11.5px; font-weight: 600; white-space: nowrap;
 }
-.st-applied      { background: #c3e6cb; color: #155724; }
-.st-interviewing { background: #e3c6f5; color: #5a1a78; }
-.st-reviewing    { background: #bee3e8; color: #0c5460; }
-.st-saved        { background: #e2e3e5; color: #383d41; }
-.st-discarded    { background: #e2e3e5; color: #6c757d; text-decoration: line-through; }
-.st-closed       { background: #f1d7d7; color: #7a2e2e; }
-.st-rejected     { background: #f5c6cb; color: #721c24; text-decoration: line-through; }
-.st-watching, .st-researching, .st-contacted { background: #e7ecf5; color: #2a3a5c; }
+/* Each pill is a tint of its own status colour (see "status palette" above), so a badge
+   and the same status in a chart are visibly the same thing. `discarded` and `rejected`
+   keep the strikethrough: both are over, and that is a second channel saying so. */
+.st-applied      { background: color-mix(in srgb, var(--st-applied) 20%, #fff); color: var(--st-applied-ink); }
+.st-interviewing { background: color-mix(in srgb, var(--st-interviewing) 20%, #fff); color: var(--st-interviewing-ink); }
+.st-reviewing    { background: color-mix(in srgb, var(--st-reviewing) 20%, #fff); color: var(--st-reviewing-ink); }
+.st-saved        { background: color-mix(in srgb, var(--st-saved) 34%, #fff); color: var(--st-saved-ink); }
+.st-discarded    { background: color-mix(in srgb, var(--st-discarded) 22%, #fff); color: var(--st-discarded-ink); text-decoration: line-through; }
+.st-closed       { background: color-mix(in srgb, var(--st-closed) 22%, #fff); color: var(--st-closed-ink); }
+.st-rejected     { background: color-mix(in srgb, var(--st-rejected) 20%, #fff); color: var(--st-rejected-ink); text-decoration: line-through; }
+.st-watching, .st-researching, .st-contacted { background: color-mix(in srgb, var(--st-watching) 34%, #fff); color: var(--st-saved-ink); }
 
 .pill {
   display: inline-block; padding: 1px 7px; border-radius: 4px;
@@ -282,6 +361,63 @@ td.col-scan, th.col-scan { max-width: 230px; }
   .content { padding: 24px 20px 48px; }
 }
 
+
+/* ---------- table toolbar ---------- */
+
+/* Hidden until tabletools.js says the controls work — with JavaScript off the table below
+   is complete on its own, and a row of inert dropdowns would be worse than none. */
+.toolbar { display: none; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+.toolbar.js-tools { display: flex; }
+.toolbar input[type="search"], .toolbar select {
+  font: inherit; font-size: 13px; color: var(--ink);
+  padding: 5px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+}
+.toolbar input[type="search"] { min-width: 210px; flex: 1 1 210px; max-width: 320px; }
+.toolbar input[type="search"]:focus, .toolbar select:focus {
+  outline: none; border-color: #b9c2d6; box-shadow: 0 0 0 3px rgba(27, 41, 72, .07);
+}
+.tb-count { margin-left: auto; font-size: 12.5px; color: var(--faint);
+            font-variant-numeric: tabular-nums; }
+.tb-more { margin-top: 10px; }
+.tb-scope { font-size: 12.5px; margin: 10px 0 0; }
+
+/* ---------- /stats/ ---------- */
+
+/* The question a chart answers, sitting between its heading and its panel: the heading
+   names the chart, this says why it is there. Same role on every slot, so it is one
+   class rather than a styled <p> per section. */
+.chart-q { margin: -6px 0 10px; font-size: 13.5px; color: var(--muted); }
+/* The numbers-behind-the-charts note under the stat row, and the plan reference at the
+   foot of each slot. Both are there to be checked against, not read — small, and the
+   plan reference fainter still, since it is a pointer for whoever builds the chart. */
+.chart-note { font-size: 13px; margin: 6px 0 0; }
+/* A row that has gone quiet: the same gold wash as .notice, so "worth a look" reads the
+   same here as everywhere else. Tinting the row rather than adding a column keeps the
+   table scannable — the eye finds the block of shaded rows at the top. */
+tr.is-stale td { background: #fffdf5; }
+/* Stale and nothing planned — the strongest signal on the page, and the one thing here
+   that is a prompt rather than a fact. */
+.flag { color: #8a6d1f; font-size: 12.5px; font-weight: 600; }
+.chart-plan { margin: 6px 0 0; font-size: 12px; color: var(--faint); }
+
+/* A chart is only shown once charts.js has said it can draw one — same arrangement as
+   .js-tabs. Until then (and forever, with JavaScript off) the numbers below it are the
+   chart, which is also what a screen reader and the published mirror get. */
+.chart { display: none; width: 100%; }
+.js-charts .chart { display: block; }
+
+.numbers { margin-top: 10px; }
+.numbers > summary {
+  cursor: pointer; font-size: 12.5px; color: var(--muted);
+  padding: 2px 0; user-select: none;
+}
+.numbers > summary:hover { color: var(--ink); }
+.numbers[open] > summary { margin-bottom: 6px; }
+
+/* The §3 view switch. Buttons rather than links: it changes what is drawn, not where you
+   are, and a querystring cannot be published (see build_static). */
+.chart-toggle { margin: 0 0 10px; }
+.chart-toggle .chip { appearance: none; font: inherit; cursor: pointer; }
 
 /* ---------- tabbed sections ---------- */
 

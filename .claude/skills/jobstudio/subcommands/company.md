@@ -45,7 +45,7 @@ confirm, then add them in one pass.
 | **Company** | Always format as `[Company](url)`. Use the company's jobs/careers page URL (e.g. `company.com/careers`) as the link target — this is more useful than the homepage. If the user provides a URL, use that; if not, infer the careers page from the company name. Check it resolves to a board `scan` can read before writing it: `tools/py src/scan_sources.py "<name>" "<url>"` (offline, no fetch). On `NOT scanned`, see init.md §"Seed the tracker" step 4 — a corporate page often hides a real ATS, which belongs in `company_overrides` rather than in this field. |
 | **Role target** | The kind of role the user would target there — infer from context or company type (VP/Director/Head of Data, PM, Solutions Engineer, etc.) |
 | **Fit** | Star rating ★☆☆☆☆ to ★★★★★ — how well the company matches this user's background and criteria. Read `<DATA>/jobs/profile/stocktake.md` and `<DATA>/jobs/profile/criteria.yaml` rather than assuming a domain. Default to ★★★☆☆ if unclear |
-| **Status** | One of: `watching` · `researching` · `contacted` · `applied` · `interviewing` · `closed` · `rejected`. Default to `watching` |
+| **Status** | Derived, never set by hand: `watching` · `reviewing` · `applied` (see below) |
 | **Notes** | One-line summary: what the company does, any relevant signal (e.g. tech stack, team size, culture) |
 
 ## Steps
@@ -91,8 +91,9 @@ tools/py src/jobsdb.py add-company \
   --notes "{One line — the deep research goes in <DATA>/jobs/companies/<slug>.md}"
 ```
 
-Status is not set by hand: a company is `watching` until it has an application, then
-`applied`, maintained automatically.
+Status is not set by hand and is maintained automatically: `watching` until the company
+has a live application, `reviewing` while one is open but unsent, `applied` once one has
+actually been submitted.
 
 For substantial background research, add `<DATA>/jobs/companies/<slug>.md` following the template
 in `<DATA>/jobs/companies/README.md` — it renders on the company page.

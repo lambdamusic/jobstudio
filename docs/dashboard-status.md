@@ -25,6 +25,47 @@ rewrite. `_recent_companies()` and `_recent_scans()` were extracted out of `home
 specifically to make this possible (2026-09-16); `_status_summary()`, `_activity_weeks()`
 and `_recently_applied()` were already standalone.
 
+## The charts page (`/stats/`)
+
+`/stats/` is where the charts from `backlog/dashboard-charts-plan.md` live. It is
+deliberately not the dashboard: `/` is the page used daily and should not churn while the
+designs are being judged, and `/stats/` can carry the numbers each chart was computed from
+beside it. Promotion to the dashboard is a separate decision, chart by chart.
+
+| Chart | Helper | What it is |
+|---|---|---|
+| **Ageing at applied** | `_ageing_at_applied()`, `_ageing_bands()` | Applications at `applied` by how long since they last moved, in bands breaking at 30 days; the rows behind the bars are listed and linked under the chart |
+| **Status flow** | `_status_flow()` | A Sankey: an entry ribbon per status, a "still here" ribbon carrying each status's current occupancy, and a toggle between the full funnel and what happens from `applied` onward |
+| **Companies tracked vs applied to** | `_company_coverage()` | A donut. "Applied to" means *submitted*, and the looser reading is stated whenever it differs |
+| **Applications per company** | `_applications_per_company()` | How many companies carry 0, 1, 2, 3+ applications, with the unlinked applications declared |
+| **Status over time** | `_status_stock()` | Weekly replay of the change log, two measures behind a toggle: **stock** (where every application sat at the end of each week, stacked) and **flow** (how many arrived in each status during it, one line per status). Reconstructed weeks shaded in both |
+
+Four things are worth knowing before changing any of them.
+
+**Entries are not transitions.** An `ApplicationStatusChange` with a blank `from_status`
+records where an application was first logged; only a move between two statuses is an edge
+in a flow diagram or a step in a history. `_stats_volumes()` splits the two and the page
+shows both, because the difference is what decides whether a chart can draw at all. The
+example data root has three status changes and no transitions, so the flow and stock charts
+there state what they are waiting for — `tracker/_chart_slot.html` owns that message, in
+three states: nothing tracked at all, not enough of the right data, not built yet.
+
+**The server finishes the arithmetic.** `charts.js` only draws. Everything it needs is in
+one `json_script` payload the view rendered, which is what keeps the terminal mirror
+possible — `/jobstudio status` already prints the ageing rows from the same helper, under
+"Gone quiet" — and the static export inert.
+
+**The table is the page; the chart is the enhancement.** Every chart's numbers are in the
+markup as a `<details>` table before ECharts runs, so the page reads with no JavaScript, a
+screen reader gets values rather than a drawing, and the numbers can be checked against the
+shape. `charts.js` adds `js-charts` to `<body>` and folds the tables away once it has
+drawn — the same arrangement `tabs.js` uses.
+
+**The colours are two ordinal ramps, not seven hues.** Status is *ordered*: cool steps run
+light-to-dark through the funnel, warm steps through the three ways an application ends,
+and gold marks attention. They are defined once as CSS custom properties in `site.css` and
+read from there at draw time, so the palette has one home.
+
 ## What each section shows
 
 | Section | Query | Notes |

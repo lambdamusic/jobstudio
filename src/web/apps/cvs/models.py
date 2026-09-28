@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from pathlib import Path
 
 from django.conf import settings
@@ -40,3 +41,27 @@ class BaseCv(models.Model):
     def body_md(self) -> str:
         path = self.full_path
         return path.read_text() if path.is_file() else ""
+
+    @cached_property
+    def stats(self) -> dict:
+        """What a master CV is, at a glance — for the cards on /cvs/.
+
+        Read off the file rather than stored, because the file is the source of truth and a
+        stored copy would be wrong the moment the CV is edited in an editor rather than
+        through the app. Words rather than lines: a CV's length is what a reader feels, and
+        markdown line counts mostly measure how it was wrapped.
+
+        `sections` counts `##` headings — the competency clusters or the roles, depending
+        on which base this is — which is the structural number worth seeing beside the
+        length.
+        """
+        path = self.full_path
+        if not path.is_file():
+            return {"exists": False, "words": 0, "sections": 0, "modified": None}
+        body = self.body_md
+        return {
+            "exists": True,
+            "words": len(body.split()),
+            "sections": sum(1 for line in body.splitlines() if line.startswith("## ")),
+            "modified": dt.datetime.fromtimestamp(path.stat().st_mtime, tz=dt.timezone.utc),
+        }

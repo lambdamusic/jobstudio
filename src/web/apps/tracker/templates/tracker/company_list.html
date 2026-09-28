@@ -4,73 +4,106 @@
 
 <div class="page-head">
   <h1>Companies</h1>
-  <p class="lede">{{ total }} tracked, grouped by category —
+  <p class="lede">{{ total }} tracked —
      {{ n_scanned }} picked up automatically by <a href="/scans/">portal scans</a>.</p>
 </div>
 
-{# Categories become tabs when tabs.js loads; without it they stack as a plain document. #}
-<div data-tabs>
-  <div class="tablist" role="tablist" aria-label="Company categories">
-    {% for group in categories %}
-      <button class="tab" data-tab="{{ group.key }}" role="tab" type="button" title="{{ group.category.name }}">
-        {{ group.category.name }} <span class="tab-n">{{ group.companies|length }}</span>
-      </button>
-    {% endfor %}
-  </div>
+{% comment %}
+  One table, not a tab per category (2026-09-28). Category is an attribute of a company,
+  not a place some companies live, so it is a column and a filter. The whole tracker is in
+  one list that can be searched, narrowed and sorted; long lists page in rather than
+  rendering a wall (see static/js/tabletools.js).
 
-  {% for group in categories %}
-    <section class="tabpanel" data-panel="{{ group.key }}" role="tabpanel">
-      <h2 class="panel-heading">{{ group.category.name }}</h2>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th class="nowrap">#</th><th>Company</th><th class="col-target">Role target</th>
-                <th class="nowrap">Fit</th><th class="nowrap">Status</th><th>Scan</th>
-                <th class="nowrap">Apps</th></tr>
-          </thead>
-          <tbody>
-            {% for c in group.companies %}
-              <tr>
-                <td class="num">{{ c.num }}</td>
-                <td class="col-notes">
-                  <a href="/companies/{{ c.slug }}/" class="role">{{ c.name }}</a>
-                  {% if c.notes %}<span class="sub">{{ c.notes|truncatechars:120 }}</span>{% endif %}
-                </td>
-                <td class="col-target">{{ c.role_target }}</td>
-                <td class="stars nowrap">{{ c.fit|stars }}</td>
-                <td class="nowrap">{% include "tracker/_status.html" with status=c.status %}</td>
-                {% comment %}
-                Why the company isn't scanned is shown, not hidden in a tooltip: "no URL
-                on record" is a one-minute fix, a named ATS is a fetcher someone could
-                write, and a bespoke page is neither. One "not scanned" would flatten all
-                three into something nobody can act on.
-                {% endcomment %}
-                <td class="col-scan">
-                  {% if c.scan_coverage.scanned %}
-                    <span class="pill">{{ c.scan_coverage.platform }}</span>
-                  {% else %}
-                    <span class="muted">not scanned</span>
-                    {% comment %}
-                    The careers link only appears on rows scanning can't help with: these
-                    are the boards that have to be checked by hand, and this saves a trip
-                    through the company page to reach the URL. A scanned company is
-                    already being watched, so the same link there would be noise. A
-                    company with no URL on record has nothing to link to — that reason is
-                    itself the prompt to go and fill it in.
-                    {% endcomment %}
-                    <span class="sub">{{ c.scan_coverage.reason }}{% if c.url %}
-                      · <a href="{{ c.url }}" target="_blank" rel="noopener">careers ↗</a>
-                    {% endif %}</span>
-                  {% endif %}
-                </td>
-                <td class="num">{{ c.n_apps|default:"" }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  {% endfor %}
+  A `#status=applied`-style fragment preselects a filter, which is how the charts on
+  /stats/ link into a narrowed view here without a querystring the static build could not
+  publish.
+{% endcomment %}
+<div class="toolbar" data-table="companies">
+  <input type="search" class="tb-search" placeholder="Search company or role target"
+         aria-label="Search company or role target" autocomplete="off">
+  <select class="tb-filter" data-field="category" aria-label="Filter by category">
+    <option value="">All categories</option>
+    {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
+  </select>
+  <select class="tb-filter" data-field="status" aria-label="Filter by status">
+    <option value="">Any status</option>
+    {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+  </select>
+  <select class="tb-filter" data-field="apps" aria-label="Filter by number of applications">
+    <option value="">Any number of applications</option>
+    <option value="none">No application</option>
+    <option value="1">1 application</option>
+    <option value="2">2 applications</option>
+    <option value="3+">3 or more</option>
+  </select>
+  <select class="tb-sort" aria-label="Sort">
+    <option value="name:asc">Name A–Z</option>
+    <option value="added:desc">Recently added</option>
+    <option value="apps:desc">Most applications</option>
+    <option value="fit:desc">Best fit first</option>
+  </select>
+  <span class="tb-count"></span>
 </div>
+
+<div class="table-wrap">
+  <table data-table="companies" data-page-size="50">
+    <thead>
+      <tr><th class="nowrap">#</th><th>Company</th><th class="nowrap">Category</th>
+          <th class="col-target">Role target</th><th class="nowrap">Fit</th>
+          <th class="nowrap">Status</th><th>Scan</th>
+          <th class="nowrap">Apps</th><th class="nowrap">Added</th></tr>
+    </thead>
+    <tbody>
+      {% for c in companies %}
+        <tr data-search="{{ c.name }} {{ c.role_target }}"
+            data-category="{{ c.category.name|default:'' }}"
+            data-status="{{ c.status }}"
+            data-apps="{% if not c.n_apps %}none{% elif c.n_apps >= 3 %}3+{% else %}{{ c.n_apps }}{% endif %}"
+            data-sort-name="{{ c.name }}"
+            data-sort-added="{{ c.date_added|date:'U' }}"
+            data-sort-apps="{{ c.n_apps }}"
+            data-sort-fit="{{ c.fit }}">
+          <td class="num">{{ c.num }}</td>
+          <td class="col-notes">
+            <a href="/companies/{{ c.slug }}/" class="role">{{ c.name }}</a>
+            {% if c.notes %}<span class="sub">{{ c.notes|truncatechars:120 }}</span>{% endif %}
+          </td>
+          <td class="nowrap">{% if c.category %}<span class="pill">{{ c.category.name }}</span>{% endif %}</td>
+          <td class="col-target">{{ c.role_target }}</td>
+          <td class="stars nowrap">{{ c.fit|stars }}</td>
+          <td class="nowrap">{% include "tracker/_status.html" with status=c.status %}</td>
+          {% comment %}
+          Why the company isn't scanned is shown, not hidden in a tooltip: "no URL
+          on record" is a one-minute fix, a named ATS is a fetcher someone could
+          write, and a bespoke page is neither. One "not scanned" would flatten all
+          three into something nobody can act on.
+          {% endcomment %}
+          <td class="col-scan">
+            {% if c.scan_coverage.scanned %}
+              <span class="pill">{{ c.scan_coverage.platform }}</span>
+            {% else %}
+              <span class="muted">not scanned</span>
+              {% comment %}
+              The careers link only appears on rows scanning can't help with: these
+              are the boards that have to be checked by hand, and this saves a trip
+              through the company page to reach the URL. A scanned company is
+              already being watched, so the same link there would be noise. A
+              company with no URL on record has nothing to link to — that reason is
+              itself the prompt to go and fill it in.
+              {% endcomment %}
+              <span class="sub">{{ c.scan_coverage.reason }}{% if c.url %}
+                · <a href="{{ c.url }}" target="_blank" rel="noopener">careers ↗</a>
+              {% endif %}</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ c.n_apps|default:"" }}</td>
+          <td class="num nowrap">{{ c.date_added|ago }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="empty tb-empty" hidden>Nothing matches — clear the search or the filters.</p>
+<button type="button" class="btn tb-more" data-table="companies" hidden></button>
 
 {% endblock %}

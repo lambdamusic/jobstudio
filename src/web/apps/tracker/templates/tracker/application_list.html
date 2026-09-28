@@ -20,13 +20,56 @@
 {% endcomment %}
 {% include "tracker/_statbar.html" %}
 
-<div class="chips">
-  {% for a in areas %}
-    <a class="chip {% if filter_area == a.slug %}active{% endif %}" href="/applications/area/{{ a.slug }}/">
-      {{ a.name }}</a>
-  {% endfor %}
+{% comment %}
+  The toolbar replaced a row of target-area chips (2026-09-28). The chips could only ever
+  do one thing — swap the page for a single area — and each one was a page load. Search,
+  area and sort combine, apply instantly, and cost nothing to publish, because they filter
+  the rows already here rather than asking for a new URL. The per-area pages they linked to
+  still exist and are still published; /areas/ is where they are reached from.
+
+  It filters what this page is showing, which for the bare /applications/ is the active
+  set. That is said out loud below rather than left to be discovered.
+{% endcomment %}
+<div class="toolbar" data-table="apps">
+  <input type="search" class="tb-search" placeholder="Search company or role"
+         aria-label="Search company or role" autocomplete="off">
+  <select class="tb-filter" data-field="area" aria-label="Filter by target area">
+    <option value="">All target areas</option>
+    {% for a in areas %}<option value="{{ a.slug }}">{{ a.name }}</option>{% endfor %}
+  </select>
+  {% comment %}
+    Only on /applications/all/. Everywhere else the page IS a status — the boxes above
+    chose it — and a second control saying the same thing is furniture. On the full list
+    there is no status yet, and this one composes with the search and the area filter,
+    which the boxes cannot do.
+  {% endcomment %}
+  {% if show_all %}
+    <select class="tb-filter" data-field="status" aria-label="Filter by status">
+      <option value="">Any status</option>
+      {% for s in status_summary %}
+        {% if s.count %}<option value="{{ s.status }}">{{ s.status }}</option>{% endif %}
+      {% endfor %}
+    </select>
+  {% endif %}
+  <select class="tb-sort" aria-label="Sort">
+    <option value="date:desc">Newest first</option>
+    <option value="date:asc">Oldest first</option>
+    <option value="moved:asc">Longest without moving</option>
+    <option value="moved:desc">Moved most recently</option>
+    <option value="company:asc">Company A–Z</option>
+    <option value="status:asc">By status</option>
+  </select>
+  <span class="tb-count"></span>
 </div>
 
 {% include "tracker/_app_table.html" %}
+<p class="empty tb-empty" hidden>Nothing matches — clear the search or the filters.</p>
+<button type="button" class="btn tb-more" data-table="apps" hidden></button>
+
+{% if not show_all %}
+  <p class="muted tb-scope">Search and filters cover the
+    {{ applications|length }} row{{ applications|length|pluralize }} on this page —
+    <a href="/applications/all/">all {{ nav_counts.applications }}</a> to search everything.</p>
+{% endif %}
 
 {% endblock %}
