@@ -62,6 +62,13 @@ together, and checks the result. It also asks *how* you want to start: from the 
 job search, from a CV you have, from what it can find about you online, or from a blank
 interview.
 
+**It is worth taking your time over.** What you tell `init` is written into your data
+root and then drives every tailored CV, every cover letter and every scan score after
+it — so a thin answer here doesn't fail, it just quietly makes everything downstream
+less targeted. Tell it as much as you can about what you have done and what you want
+next. (`/jobstudio stocktake` is where the rest gets captured, and `init` will point
+you at it.)
+
 You need Python >= 3.11 on the machine. Nothing else.
 
 **Then start the web app** — it is how you actually look at any of this:

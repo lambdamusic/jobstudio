@@ -4,6 +4,14 @@ Dated entries, newest first.
 
 ## 2026-09-29
 
+- **`init` explains itself before it starts asking.** On a fresh clone the first thing a
+  user met was a question — data root, on-ramp, virtualenv — answered without knowing
+  what was being set up or which answers are hard to change later. It now opens with a
+  short plan and only then asks. It also says, at the point of asking, that what it
+  captures drives every tailored CV, cover letter and scan score that follows, so a thin
+  answer here doesn't fail, it quietly weakens everything downstream. The identity
+  questions are asked in prose, since they are free text.
+
 - **A CV with no LinkedIn, site, GitHub or Scholar is finished, not thin.** The code was
   never the problem — `_parse_contact` reads any `**Label:** value` line and every
   renderer iterates whatever it finds, so a link-free header already came out clean. The

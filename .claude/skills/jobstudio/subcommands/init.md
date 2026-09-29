@@ -4,7 +4,45 @@ First-run setup: create a data root, wire this checkout to it, and either popula
 with the example job search or start it empty.
 
 `src/jobsinit.py` does the mechanical work and takes every answer as a flag. Your job
-is the conversation — ask, confirm, then call it once.
+is the conversation — say what is about to happen, ask, confirm, then call it once.
+
+## Say what this is, before asking anything
+
+The first thing a user sees on a fresh clone is a question, and they answer it without
+knowing what they are setting up, how long it takes, or which answers are hard to
+change. Decisions land before the context does. So open with a short plan — four or
+five lines, not a lecture — covering:
+
+- **What `init` will do**: find or create a virtualenv, create a data root wherever
+  they choose, wire this checkout to it, and start their job search off one of four
+  on-ramps.
+- **Where their data lives**: a directory they pick, outside this repo, holding
+  everything personal. Nothing personal is ever committed here.
+- **Which answer is expensive**: the data root path. The rest can be changed later;
+  that one is annoying to move.
+- **That it is worth slowing down for** — see below.
+- **Roughly how long**: a couple of minutes for the example on-ramp, longer for the
+  ones that involve their real CV.
+
+Then ask. Don't ask and explain in the same breath.
+
+## `init` is load-bearing — say so
+
+What the user tells `init` is not setup trivia. It is written into `<DATA>/config.yaml`
+and `jobs/profile/`, and from there it drives **every tailored CV, every cover letter
+and every scan score** that follows. A thin answer here does not fail loudly; it
+quietly weakens everything downstream, and there is no later point at which that
+becomes visible.
+
+So tell them, at the point of asking, that it is worth taking time over: the more they
+say about what they have done and what they want next, the more targeted everything
+after this is. And when an answer comes back thin, it is fair to ask one follow-up
+rather than accepting it and moving on — this is the one place in the toolkit where
+that is welcome rather than nagging.
+
+`stocktake` is where the depth really gets captured, so it is fine for `init` itself to
+stay brisk — but say that `stocktake` is coming and why, rather than leaving it as a
+suggestion at the end that reads as optional.
 
 ## Ask first
 
@@ -14,6 +52,16 @@ is the conversation — ask, confirm, then call it once.
 2. **Name, email, location** — goes in `<DATA>/config.yaml`, used in generated
    filenames and documents. Skip if starting from the example, which ships a
    fictional identity.
+
+   **Ask for these in prose, not as a multiple-choice question.** They are free text,
+   and `AskUserQuestion` cannot express that — attempting it fails with
+   `Invalid tool parameters` and costs a turn (seen 2026-09-29). Ask for all of them
+   in one message as a short numbered list and let the user paste the answers back.
+
+   Do not assume the git identity is the right one. It is a reasonable *default* to
+   offer — say where it came from and let them correct it — but a checkout can be set
+   up for someone other than whoever configured git on that machine, and silently
+   stamping the wrong name onto a CV is worse than one extra question.
 3. **How do they want to start?** Four on-ramps — offer them explicitly rather than
    defaulting to the empty one, because typing a career into a blank file is the
    worst of the four and the one people abandon.
