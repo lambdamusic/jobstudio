@@ -3002,9 +3002,18 @@ class HelpPageTests(TestCase):
                 with self.subTest(step=step["heading"], command=name):
                     self.assertIn(name, known)
 
-    def test_it_is_linked_from_the_sidebar(self):
+    def test_it_is_linked_from_the_sidebar_under_its_own_label(self):
+        """Its own nav group, at the level of Tracker / Material / Local — not tucked
+        inside Material, where it read as another piece of job-search content."""
         html = self.client.get("/").content.decode()
         self.assertIn('href="/help/"', html)
+        group = html[html.index('<div class="nav-label">Help</div>'):]
+        group = group[:group.index("</div>", group.index('href="/help/"'))]
+        self.assertIn('href="/help/"', group)
+        # and not still sitting in Material
+        material = html[html.index('<div class="nav-label">Material</div>'):]
+        material = material[:material.index('<div class="nav-group">')]
+        self.assertNotIn('href="/help/"', material)
 
     def test_a_missing_skill_leaves_a_usable_page(self):
         """A published mirror or a checkout without the skill still gets a page."""
