@@ -459,7 +459,15 @@ def parse_check(md_path: Path, mode: str) -> tuple[dict, list[str], list[str]]:
                 f"'## {section}' is present but parsed to nothing — every entry in it "
                 f"was dropped. Check it against references/cv-base-format.md.")
 
-    _count('contact lines', len(data['contact']))
+    # Header links are optional and their absence is not a finding — plenty of CVs
+    # carry no LinkedIn, site, GitHub or Scholar, and saying so on every parse would
+    # train the reader to skim the warnings. Having no way to be reached at all is a
+    # different thing, and is worth stopping for.
+    summary.append(f"contact lines: {len(data['contact'])}")
+    if not any('@' in c['text'] or c['url'] for c in data['contact']):
+        warnings.append(
+            'no way to contact this person: the header carries no email address and no '
+            'link. A CV needs at least one route back.')
     _count('summary paragraphs', len(data['summary']), section='Summary')
     if mode == 'functional':
         _count('competency clusters', len(data['competencies']), section='Core Competencies')
@@ -1038,7 +1046,9 @@ def main():
             print(f"Error: no such file: {cv_src}")
             sys.exit(1)
         warnings = report_parse(cv_src, mode)
-        print("  CHECK FAILED — content above was lost in parsing." if warnings
+        # Not every warning means lost content any more — a CV with no contact route
+        # parsed perfectly and is still not sendable — so don't claim a cause here.
+        print(f"  CHECK FAILED — {len(warnings)} problem(s) above." if warnings
               else "  CHECK OK — every section parsed.")
         sys.exit(1 if warnings else 0)
 

@@ -56,8 +56,12 @@ the very end (step 8) — this isn't file-backed resumable like the `stocktake`
 subcommand; say so up front so the user knows a mid-way stop loses the draft (offer to
 recap progress in chat if they want to pause and resume within the same session).
 
-1. **Contact & header** — full name, location, email, LinkedIn, website, Google
-   Scholar, GitHub, any other links to include.
+1. **Contact & header** — full name, location, email, and then *whichever* of
+   LinkedIn, website, Google Scholar, GitHub or anything else they actually have.
+   Ask once, as an open question ("any links you want on it?"), and take "none" for
+   an answer: plenty of people have no public profiles, and a CV without them is
+   finished, not thin. Don't re-ask, don't leave a placeholder, and don't mention
+   the absence in the summary you give back.
 2. **Career history, one employer at a time, most recent first.** For each: employer
    name + URL, overall dates there, and — if there were multiple internal roles — a
    one-line context/summary plus each role's own dates. For **each role**, collect

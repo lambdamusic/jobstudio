@@ -40,6 +40,27 @@ Technology & Product Leadership · Data Platforms · Applied AI · Knowledge Gra
 ---
 ```
 
+**Only the name and one way to reach the person are required.** Everything else in
+that block is optional, and the labels are not a fixed set — `_parse_contact` reads
+any `**Label:** value` line, so a CV can carry `**Phone:**` or `**ORCID:**` and drop
+every line it has nothing for. This is a complete and correct header:
+
+```markdown
+# {Full Name}
+
+- **Location:** {city, region, country}  
+- **Email:** {email}  
+
+
+---
+```
+
+Plenty of people have no LinkedIn, no site, no GitHub and no Scholar profile, and a
+CV without them is not a CV with gaps in it. Do not ask twice, do not leave a
+placeholder, and do not note the absence on the rendered document — an empty label
+is worse than no label. The only absence worth remarking on is having **no way to
+be contacted at all**: no email and no link anywhere. `--check` says so.
+
 - `_parse_contact` finds every `**Label:** value` line anywhere before the first
   `## ` heading — order doesn't matter to the parser, but keep it consistent with
   the existing files. A value can be plain text or a `[text](url)` link.

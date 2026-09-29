@@ -230,3 +230,67 @@ class DerivedRowRefreshTests(TestCase):
                                CV_DIR="/nonexistent/path/for/this/test"):
             r = self.client.get("/cvs/")
             self.assertEqual(r.status_code, 200)
+
+
+class HeaderLinkTests(TestCase):
+    """Header links are optional; a way to be contacted is not.
+
+    The format, the examples and the import questions all used to treat LinkedIn,
+    a website, GitHub and Scholar as the normal case, so a CV with none of them
+    read as incomplete rather than as a valid choice (TODO #47). The parsers and
+    all three renderers were already generic — `_parse_contact` reads any
+    `**Label:** value` line — so what needed fixing was what the system says, and
+    which absence it actually cares about.
+    """
+
+    HEADER = "# Test Person\n\n{lines}\n\n---\n\n## Summary\n\nA summary.\n"
+
+    def _write(self, lines):
+        import tempfile
+        from pathlib import Path
+        p = Path(tempfile.mkdtemp()) / "cv.md"
+        p.write_text(self.HEADER.format(lines=lines))
+        return p
+
+    def test_a_cv_with_no_links_is_not_a_finding(self):
+        import render
+        p = self._write("- **Location:** Bristol, UK  \n- **Email:** t@example.com  ")
+        data, _, warnings = render.parse_check(p, "functional")
+        self.assertEqual(len(data["contact"]), 2)
+        self.assertEqual(warnings, [], "absence of header links should not warn")
+
+    def test_an_email_alone_is_enough(self):
+        import render
+        p = self._write("- **Email:** t@example.com  ")
+        _, _, warnings = render.parse_check(p, "functional")
+        self.assertEqual(warnings, [])
+
+    def test_a_link_alone_is_enough(self):
+        import render
+        p = self._write("- **LinkedIn:** [tp](https://example.com/tp)  ")
+        _, _, warnings = render.parse_check(p, "functional")
+        self.assertEqual(warnings, [])
+
+    def test_no_contact_route_at_all_is_flagged(self):
+        import render
+        p = self._write("- **Location:** Bristol, UK  ")
+        _, _, warnings = render.parse_check(p, "functional")
+        self.assertTrue(any("no way to contact" in w for w in warnings), warnings)
+
+    def test_unlisted_labels_are_read_too(self):
+        """The labels are not a fixed set — a CV can carry whatever it needs."""
+        import render
+        p = self._write("- **ORCID:** [0000](https://orcid.org/0000)  \n"
+                        "- **Phone:** +44 7700 900000  ")
+        data, _, warnings = render.parse_check(p, "functional")
+        self.assertEqual([c["label"] for c in data["contact"]], ["ORCID", "Phone"])
+        self.assertEqual(warnings, [])
+
+    def test_a_link_free_cv_renders_without_a_dangling_separator(self):
+        import render
+        p = self._write("- **Location:** Bristol, UK  \n- **Email:** t@example.com  ")
+        html = render._r_contact_inline(render.parse_functional(p)["contact"])
+        self.assertIn("Bristol, UK", html)
+        self.assertIn("t@example.com", html)
+        self.assertFalse(html.strip().endswith("·"), f"trailing separator: {html!r}")
+        self.assertFalse(html.strip().startswith("·"), f"leading separator: {html!r}")

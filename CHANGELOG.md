@@ -4,6 +4,19 @@ Dated entries, newest first.
 
 ## 2026-09-29
 
+- **A CV with no LinkedIn, site, GitHub or Scholar is finished, not thin.** The code was
+  never the problem — `_parse_contact` reads any `**Label:** value` line and every
+  renderer iterates whatever it finds, so a link-free header already came out clean. The
+  assumption lived in the words: the format contract listed all six header lines as if
+  they were the set, and the CV interview asked for each by name, which is why an import
+  against a CV that had none of them treated it as a gap to raise. Both now say that a
+  name and one way to be contacted are the only requirements, that the labels are open
+  (`ORCID`, `Phone`, whatever the person has), and that "none" is an answer to take
+  first time.
+
+  The absence that does matter is now checked instead: `--check` warns when a header has
+  no email **and** no link — a CV that parses perfectly and still cannot be replied to.
+
 - **A CV renders to `.docx` now, without being asked twice.** `render.py` defaulted to
   HTML with `.docx` behind a `--docx` flag, which had the wanted format as the opt-in one
   and left HTML and PDF files in application folders nobody had asked for and nothing
