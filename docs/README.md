@@ -10,7 +10,11 @@ there are two very different questions people arrive with.
 You drive this toolkit by talking to a Claude Code session opened in it. Every task has
 a command; none of them require reading any Python.
 
-- **[workflow.md](workflow.md)** — **start here.** The typical daily/weekly cadence:
+- **[getting-started.md](getting-started.md)** — installing it, signing in, the web
+  app, the configuration files, and the checks to run if you are changing the code. The
+  [README](../README.md#quick-start)'s quick start is the short version; this is
+  everything around it.
+- **[workflow.md](workflow.md)** — **then here.** The typical daily/weekly cadence:
   what to run, in what order, across a working session. Prepare a CV → scan for
   postings → log and work applications → publish for review.
 
