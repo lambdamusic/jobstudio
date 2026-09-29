@@ -58,14 +58,27 @@ ok "status runs and sees the example data"
 JOBSTUDIO_DATA="$DATA" SMOKE_REPO="$REPO" "$PY" - <<'PYRENDER' || fail "docx render failed"
 import sys, os
 sys.path.insert(0, os.path.join(os.environ["SMOKE_REPO"], "src"))
-import render
+import render, zipfile, re
+# Parse before rendering. The parsers discard what they cannot match, so an
+# off-contract CV renders a well-formed *empty* document — which a size check
+# happily passes. That is how both shipped examples came to lose their entire
+# work history unnoticed (log/2026-09-29-second-machine-findings.md).
+warnings = render.report_parse(render.FUNCTIONAL_CV, "functional")
+assert not warnings, "the example functional CV no longer parses cleanly"
+
 p = render.export_docx_functional()
 assert p.is_file() and p.stat().st_size > 10_000, p
 # Where it landed matters as much as that it rendered: since 2026-09-24 a base CV goes
 # to jobs/cv/export/, not the generic exports/ tree. Falling back here would mean the
 # data root's own layout wasn't recognised on a machine that has never seen it.
 assert p.parent == render.CV_EXPORT_DIR, f"base CV rendered to {p.parent}, not jobs/cv/export/"
-print(f"  ok    rendered {p.name} -> jobs/cv/export/ ({p.stat().st_size} bytes)")
+
+# And read the document back. A byte count cannot tell a full CV from a hollow one.
+with zipfile.ZipFile(p) as z:
+    text = re.sub(r"<[^>]+>", "", z.read("word/document.xml").decode("utf-8"))
+for expected in ("Senior Data Platform Engineer", "Kestrel Financial"):
+    assert expected in text, f"rendered .docx has no {expected!r} in it"
+print(f"  ok    rendered {p.name} -> jobs/cv/export/ ({p.stat().st_size} bytes, job titles present)")
 PYRENDER
 
 # Generate a file, and check whose name ends up in it. This is the check that was

@@ -50,26 +50,20 @@ Increasingly drawn to the enablement side of the job. Ran the internal programme
 ## Career History
 
 ### [Kestrel Financial](https://example.com/kestrel)
+*2019 – 2026*
 
-**Senior Data Platform Engineer** | 2021 – present | Bristol, UK (hybrid)
-
-Owner of the data platform serving the analytics, risk and product teams. Led the incremental-models migration, the SLO and cost programmes, and the analytics-engineering enablement programme.
-
-**Data Platform Engineer** | 2019 – 2021 | Bristol, UK
-
-Joined as the second engineer on a two-person platform team.
+- Senior Data Platform Engineer — *2021 – present*
+- Data Platform Engineer — *2019 – 2021*
 
 ### [Meridian Retail Group](https://example.com/meridian)
+*2017 – 2019*
 
-**Data Engineer** | 2017 – 2019 | Bristol, UK
-
-Event pipeline and warehouse modelling for the customer-analytics product.
+- Data Engineer
 
 ### Earlier roles
+*2015 – 2017*
 
-**Analyst, then Analytics Engineer** | 2015 – 2017 | various, UK
-
-Started in reporting and moved toward the pipelines behind it, which is where the job became interesting.
+- Analyst, then Analytics Engineer — various, UK
 
 ---
 

@@ -1476,12 +1476,27 @@ class CvPageTests(TestCase):
         self.assertEqual(cv.stats["words"], len(cv.full_path.read_text().split()))
         self.assertIsNotNone(cv.stats["modified"])
 
-    def test_a_missing_file_says_so_rather_than_showing_zeroes(self):
+    def test_a_row_whose_file_is_gone_reports_the_file_missing(self):
+        """The model still has to describe a vanished file honestly rather than as a
+        zero-word CV — the page below now clears such rows, but a file can always
+        disappear between a refresh and a read."""
         from cvs.models import BaseCv
 
+        cv = BaseCv.objects.create(slug="gone", label="Missing CV",
+                                   path="jobs/cv/base/gone.md")
+        self.assertFalse(cv.stats["exists"])
+
+    def test_a_row_whose_file_is_gone_is_cleared_rather_than_listed(self):
+        """Since 2026-09-29 the CV page re-syncs itself against jobs/cv/base/ (see
+        tracker/derived.py), so a row with no file behind it is stale data and gets
+        pruned — not rendered forever as 'file missing'."""
+        from cvs.models import BaseCv
+        from tracker import derived
+
+        derived._seen.clear()
         BaseCv.objects.create(slug="gone", label="Missing CV", path="jobs/cv/base/gone.md")
-        html = self.client.get("/cvs/").content.decode()
-        self.assertIn("file missing", html)
+        self.client.get("/cvs/")
+        self.assertFalse(BaseCv.objects.filter(slug="gone").exists())
 
     def test_the_tailored_table_shows_each_application_status(self):
         from cvs.views import tailored_cvs

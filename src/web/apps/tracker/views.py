@@ -24,6 +24,7 @@ from django.shortcuts import get_object_or_404, render
 from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
 
 from . import parsers as P
+from .derived import ensure_fresh
 from .models import (
     ACTIVE_STATUSES,
     Application,
@@ -151,6 +152,7 @@ def _recent_scans(limit=3):
 
 
 def home(request):
+    ensure_fresh()
     applications = _with_last_change(Application.objects.select_related("company", "area"))
     active = applications.filter(status__in=ACTIVE_STATUSES)
     areas = (Area.objects.annotate(n=Count("applications"))
@@ -792,6 +794,7 @@ def area_list(request):
     /areas/<slug>/ detail page (retired 2026-09-14): a landing page of five small
     summary cards wasn't pulling its weight next to five full detail pages, so now
     there's just the one page with the full picture per area, one click away."""
+    ensure_fresh(Area)
     areas = list(Area.objects.annotate(
         n_apps=Count("applications", distinct=True),
     ))

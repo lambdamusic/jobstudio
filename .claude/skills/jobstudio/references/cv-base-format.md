@@ -10,9 +10,16 @@ existing CV, or a per-application tailoring edit.
 **This matters because the failure mode is silent.** Get a pattern wrong — a hyphen
 instead of an em dash, bold instead of italic, a missing blank line — and the parser
 usually doesn't error, it just drops that field or misfiles it, so a section quietly
-comes out blank or garbled in the rendered CV. Always spot-check the rendered
-output (`/jobstudio render-html-pdf`) after writing or rewriting a base CV, not
-just the markdown source.
+comes out blank or garbled in the rendered CV. So never treat "it rendered" as
+"it worked" — check the parse (below) after writing or rewriting a base CV.
+
+> **Verify, don't assume.** After writing either file, run
+> `tools/py src/render.py --functional --check` (or `--chronological`). The parsers
+> below are regexes that silently discard anything they cannot match, so a file in the
+> wrong shape renders a well-formed but *empty* CV. `--check` reports what each section
+> actually parsed to, names anything it could not read, and exits non-zero if content
+> was lost. This document is the contract — where another CV on disk disagrees with it,
+> this one is right.
 
 ## Shared: header and contact block
 

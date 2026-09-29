@@ -1,5 +1,7 @@
 from django.shortcuts import get_object_or_404, render
 
+from tracker.derived import ensure_fresh
+
 from .models import BaseCv
 
 
@@ -26,6 +28,7 @@ def tailored_cvs() -> list[dict]:
 
 
 def cv_list(request):
+    ensure_fresh(BaseCv)
     return render(request, "cvs/cv_list.html", {
         "page": "cvs",
         "base_cvs": BaseCv.objects.all(),
@@ -35,6 +38,7 @@ def cv_list(request):
 
 def base_cv_detail(request, slug):
     """A master CV from jobs/cv/base/ — chronological or functional."""
+    ensure_fresh(BaseCv)
     cv = get_object_or_404(BaseCv, slug=slug)
     return render(request, "cvs/base_cv_detail.html", {
         "page": "cvs",

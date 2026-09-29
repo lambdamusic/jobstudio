@@ -403,6 +403,105 @@ def parse_functional(md_path: Path) -> dict:
     }
 
 
+# ── Parse accountability ─────────────────────────────────────────────────────
+#
+# Every parser above is a hand-written regex that discards what it cannot match,
+# so a CV written to the wrong convention parses to an *empty* CV rather than an
+# error — and a renderer downstream will happily produce a well-formed document
+# with no work history in it. That failure mode shipped in `example-data` itself
+# for months (see log/2026-09-29-second-machine-findings.md). These functions
+# exist so that never again happens silently: they compare the headings actually
+# present in the file against what came back from the parse, and say so.
+
+_KNOWN_SECTIONS = {
+    'functional': {'Summary', 'Core Competencies', 'Career History',
+                   'Education', 'Skills'},
+    'chronological': {'Summary', 'Experience', 'Education', 'Skills'},
+}
+
+
+def _sections_in(text: str) -> list[str]:
+    """The '## ' headings present in the file, in order."""
+    return [m.group(1).strip() for m in re.finditer(r'^## (.+)$', text, re.MULTILINE)]
+
+
+def parse_check(md_path: Path, mode: str) -> tuple[dict, list[str], list[str]]:
+    """Parse a CV and report what was read.
+
+    Returns (data, summary_lines, warnings). A warning means content is present
+    in the markdown but did not survive the parse — the silent-loss case.
+    """
+    text = md_path.read_text()
+    present = _sections_in(text)
+    known = _KNOWN_SECTIONS[mode]
+    data = parse_functional(md_path) if mode == 'functional' else parse_variant(md_path)
+
+    summary, warnings = [], []
+
+    # Headings the parser never looks at. This is the one that catches a
+    # chronological CV written with '## Career History' (the functional
+    # section name) — every role in it is dropped without a word.
+    for name in present:
+        if name in known or 'publication' in name.lower():
+            continue
+        blocks = len(re.findall(r'^### ', _section_text(text, name), re.MULTILINE))
+        detail = f' ({blocks} ### entries)' if blocks else ''
+        warnings.append(
+            f"'## {name}'{detail} is not read by the {mode} parser and will not "
+            f"appear in the output. Expected sections: {', '.join(sorted(known))}.")
+
+    def _count(label: str, n: int, *, section: str | None = None) -> None:
+        summary.append(f'{label}: {n}')
+        if n or section is None:
+            return
+        if section in present:
+            warnings.append(
+                f"'## {section}' is present but parsed to nothing — every entry in it "
+                f"was dropped. Check it against references/cv-base-format.md.")
+
+    _count('contact lines', len(data['contact']))
+    _count('summary paragraphs', len(data['summary']), section='Summary')
+    if mode == 'functional':
+        _count('competency clusters', len(data['competencies']), section='Core Competencies')
+        _count('employers', len(data['career']), section='Career History')
+        roles = sum(len(e['roles']) for e in data['career'])
+        summary.append(f'roles: {roles}')
+        if data['career'] and not roles:
+            warnings.append(
+                "'## Career History' parsed employers but no roles — the role lines were "
+                "dropped. Each needs to be a '- {Role} — *{dates}*' bullet under its "
+                "employer; a '**Role** | dates | location' line matches nothing.")
+    else:
+        _count('roles', len(data['jobs']), section='Experience')
+        summary.append(f"early-career block: {'yes' if data['early_career'] else 'no'}")
+        empty = [j['role'] for j in data['jobs'] if not j['bullets'] and not j['prose']]
+        if empty:
+            warnings.append(
+                f"{len(empty)} role(s) parsed with no bullets and no prose: "
+                f"{', '.join(empty)}.")
+    _count('education entries', len(data['education']), section='Education')
+    _count('skill groups', len(data['skills']), section='Skills')
+    _count('publications', len(data['publications']))
+
+    return data, summary, warnings
+
+
+def _section_text(text: str, name: str) -> str:
+    """The body of one '## {name}' section, up to the next '## ' heading."""
+    m = re.search(rf'^## {re.escape(name)}$(.*?)(?=^## |\Z)', text,
+                  re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else ''
+
+
+def report_parse(md_path: Path, mode: str) -> list[str]:
+    """Print what the parse read, loudly if something was lost. Returns warnings."""
+    _, summary, warnings = parse_check(md_path, mode)
+    print(f'  Parsed {md_path.name} ({mode}): ' + ', '.join(summary))
+    for w in warnings:
+        print(f'  WARNING: {w}')
+    return warnings
+
+
 # ── HTML section renderers ───────────────────────────────────────────────────
 
 def _r_contact(items: list[dict]) -> str:
@@ -912,7 +1011,30 @@ def main():
     parser.add_argument("--cover-letter", action="store_true", help="Render a cover letter markdown file (requires --file)")
     parser.add_argument("--docx", action="store_true",
                         help="Render an ATS-friendly .docx instead of HTML/PDF (with --functional or --chronological)")
+    parser.add_argument("--check", action="store_true",
+                        help="Parse and report what was read, writing no files — use this to verify "
+                             "a hand-written or imported CV instead of rendering one to look at")
     args = parser.parse_args()
+
+    # Which parser is in play. --file overrides the source but not the mode: a
+    # tailored copy is still parsed as the variant of the base it came from.
+    mode = 'functional' if args.functional else 'chronological' if args.chronological else None
+    cv_src = None
+    if mode:
+        cv_src = Path(args.file) if args.file else (
+            FUNCTIONAL_CV if mode == 'functional' else CHRONOLOGICAL_CV)
+
+    if args.check:
+        if not cv_src:
+            print("Error: --check requires --functional or --chronological")
+            sys.exit(1)
+        if not cv_src.exists():
+            print(f"Error: no such file: {cv_src}")
+            sys.exit(1)
+        warnings = report_parse(cv_src, mode)
+        print("  CHECK FAILED — content above was lost in parsing." if warnings
+              else "  CHECK OK — every section parsed.")
+        sys.exit(1 if warnings else 0)
 
     if args.cover_letter:
         if not args.file:
@@ -922,6 +1044,12 @@ def main():
         out = export_cover_letter(Path(args.file), label=args.label, fmt=args.format or "docx")
         print(f"Saved to: {_said(out)}")
         return
+
+    # Say what the parse actually read before writing anything. A CV that parses
+    # to nothing still renders a well-formed, empty document, so a silent render
+    # is not evidence that the source was understood.
+    if cv_src and cv_src.exists():
+        report_parse(cv_src, mode)
 
     if args.docx:
         if args.functional:

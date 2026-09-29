@@ -2,6 +2,40 @@
 
 Dated entries, newest first.
 
+## 2026-09-29
+
+- **Both shipped example CVs were losing their work history, and nothing noticed.**
+  `render.py`'s parsers are hand-written regexes that discard what they cannot match, so
+  a CV in the wrong shape parses to an *empty* CV and renders a well-formed document with
+  no jobs in it. `example-data`'s functional CV wrote its roles as `**Role** | dates |
+  location`, which matches nothing — three employers, zero roles, zero dates. The
+  chronological one used `## Career History` where the parser reads `## Experience`, which
+  dropped the lot. Both are the file a new user copies and an agent reads to infer house
+  style, and on a first install elsewhere that is exactly what happened: most of a CV
+  import spent recovering from our own example. Both rewritten to the contract in
+  `references/cv-base-format.md`, which was right all along.
+
+- **`render.py --check`** parses a CV and reports what it read — a count per section, a
+  named warning for any section it could not read, and a non-zero exit if content was
+  lost. It writes no files, which is the point: verifying an imported CV no longer means
+  rendering HTML to eyeball. Every CV render now prints the same report, so silent loss
+  has to announce itself. `cv --import` calls it, and it is no longer optional there.
+
+- **The CV and area pages re-sync themselves from disk** (`tracker/derived.py`). `/cvs/`
+  lists rows, and `init` creates them before on-ramp B has written any base CV — so a
+  first install could finish with a correctly imported CV on disk and an empty CV page,
+  with no error anywhere. `ensure_fresh()` compares files against rows and re-imports only
+  when they differ, so no write site has to remember. A row whose file is gone is now
+  pruned rather than shown as "file missing" forever.
+
+- **`smoke-test` reads the CV it renders.** It asserted the `.docx` was over 10,000 bytes,
+  which a CV with no jobs in it also is. It now unzips the document and looks for a job
+  title.
+
+Found by installing the toolkit on a second machine against an unfamiliar CV — the last
+outstanding piece of `#2`. Write-up in `log/2026-09-29-second-machine-findings.md`;
+`#46`–`#51` are the rest of what that run turned up.
+
 ## 2026-09-28
 
 - **Every application now starts at `saved`.** 24 of 57 were logged straight into

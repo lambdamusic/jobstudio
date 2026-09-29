@@ -83,10 +83,23 @@ recap progress in chat if they want to pause and resume within the same session)
 7. **Assemble both full files** exactly per `references/cv-base-format.md`, and show
    both in full for review.
 8. **On confirmation**: back up any existing files (step 2 of the safety list above),
-   write both files to `<DATA>/jobs/cv/base/`, print the paths, and suggest checking the
-   render (`python src/render.py --functional` / `--chronological`, or
-   `/jobstudio render-html-pdf` for a specific application copy) before considering
-   it done.
+   write both files to `<DATA>/jobs/cv/base/`, print the paths, and then **verify the
+   parse — this step is not optional**:
+
+   ```bash
+   tools/py src/render.py --functional --check
+   tools/py src/render.py --chronological --check
+   ```
+
+   `--check` parses and reports what it read, writing no files. The parsers are regexes
+   that discard whatever they cannot match, so a CV in the wrong shape produces an
+   *empty* CV rather than an error — a render that "worked" is no evidence the content
+   survived. `--check` prints a count per section, names any section it could not read,
+   and exits non-zero if anything was lost. Fix the markdown against
+   `references/cv-base-format.md` and re-run until it says `CHECK OK`.
+
+   Do not render HTML or PDF to eyeball the result instead: `--check` answers the same
+   question without producing files nobody wants (see TODO `#46`).
 
 ### A.2 — Mode: import from an existing CV
 
@@ -107,7 +120,16 @@ recap progress in chat if they want to pause and resume within the same session)
 3. **From here, same as A.1 steps 6–8** — derive the two summaries and the
    functional clustering/condensed career history from the extracted facts, assemble
    both files per `cv-base-format.md`, show for review, back up + write on
-   confirmation.
+   confirmation, and run `--check` on both (A.1 step 8).
+
+   **Take the format from `references/cv-base-format.md`, not from a CV you read.**
+   That file is the contract the parser implements; any other CV — `example-data`'s
+   included — is just a file that happens to be lying around, and copying its shape
+   is how an import silently loses its entire work history. This is not hypothetical:
+   it is what happened on 2026-09-29, twice in one session, because the shipped
+   examples were themselves off-contract (log/2026-09-29-second-machine-findings.md).
+   They are correct again now, and `--check` is what keeps the question answerable
+   without trusting either file.
 
 ---
 

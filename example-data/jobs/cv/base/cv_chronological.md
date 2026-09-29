@@ -19,11 +19,10 @@ Increasingly drawn to the enablement side of the job: ran the programme that too
 
 ---
 
-## Career History
+## Experience
 
-### [Kestrel Financial](https://example.com/kestrel)
-
-**Senior Data Platform Engineer** | 2021 – present | Bristol, UK (hybrid)
+### Senior Data Platform Engineer — [Kestrel Financial](https://example.com/kestrel)
+**2021 – present** | Bristol, UK (hybrid)
 
 Owner of the data platform serving analytics, risk and product — Snowflake, dbt, Airflow, and a Kafka ingest path — through a period when the company roughly doubled in size.
 
@@ -32,22 +31,26 @@ Owner of the data platform serving analytics, risk and product — Snowflake, db
 - Cut warehouse spend 40% with no measurable drop in query throughput.
 - Designed and ran the analytics-engineering enablement programme for 40+ analysts.
 - Built the lineage view that made "what breaks if I change this?" answerable.
+- **Core technologies:** Snowflake, dbt, Airflow, Kafka, Python, Terraform
 
-**Data Platform Engineer** | 2019 – 2021 | Bristol, UK
+### Data Platform Engineer — [Kestrel Financial](https://example.com/kestrel)
+**2019 – 2021** | Bristol, UK
 
 Second engineer on a two-person platform team; built most of the dbt and Airflow foundations the later work depended on.
 
-### [Meridian Retail Group](https://example.com/meridian)
+- Stood up the first dbt project and the Airflow deployment that replaced a cron-driven ingest.
+- Modelled the core finance and customer tables still in use today.
 
-**Data Engineer** | 2017 – 2019 | Bristol, UK
+### Data Engineer — [Meridian Retail Group](https://example.com/meridian)
+**2017 – 2019** | Bristol, UK
 
 - Built the event pipeline behind the customer-analytics product, moving ~40M events a day off a hand-rolled ingest script onto a managed streaming setup.
 - Modelled the warehouse layer the product's reporting ran on.
 - Paired with sales engineering on three enterprise onboardings.
+- **Core technologies:** Python, SQL, BigQuery, Kafka
 
-### Earlier roles
-
-**Analyst, then Analytics Engineer** | 2015 – 2017 | various, UK
+### Early career: Analyst, then Analytics Engineer
+**2015 – 2017** | various, UK
 
 Started in reporting and moved toward the pipelines behind it.
 
