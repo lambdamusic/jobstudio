@@ -1,8 +1,14 @@
 # Workflow
 
 Part of the **[docs/](README.md)** guide collection — this file is the typical
-daily/weekly cadence: what to run, in what order. For how a specific piece actually
-works internally, see the dedicated guides linked from `docs/README.md` (e.g.
+daily/weekly cadence: what to run, in what order.
+
+**Everything here is a Claude command.** You drive this toolkit by talking to a Claude
+Code session opened in it; the Python underneath is an implementation detail you never
+have to touch. Where a step is backed by a script worth knowing about, this file says
+so and links to **[under-the-hood.md](under-the-hood.md)**, which is the whole scripts
+layer in one place. For how a specific piece works internally, see the dedicated guides
+linked from `docs/README.md` (e.g.
 [portal-scan-and-scoring.md](portal-scan-and-scoring.md)).
 
 Four stages, roughly in order: prepare a CV → scan for postings → log and work applications → publish for easy review.
@@ -28,12 +34,12 @@ per-company interview prep, not the career-profile-building exercise.
 
 | Phase | What you're doing | Main commands |
 |-------|-------------------|---------------|
-| **1. Prepare a CV** | Edit base files; tailoring per application now happens automatically when logging (Phase 3) — re-run it standalone only for a one-off; export to .docx | `/jobstudio cv [company or #N]` (agent-native, no API call — tailors the functional CV by default, `--base chronological` for the other base)<br>`python src/render.py --functional` / `--chronological` (ATS-friendly Word)<br>`python src/render.py --functional --check` (parse check, writes nothing)<br>`/jobstudio render` |
-| **2. Scan for postings** | Rescan tracked companies for new open roles, scored for review | `/jobstudio scan` (fetches, then scores live — agent-native, no API call by default; `--api` for the opt-in API path)<br>`python src/scan-portals.py` (fetch step alone) |
+| **1. Prepare a CV** | Edit base files; tailoring per application now happens automatically when logging (Phase 3) — re-run it standalone only for a one-off; export to .docx | `/jobstudio cv [company or #N]` (agent-native, no API call — tailors the functional CV by default, `--base chronological` for the other base)<br>`/jobstudio render [company or #N]` |
+| **2. Scan for postings** | Rescan tracked companies for new open roles, scored for review | `/jobstudio scan` (fetches, then scores live — agent-native, no API call by default; `--api` for the opt-in API path) |
 | **3. Log & work applications** | Log a role, set up its folder, refine notes + cover letter, finalise to .docx | `/jobstudio application [url or paste]` (or `#N` / company name to refresh)<br>`/jobstudio cover-letter [company or #N] [extra context]`<br>`/jobstudio render #N`<br>`/jobstudio company [name or url]` (track a new company) |
 | **3c. Interview prep** | Once an interview is scheduled — likely questions, STAR-grounded draft answers, questions to ask them | `/jobstudio interview [company or #N]` |
 | **3b. Review / edit** | Browse and change statuses | `tools/run-dev-local-db` → http://127.0.0.1:8010/ |
-| **4. Publish for review** | Rebuild the `site/` folder and sync to Surge | `/jobstudio publish`<br>`bash tools/publish-surge.sh`<br>`tools/site-build --clean` (rebuild `site/` only, no Surge sync)<br>`tools/site-preview` (browse `site/` locally) |
+| **4. Publish for review** | Rebuild the `site/` folder and sync to Surge | `/jobstudio publish` |
 | **Any time** | Dashboard summary of companies + applications | `/jobstudio status` |
 
 ---
@@ -91,31 +97,27 @@ starting point.
 
 ### Export
 
-**Default to `.docx`.** It's the version shared externally (recruiters, ATS,
-application forms). Generate **HTML** only when it's headed for the website (via
-`site-build` / `publish`); generate **PDF** only when the designed/print version
-is specifically wanted.
-
-```bash
-# A CV renders to ATS-friendly Word (.docx) — single column, real heading styles.
-# That is the default for both bases; no flag needed.
-python src/render.py --functional
-python src/render.py --chronological --label 001-grafana-labs
-python src/render.py --functional --file <tailored-copy.md> --label 001-grafana-labs
-
-# Check a CV parses without writing anything. Read the report: the parsers drop what
-# they cannot match, so a broken CV renders a clean, empty document.
-python src/render.py --functional --check
-
-# Render a cover letter — .docx, the copy that gets sent
-python src/render.py --cover-letter --file jobs/applications/001-grafana-labs/cover-letter-2026-06-23.md --label 001-grafana-labs
-
-# HTML and PDF are opt-in extras (2026-09-29) — pass --format only when someone
-# actually asked for that format. On a cover letter it is an addition: the .docx is
-# written either way.
-python src/render.py --functional --format pdf
-python src/render.py --chronological --file <tailored-copy.md> --label 001-grafana-labs --format pdf
 ```
+/jobstudio render [company or #N]
+```
+
+Renders that application's tailored CV and cover letter to **`.docx`** — the format
+employers ask for and the one that gets sent. Files land in the application's
+`export/` subfolder.
+
+`.docx` is the only thing produced unless you ask otherwise. **HTML and PDF are
+opt-in**: say so explicitly ("render it as a PDF too") and they are added. Anything
+that opens a `.docx` can save a PDF, so treat one as a specific request rather than a
+courtesy — and the two-column chronological layout in particular parses badly in
+applicant tracking systems, which the `.docx` avoids entirely.
+
+**Read the parse report.** Rendering prints a line like
+`Parsed cv_functional.md (functional): … employers: 3, roles: 4 …`. The CV parsers
+discard whatever they cannot match, so a CV in the wrong shape renders a clean,
+well-formed, *empty* document — a file existing is not evidence its content survived.
+If that line carries a `WARNING`, fix the markdown before sending anything. To ask the
+question without producing a file at all, see `--check` in
+**[under-the-hood.md](under-the-hood.md#cvs-and-cover-letters)**.
 
 **Where a render lands** is decided by where its source lives (`render._home()`,
 2026-09-24) — one copy, written straight to its home:
@@ -129,10 +131,8 @@ python src/render.py --chronological --file <tailored-copy.md> --label 001-grafa
 Until 2026-09-24 every render went to `exports/` and an application's `.docx` was *then*
 copied back, which left two copies of each file and a flat dated tree naming neither the
 source nor, for 22 of them, any application at all. `exports/` is still there and still
-useful — a career stocktake, an ad-hoc `--file` from outside the data root — it is just
+useful — a career stocktake, an ad-hoc file from outside the data root — it is just
 no longer where work with a home of its own goes.
-
-**Which format when:** the Chrome-rendered **PDF** is the *designed* version — send it when a human reads it, or link it on the portfolio site. The **`.docx`** is the *ATS* version — upload it to applicant tracking systems / online application forms. The two-column `cv_navy.html` PDF (used by `--chronological`) in particular is unreliable for ATS parsing (column linearisation, pseudo-element bullets, letter-spaced headings); the `.docx` avoids all of that.
 
 ---
 
@@ -140,11 +140,12 @@ no longer where work with a home of its own goes.
 
 `/jobstudio scan` rescans every tracked company for new open roles, without writing to the tracker — it only surfaces candidates for you to review and decide on manually.
 
-```bash
-python src/scan-portals.py   # fetch + pre-filter (mechanical, no API call)
-# then scored live by the `scan` skill subcommand (default, agent-native, no API call),
-# or via `source tools/env.sh && python src/score-candidates.py --candidates <path>` (opt-in `--api`)
-```
+Two steps behind one command: a mechanical fetch and pre-filter, then scoring. Scoring
+is done live by the agent reading the fetched candidates, with no API call — the
+alternative is `/jobstudio scan --api`, which bills a key instead and exists so the
+whole thing can run headlessly from cron. Both paths read the same rubric, so the
+methodology cannot drift between them. Running either step on its own:
+**[under-the-hood.md](under-the-hood.md#scanning-job-boards)**.
 
 **How the fetching, scoring and report work:** see
 **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)** — this file just covers
@@ -247,7 +248,7 @@ truth for status; browse by status in the web app rather than by folder location
 - **Cover letter** — use `/jobstudio cover-letter [company or #N] [extra context]` to (re)draft it: 3 paragraphs (~300 words), hook → concrete achievements → close, in the user's casual-but-precise voice. Claude shows the draft for review before saving; pass free-text context (e.g. `--emphasise knowledge graphs`) to steer tone. **How structure selection and drafting actually work:** see **[cover-letters.md](cover-letters.md)**.
 - Both files are just markdown — hand-editing them directly is always fine; Claude only fills gaps, it never overwrites what's already there.
 
-### Finalise by exporting to PDF
+### Finalise by rendering the documents
 
 Once the CV variant and cover letter for an application are settled, render them:
 
@@ -256,7 +257,7 @@ Once the CV variant and cover letter for an application are settled, render them
 /jobstudio render grafana-labs
 ```
 
-This finds the latest tailored CV and cover letter in the application's folder and renders both straight into that application's `export/` subfolder, named by the application-folder convention. The cover letter render also produces a `.docx`. (No API call — use the "After review" tailoring step in `application.md` first if the CV itself still needs regenerating.)
+This finds the latest tailored CV and cover letter in the application's folder and renders both to `.docx`, straight into that application's `export/` subfolder, named by the application-folder convention. No API call — use the "After review" tailoring step in `application.md` first if the CV itself still needs regenerating.
 
 ### Using the local web app
 
@@ -267,7 +268,13 @@ Django app:
 tools/run-dev-local-db          # http://127.0.0.1:8010/
 ```
 
-Browse applications, companies, target areas, CVs, notes and scans. **To change an
+One of the few shell commands in this file rather than in
+[under-the-hood.md](under-the-hood.md): the server is long-running, so you want it in
+its own terminal rather than holding a Claude session open, and there is no `/jobstudio`
+equivalent for that reason.
+
+Browse applications, companies, target areas, CVs, notes and scans. `/help/` in the app
+itself summarises the workflow below and the command for each step. **To change an
 application's status**, click its status badge — that links straight to the Django admin,
 where `status` and `next action` are editable inline from the changelist. Edits are saved
 to the database, which is the source of truth; nothing overwrites them.
@@ -298,28 +305,20 @@ See `src/web/README.md` for the full picture.
 /jobstudio publish
 ```
 
-Equivalent to running directly:
-
-```bash
-bash tools/publish-surge.sh
-```
-
-This runs `tools/site-build --clean` then pushes `site/` to `your configured `surge_domain``. It does **not** regenerate CV exports — if a base CV changed, re-run `render` for the relevant application(s) first, and `surge` must be installed and authenticated.
+It rebuilds the site and pushes it, and needs `surge` installed and authenticated. It does **not** regenerate CV exports — if a base CV changed, run `/jobstudio render` for the relevant application(s) first. Rebuilding or previewing without publishing: **[under-the-hood.md](under-the-hood.md#the-web-app)**.
 
 **How the rebuild-and-deploy pipeline actually works:** see
 **[publishing.md](publishing.md)**. See **`src/web/README.md`** for how the front end
 works, how to run it locally, and where each page's content comes from.
 
-`tools/site-build` re-imports the markdown into sqlite and renders the whole site to
-`site/` from the Django app in `src/web/` — 150 pages in about two seconds, with no server
-running. It replaced `src/make-docs.py` (retired) on 2026-09-07.
+The build re-imports the markdown into sqlite and renders the whole site from the Django app in `src/web/`, with no server running — a couple of seconds for a search of any realistic size.
 
 The published site has a page for:
 
 - every application, with its job description, gap-analysis notes, cover letters and the CV variant used
 - every company, and every company category
 - every target area — positioning, emphasis, key terms, its CV variants and applications
-- every CV: the three master CVs in `jobs/cv/base/` (including the **functional CV**) and all 29 generated variants
+- every CV: both base CVs in `jobs/cv/base/`, and every per-application tailored copy
 - every portal scan report and every file in `jobs/notes/`
 - the career stocktake profile (`jobs/profile/`) at `/profile/`
 - filtered application views as real paths (`/applications/status/applied/`, `/applications/area/data-platform/`, `/applications/active/`)

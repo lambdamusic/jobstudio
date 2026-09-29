@@ -12,11 +12,13 @@ python src/scan-portals.py                                              # 1. fet
 # then either:
 #   default — the `scan` skill subcommand scores live, agent-native, no API call
 # or:
-source tools/env.sh && python src/score-candidates.py --candidates jobs/scans/YYYY-MM-DD-candidates.json   # opt-in API scoring
+python src/score-candidates.py --candidates jobs/scans/YYYY-MM-DD-candidates.json   # opt-in API scoring
 python src/scan_report.py --scored jobs/scans/YYYY-MM-DD-scored.json    # 3. render (mechanical, no API; skip if --api already did it)
 ```
 
-`tools/env.sh` injects `ANTHROPIC_API_KEY` only for the opt-in `score-candidates.py`
+`--api` needs `ANTHROPIC_API_KEY` in the environment — the one place in the toolkit that uses a key. `tools/env.sh` is a convention for holding it, not a shipped file: it is gitignored, so write your own (`export ANTHROPIC_API_KEY=...`) or export the variable however you normally do.
+
+It is read only by the opt-in `score-candidates.py`
 path — the default path needs no API key at all. Nothing from a scan is ever
 auto-written into the tracker — it only produces a report for you to review and act
 on manually via `/jobstudio company` / `/jobstudio application`.
@@ -122,7 +124,7 @@ agent path and `.format()`-ted by the API path):
 - **Opt-in — `score-candidates.py --candidates <path>`.** Batched by area, in chunks
   of 20 (`SCORING_CHUNK_SIZE`, to keep each response well under the token limit), one
   `claude-sonnet-4-6` API call per chunk (`score_candidates()`). Needs
-  `ANTHROPIC_API_KEY` (`source tools/env.sh` first).
+  `ANTHROPIC_API_KEY` in the environment.
 
 Either way, each candidate is scored on **three independent dimensions**:
 

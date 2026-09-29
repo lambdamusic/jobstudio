@@ -72,9 +72,9 @@ promote anything worth pursuing.
 
    **Opt-in — `--api`:**
    ```bash
-   source tools/env.sh && tools/py src/score-candidates.py --candidates <DATA>/jobs/scans/YYYY-MM-DD-candidates.json
+   tools/py src/score-candidates.py --candidates <DATA>/jobs/scans/YYYY-MM-DD-candidates.json
    ```
-   `tools/env.sh` sets `ANTHROPIC_API_KEY` for this command only. Scores via the API
+   This needs `ANTHROPIC_API_KEY` in the environment; if it is unset, say so rather than retrying — `tools/env.sh` is a personal, gitignored convention, not something the user necessarily has. Scores via the API
    (chunked, same rubric file), writes the same `*-scored.json` shape, and — unlike
    the default path — renders the final report itself in the same run (step 3 below
    is already done when this finishes; skip straight to step 4).

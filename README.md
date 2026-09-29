@@ -171,7 +171,42 @@ starting for real are the same command; the second run just picks a different on
 Check the install at any time with `tools/smoke-test`, which clones the repo into a
 temp directory, runs `init` from scratch and exercises the pipeline end to end.
 
-## What it does
+## Why you might want this
+
+**It is yours to change.** Almost everything that decides *how* this behaves is prose
+you can edit, not code you have to fork. How a CV gets tailored, how a posting is
+scored, what a cover letter sounds like, which questions an interview prep asks — each
+is a markdown file — mostly under `.claude/skills/jobstudio/`, with the scan's scoring
+rubric in `src/prompts/` — written in English, that you are meant to open and argue
+with. If the rubric is wrong for your field, rewrite the rubric
+(`src/prompts/scan_score_rubric.md`). If the cover letters read like someone else,
+change the structure file (`references/cover-letter-structures.md`). That is the whole
+design, and it is why this is a toolkit rather than a product: nobody else gets to
+decide what "a good match" means for your search.
+
+The rest follows from that:
+
+- **Your data is yours, and separate.** Your CVs, applications, research and tracker
+  live in a directory you choose, outside this repo. Nothing personal is ever committed
+  here, and there is no account, no server and nothing phoning home.
+- **It reads the job boards for you.** One command rescans every company you track
+  across Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, BambooHR,
+  Teamtailor and Rippling, filters by location, scores what is left against what you
+  actually want, and writes you a report. It never writes to your tracker — the
+  decision stays yours.
+- **A tailored CV and cover letter per application**, drawn from your own base CV and
+  the role's description, plus a gap analysis that tells you where you fall short
+  *before* you apply.
+- **It remembers, so you don't.** Every application keeps its job description, notes,
+  documents and status history in a folder, and the web app makes the whole search
+  browsable — what is outstanding, what went quiet, what you said to whom.
+- **No API key needed.** Every default workflow runs inside your Claude Code session.
+  One opt-in path (`scan --api`, for scoring headlessly from cron) wants a key; nothing
+  else does.
+- **Plain files all the way down.** Markdown and sqlite, no proprietary format. If you
+  stop using this tomorrow, everything you wrote is still readable.
+
+## The commands
 
 | Command | |
 |---|---|

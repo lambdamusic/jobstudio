@@ -1,38 +1,58 @@
 # Help
 
-Guides on how to use this job search framework — two kinds:
+Guides on how to use this job-search toolkit. They come in **two layers**, because
+there are two very different questions people arrive with.
 
-- **[workflow.md](workflow.md)** — the typical daily/weekly cadence: what to run, in
-  what order, across a working session. Start here.
-- **Deep-dive guides**, one per piece of functionality, for how something actually
-  works internally rather than just how to invoke it:
-  - **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)** — how
-    `/jobstudio scan` fetches, pre-filters, and scores postings, and how to read the
-    report.
-  - **[applications-and-gap-analysis.md](applications-and-gap-analysis.md)** — how
-    `/jobstudio application` logs a role, sets up its folder, and generates the gap
-    analysis + fit summary.
-  - **[companies.md](companies.md)** — how `/jobstudio company` tracks a company,
-    what its derived status means, and the research-file template.
-  - **[cv-pipeline.md](cv-pipeline.md)** — how the base CVs turn into per-area
-    variants and per-application tailored copies, and how each export format is built.
-  - **[cover-letters.md](cover-letters.md)** — how `/jobstudio cover-letter` picks a
-    structure and what it reads to draft one.
-  - **[publishing.md](publishing.md)** — how `/jobstudio publish` rebuilds and
-    deploys the site.
-  - **[career-stocktake-profile.md](career-stocktake-profile.md)** — what
-    `/jobstudio stocktake` builds, and where the profile it produces gets used
-    elsewhere in the pipeline.
-  - **[dashboard-status.md](dashboard-status.md)** — what the web dashboard shows,
-    and how `/jobstudio status` mirrors it in the terminal from the same queries.
-  - **[interview-prep.md](interview-prep.md)** — how `/jobstudio interview` turns a
-    job description and the career profile into likely questions and drafted
-    answers, and how the reusable answer bank works.
+---
 
-More guides get added here as pieces of the framework are worth explaining in depth.
-`workflow.md` links out to the relevant deep-dive wherever one exists.
+## 1. What you can do, and how
 
-Architectural/design history for the pieces this docs/ set doesn't cover yet still
-lives in `log/*.md` (dated, append-only session records) and `src/web/README.md` (the
-Django app internals) — those are written for someone extending the code, not using
-it day to day.
+You drive this toolkit by talking to a Claude Code session opened in it. Every task has
+a command; none of them require reading any Python.
+
+- **[workflow.md](workflow.md)** — **start here.** The typical daily/weekly cadence:
+  what to run, in what order, across a working session. Prepare a CV → scan for
+  postings → log and work applications → publish for review.
+
+The same thing is summarised inside the web app itself, at **`/help/`**, which is
+usually closer to hand while you are looking at your search.
+
+## 2. How each piece actually works
+
+One guide per piece of functionality, for when you want to know what something is
+doing rather than how to invoke it — how a posting gets scored, what a derived status
+means, where a profile gets used downstream.
+
+- **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)** — how `/jobstudio scan`
+  fetches, pre-filters, and scores postings, and how to read the report.
+- **[applications-and-gap-analysis.md](applications-and-gap-analysis.md)** — how
+  `/jobstudio application` logs a role, sets up its folder, and generates the gap
+  analysis + fit summary.
+- **[companies.md](companies.md)** — how `/jobstudio company` tracks a company, what
+  its derived status means, and the research-file template.
+- **[cv-pipeline.md](cv-pipeline.md)** — how the base CVs become per-application
+  tailored copies, and how each export format is built.
+- **[cover-letters.md](cover-letters.md)** — how `/jobstudio cover-letter` picks a
+  structure and what it reads to draft one.
+- **[career-stocktake-profile.md](career-stocktake-profile.md)** — what
+  `/jobstudio stocktake` builds, and where the profile it produces gets used elsewhere.
+- **[interview-prep.md](interview-prep.md)** — how `/jobstudio interview` turns a job
+  description and the career profile into likely questions and drafted answers, and how
+  the reusable answer bank works.
+- **[dashboard-status.md](dashboard-status.md)** — what the web dashboard shows, and
+  how `/jobstudio status` mirrors it in the terminal from the same queries.
+- **[publishing.md](publishing.md)** — how `/jobstudio publish` rebuilds and deploys
+  the site.
+
+## Under the hood
+
+- **[under-the-hood.md](under-the-hood.md)** — the Python entry points and shell
+  scripts the commands drive, in one place. You never need this to *use* the toolkit.
+  It is for running a single step to see what it did, for extending the code, and for
+  automating a piece of it where there is no session to talk to.
+
+---
+
+Design history for the pieces these guides don't cover lives in `log/*.md` (dated,
+append-only session records) and `src/web/README.md` (the Django app internals) — both
+written for someone extending the code rather than using it.
