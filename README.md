@@ -9,44 +9,50 @@ from a Claude Code session, with a local Django web app for browsing.
 *The web app, running against the bundled example job search — so this is exactly what
 you get from `--from-example`, before putting any of your own data in.*
 
-> ### ⚠️ Early days — in active development
->
-> This works, and it is used daily for a real job search. But it has been used daily by
-> **one person**, on **one machine**, and that is the honest limit of what is proven.
->
-> **What is actually verified.** An automated from-scratch install (`tools/smoke-test`),
-> an 82-case test suite, and a clean-room pass — fresh clone, fresh virtualenv, fresh home
-> directory, following the Quick Start below literally — all pass. So setup is not
-> guesswork.
->
-> **What is not.** Nobody else has run it yet. Expect the things a second user finds
-> first: assumptions nobody knew were assumptions, and error messages that made sense to
-> the author. Three paths in particular are written but never yet run end to end —
-> `/jobstudio cv --rebuild`, `cv --import`, and chronological CV tailoring. Those are
-> agent-driven procedures defined in the skill rather than Python, so the test suite
-> does not cover them at all. They are also, awkwardly, the first thing a new user meets:
-> `--rebuild` and `--import` are how you get your own CV in. Start with `--from-example`
-> (below) if you want to look around before trusting them with your own documents.
->
-> **Nothing here touches your files without you.** A scan never writes to the tracker,
-> the data root is a directory you choose, and every generated document lands there for
-> you to read before it goes anywhere. The risk is wasted time, not lost work.
->
-> Issues and pull requests welcome — a confusing error or a step that didn't work as
-> written is exactly the useful kind of report.
-
-**No API key needed.** Every default workflow runs inside your Claude Code session.
-There is one opt-in path (`scan --api`, for scoring a scan headlessly, e.g. from cron)
-that wants an Anthropic key; nothing else does.
-
-**Your data stays yours.** The toolkit is code. Your job search — CVs, applications,
-company research, the tracker database — lives in a separate directory you choose,
-outside this repo. Nothing personal is ever committed here.
-
-> **Platforms: macOS and Linux.** Windows is out of scope: the `tools/` scripts are
-> bash. It may work under WSL; nothing is built or tested for it.
-
 ---
+
+## Features
+
+- **It is yours to change.** Almost everything deciding *how* this behaves is prose you
+  edit, not code you fork — how a CV gets tailored, how a posting is scored, what a
+  cover letter sounds like, which questions an interview prep asks. Each is a markdown
+  file written in English, mostly under `.claude/skills/jobstudio/`, that you are meant
+  to open and argue with. If the scoring rubric is wrong for your field, rewrite it
+  (`src/prompts/scan_score_rubric.md`); if the letters read like someone else, change
+  the structure file (`references/cover-letter-structures.md`). Nobody else gets to
+  decide what "a good match" means for your search.
+- **No API key needed.** Every default workflow runs inside your Claude Code session —
+  CV tailoring and scan scoring included. One opt-in path (`scan --api`, for scoring
+  headlessly from cron) wants an Anthropic key; nothing else does.
+- **Your data is yours, and separate.** Your CVs, applications, research and tracker
+  live in a directory you choose, outside this repo. Nothing personal is ever committed
+  here, and there is no account, no server and nothing phoning home.
+- **It reads the job boards for you.** One command rescans every company you track
+  across Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, BambooHR,
+  Teamtailor and Rippling, filters by location, scores what is left against what you
+  actually want, and writes you a report. It never writes to your tracker — the
+  decision stays yours.
+- **A tailored CV and cover letter per application**, drawn from your own base CV and
+  the role's description, plus a gap analysis telling you where you fall short *before*
+  you apply.
+- **It remembers, so you don't.** Every application keeps its job description, notes,
+  documents and status history in a folder, and the web app makes the whole search
+  browsable — what is outstanding, what went quiet, what you said to whom.
+- **Plain files all the way down.** Markdown and sqlite, no proprietary format. If you
+  stop using this tomorrow, everything you wrote is still readable.
+
+## Prerequisites
+
+| | |
+|---|---|
+| **Python ≥ 3.11** | The only thing you need installed beforehand. `init` builds the virtualenv and installs the dependencies itself |
+| **[Claude Code](https://claude.com/claude-code)** | How you drive the toolkit. Every workflow is a `/jobstudio` command in a session opened in the clone |
+| **git** | To clone it |
+| **macOS or Linux** | Windows is out of scope: the `tools/` scripts are bash. It may work under WSL; nothing is built or tested for it |
+
+Optional, and only where you'd expect: **Chrome** for the opt-in PDF export, **surge**
+for publishing a private copy of the site, and an **Anthropic API key** for
+`scan --api`. None of them is needed for a normal install.
 
 ## Quick start
 
@@ -68,8 +74,6 @@ it — so a thin answer here doesn't fail, it just quietly makes everything down
 less targeted. Tell it as much as you can about what you have done and what you want
 next. (`/jobstudio stocktake` is where the rest gets captured, and `init` will point
 you at it.)
-
-You need Python >= 3.11 on the machine. Nothing else.
 
 **Then start the web app** — it is how you actually look at any of this:
 
@@ -171,41 +175,6 @@ starting for real are the same command; the second run just picks a different on
 Check the install at any time with `tools/smoke-test`, which clones the repo into a
 temp directory, runs `init` from scratch and exercises the pipeline end to end.
 
-## Why you might want this
-
-**It is yours to change.** Almost everything that decides *how* this behaves is prose
-you can edit, not code you have to fork. How a CV gets tailored, how a posting is
-scored, what a cover letter sounds like, which questions an interview prep asks — each
-is a markdown file — mostly under `.claude/skills/jobstudio/`, with the scan's scoring
-rubric in `src/prompts/` — written in English, that you are meant to open and argue
-with. If the rubric is wrong for your field, rewrite the rubric
-(`src/prompts/scan_score_rubric.md`). If the cover letters read like someone else,
-change the structure file (`references/cover-letter-structures.md`). That is the whole
-design, and it is why this is a toolkit rather than a product: nobody else gets to
-decide what "a good match" means for your search.
-
-The rest follows from that:
-
-- **Your data is yours, and separate.** Your CVs, applications, research and tracker
-  live in a directory you choose, outside this repo. Nothing personal is ever committed
-  here, and there is no account, no server and nothing phoning home.
-- **It reads the job boards for you.** One command rescans every company you track
-  across Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, BambooHR,
-  Teamtailor and Rippling, filters by location, scores what is left against what you
-  actually want, and writes you a report. It never writes to your tracker — the
-  decision stays yours.
-- **A tailored CV and cover letter per application**, drawn from your own base CV and
-  the role's description, plus a gap analysis that tells you where you fall short
-  *before* you apply.
-- **It remembers, so you don't.** Every application keeps its job description, notes,
-  documents and status history in a folder, and the web app makes the whole search
-  browsable — what is outstanding, what went quiet, what you said to whom.
-- **No API key needed.** Every default workflow runs inside your Claude Code session.
-  One opt-in path (`scan --api`, for scoring headlessly from cron) wants a key; nothing
-  else does.
-- **Plain files all the way down.** Markdown and sqlite, no proprietary format. If you
-  stop using this tomorrow, everything you wrote is still readable.
-
 ## The commands
 
 | Command | |
@@ -236,6 +205,20 @@ is busy, pass another port: `tools/run-dev-local-db 8020`.
 
 `tools/site-build` renders the same content as a static site you can host or keep as a
 snapshot.
+
+## Documentation
+
+`docs/` is the long form, in two layers — see **[docs/README.md](docs/README.md)** for
+the full index.
+
+| | |
+|---|---|
+| **[docs/workflow.md](docs/workflow.md)** | Start here. The daily/weekly cadence: what to run, in what order. Every step is a Claude command |
+| **The deep dives** | One guide per piece, for how something actually works rather than how to invoke it — [scanning and scoring](docs/portal-scan-and-scoring.md), [applications and gap analysis](docs/applications-and-gap-analysis.md), [the CV pipeline](docs/cv-pipeline.md), [cover letters](docs/cover-letters.md), [the career stocktake](docs/career-stocktake-profile.md), [interview prep](docs/interview-prep.md), [companies](docs/companies.md), [the dashboard](docs/dashboard-status.md), [publishing](docs/publishing.md) |
+| **[docs/under-the-hood.md](docs/under-the-hood.md)** | The Python entry points and shell scripts the commands drive. You never need this to *use* the toolkit — only to debug a step, extend it, or automate it |
+
+The same workflow summary is inside the web app at **`/help/`**, which is usually closer
+to hand while you are looking at your search.
 
 ## How it is laid out
 
@@ -312,6 +295,30 @@ it cannot go stale — which also means it only runs locally, since the database
 gitignored and CI cannot see it. Names that are genuinely technology rather than your
 search (a vendor whose API you call, say) go in `.tracked-company-exceptions` — see the
 `.example`.
+
+## Project status
+
+**Active development.** This works and is used daily for a real job search — but by a
+small number of people, so expect the things a new user finds first: assumptions nobody
+knew were assumptions, and error messages that made sense to whoever wrote them.
+
+**What is verified.** The test suite (`tools/py src/web/manage.py test tracker cvs`,
+run against the bundled example data), an automated from-scratch install
+(`tools/smoke-test`), and a clean-room pass — fresh clone, fresh virtualenv, fresh home
+directory, following the Quick start literally. Setup is not guesswork.
+
+**What is less proven.** The agent-driven procedures defined in the skill rather than in
+Python, which the test suite cannot cover. `cv --import` was exercised end to end for
+the first time on 2026-09-29, against a CV the toolkit had never seen — it worked, and
+it found real bugs, now fixed. `cv --rebuild` and chronological CV tailoring still have
+not been run for real by anyone.
+
+**Nothing here touches your files without you.** A scan never writes to the tracker, the
+data root is a directory you choose, and every generated document lands there for you to
+read before it goes anywhere. The risk is wasted time, not lost work.
+
+Issues and pull requests welcome — a confusing error, or a step that didn't work as
+written, is exactly the useful kind of report.
 
 ## Licence
 
