@@ -485,3 +485,50 @@ def scan_summary_stats(body_md: str) -> dict:
             stats["strong_matches"] = int(m.group("strong"))
             stats["other_matches"] = int(m.group("other"))
     return stats
+
+
+# ---------------------------------------------------------------------------
+# The skill's own command list — so the in-app help can't drift from it
+# ---------------------------------------------------------------------------
+
+_SKILL_ROW_RE = re.compile(r"^\|\s*`([a-z-]+)`\s*\|\s*(.+?)\s*\|\s*$", re.MULTILINE)
+
+
+def parse_skill_commands(skill_md: Path) -> list[dict]:
+    """The `| \\`name\\` | description |` rows from the skill's help table.
+
+    Read rather than retyped: the help page and the skill would otherwise drift apart
+    silently, and they already have — `render-html-pdf` became `render` on 2026-09-29.
+    A renamed or retired subcommand now changes the page by changing one file.
+
+    Returns [] if the skill isn't reachable (a published mirror, a checkout without
+    it) — the page has a sensible thing to show either way.
+    """
+    if not skill_md.is_file():
+        return []
+    text = skill_md.read_text()
+    # Only the first table: the "## help Command" block printed verbatim to the user.
+    # The second table below it repeats the same commands with invocation syntax.
+    head = text.split("## Subcommands")[0]
+    seen, out = set(), []
+    for name, desc in _SKILL_ROW_RE.findall(head):
+        if name in seen:
+            continue
+        seen.add(name)
+        out.append({"name": name, "description": desc})
+    return out
+
+
+def skill_command_html(description: str) -> str:
+    """A help-table description as HTML: `backticks` become <code>, nothing else.
+
+    The descriptions are markdown written for a terminal, and the only markup they
+    use is inline code. Running them through a full markdown renderer would be more
+    machinery than that earns.
+    """
+    import html as _h
+    parts = re.split(r"`([^`]+)`", description)
+    out = []
+    for i, part in enumerate(parts):
+        out.append(f"<code>{_h.escape(part)}</code>" if i % 2 else _h.escape(part))
+    return "".join(out)

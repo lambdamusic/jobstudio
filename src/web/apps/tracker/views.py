@@ -845,6 +845,65 @@ def profile_view(request):
     })
 
 
+# The order of work, which is editorial and not derivable from the skill: the skill
+# knows what each subcommand does, not which one you reach for on a Tuesday. Commands
+# are named here and looked up in the skill's own table, so a rename changes one file.
+HELP_STEPS = [
+    {"heading": "Set up, once",
+     "body": "Creates your data root and starts your CV off an example, an existing "
+             "CV, public web research, or an interview. Worth taking time over — what "
+             "it captures drives every CV, letter and scan score after it.",
+     "commands": ["init", "stocktake"]},
+    # Deliberately commandless: target areas are YAML files an agent drafts with you
+    # from the stocktake, and there is no subcommand that owns them. Naming a
+    # neighbouring command here would be tidier and would misdescribe the step.
+    {"heading": "Decide what you are looking for",
+     "body": "Two or three target areas — the kinds of role you are actually after. "
+             "They are how a CV gets angled, and what a scan scores postings against, "
+             "so without them a scan finds nothing and then scores what it does find "
+             "against nothing. There is no command for these: ask Claude to draft them "
+             "from your stocktake, and they land in jobs/targets/.",
+     "commands": []},
+    {"heading": "Find roles",
+     "body": "Track the companies you care about, then rescan their job boards for "
+             "anything new and have it scored and ranked for you.",
+     "commands": ["company", "scan"]},
+    {"heading": "Apply",
+     "body": "Logging a role creates its folder, saves the job description, runs a gap "
+             "analysis, and tailors a CV and cover letter to it. Then render the "
+             "documents that actually get sent.",
+     "commands": ["application", "cv", "cover-letter", "render"]},
+    {"heading": "Follow up",
+     "body": "Prep for the conversation, and keep an eye on where everything stands.",
+     "commands": ["interview", "status"]},
+]
+
+
+def help_view(request):
+    """How to drive this thing — the workflow, and the command for each step.
+
+    The app shows a job search but never said how to *work* it: the commands lived in
+    the docs and the skill, neither of which is open while you are looking at a page
+    (TODO #51). Descriptions are read from the skill's own help table rather than
+    retyped, so they cannot drift from it.
+    """
+    skill_md = Path(settings.SITE_ROOT) / ".claude" / "skills" / "jobstudio" / "SKILL.md"
+    commands = P.parse_skill_commands(skill_md)
+    for c in commands:
+        c["html"] = P.skill_command_html(c["description"])
+    by_name = {c["name"]: c for c in commands}
+    # A step keeps its prose even when its commands are missing (no skill on disk, or
+    # one since renamed): the order of work is the point, the commands illustrate it.
+    steps = [{**step,
+              "commands": [by_name[n] for n in step["commands"] if n in by_name]}
+             for step in HELP_STEPS]
+    return render(request, "tracker/help.html", {
+        "page": "help",
+        "steps": steps,
+        "commands": commands,
+    })
+
+
 def scan_list(request):
     return render(request, "tracker/scan_list.html", {
         "page": "scans",

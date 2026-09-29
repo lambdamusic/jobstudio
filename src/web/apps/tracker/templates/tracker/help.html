@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}How to use this{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>How to use this</h1>
+  <p class="lede">This app is the window onto your job search; the work happens by
+     talking to Claude. Type a command below in a Claude Code session opened in the
+     toolkit directory — <code>/jobstudio help</code> lists them all.</p>
+</div>
+
+{% for step in steps %}
+  <div class="panel">
+    <h2 style="margin-top:0">{{ forloop.counter }}. {{ step.heading }}</h2>
+    <p>{{ step.body }}</p>
+    {% if step.commands %}
+      <dl class="cmd-list">
+        {% for c in step.commands %}
+          <dt><code>/jobstudio {{ c.name }}</code></dt>
+          <dd>{{ c.html|safe }}</dd>
+        {% endfor %}
+      </dl>
+    {% endif %}
+  </div>
+{% endfor %}
+
+{% if not commands %}
+  <p class="empty">The <code>jobstudio</code> skill isn't readable from here, so the
+     command descriptions can't be shown. Run <code>/jobstudio help</code> in a Claude
+     Code session instead.</p>
+{% endif %}
+
+{% if commands %}
+  <div class="page-head"><h2>Every command</h2></div>
+  <div class="panel">
+    <dl class="cmd-list">
+      {% for c in commands %}
+        <dt><code>/jobstudio {{ c.name }}</code></dt>
+        <dd>{{ c.html|safe }}</dd>
+      {% endfor %}
+    </dl>
+    <p class="sub" style="margin-bottom:0">Read from the skill's own help table, so
+       this page can't drift from what the commands actually are.</p>
+  </div>
+{% endif %}
+{% endblock %}

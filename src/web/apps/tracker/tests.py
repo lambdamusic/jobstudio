@@ -2953,3 +2953,63 @@ class ScanConfigTests(TestCase):
         branch = src.split('if platform == "firstparty_entries":', 1)[-1].split("\n        if ")[0]
         self.assertNotRegex(branch, r'"https?://[^"]+"',
                             "a company endpoint is hardcoded in the firstparty_entries branch")
+
+
+class HelpPageTests(TestCase):
+    """The in-app help page (TODO #51).
+
+    The app shows a job search but never said how to work it — the commands lived
+    in the docs and the skill, neither of which is open while you are looking at a
+    page. The descriptions are read from the skill's own help table rather than
+    retyped, because a hand-copied list drifts: `render-html-pdf` became `render`
+    the same week this was written.
+    """
+
+    fixtures = FIXTURE
+
+    def test_the_page_renders(self):
+        r = self.client.get("/help/")
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "How to use this")
+
+    def test_it_lists_the_commands_from_the_skill(self):
+        from pathlib import Path
+        from django.conf import settings
+        from tracker.parsers import parse_skill_commands
+
+        skill = (Path(settings.SITE_ROOT) / ".claude" / "skills" / "jobstudio"
+                 / "SKILL.md")
+        commands = parse_skill_commands(skill)
+        self.assertTrue(commands, "the skill's help table parsed to nothing")
+
+        html = self.client.get("/help/").content.decode()
+        for c in commands:
+            with self.subTest(command=c["name"]):
+                self.assertIn(f"/jobstudio {c['name']}", html)
+
+    def test_every_command_named_in_a_step_exists_in_the_skill(self):
+        """A step naming a command the skill doesn't have would silently vanish."""
+        from pathlib import Path
+        from django.conf import settings
+        from tracker.parsers import parse_skill_commands
+        from tracker.views import HELP_STEPS
+
+        skill = (Path(settings.SITE_ROOT) / ".claude" / "skills" / "jobstudio"
+                 / "SKILL.md")
+        known = {c["name"] for c in parse_skill_commands(skill)}
+        for step in HELP_STEPS:
+            for name in step["commands"]:
+                with self.subTest(step=step["heading"], command=name):
+                    self.assertIn(name, known)
+
+    def test_it_is_linked_from_the_sidebar(self):
+        html = self.client.get("/").content.decode()
+        self.assertIn('href="/help/"', html)
+
+    def test_a_missing_skill_leaves_a_usable_page(self):
+        """A published mirror or a checkout without the skill still gets a page."""
+        from django.test import override_settings
+        with override_settings(SITE_ROOT="/nonexistent/for/this/test"):
+            r = self.client.get("/help/")
+            self.assertEqual(r.status_code, 200)
+            self.assertContains(r, "/jobstudio help")

@@ -4,6 +4,17 @@ Dated entries, newest first.
 
 ## 2026-09-29
 
+- **The web app now says how to drive it.** `/help/` — "How to use this" — lays out the
+  five steps in the order you actually work them and names the command for each, then
+  lists every command. The app showed a job search but never explained how to work one;
+  that lived in the docs and the skill, neither of which is open while you are looking at
+  a page.
+
+  The command names and descriptions are read from `SKILL.md`'s own help table rather
+  than retyped, so the page cannot drift from the commands — `render-html-pdf` became
+  `render` the same week. The step ordering stays hand-written: the skill knows what each
+  subcommand does, not which one you reach for on a Tuesday.
+
 - **`init` explains itself before it starts asking.** On a fresh clone the first thing a
   user met was a question — data root, on-ramp, virtualenv — answered without knowing
   what was being set up or which answers are hard to change later. It now opens with a

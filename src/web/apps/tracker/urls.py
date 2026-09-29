@@ -25,6 +25,7 @@ urlpatterns = [
     path("notes/", views.note_list, name="note_list"),
     path("notes/<slug:slug>/", views.note_detail, name="note_detail"),
     path("profile/", views.profile_view, name="profile"),
+    path("help/", views.help_view, name="help"),
     # Bare path defaults to the latest report (day-to-day view); "all" is the dated
     # index, same "default-active vs. /all/" split as /applications/.
     path("scans/", views.scan_detail, name="scan_latest"),

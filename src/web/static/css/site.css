@@ -538,3 +538,11 @@ tr.is-stale td { background: #fffdf5; }
 .stat.is-active { border-color: var(--navy); box-shadow: inset 0 0 0 1px var(--navy); }
 .stat.is-active .k { color: var(--navy); font-weight: 600; }
 a.stat.is-active:hover { background: var(--bg); }
+
+/* Help page command lists: a term/definition pair per command, the code term
+   sitting above its description rather than beside it, so a long description
+   doesn't squeeze the command name into a wrap. */
+.cmd-list { margin: 0; }
+.cmd-list dt { margin-top: 0.85em; }
+.cmd-list dt:first-child { margin-top: 0; }
+.cmd-list dd { margin: 0.15em 0 0 0; color: var(--muted, #555); }

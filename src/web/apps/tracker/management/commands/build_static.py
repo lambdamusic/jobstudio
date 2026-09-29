@@ -40,7 +40,8 @@ def site_urls() -> list[str]:
     """Every URL the published site consists of."""
     urls = ["/", "/applications/", "/applications/all/", "/applications/active/",
             "/companies/", "/areas/", "/stats/",
-            "/cvs/", "/profile/", "/notes/", "/scans/", "/scans/all/"]
+            "/cvs/", "/profile/", "/notes/", "/scans/", "/scans/all/",
+            "/help/"]
     urls += [f"/applications/status/{s}/" for s in STATUS_SORT_ORDER]
     urls += [f"/applications/area/{a}/" for a in Area.objects.values_list("slug", flat=True)]
     urls += [f"/applications/{n}/" for n in Application.objects.values_list("num", flat=True)]

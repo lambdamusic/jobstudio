@@ -58,6 +58,11 @@
       <g id="i-profile">
         <circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.6 3.1-5.5 7-5.5s7 1.9 7 5.5"/>
       </g>
+      <g id="i-help">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M9.6 9.3a2.5 2.5 0 1 1 3.3 2.4c-.7.3-1 .9-1 1.6v.4"/>
+        <circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/>
+      </g>
       <g id="i-notes">
         <path d="M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M14.5 5.5l4 4"/>
       </g>
@@ -136,6 +141,8 @@
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-scans"/></svg><span>Portal scans</span></a>
       <a href="/scans/all/" class="nav-sub {% if nav_scans == 'all' %}active{% endif %}">
         All <span class="nav-count">{{ nav_counts.scans }}</span></a>
+      <a href="/help/" class="{% if page == 'help' %}active{% endif %}">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg><span>How to use this</span></a>
     </div>
 
     {% if IS_LOCAL %}
