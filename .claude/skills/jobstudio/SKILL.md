@@ -5,7 +5,7 @@ description: >
   cover letters, run gap analysis, and scan ATS job boards for new postings. Use when
   the user says "jobstudio <subcommand>", "new company", "new application", "log this
   job", "write a cover letter", or references tracking or applying to a role.
-argument-hint: "help | init | company | application | cv | cover-letter | stocktake | interview | status | scan | render-html-pdf | publish"
+argument-hint: "help | init | company | application | cv | cover-letter | stocktake | interview | status | scan | render | publish"
 ---
 
 # Jobs Search
@@ -33,7 +33,7 @@ When the argument is `help` or no argument is given, output ONLY the following a
 | `interview` | Prep for an actual interview with a company — likely questions, drafted answers (incl. emotional-intelligence questions), questions to ask them |
 | `status` | Dashboard summary of companies and applications |
 | `scan` | Rescan tracked companies for new open roles, score matches, report for review |
-| `render-html-pdf` | Render a tailored application CV/cover letter to HTML + PDF (no API call) |
+| `render` | Render a tailored application CV/cover letter to .docx (no API call) |
 | `publish` | Refresh site/ and sync to Surge |
 
 **Usage examples:**
@@ -65,7 +65,7 @@ Each subcommand has its own instruction file under `subcommands/`:
 | `interview [company or #N]` | Prep for an actual interview — reads the job description, fit check, CV gaps, and `jobs/profile/`, drafts likely questions (technical, behavioural, emotional-intelligence) with STAR-grounded answers and questions to ask them, writes into the application's `notes.md` "Interview prep" section, and offers to promote durable answers into the reusable `jobs/notes/interview-technique.md` bank |
 | `status` | Dashboard: application counts by status/area, active applications, companies by category and fit |
 | `scan [--api]` | Run `python src/scan-portals.py` (mechanical fetch), then score live by default (agent-native, no API call) or via `python src/score-candidates.py` if `--api`; render with `python src/scan_report.py`; summarize the report: top matches, unscored roles, not-scanned companies |
-| `render-html-pdf` | Render a specific application's tailored CV and cover letter to HTML + PDF, no API call |
+| `render` | Render a specific application's tailored CV and cover letter to .docx, no API call |
 | `publish` | Run `tools/publish-surge.sh` — refresh site/ and push to Surge |
 
 **To execute a subcommand**: read the corresponding file in `subcommands/` and follow its instructions exactly.

@@ -18,7 +18,7 @@ This runs two steps in sequence:
 
 ## Notes
 
-- Does not regenerate CV exports — if a base CV changed, re-run `render-html-pdf` for the
+- Does not regenerate CV exports — if a base CV changed, re-run `render` for the
   relevant application(s) first.
 - Requires `surge` to be installed and authenticated.
 - The build fails if any internal link does not resolve; that is intentional, not a flake — it means a page is missing from `site_urls()` in `src/web/apps/tracker/management/commands/build_static.py`.

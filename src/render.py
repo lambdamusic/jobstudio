@@ -996,21 +996,27 @@ def _said(path: Path) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Render a CV or cover letter to HTML, PDF, or DOCX.")
+    parser = argparse.ArgumentParser(
+        description="Render a CV or cover letter to .docx — or, on request, HTML or PDF.")
     parser.add_argument("--functional", action="store_true",
                         help=f"Render the functional CV ({FUNCTIONAL_CV.name}); --file overrides the source")
     parser.add_argument("--chronological", action="store_true",
                         help=f"Render the chronological CV ({CHRONOLOGICAL_CV.name}); --file overrides the source")
     parser.add_argument("--file", "-i", type=Path, help="Specific CV .md file (default: the base CV)")
-    # No default: the branches below want different ones. A CV with no --format renders
-    # HTML as it always has; a cover letter renders only the .docx that gets sent, so
-    # `--format html` has to mean "I actually want the HTML" rather than "I said nothing".
-    parser.add_argument("--format", "-f", choices=["html", "pdf"], default=None,
-                        help="Also render this format (CV default: html; cover letter: .docx only)")
+    # No default here: the branches below supply their own. Both now come out the same
+    # way — .docx, the file an employer actually wants — so HTML and PDF have to be
+    # asked for by name rather than arriving because nothing was said. Before
+    # 2026-09-29 a CV rendered HTML by default and .docx only behind --docx, which is
+    # backwards: it made the wanted format the opt-in one, and left files in the
+    # application folder nobody had asked for (TODO #46).
+    parser.add_argument("--format", "-f", choices=["docx", "html", "pdf"], default=None,
+                        help="Output format (default: docx, for CVs and cover letters alike). "
+                             "html and pdf are opt-in extras; a cover letter always writes its "
+                             ".docx as well, since that is the copy that gets sent")
     parser.add_argument("--label", "-l", help="Extra label appended to output filename (e.g. 001-grafana-labs)")
     parser.add_argument("--cover-letter", action="store_true", help="Render a cover letter markdown file (requires --file)")
     parser.add_argument("--docx", action="store_true",
-                        help="Render an ATS-friendly .docx instead of HTML/PDF (with --functional or --chronological)")
+                        help="Deprecated alias for --format docx, which is now the default")
     parser.add_argument("--check", action="store_true",
                         help="Parse and report what was read, writing no files — use this to verify "
                              "a hand-written or imported CV instead of rendering one to look at")
@@ -1051,32 +1057,25 @@ def main():
     if cv_src and cv_src.exists():
         report_parse(cv_src, mode)
 
-    if args.docx:
-        if args.functional:
-            print("Rendering functional CV (docx)")
-            out = export_docx_functional(args.file, label=args.label)
-        elif args.chronological:
-            print("Rendering chronological CV (docx)")
-            out = export_docx_chronological(args.file, label=args.label)
-        else:
+    if args.docx and args.format and args.format != "docx":
+        print(f"Error: --docx contradicts --format {args.format}")
+        sys.exit(1)
+    if not mode:
+        if args.docx:
             print("Error: --docx requires --functional or --chronological")
             sys.exit(1)
-        print(f"DOCX saved to: {_said(out)}")
+        parser.print_help()
         return
 
-    if args.functional:
-        print(f"Rendering functional CV ({args.format or 'html'})")
-        out = export_functional(args.file, label=args.label, fmt=args.format or "html")
-        print(f"{(args.format or 'html').upper()} saved to: {_said(out)}")
-        return
-
-    if args.chronological:
-        print(f"Rendering chronological CV ({args.format or 'html'})")
-        out = export_chronological(args.file, label=args.label, fmt=args.format or "html")
-        print(f"{(args.format or 'html').upper()} saved to: {_said(out)}")
-        return
-
-    parser.print_help()
+    fmt = "docx" if args.docx else (args.format or "docx")
+    print(f"Rendering {mode} CV ({fmt})")
+    if fmt == "docx":
+        out = (export_docx_functional if mode == "functional"
+               else export_docx_chronological)(args.file, label=args.label)
+    else:
+        out = (export_functional if mode == "functional"
+               else export_chronological)(args.file, label=args.label, fmt=fmt)
+    print(f"{fmt.upper()} saved to: {_said(out)}")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,17 @@ Dated entries, newest first.
 
 ## 2026-09-29
 
+- **A CV renders to `.docx` now, without being asked twice.** `render.py` defaulted to
+  HTML with `.docx` behind a `--docx` flag, which had the wanted format as the opt-in one
+  and left HTML and PDF files in application folders nobody had asked for and nothing
+  downstream read. `--format` now takes `{docx,html,pdf}` and defaults to `docx` for CVs
+  and cover letters alike; HTML and PDF have to be named. `--docx` still works as a
+  deprecated alias. The `render-html-pdf` subcommand is renamed `render` and rewritten
+  around the one format that gets sent to employers.
+
+  The HTML and PDF rendering code is untouched and still reachable by flag — switching
+  the default off is reversible in a way that deleting the renderers is not.
+
 - **Both shipped example CVs were losing their work history, and nothing noticed.**
   `render.py`'s parsers are hand-written regexes that discard what they cannot match, so
   a CV in the wrong shape parses to an *empty* CV and renders a well-formed document with

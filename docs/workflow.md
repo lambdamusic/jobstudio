@@ -28,9 +28,9 @@ per-company interview prep, not the career-profile-building exercise.
 
 | Phase | What you're doing | Main commands |
 |-------|-------------------|---------------|
-| **1. Prepare a CV** | Edit base files; tailoring per application now happens automatically when logging (Phase 3) — re-run it standalone only for a one-off; export to HTML/PDF/DOCX | `/jobstudio cv [company or #N]` (agent-native, no API call — tailors the functional CV by default, `--base chronological` for the other base)<br>`python src/render.py --functional` / `--chronological` (HTML/PDF)<br>`python src/render.py --docx --functional` / `--docx --chronological` (ATS-friendly Word)<br>`/jobstudio render-html-pdf` |
+| **1. Prepare a CV** | Edit base files; tailoring per application now happens automatically when logging (Phase 3) — re-run it standalone only for a one-off; export to .docx | `/jobstudio cv [company or #N]` (agent-native, no API call — tailors the functional CV by default, `--base chronological` for the other base)<br>`python src/render.py --functional` / `--chronological` (ATS-friendly Word)<br>`python src/render.py --functional --check` (parse check, writes nothing)<br>`/jobstudio render` |
 | **2. Scan for postings** | Rescan tracked companies for new open roles, scored for review | `/jobstudio scan` (fetches, then scores live — agent-native, no API call by default; `--api` for the opt-in API path)<br>`python src/scan-portals.py` (fetch step alone) |
-| **3. Log & work applications** | Log a role, set up its folder, refine notes + cover letter, finalise to PDF | `/jobstudio application [url or paste]` (or `#N` / company name to refresh)<br>`/jobstudio cover-letter [company or #N] [extra context]`<br>`/jobstudio render-html-pdf #N`<br>`/jobstudio company [name or url]` (track a new company) |
+| **3. Log & work applications** | Log a role, set up its folder, refine notes + cover letter, finalise to .docx | `/jobstudio application [url or paste]` (or `#N` / company name to refresh)<br>`/jobstudio cover-letter [company or #N] [extra context]`<br>`/jobstudio render #N`<br>`/jobstudio company [name or url]` (track a new company) |
 | **3c. Interview prep** | Once an interview is scheduled — likely questions, STAR-grounded draft answers, questions to ask them | `/jobstudio interview [company or #N]` |
 | **3b. Review / edit** | Browse and change statuses | `tools/run-dev-local-db` → http://127.0.0.1:8010/ |
 | **4. Publish for review** | Rebuild the `site/` folder and sync to Surge | `/jobstudio publish`<br>`bash tools/publish-surge.sh`<br>`tools/site-build --clean` (rebuild `site/` only, no Surge sync)<br>`tools/site-preview` (browse `site/` locally) |
@@ -97,21 +97,24 @@ application forms). Generate **HTML** only when it's headed for the website (via
 is specifically wanted.
 
 ```bash
-# Preferred: ATS-friendly Word (.docx) — single column, real heading styles
-python src/render.py --docx --functional
-python src/render.py --docx --chronological --label 001-grafana-labs
-
-# Render the functional CV (single-column template; jobs/cv/base/cv_functional.md)
+# A CV renders to ATS-friendly Word (.docx) — single column, real heading styles.
+# That is the default for both bases; no flag needed.
 python src/render.py --functional
-python src/render.py --functional --format pdf
-python src/render.py --functional --file <tailored-copy.md> --label 001-grafana-labs --format pdf
+python src/render.py --chronological --label 001-grafana-labs
+python src/render.py --functional --file <tailored-copy.md> --label 001-grafana-labs
 
-# Render the chronological CV (two-column template; jobs/cv/base/cv_chronological.md)
-python src/render.py --chronological
-python src/render.py --chronological --file <tailored-copy.md> --label 001-grafana-labs --format pdf
+# Check a CV parses without writing anything. Read the report: the parsers drop what
+# they cannot match, so a broken CV renders a clean, empty document.
+python src/render.py --functional --check
 
-# Render a cover letter — .docx only; add --format html or --format pdf for more
+# Render a cover letter — .docx, the copy that gets sent
 python src/render.py --cover-letter --file jobs/applications/001-grafana-labs/cover-letter-2026-06-23.md --label 001-grafana-labs
+
+# HTML and PDF are opt-in extras (2026-09-29) — pass --format only when someone
+# actually asked for that format. On a cover letter it is an addition: the .docx is
+# written either way.
+python src/render.py --functional --format pdf
+python src/render.py --chronological --file <tailored-copy.md> --label 001-grafana-labs --format pdf
 ```
 
 **Where a render lands** is decided by where its source lives (`render._home()`,
@@ -249,8 +252,8 @@ truth for status; browse by status in the web app rather than by folder location
 Once the CV variant and cover letter for an application are settled, render them:
 
 ```
-/jobstudio render-html-pdf #21
-/jobstudio render-html-pdf grafana-labs
+/jobstudio render #21
+/jobstudio render grafana-labs
 ```
 
 This finds the latest tailored CV and cover letter in the application's folder and renders both straight into that application's `export/` subfolder, named by the application-folder convention. The cover letter render also produces a `.docx`. (No API call — use the "After review" tailoring step in `application.md` first if the CV itself still needs regenerating.)
@@ -301,7 +304,7 @@ Equivalent to running directly:
 bash tools/publish-surge.sh
 ```
 
-This runs `tools/site-build --clean` then pushes `site/` to `your configured `surge_domain``. It does **not** regenerate CV exports — if a base CV changed, re-run `render-html-pdf` for the relevant application(s) first, and `surge` must be installed and authenticated.
+This runs `tools/site-build --clean` then pushes `site/` to `your configured `surge_domain``. It does **not** regenerate CV exports — if a base CV changed, re-run `render` for the relevant application(s) first, and `surge` must be installed and authenticated.
 
 **How the rebuild-and-deploy pipeline actually works:** see
 **[publishing.md](publishing.md)**. See **`src/web/README.md`** for how the front end

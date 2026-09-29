@@ -189,6 +189,7 @@ Focus: {one line}
    Experience` (full bullets per role, most-relevant-first is fine).
 4. `## Education`, `## Skills`, `## Selected Publications` — shared shape, same
    content in both files (these don't need two different framings).
-5. Render both (`/jobstudio render-html-pdf`) and eyeball the output before
+5. Check both parse (`tools/py src/render.py --functional --check`, and
+   `--chronological`) and read the report before
    considering the rewrite done — this is the only real check, since a shape
    mismatch fails silently.

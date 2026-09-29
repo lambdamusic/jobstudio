@@ -57,7 +57,7 @@ Two hard rules the build enforces, both by design rather than by accident:
 
 ## What publish does *not* do
 
-It never regenerates CV exports — if a base CV changed, re-run `render-html-pdf` for the
+It never regenerates CV exports — if a base CV changed, re-run `render` for the
 relevant application(s) first (see [cv-pipeline.md](cv-pipeline.md)); `publish` only
 republishes whatever's already on disk and in the database.
 

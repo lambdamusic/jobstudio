@@ -75,10 +75,13 @@ placeholder.
 network call is involved at this stage; it's pure templating.
 
 ```bash
-python src/render.py --functional                                       # HTML
+python src/render.py --functional                                       # ATS-friendly .docx
+python src/render.py --chronological --file <path> --label 001-grafana-labs
+python src/render.py --functional --check                               # parse only, writes nothing
+
+# Opt-in extras, only when asked for by name:
 python src/render.py --chronological --file <path> --format pdf          # PDF (via Chrome headless)
-python src/render.py --docx --functional --file <path>                   # ATS-friendly Word
-python src/render.py --docx --chronological --file <path> --label 001-grafana-labs
+python src/render.py --functional --format html
 ```
 
 - **HTML** — `render_html()` / `render_functional()` fill a Python `string.Template`
