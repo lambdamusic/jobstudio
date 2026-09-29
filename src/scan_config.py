@@ -165,8 +165,11 @@ def known_unsupported() -> dict[str, str]:
 # and the two section lists are optional — a CV positioning can legitimately have
 # nothing to expand or condense — but an area with no description and no key terms
 # gives the rubric nothing to score against and the pre-filter nothing to match on.
+# `excludes` is optional too, and likewise only checked for shape: an area with no
+# anti-fit list is scored on its positive signals alone, which is the old behaviour.
 REQUIRED_TARGET_KEYS = ("name", "description", "key_terms")
-LIST_TARGET_KEYS = ("emphasis", "key_terms", "expand_sections", "condense_sections")
+LIST_TARGET_KEYS = ("emphasis", "key_terms", "expand_sections", "condense_sections",
+                    "excludes")
 
 ERROR, WARN, OK = "error", "warn", "ok"
 

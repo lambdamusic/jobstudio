@@ -24,6 +24,7 @@ from django.test import TestCase
 from django.utils import timezone
 from django.utils.html import escape
 
+import config
 from appfolder import (COMPANY_APPLIED_TRIGGER_STATUSES,
                        COMPANY_REVIEWING_TRIGGER_STATUSES, COMPANY_STATUSES,
                        STATUS_SORT_ORDER, exported_file)
@@ -178,7 +179,8 @@ Grouped by company (alphabetical) with the full list.
         import yaml
         for path in sorted(Path(settings.TARGETS_DIR).glob("*.yaml")):
             data = yaml.safe_load(path.read_text())
-            for key in ("emphasis", "key_terms", "expand_sections", "condense_sections"):
+            for key in ("emphasis", "key_terms", "excludes",
+                        "expand_sections", "condense_sections"):
                 for item in (data.get(key) or []):
                     with self.subTest(file=path.name, key=key):
                         self.assertIsInstance(
@@ -186,12 +188,28 @@ Grouped by company (alphabetical) with the full list.
                             f"{path.name}: {key} entry parsed as {type(item).__name__} — "
                             f"wrap it in quotes: {item}")
 
+    def test_the_rubric_and_the_api_scorer_agree_on_placeholders(self):
+        """The rubric file is shared by both scoring paths, but only the API path
+        substitutes it with `str.format()` — so a `{placeholder}` added to the rubric
+        without a matching kwarg in `score-candidates.py` raises KeyError, and only
+        when someone runs `--api`. The agent-native default would never notice."""
+        import string
+        rubric = (Path(config.REPO_ROOT) / "src/prompts/scan_score_rubric.md").read_text()
+        in_rubric = {f for _, f, _, _ in string.Formatter().parse(rubric) if f}
+        source = (Path(config.REPO_ROOT) / "src/score-candidates.py").read_text()
+        call = source.split("prompt = rubric.format(", 1)[1].split("\n    )", 1)[0]
+        supplied = {line.split("=", 1)[0].strip() for line in call.splitlines()
+                    if "=" in line and not line.strip().startswith(("#", '"', "or "))}
+        self.assertEqual(in_rubric - supplied, set(),
+                         "rubric placeholder with no value in score-candidates.py")
+
     def test_yaml_list_entries_are_always_strings(self):
         """Unquoted 'Key: value' YAML entries parse as dicts; they must be rejoined."""
         self.assertEqual(P._flatten_yaml_list([{"SN SciGraph": "1B+ facts"}, "plain"]),
                          ["SN SciGraph: 1B+ facts", "plain"])
         for t in P.parse_targets(Path(settings.TARGETS_DIR)):
-            for key in ("emphasis", "key_terms", "expand_sections", "condense_sections"):
+            for key in ("emphasis", "key_terms", "excludes",
+                        "expand_sections", "condense_sections"):
                 for item in t[key]:
                     self.assertIsInstance(item, str, f"{t['slug']}.{key}")
 

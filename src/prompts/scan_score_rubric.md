@@ -22,8 +22,20 @@ Emphasis points:
 
 Key terms: {key_terms}
 
-(Source for the three fields above: the candidate's assigned `jobs/targets/<area>.yaml`
-— `name`, `description`, `emphasis`, `key_terms`.)
+Out of scope for this area:
+{excludes}
+
+(Source for the four fields above: the candidate's assigned `jobs/targets/<area>.yaml`
+— `name`, `description`, `emphasis`, `key_terms`, `excludes`.)
+
+`excludes` is the area's own anti-fit list, and it outranks every positive signal on
+this dimension: a posting matching one of its entries scores **2 or below** on
+`cv_score` however well the subject matter, key terms or seniority otherwise fit, and
+the note must say which exclusion it hit. This is deliberately not the same thing as a
+weak match — the postings it catches are usually a *strong* topical match and the wrong
+shape of job, which is exactly the case a 1–5 fit score gets wrong on its own. It is
+also per-area, unlike `hard_filters.exclude` in Dimension 2: a role shape can be right
+for one positioning and wrong for another.
 
 ## Dimension 2 — "Ideal job" alignment
 

@@ -56,8 +56,10 @@ promote anything worth pursuing.
    and `src/prompts/scan_score_rubric.md` (the canonical rubric — read it directly, it's
    written to be followed as-is, not paraphrased). For each `{placeholder}` in the
    rubric, substitute the real content:
-   - `{area_name}` / `{description}` / `{emphasis}` / `{key_terms}` — the matching
-     fields from that candidate's `<DATA>/jobs/targets/<area>.yaml`
+   - `{area_name}` / `{description}` / `{emphasis}` / `{key_terms}` / `{excludes}` —
+     the matching fields from that candidate's `<DATA>/jobs/targets/<area>.yaml`
+     (`excludes` is optional; where an area has none, say so in its place rather than
+     leaving the section empty)
    - `{ideal_job_notes}` — the full contents of `<DATA>/jobs/notes/ideal-job-notes.md`
    - `{criteria_block}` — read `<DATA>/jobs/profile/criteria.yaml` and apply it per the
      rubric file's own field-by-field breakdown (dealbreakers, salary floor, leap
@@ -129,6 +131,17 @@ promote anything worth pursuing.
   angles, since that string is also part of the pre-filter. Use it sparingly — for most
   companies the category is the right answer, and `--check` warns on a single-area entry
   that buys nothing.
+- **Area exclusions.** `excludes` in a `<DATA>/jobs/targets/<area>.yaml` is that area's
+  anti-fit list, and it beats every positive signal on the Area Score: a posting matching
+  one is capped at 2 however well the subject, key terms and seniority fit, with the
+  reason in the Notes cell. It is aimed at the case the 1–5 scale gets wrong unaided — a
+  posting squarely inside the area's subject matter whose actual job is the wrong shape,
+  which otherwise scores 4–5 on topic alone and lands at the top of the report. Unlike
+  `hard_filters.exclude` in `criteria.yaml` it is per-area, so the same role shape can be
+  excluded from one positioning and welcome in another. It changes ranking, never
+  visibility: an excluded posting is still fetched, still scored, still listed under
+  Other matches — narrowing `key_terms` is what removes a posting from view, and is
+  usually the wrong tool for this.
 - **Soft negatives.** `soft_negatives` in `<DATA>/jobs/profile/criteria.yaml` is the
   mirror of `bonus_signals`: a reservation that nudges the Ideal-Job Score down a point
   or two and gets named in the Notes cell, rather than a dealbreaker

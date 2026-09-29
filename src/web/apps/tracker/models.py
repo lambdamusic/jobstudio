@@ -80,6 +80,7 @@ class Area(models.Model):
     notes = models.TextField(blank=True, help_text="From areas.md")
     emphasis = models.JSONField(default=list, blank=True)
     key_terms = models.JSONField(default=list, blank=True)
+    excludes = models.JSONField(default=list, blank=True, help_text="Role shapes the scan caps at Area Score 2")
     expand_sections = models.JSONField(default=list, blank=True)
     condense_sections = models.JSONField(default=list, blank=True)
     order = models.PositiveSmallIntegerField(default=0)

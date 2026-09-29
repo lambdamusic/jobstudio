@@ -135,6 +135,7 @@ def parse_targets(targets_dir: Path) -> list[dict]:
             "description": (data.get("description") or "").strip(),
             "emphasis": _flatten_yaml_list(data.get("emphasis")),
             "key_terms": _flatten_yaml_list(data.get("key_terms")),
+            "excludes": _flatten_yaml_list(data.get("excludes")),
             "expand_sections": _flatten_yaml_list(data.get("expand_sections")),
             "condense_sections": _flatten_yaml_list(data.get("condense_sections")),
         })

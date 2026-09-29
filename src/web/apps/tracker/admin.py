@@ -155,13 +155,15 @@ class CompanyAdmin(admin.ModelAdmin):
 class AreaAdmin(admin.ModelAdmin):
     list_display = ("slug", "name", "fit", "application_count")
     search_fields = ("slug", "name", "description", "notes")
-    readonly_fields = ("emphasis_list", "key_terms_list", "emphasis", "key_terms",
-                       "expand_sections", "condense_sections")
+    readonly_fields = ("emphasis_list", "key_terms_list", "excludes_list", "emphasis",
+                       "key_terms", "excludes", "expand_sections", "condense_sections")
     fieldsets = (
         (None, {"fields": ("slug", "name", "heading", "fit", "order")}),
-        ("From the target YAML", {"fields": ("description", "emphasis_list", "key_terms_list")}),
+        ("From the target YAML",
+         {"fields": ("description", "emphasis_list", "key_terms_list", "excludes_list")}),
         ("Raw", {"classes": ("collapse",),
-                 "fields": ("emphasis", "key_terms", "expand_sections", "condense_sections")}),
+                 "fields": ("emphasis", "key_terms", "excludes",
+                            "expand_sections", "condense_sections")}),
         ("From areas.md", {"fields": ("notes",)}),
     )
 
@@ -181,6 +183,10 @@ class AreaAdmin(admin.ModelAdmin):
     @admin.display(description="key terms")
     def key_terms_list(self, obj):
         return self._bullets(obj.key_terms)
+
+    @admin.display(description="out of scope")
+    def excludes_list(self, obj):
+        return self._bullets(obj.excludes)
 
     @staticmethod
     def _bullets(items):

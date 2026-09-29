@@ -20,6 +20,17 @@ key_terms:
   - data reliability
   - analytics engineering
 
+# The right subject, the wrong job — capped at Area Score 2 however well the topic
+# matches, because topic alone would score these 4-5 and put them at the top of the
+# report. Keep each entry to a role *shape* plus the title-level signal that gives it
+# away: the scorer is usually working from a title and nothing else.
+excludes:
+  - >-
+    Pure people-management of a data team with no hands-on scope — Head of Data
+    Engineering, Engineering Manager (Data).
+  - >-
+    Analyst-level or graduate roles below current experience — Data Analyst,
+    Junior/Associate Data Engineer.
 expand_sections:
   - Platform engineering
   - Reliability & cost

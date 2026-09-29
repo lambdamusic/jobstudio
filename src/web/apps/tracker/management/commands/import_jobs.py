@@ -117,6 +117,7 @@ class Command(BaseCommand):
                     "notes": extra.get("notes", ""),
                     "emphasis": target["emphasis"],
                     "key_terms": target["key_terms"],
+                    "excludes": target["excludes"],
                     "expand_sections": target["expand_sections"],
                     "condense_sections": target["condense_sections"],
                     "order": order,

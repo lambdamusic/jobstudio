@@ -46,6 +46,13 @@
             </div></div>
           {% endif %}
 
+          {% if area.excludes %}
+            <h3>Out of scope</h3>
+            <div class="panel"><ul style="margin:0;padding-left:18px;font-size:13.5px">
+              {% for x in area.excludes %}<li style="margin:5px 0">{{ x }}</li>{% endfor %}
+            </ul></div>
+          {% endif %}
+
           {% if area.notes %}
             <h3>Notes</h3>
             <div class="panel prose">{{ area.notes|markdown|blank_links }}</div>

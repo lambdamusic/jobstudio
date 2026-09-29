@@ -295,10 +295,20 @@ Filename is the slug: `<DATA>/jobs/targets/data-platform.yaml`.
 | `description` | 2–3 lines: what kind of company, what kind of role, who the users are. The scorer reads this |
 | `emphasis` | The CV bullets that matter most for this positioning — **their real achievements**, in their words, with numbers where they have them |
 | `key_terms` | Words that appear in postings of this shape. Used by the keyword pre-filter, so too few silently drops good postings and too many drown the scan in noise |
+| `excludes` | Optional: role shapes that are the right *subject* and the wrong *job*. The scorer caps a posting matching one at Area Score 2 and names it in the note |
 | `expand_sections` / `condense_sections` | Optional: which CV sections `cv` should lengthen or shorten for this area |
 
 `example-data/jobs/targets/data-platform.yaml` is a complete worked example — read it
 before writing the first one.
+
+**`excludes` is for a near miss, not a bad match.** A posting that shares nothing with
+an area already scores low on its own; the list exists for the case a 1–5 fit score gets
+wrong without help — a posting deep in the area's own subject matter whose actual job is
+one the user could not do or would not take. It is per-area, unlike
+`hard_filters.exclude` in `jobs/profile/criteria.yaml`, which applies everywhere: a role
+shape can be right for one positioning and wrong for another, and that difference is the
+reason this field is not just more dealbreakers. Write each entry as the role shape, with
+the title-level signal that gives it away — the scorer usually has only a title to go on.
 
 **`emphasis` is drawn from the CV, never invented.** It is the same rule as on-ramp C:
 these bullets end up in a tailored CV that gets sent to employers. If the base CV does

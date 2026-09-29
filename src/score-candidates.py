@@ -116,6 +116,8 @@ def score_candidates(area: str, profile: dict, candidates: list[Candidate],
         description=profile.get("description", "").strip(),
         emphasis="\n".join(f"- {p}" for p in profile.get("emphasis", [])),
         key_terms=", ".join(profile.get("key_terms", [])),
+        excludes="\n".join(f"- {x}" for x in profile.get("excludes", []))
+                 or "- _(nothing excluded — score on the positive signals alone)_",
         ideal_job_notes=ideal_job_notes.strip(),
         criteria_block=criteria_block.strip() or "_(none on file)_",
         postings=json.dumps(postings, indent=2),
