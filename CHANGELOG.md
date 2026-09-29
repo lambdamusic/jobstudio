@@ -4,6 +4,27 @@ Dated entries, newest first.
 
 ## 2026-09-29
 
+- **The docs are two layers now, and say which is which.** They interleaved
+  `/jobstudio ...` commands with `python src/...` invocations, so a reader could not tell
+  which one they were meant to type — in a toolkit whose premise is that you drive it by
+  talking to it. `docs/README.md` now opens on "What you can do, and how" and "How each
+  piece actually works", and the whole scripts layer moved into a new
+  **`docs/under-the-hood.md`**, framed as something you never need in order to *use* the
+  toolkit. `workflow.md` has no Python entry points left. `tools/run-dev-local-db` stays
+  where it is, with a line saying why: it is long-running and has no command equivalent.
+
+- **The README says why you might want this**, instead of only how to drive it. Led by
+  "it is yours to change" — the rubric, the cover-letter structures and the CV format
+  contract are prose you edit rather than code you fork, each named by path so the claim
+  can be checked.
+
+- **Three stale things the rewrite turned up.** Four docs told you to
+  `source tools/env.sh` before the opt-in `--api` scan: that file is gitignored, so it has
+  never existed on anyone else's machine, leaving `--api` effectively undocumented — they
+  now say to put `ANTHROPIC_API_KEY` in the environment. The published-site list still
+  advertised "the three master CVs and all 29 generated variants", from before variants
+  were retired. And a section heading still read "Finalise by exporting to PDF".
+
 - **The web app now says how to drive it.** `/help/` — "How to use this" — lays out the
   five steps in the order you actually work them and names the command for each, then
   lists every command. The app showed a job search but never explained how to work one;
