@@ -154,21 +154,6 @@ timestamped snapshots alongside it.
 small number of people, so expect the things a new user finds first: assumptions nobody
 knew were assumptions, and error messages that made sense to whoever wrote them.
 
-**What is verified.** The test suite (`tools/py src/web/manage.py test tracker cvs`,
-run against the bundled example data), an automated from-scratch install
-(`tools/smoke-test`), and a clean-room pass — fresh clone, fresh virtualenv, fresh home
-directory, following the Quick start literally. Setup is not guesswork.
-
-**What is less proven.** The agent-driven procedures defined in the skill rather than in
-Python, which the test suite cannot cover. `cv --import` was exercised end to end for
-the first time on 2026-09-29, against a CV the toolkit had never seen — it worked, and
-it found real bugs, now fixed. `cv --rebuild` and chronological CV tailoring still have
-not been run for real by anyone.
-
-**Nothing here touches your files without you.** A scan never writes to the tracker, the
-data root is a directory you choose, and every generated document lands there for you to
-read before it goes anywhere. The risk is wasted time, not lost work.
-
 Issues and pull requests welcome — a confusing error, or a step that didn't work as
 written, is exactly the useful kind of report.
 
