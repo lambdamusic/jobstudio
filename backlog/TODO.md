@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #56 -->
+     Next available: #57 -->
 
 ## Architecture
 
@@ -260,6 +260,22 @@ Also from the 2026-09-29 second-machine install — see
   Worth pairing with the other honest selling points, which are also unstated: the data lives in **your own directory**, not a vendor's database, and nothing personal is ever committed; it runs **locally**, so a job search that is nobody's business stays that way; and the CV pipeline produces real `.docx` from markdown rather than a locked-in format.
 
   Placement: a `## Features` section before `## What it does`, so the command table becomes the "how" that follows the "why", rather than being the first thing a reader meets. Keep the existing ⚠️ early-days warning above it — the honesty in that block is part of the pitch, not in tension with it.
+
+- [ ] `#56` **Status-flow diagram: fix the "from applied onward" view, and put totals on the node labels** — raised 2026-09-30 by Michele, two separate problems with `/stats/`'s §3. The full funnel is fine; both faults are in the narrowed view and in the labelling.
+
+  **(a) The post-application view narrows the status window but not the population.** `_status_flow(POST_APPLICATION_ORDER)` keeps the statuses from `applied` onward, but every application whose history never touched `applied` still appears — entering at its terminal status as an entry stub labelled "added". Dumped against the live tracker on 2026-09-30 that is **28 of 57 applications**, drawn as **four separate nodes all labelled "added"** (→ discarded 13, → closed 11, → rejected 3, → interviewing 1). Four identically-labelled nodes at different heights read as a category sitting alongside `applied`, which is exactly what Michele reported.
+
+  Each of those 28 is a `saved →` or `reviewing →` terminal transition — an application he never applied to. The entry-stub rule itself is right (routing them through `applied` would be a lie, per R-S1), but it is answering the wrong question here: a view called "from applied onward" should be about *applications that were applied to*.
+
+  - [ ] **Filter the population, not just the window:** restrict to applications whose history ever reached `applied`. Verified against the live data, that removes all four entry stubs and leaves `applied → interviewing → terminal`, which is what the view claims to show.
+  - [ ] Keep the entry-stub rule for the full funnel, where it still earns its place.
+  - [ ] Say the excluded count under the chart ("28 applications never reached applied"), so narrowing the population does not quietly shrink the tracker. `left` is already reported this way and can be the model.
+
+  **(b) Node labels should carry the status total in brackets.** *"Labels like reviewing, saved, discarded should show the total number in brackets so I can quickly know how many are rejected — not just how many are being rejected from applied or from another status."* Today the labels are bare status names (`views._status_flow`, the loop that sets `node["label"]`), so the only way to total a status is to eyeball its incoming ribbons and add them up.
+
+  - [ ] **Decide cumulative vs current occupancy, and say which under the chart.** Recommend **cumulative — how many ever reached that status** — because that is what a funnel label means, and for the terminal statuses that prompted the request (`rejected`, `closed`, `discarded`) the two numbers are identical anyway, so cumulative is never the worse choice. Current occupancy is already visible as the ribbon into `active`/`inactive`.
+  - [ ] Apply one consistent rule to the `active`/`inactive` end nodes and to any entry stub that survives (a), rather than bracketing status nodes only.
+  - [ ] `applied` already carries a suffix (`applied · 4 quiet`). Check `applied (25) · 4 quiet` still fits the node at the widths the chart is drawn at, and pick the order deliberately.
 
 ## Company tracking
 - [x] `#38` **Bootstrap a starter company list during `init`** — done 2026-09-25, raised 2026-09-24. A fresh data root ends `init` with a CV and a stocktake but an **empty company tracker**, which is the one thing `scan` needs to do anything at all: a first run finds nothing, so the toolkit's most visible feature looks broken on day one. After the CV is in place (on-ramps B/C/D, and after `stocktake` where the target areas get written), propose an initial set of companies drawn from the applicant's own sector and the ones adjacent to it, inferred from the CV and the stocktake's target areas.
