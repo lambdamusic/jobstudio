@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #55 -->
+     Next available: #56 -->
 
 ## Architecture
 
@@ -80,6 +80,25 @@
 - [x] `#34` **Link out to the careers page from the Scan column when a company isn't scanned** — done 2026-09-23. A `careers ↗` link now follows the reason text on exactly the rows where scanning can't help, so checking a bespoke board is one click from the list rather than a trip through the company page.
 
   Kept off the scanned rows (already watched automatically — the link there would be noise rather than signal) and off rows with no URL on record, which have nothing to link to; that reason is itself the prompt to go and fill the URL in. `target="_blank" rel="noopener"`, matching `Site ↗` on the dashboard and `Careers page ↗` on the company detail page. `test_a_careers_link_appears_only_where_scanning_cannot_help` asserts both halves — present where wanted, absent where not — so the link can't quietly spread to every row.
+
+- [ ] `#55` **Stop tailoring on log; make the per-application CV a mechanical copy and the cover letter a short generic draft** — raised 2026-09-30 by Michele. *"When a new application gets created, I'd like the functional CV copied over without any substantial changes. The only thing to do is remove from every competency the role in brackets. As far as the cover letter goes, also generate that with minimal work — just some generic sentencing showing why I'm interested in the job: the domain is interesting, it can have an impact on the world, the data landscape is very wide. I will then review and refine these documents before submission."*
+
+  **The reasoning to hold onto:** he refines both documents by hand before sending anyway, so an elaborate generated draft is not saving the work — it is producing something he has to read closely and undo. A thin, predictable starting point is worth more than a polished wrong one, and it makes logging an application fast again. `application` currently runs both `cv` and `cover-letter` automatically at Step 8 (revised 2026-09-17, which is what moved them from on-request to automatic — this reverses that, but keeps them reachable).
+
+  **The CV transform is mechanical, and that is the whole point** — no agent pass needed. Core Competencies bullets are `- **Employer (Role Title):** text`, and the target form `- **Employer:** text` already occurs in the base, so it is a regex over one section. Matches the standing rule that competency bullets carry the employer only.
+  - [ ] Apply it in `appfolder.copy_cv()` / `ensure_folder()`, which today are a straight `shutil.copy2`. Read → transform → write.
+  - [ ] **Scope it to the `## Core Competencies` section only.** In Employment History the role title is the point; stripping it there would be a real loss and the regex would happily do it.
+  - [ ] Leave the base CVs untouched — the brackets stay in the master, the copy drops them.
+
+  **Decide the filename, because three things key off it.** The copy currently lands as `cv_functional.md`; a tailored CV is `NNN-company-person-cv-functional-DATE.md`, and `appfolder.is_tailored_cv()`, `pick_cv()`, `render`, and the application page's CV tab all read that distinction. If the transformed copy is now the deliverable Michele edits and renders, it probably wants the application filename — but that makes every application look "tailored" to code that currently means something specific by it. Resolve this before writing any of it.
+
+  **Cover letter: short and generic, with two constraints that must survive.**
+  - [ ] Still opens with the "I'm applying for `<role>` at `<company>`" job-ID line — that is a standing rule, enforced in `references/cover-letter-structures.md`.
+  - [ ] Generic enthusiasm must not overclaim the domain. Michele discards otherwise-solid roles purely on domain mismatch, so a letter that gushes about a sector he is lukewarm on is worse than a flat one — and he is the one who has to send it. Name the real hooks (scale of the data landscape, the work reaching people, a genuine technical overlap) and leave the domain line thin enough to rewrite.
+
+  **What must NOT be swept up in this.** The gap analysis is not part of the tailoring and should stay exactly as it is: `### Fit check`, `### CV gaps` and `### Preparation steps` in `notes.md` feed the fit summary on the application page *and* are the main source for `interview` — the Surgo Health HR screen prep on 2026-09-30 was built almost entirely from them. Dropping CV tailoring must not drop the analysis that happens to precede it.
+
+  **Recommendation: keep the tailoring, demote it.** Make the mechanical copy the default path, and leave `cv.md` §B and the full cover-letter structures reachable on request (`/jobstudio cv #N`, `/jobstudio cover-letter #N`) for the handful of roles worth the effort. Deleting ~200 lines of working capability to simplify a default is a poor trade when a flag does it — but the default is what should change, and `application.md` Step 8 should stop calling them.
 
 ## CV variants
 - [x] `#13` ~~**Idea:** create `analytics-leadership` variant — less research/scholarly focus, more emphasis on analytics leadership, BI/dashboards, translating customer needs into insights. Revisit when 3–5 strong-fit roles in this space emerge (e.g. analytics director/VP in media, finance, consumer tech)~~ — closed 2026-09-17: no longer needed
