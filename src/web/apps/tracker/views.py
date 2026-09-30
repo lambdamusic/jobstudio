@@ -443,7 +443,7 @@ def _status_flow(order=None, population_from=None):
     if population_from:
         # Onward in time as well as in population: an application discarded and re-opened
         # *before* it was applied to has that history trimmed, or it would come back as an
-        # entry stub at `discarded` (Kharon, on the live data).
+        # entry stub at `discarded` (seen on the live data).
         started, kept = set(), []
         for app_id, frm, to in changes:
             if to == population_from:

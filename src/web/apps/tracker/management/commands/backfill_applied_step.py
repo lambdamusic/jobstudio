@@ -7,7 +7,7 @@ rejected for a role they never applied to, so the step is certain, and without i
 "from applied onward" flow view leaves these applications out entirely (#56).
 
 `closed` does not count: a role can be closed by the employer before or after applying,
-so that one is Michele's call per application, not this command's.
+so that one is the user's call per application, not this command's.
 
 The dates: the backfilled rows sit exactly one day apart at local midnight, which is how
 the stock chart knows they are reconstructed. There is no free midnight between `saved`
