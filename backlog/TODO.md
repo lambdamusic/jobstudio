@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #54 -->
+     Next available: #55 -->
 
 ## Architecture
 
@@ -137,6 +137,15 @@ Also from the 2026-09-29 second-machine install — see
   - [ ] **Decide what the not-scanned badge says**, since a badge has less room than the list's column. The reasons are graded on purpose (see the `coverage` docstring): `NO_URL` is a gap in the tracker anyone can close in a minute, a `known_unsupported` entry is a platform confirmed by hand with no fetcher written, and the bespoke fallback means nobody has found an API yet. Collapsing all three into "not scanned" throws away the only actionable one, so at minimum the missing-URL case should read differently from the other two — possibly as a `title` or a `.sub` under the badge rather than in it.
   - [ ] Give it its own colour rather than borrowing a status colour: the status palette is deliberately one-colour-one-meaning (`site.css` §status palette), and scan coverage is not a status. Same reasoning as `--qa-q`.
   - [ ] Check it renders in the published static build as well as locally, and that a company with no URL at all doesn't crash the lede.
+
+- [ ] `#54` **Filter the companies list by scan coverage** — raised 2026-09-30, sibling of `#53` (which puts the same fact on the *detail* page as a badge). `/companies/` already shows a **Scan** column per row and states the total in the lede ("N tracked — M picked up automatically by portal scans"), but there is no way to see *only* the unscanned ones. That is the question worth asking: an unscanned company is one whose new roles nobody will see, and the answer is currently "read 153 rows".
+
+  The machinery exists and this should reuse it, not invent a second one. The toolbar filters are client-side (`static/js/tabletools.js`): a `<select class="tb-filter" data-field="X">` matched against a `data-X` attribute on each `<tr>`. So:
+
+  - [ ] Add `data-scanned="…"` to the row in `company_list.html` — it already computes `c.scan_coverage` for the Scan column, so no extra work per row.
+  - [ ] Add a `tb-filter` select for it. **Three options, not two**, for the reason the Scan column already gives in its own comment: "no URL on record" is a one-minute fix, a named-but-unsupported ATS is a fetcher someone could write, and a bespoke page is neither. "Scanned / Not scanned" flattens the only actionable case back out of view — so something closer to *Scanned · Not scanned · Missing a careers URL*.
+  - [ ] Make the lede's "M picked up automatically" a link to the filtered view. The `#status=applied`-style fragment preselect is already generic (see the template comment), so `#scanned=yes` should work without new JS — and the complement, the unscanned count, is the number actually worth clicking.
+  - [ ] Check the filter survives the static build, where there is no querystring — the fragment form is why that mechanism exists.
 
 ## File naming
 - [x] `#35` **Put rendered exports in an `export/` subfolder inside the application folder** — done 2026-09-24. A `.docx` rendered from a tailored CV or a cover letter now lands in `applications/<num>-<slug>/export/`, leaving only authored markdown (`job.md`, `notes.md`, the CV, the cover letter, the interview rounds) at the top level. `<DATA>/exports/<fmt>/<date>/` — plural, at the data root — is untouched.
