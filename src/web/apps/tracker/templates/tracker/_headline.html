@@ -1,0 +1,45 @@
+{% comment %}
+  Headline metrics — pace and outcome rates, out of *submitted* applications. Shown at the
+  top of /stats/ (on the dashboard briefly on 2026-09-30, taken off at Michele's request),
+  from one helper (`views._headline_metrics`), which `/jobstudio status` also prints.
+  Expects `headline`.
+
+  "No answer yet" sits beside the two rates on purpose: while it is large, both are lower
+  bounds, and without it they read as final.
+{% endcomment %}
+{% if headline.submitted %}
+  <div class="stats">
+    <div class="stat">
+      <div class="n">{{ headline.per_week_recent }}<span class="unit"> / week</span></div>
+      <div class="k">applied, last {{ headline.recent_weeks }} weeks</div></div>
+    <div class="stat">
+      <div class="n">{{ headline.per_week_all }}<span class="unit"> / week</span></div>
+      <div class="k">applied, all time</div></div>
+    <a class="stat" href="#flow">
+      <div class="n">{{ headline.pct_interviewed }}%</div>
+      <div class="k">reached interview</div></a>
+    <a class="stat" href="#flow">
+      <div class="n">{{ headline.pct_rejected }}%</div>
+      <div class="k">rejected</div></a>
+    <a class="stat" href="#ageing">
+      <div class="n">{{ headline.pct_awaiting }}%</div>
+      <div class="k">no answer yet</div></a>
+  </div>
+  <p class="stat-note">
+    Out of {{ headline.submitted }} submitted application{{ headline.submitted|pluralize }}
+    since {{ headline.since|date:"j M Y" }} — {{ headline.recent }} in the last
+    {{ headline.recent_weeks }} weeks. {{ headline.interviewed }} reached interview and
+    {{ headline.rejected }} {{ headline.rejected|pluralize:"was,were" }} rejected, counted
+    whenever it happened, so one application can be in both.
+    {% if headline.awaiting %}{{ headline.awaiting }} still
+      {{ headline.awaiting|pluralize:"has,have" }} no answer, so both rates are lower
+      bounds{% if headline.resolved %}: of the {{ headline.resolved }} with an outcome,
+      {{ headline.interviewed }} reached interview{% endif %}.{% endif %}
+    {% if headline.reconstructed %}{{ headline.reconstructed }} submission
+      date{{ headline.reconstructed|pluralize }} {{ headline.reconstructed|pluralize:"is,are" }}
+      reconstructed, so the all-time pace is approximate.{% endif %}
+  </p>
+{% else %}
+  <p class="stat-note">No application has reached <code>applied</code> yet — pace and
+    outcome rates appear here once one does.</p>
+{% endif %}

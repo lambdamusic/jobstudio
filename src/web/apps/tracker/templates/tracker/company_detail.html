@@ -10,6 +10,26 @@
     {% if company.category %}{{ company.category.name }} · {% endif %}
     <span class="stars">{{ company.fit|stars }}</span> ·
     {% include "tracker/_status.html" with status=company.status %}
+    {% comment %}
+      Scan coverage (#53), beside the status because it is arguably the more useful of the
+      two: a tracked company nobody scans is one whose new roles nobody will see. Links into
+      the companies list narrowed to the same state (#54). A missing URL says so in the
+      badge itself, since it is the only case fixed in a minute; the other reasons are
+      graded too, so they follow as text rather than collapsing into "not scanned".
+    {% endcomment %}
+    {% with cov=company.scan_coverage state=company.scan_state %}
+      {% if state == "yes" %}
+        <a class="badge scan-yes" href="/companies/#scanned=yes"
+           title="Picked up automatically by portal scans">scanned · {{ cov.platform }}</a>
+      {% elif state == "no-url" %}
+        <a class="badge scan-no-url" href="/companies/#scanned=no-url"
+           title="Not scanned: {{ cov.reason }}">no careers URL</a>
+      {% else %}
+        <a class="badge scan-no" href="/companies/#scanned=no"
+           title="Not scanned: {{ cov.reason }}">not scanned</a>
+        <span class="muted">· {{ cov.reason }}</span>
+      {% endif %}
+    {% endwith %}
   </p>
 </div>
 

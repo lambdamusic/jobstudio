@@ -19,6 +19,14 @@
   /* The question in an interview round's Q/A pairs. Not a status — the status reds
      live in their own block below and mean 'rejected'. */
   --qa-q:      #a32b2b;
+  /* Whether `scan` watches a company (#53). Not a status either, so none of these borrow
+     from the status palette: teal for watched, the brand gold for the one-minute fix
+     (no careers URL), and an outlined grey for "nobody can scan this yet". */
+  --scan-yes:     #177e89;
+  --scan-yes-ink: #0f5a62;
+  --scan-no-url:  #C49B2E;
+  --scan-no-url-ink: #6e5510;
+  --scan-no:      #8a8f99;
   --radius:    7px;
 
   /* ---------- status palette ----------
@@ -179,6 +187,8 @@ h3 { font-size: 14px; font-weight: 600; margin: 22px 0 8px; }
 .stat .n { font-size: 22px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .stat .k { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .stat.is-zero { opacity: .5; }
+/* "/ week" after a rate: the number stays the thing read, the unit is quieter. */
+.stat .n .unit { font-size: 13px; font-weight: 500; color: var(--muted); }
 a.stat:hover { border-color: #cfd4e0; background: var(--bg-sunk); text-decoration: none; }
 /* The one line allowed to sit under the stat row: what the `applied` count is hiding. */
 .stat-note { margin: 4px 0 0; font-size: 12.5px; color: var(--muted); }
@@ -249,6 +259,13 @@ td.col-scan, th.col-scan { max-width: 230px; }
 .st-closed       { background: color-mix(in srgb, var(--st-closed) 22%, #fff); color: var(--st-closed-ink); }
 .st-rejected     { background: color-mix(in srgb, var(--st-rejected) 20%, #fff); color: var(--st-rejected-ink); text-decoration: line-through; }
 .st-watching, .st-researching, .st-contacted { background: color-mix(in srgb, var(--st-watching) 34%, #fff); color: var(--st-saved-ink); }
+
+/* Scan-coverage badges (#53) — outlined rather than filled when not scanned, so they read
+   as a different kind of fact from the status pill beside them. */
+.scan-yes    { background: color-mix(in srgb, var(--scan-yes) 18%, #fff); color: var(--scan-yes-ink); }
+.scan-no-url { background: color-mix(in srgb, var(--scan-no-url) 22%, #fff); color: var(--scan-no-url-ink); }
+.scan-no     { background: transparent; color: var(--muted); border: 1px dashed var(--scan-no); padding: 0 7px; }
+a.badge:hover { text-decoration: none; filter: brightness(0.96); }
 
 .pill {
   display: inline-block; padding: 1px 7px; border-radius: 4px;

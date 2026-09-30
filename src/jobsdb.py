@@ -141,7 +141,8 @@ def dashboard_summary(activity_weeks: int = 8) -> dict:
     setup()
     from tracker.models import ACTIVE_STATUSES, Application
     from tracker.views import (
-        STALE_AFTER_DAYS, _activity_weeks, _ageing_at_applied, _recent_companies,
+        STALE_AFTER_DAYS, _activity_weeks, _ageing_at_applied, _headline_metrics,
+        _recent_companies,
         _recent_scans, _recently_applied, _status_summary,
     )
 
@@ -152,6 +153,8 @@ def dashboard_summary(activity_weeks: int = 8) -> dict:
         "total": applications.count(),
         "active": applications.filter(status__in=ACTIVE_STATUSES).count(),
         "status_summary": _status_summary(),
+        # Pace and outcome rates — the dashboard's "At a glance" row, same helper.
+        "headline": _headline_metrics(),
         "activity": activity[-activity_weeks:],
         "recent": [_app_dict(a) for a in applications.order_by("-date")[:6]],
         "recently_applied": [
@@ -346,6 +349,16 @@ def print_status_report(data: dict) -> None:
 
     print(f"Job Search Status — {_date.today().isoformat()}")
     print(f"{data['total']} applications tracked, {data['active']} active\n")
+
+    h = data.get("headline") or {}
+    if h.get("submitted"):
+        print(f"At a glance ({h['submitted']} submitted since {h['since'].isoformat()}):")
+        print(f"  {'applied / week':<18}{h['per_week_recent']} last {h['recent_weeks']} weeks, "
+              f"{h['per_week_all']} all time")
+        for label, key in (("reached interview", "interviewed"), ("rejected", "rejected"),
+                           ("no answer yet", "awaiting")):
+            print(f"  {label:<18}{h['pct_' + key]}%  ({h[key]})")
+        print()
 
     print("Status counts:")
     for row in data["status_summary"]:

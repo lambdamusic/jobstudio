@@ -121,10 +121,13 @@
       more.addEventListener("click", function () { shown += pageSize; apply(false); });
     }
 
-    // #field=value — how a chart on another page links into a narrowed view here.
-    var hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
-    var pair = hash.split("=");
-    if (pair.length === 2) {
+    // #field=value — how a chart on another page links into a narrowed view here. Also
+    // read on `hashchange`, because a link on the *same* page (the companies lede) changes
+    // only the fragment and never reloads.
+    function preselect() {
+      var hash = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+      var pair = hash.split("=");
+      if (pair.length !== 2) return;
       filters.forEach(function (select) {
         if (select.getAttribute("data-field") !== pair[0]) return;
         var wanted = Array.prototype.some.call(select.options, function (option) {
@@ -134,6 +137,8 @@
       });
     }
 
+    window.addEventListener("hashchange", function () { preselect(); apply(true); });
+    preselect();
     apply(true);
   }
 

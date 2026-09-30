@@ -31,35 +31,9 @@
     tracked, but nothing applied to.{% endif %}</p>
 {% endif %}
 
-<h2>What there is to chart</h2>
-<div class="stats">
-  <div class="stat{% if not volumes.applications %} is-zero{% endif %}">
-    <div class="n">{{ volumes.applications }}</div><div class="k">applications</div></div>
-  <div class="stat{% if not volumes.companies %} is-zero{% endif %}">
-    <div class="n">{{ volumes.companies }}</div><div class="k">companies</div></div>
-  <div class="stat{% if not volumes.entries %} is-zero{% endif %}">
-    <div class="n">{{ volumes.entries }}</div><div class="k">entry events</div></div>
-  <div class="stat{% if not volumes.transitions %} is-zero{% endif %}">
-    <div class="n">{{ volumes.transitions }}</div><div class="k">transitions</div></div>
-  <div class="stat{% if not volumes.at_applied %} is-zero{% endif %}">
-    <div class="n">{{ volumes.at_applied }}</div><div class="k">at applied</div></div>
-  <div class="stat{% if not volumes.unlinked %} is-zero{% endif %}">
-    <div class="n">{{ volumes.unlinked }}</div><div class="k">unlinked apps</div></div>
-</div>
-<p class="muted chart-note">
-  {{ volumes.status_changes }} recorded status change{{ volumes.status_changes|pluralize }}
-  in total, and the split between <strong>entry events</strong> and
-  <strong>transitions</strong> is what decides how much can be drawn: an entry is where an
-  application was first logged, a transition is a move from one status to another. Only
-  transitions are edges in a flow diagram or steps in a history.
-</p>
-{% if volumes.unlinked %}
-  <p class="muted chart-note">{{ volumes.unlinked }}
-    application{{ volumes.unlinked|pluralize }}
-    {{ volumes.unlinked|pluralize:"has,have" }} no company linked, so any per-company
-    chart covers fewer applications than it appears to — either
-    <code>jobsdb.py link-company</code>, or a company row that was never created.</p>
-{% endif %}
+{# No id: an <h2 id> on this page is a planned chart section (StatsPageTests), and this is not one. #}
+<h2>At a glance</h2>
+{% include "tracker/_headline.html" %}
 
 {# ---------------------------------------------------------------- §7 ageing #}
 <h2 id="ageing">Ageing at applied</h2>
@@ -148,6 +122,8 @@
         {{ flow.dropped|pluralize:"runs,run" }} backwards and
         {{ flow.dropped|pluralize:"is,are" }} not shown.
       {% else %}No transition so far runs backwards, so nothing is left out.{% endif %}
+      The number in brackets on a status is how many applications ever reached it — so
+      <code>rejected (N)</code> is every rejection, not just the ones from one status.
       Everything still sitting in a status flows on to one of two ends:
       <strong>active</strong> ({{ flow.active }}) is anything not <code>discarded</code>,
       <code>closed</code> or <code>rejected</code> — a wider reading than the
@@ -160,8 +136,13 @@
         logging the change.{% endif %}
     </p>
     <p class="chart-note muted" data-note="flow" data-view="post">
-      <strong>From applied onward.</strong> Everything that reached <code>applied</code>
-      enters here, however it got there, so the pre-application attrition is out of view.
+      <strong>From applied onward.</strong> Only applications that reached
+      <code>applied</code> are drawn, however they got there, so the pre-application
+      attrition is out of view.
+      {% if flow_post.excluded %}{{ flow_post.excluded }}
+        application{{ flow_post.excluded|pluralize }} never reached <code>applied</code>
+        and {{ flow_post.excluded|pluralize:"is,are" }} left out.{% endif %}
+      Bracketed numbers count applications that ever reached each status.
       {% if flow_post.dropped %}{{ flow_post.dropped }} backward
         transition{{ flow_post.dropped|pluralize }}
         {{ flow_post.dropped|pluralize:"is,are" }} not shown.{% endif %}
@@ -337,4 +318,38 @@
 </div>
 
 {{ chart_data|json_script:"chart-data" }}
+{% comment %}
+  Moved to the bottom 2026-09-30: this is a readout of what the data can support, for
+  checking the charts — not a metric. The headline row above is what the page leads with.
+{% endcomment %}
+<h2>What there is to chart</h2>
+<div class="stats">
+  <div class="stat{% if not volumes.applications %} is-zero{% endif %}">
+    <div class="n">{{ volumes.applications }}</div><div class="k">applications</div></div>
+  <div class="stat{% if not volumes.companies %} is-zero{% endif %}">
+    <div class="n">{{ volumes.companies }}</div><div class="k">companies</div></div>
+  <div class="stat{% if not volumes.entries %} is-zero{% endif %}">
+    <div class="n">{{ volumes.entries }}</div><div class="k">entry events</div></div>
+  <div class="stat{% if not volumes.transitions %} is-zero{% endif %}">
+    <div class="n">{{ volumes.transitions }}</div><div class="k">transitions</div></div>
+  <div class="stat{% if not volumes.at_applied %} is-zero{% endif %}">
+    <div class="n">{{ volumes.at_applied }}</div><div class="k">at applied</div></div>
+  <div class="stat{% if not volumes.unlinked %} is-zero{% endif %}">
+    <div class="n">{{ volumes.unlinked }}</div><div class="k">unlinked apps</div></div>
+</div>
+<p class="muted chart-note">
+  {{ volumes.status_changes }} recorded status change{{ volumes.status_changes|pluralize }}
+  in total, and the split between <strong>entry events</strong> and
+  <strong>transitions</strong> is what decides how much can be drawn: an entry is where an
+  application was first logged, a transition is a move from one status to another. Only
+  transitions are edges in a flow diagram or steps in a history.
+</p>
+{% if volumes.unlinked %}
+  <p class="muted chart-note">{{ volumes.unlinked }}
+    application{{ volumes.unlinked|pluralize }}
+    {{ volumes.unlinked|pluralize:"has,have" }} no company linked, so any per-company
+    chart covers fewer applications than it appears to — either
+    <code>jobsdb.py link-company</code>, or a company row that was never created.</p>
+{% endif %}
+
 {% endblock %}

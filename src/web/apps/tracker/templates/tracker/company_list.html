@@ -5,7 +5,9 @@
 <div class="page-head">
   <h1>Companies</h1>
   <p class="lede">{{ total }} tracked —
-     {{ n_scanned }} picked up automatically by <a href="/scans/">portal scans</a>.</p>
+     <a href="#scanned=yes">{{ n_scanned }} picked up automatically</a> by
+     <a href="/scans/">portal scans</a>{% if n_scan_no or n_scan_no_url %};
+     {% if n_scan_no %}<a href="#scanned=no">{{ n_scan_no }} {{ n_scan_no|pluralize:"isn't,aren't" }}</a>, having no board scanning can read{% endif %}{% if n_scan_no and n_scan_no_url %}, and {% endif %}{% if n_scan_no_url %}<a href="#scanned=no-url">{{ n_scan_no_url }} {{ n_scan_no_url|pluralize:"has,have" }} no careers URL</a> yet{% endif %}{% endif %}.</p>
 </div>
 
 {% comment %}
@@ -28,6 +30,17 @@
   <select class="tb-filter" data-field="status" aria-label="Filter by status">
     <option value="">Any status</option>
     {% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+  </select>
+  {% comment %}
+    Three options, not two (#54): "no careers URL" is a one-minute fix, and folding it
+    into "not scanned" would hide the only actionable case among the ones nobody can
+    act on. Values are `Company.scan_state`.
+  {% endcomment %}
+  <select class="tb-filter" data-field="scanned" aria-label="Filter by scan coverage">
+    <option value="">Any scan coverage</option>
+    <option value="yes">Scanned</option>
+    <option value="no">Not scanned — no readable board</option>
+    <option value="no-url">Missing a careers URL</option>
   </select>
   <select class="tb-filter" data-field="apps" aria-label="Filter by number of applications">
     <option value="">Any number of applications</option>
@@ -58,6 +71,7 @@
         <tr data-search="{{ c.name }} {{ c.role_target }}"
             data-category="{{ c.category.name|default:'' }}"
             data-status="{{ c.status }}"
+            data-scanned="{{ c.scan_state }}"
             data-apps="{% if not c.n_apps %}none{% elif c.n_apps >= 3 %}3+{% else %}{{ c.n_apps }}{% endif %}"
             data-sort-name="{{ c.name }}"
             data-sort-added="{{ c.date_added|date:'U' }}"

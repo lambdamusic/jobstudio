@@ -237,6 +237,72 @@ def _stale_applied(rows=None) -> int:
     return sum(1 for r in (rows if rows is not None else _ageing_at_applied()) if r["stale"])
 
 
+# The "recent" window for the headline pace. Four weeks: long enough that one busy afternoon
+# does not read as a trend, short enough to show the pace now rather than since May.
+HEADLINE_RECENT_WEEKS = 4
+
+
+def _headline_metrics():
+    """The headline numbers at the top of `/` and `/stats/`, and in `/jobstudio status`.
+
+    **Everything is out of submitted applications** — those whose history ever reached
+    `applied` — not everything tracked. A role saved and discarded was never a bet, and
+    counting it would lower the interview rate for roles never gone for. The same
+    population as the flow diagram's "from applied onward" view.
+
+    **Pace is per week, twice**: the last HEADLINE_RECENT_WEEKS weeks, and since the first
+    submission. Per day is too small to read at a job-search volume. Each application
+    counts once, dated by the first time it reached `applied`.
+
+    **Interviewed and rejected are "ever reached"**, so one interviewed and then rejected
+    counts in both, and the two do not sum to anything. `awaiting` (still at `applied`) is
+    stated beside them because while half the submissions have no answer, both rates are
+    lower bounds — `resolved` is what the rates would be taken over once they settle.
+
+    `reconstructed` counts submission dates that are backfill (exactly local midnight — the
+    same signal `_status_stock` uses), so the all-time pace can say it is approximate.
+    """
+    first_applied = {}
+    for app_id, when in (ApplicationStatusChange.objects.filter(to_status="applied")
+                         .order_by("changed_at", "pk")
+                         .values_list("application_id", "changed_at")):
+        first_applied.setdefault(app_id, when)
+    submitted = set(first_applied)
+    n = len(submitted)
+    if not n:
+        return {"submitted": 0}
+
+    def reached(status):
+        return len(submitted & set(ApplicationStatusChange.objects.filter(to_status=status)
+                                   .values_list("application_id", flat=True)))
+
+    now = timezone.now()
+    recent = sum(1 for when in first_applied.values()
+                 if when >= now - dt.timedelta(weeks=HEADLINE_RECENT_WEEKS))
+    since = min(first_applied.values())
+    weeks_all = max((now - since).days / 7, 1)
+    interviewed, rejected = reached("interviewing"), reached("rejected")
+    awaiting = Application.objects.filter(pk__in=submitted, status="applied").count()
+
+    def pct(k):
+        return round(100 * k / n)
+
+    return {
+        "submitted": n,
+        "recent": recent,
+        "recent_weeks": HEADLINE_RECENT_WEEKS,
+        "per_week_recent": round(recent / HEADLINE_RECENT_WEEKS, 1),
+        "since": timezone.localtime(since).date(),
+        "per_week_all": round(n / weeks_all, 1),
+        "interviewed": interviewed, "pct_interviewed": pct(interviewed),
+        "rejected": rejected, "pct_rejected": pct(rejected),
+        "awaiting": awaiting, "pct_awaiting": pct(awaiting),
+        "resolved": n - awaiting,
+        "reconstructed": sum(1 for when in first_applied.values()
+                             if timezone.localtime(when).time() == dt.time(0, 0)),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Chart data — one helper per chart on /stats/ (plan §3-§7)
 #
@@ -261,7 +327,8 @@ FUNNEL_ORDER = ["saved", "reviewing", "applied", "interviewing",
 ENDED_STATUSES = ["discarded", "closed", "rejected"]
 
 # §3's second view: what happens from submission onward, without the pre-application
-# attrition. An application that reached `applied` from anywhere enters the diagram there.
+# attrition. Drawn with `population_from="applied"`, so it is about applications that were
+# actually applied to — one discarded straight from `saved` is not in it at all (#56).
 POST_APPLICATION_ORDER = ["applied", "interviewing", "discarded", "closed", "rejected"]
 
 # Age bands for the ageing chart (§7). The boundary between the third and fourth band is
@@ -318,7 +385,7 @@ def _ageing_bands(rows=None):
     }
 
 
-def _status_flow(order=None):
+def _status_flow(order=None, population_from=None):
     """The status-flow diagram (§3): where applications go, and where they stop.
 
     Three things make this more than a `GROUP BY (from_status, to_status)`:
@@ -354,12 +421,45 @@ def _status_flow(order=None):
     `order` narrows the window — see POST_APPLICATION_ORDER. A change arriving from
     outside the window counts as an entry (that is where it entered the diagram); one
     leaving is counted in `left` and reported, never quietly absorbed.
+
+    **`population_from` narrows who is drawn, not just which statuses (#56).** Narrowing
+    only the window left every never-applied application in the post view, entering at
+    its terminal status as an "added" stub — four identical nodes reading as a category
+    beside `applied`. With it set, only applications whose history ever reached that
+    status are drawn; the rest are counted in `excluded` so the page can say so.
+
+    **Node labels carry a total in brackets (#56):** how many applications *ever reached*
+    that status — cumulative, which is what a funnel label means, and identical to current
+    occupancy for the terminal statuses anyway. The end nodes and entry stubs carry their
+    own ribbon totals.
     """
     order = list(order or FUNNEL_ORDER)
     index = {s: i for i, s in enumerate(order)}
 
+    changes = list(ApplicationStatusChange.objects.order_by("changed_at", "pk")
+                   .values_list("application_id", "from_status", "to_status"))
+    applications = Application.objects.all()
+    excluded = 0
+    if population_from:
+        # Onward in time as well as in population: an application discarded and re-opened
+        # *before* it was applied to has that history trimmed, or it would come back as an
+        # entry stub at `discarded` (Kharon, on the live data).
+        started, kept = set(), []
+        for app_id, frm, to in changes:
+            if to == population_from:
+                started.add(app_id)
+            if app_id in started:
+                kept.append((app_id, frm, to))
+        excluded = len({app_id for app_id, _, to in changes
+                        if to in index and app_id not in started})
+        changes = kept
+        applications = applications.filter(id__in=started)
+
+    # Distinct applications that ever arrived in each status — the bracketed label total.
+    ever = Counter(to for _, to in {(app_id, to) for app_id, _, to in changes})
+
     entries, edges, left = Counter(), Counter(), Counter()
-    for frm, to in ApplicationStatusChange.objects.values_list("from_status", "to_status"):
+    for _, frm, to in changes:
         if to not in index:
             if frm in index:
                 left[frm] += 1
@@ -369,7 +469,7 @@ def _status_flow(order=None):
         else:
             edges[(frm, to)] += 1
 
-    current = dict(Application.objects.filter(status__in=order)
+    current = dict(applications.filter(status__in=order)
                    .values_list("status").annotate(n=Count("id")))
 
     nodes, links, dropped, reconciles = [], [], 0, True
@@ -413,13 +513,13 @@ def _status_flow(order=None):
             # Not "logged" — that read as an eighth status. This is where an application
             # entered the tracker, which for a third of them is not `saved`: roles logged
             # after the deadline had passed, or after already applying.
-            node["label"] = "added"
+            node["label"] = f"added ({entries[node['status']]})"
         elif node["kind"] == "end":
-            node["label"] = node["name"]
+            node["label"] = f"{node['name']} ({still[node['name']]})"
         elif node["name"] == "applied" and quiet:
-            node["label"] = f"applied · {quiet} quiet"
+            node["label"] = f"applied ({ever['applied']}) · {quiet} quiet"
         else:
-            node["label"] = node["name"]
+            node["label"] = f"{node['name']} ({ever[node['name']]})"
 
     for (frm, to), n in sorted(edges.items()):
         if index[frm] < index[to]:
@@ -441,6 +541,8 @@ def _status_flow(order=None):
         # stating under the chart, because their ribbons are the ones that look odd.
         "mid_funnel": mid_funnel,
         "entered": entries[order[0]],
+        # Applications outside `population_from` — never drawn, always stated.
+        "excluded": excluded,
     }
 
 
@@ -651,13 +753,14 @@ def stats(request):
     rows = _ageing_at_applied()
     ageing = _ageing_bands(rows)
     flow = _status_flow()
-    flow_post = _status_flow(POST_APPLICATION_ORDER)
+    flow_post = _status_flow(POST_APPLICATION_ORDER, population_from="applied")
     coverage = _company_coverage()
     per_company = _applications_per_company()
     stock = _status_stock()
     return render(request, "tracker/stats.html", {
         "page": "stats",
         "volumes": _stats_volumes(),
+        "headline": _headline_metrics(),
         "ageing": ageing,
         "flow": flow,
         "coverage": coverage,
@@ -768,6 +871,7 @@ def company_list(request):
     companies = (Company.objects.select_related("category")
                  .annotate(n_apps=Count("applications"))
                  .order_by("name"))
+    scan_states = Counter(c.scan_state for c in companies)
     return render(request, "tracker/company_list.html", {
         "page": "companies",
         "companies": companies,
@@ -776,7 +880,11 @@ def company_list(request):
         "total": companies.count(),
         # Coverage is uneven and worth stating up front: the per-row column answers
         # "this one?", this answers "how much of the tracker is actually watched?".
-        "n_scanned": sum(1 for c in companies if c.scan_coverage["scanned"]),
+        # Split three ways, like the filter, so the lede can link to each (#54) — the
+        # unscanned counts are the ones worth clicking.
+        "n_scanned": scan_states["yes"],
+        "n_scan_no": scan_states["no"],
+        "n_scan_no_url": scan_states["no-url"],
     })
 
 

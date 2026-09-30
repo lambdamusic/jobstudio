@@ -112,8 +112,9 @@
       series: [{
         type: "sankey", emphasis: { focus: "adjacency" },
         // The rightmost column is the "still here" stubs, whose labels sit outside the
-        // diagram — without room for them they are clipped by the container.
-        nodeWidth: 13, nodeGap: 13, left: 8, right: 76, top: 10, bottom: 10,
+        // diagram — without room for them they are clipped by the container. Wider since
+        // the labels carry a bracketed total ("inactive (34)", #56).
+        nodeWidth: 13, nodeGap: 13, left: 8, right: 104, top: 10, bottom: 10,
         data: d.nodes.map(function (node) {
           return {
             name: node.name,

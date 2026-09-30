@@ -601,6 +601,33 @@ class ScanCoverageTests(TestCase):
                 expected = cov["platform"] if cov["scanned"] else cov["reason"]
                 self.assertIn(escape(expected), html)
 
+    def test_scan_state_keeps_the_missing_url_apart(self):
+        """`#53`/`#54`. Three keys, not two: "no URL" is the one-minute fix."""
+        cases = {
+            "yes": Company(num=9400, name="Unknown Co", url="https://jobs.lever.co/unknownco"),
+            "no": Company(num=9401, name="Bespoke Co", url="https://example.org/careers"),
+            "no-url": Company(num=9402, name="Nobody Ltd", url=""),
+        }
+        for state, company in cases.items():
+            with self.subTest(state=state):
+                self.assertEqual(company.scan_state, state)
+
+    def test_the_company_page_carries_a_scan_badge_for_every_state(self):
+        """`#53`. Each state gets its own badge, linking into the filtered list; a company
+        with no URL at all must render rather than crash the lede."""
+        made = {
+            "yes": ("https://jobs.lever.co/unknownco", "scanned · lever"),
+            "no": ("https://example.org/careers", "not scanned"),
+            "no-url": ("", "no careers URL"),
+        }
+        for i, (state, (url, text)) in enumerate(made.items()):
+            company = Company.objects.create(num=9410 + i, name=f"Badge Co {i}",
+                                             slug=f"badge-co-{i}", url=url)
+            with self.subTest(state=state):
+                html = self.client.get(f"/companies/{company.slug}/").content.decode()
+                self.assertIn(f'class="badge scan-{state}" href="/companies/#scanned={state}"', html)
+                self.assertIn(text, html)
+
 
 class StatusActionTests(TestCase):
     """The local-only status menu on the application detail page (`#28`, 2026-09-23).
@@ -1109,7 +1136,8 @@ class ChartDataTests(TestCase):
         ApplicationStatusChange.objects.filter(application=app).update(
             changed_at=timezone.now() - dt.timedelta(days=STALE_AFTER_DAYS + 5))
         label = next(n["label"] for n in _status_flow()["nodes"] if n["name"] == "applied")
-        self.assertIn("quiet", label)
+        # `#56`: the total comes first, the quiet count after it.
+        self.assertRegex(label, r"^applied \(\d+\) · \d+ quiet$")
 
     def test_the_post_application_view_treats_arrivals_as_entries(self):
         """§3's second view starts at `applied`, so an application that got there from
@@ -1136,6 +1164,45 @@ class ChartDataTests(TestCase):
         post = _status_flow(POST_APPLICATION_ORDER)
         self.assertEqual(post["left"], 1)
         self.assertTrue(post["reconciles"])
+
+    def test_the_post_application_view_leaves_out_what_never_reached_applied(self):
+        """`#56`(a). A role discarded straight from `saved` was never applied to, so the
+        "from applied onward" view does not draw it — not even as an "added" stub — and
+        says how many it left out."""
+        from tracker.views import POST_APPLICATION_ORDER, _status_flow
+
+        self.history(9230, ["saved", "discarded"])
+        self.history(9231, ["saved", "applied", "rejected"])
+        full = _status_flow()
+        post = _status_flow(POST_APPLICATION_ORDER, population_from="applied")
+        self.assertEqual([l for l in post["links"] if l["kind"] == "entry"], [])
+        self.assertGreaterEqual(post["excluded"], 1)
+        self.assertTrue(post["reconciles"])
+        # The full funnel is unchanged: its entry-stub rule still stands.
+        self.assertEqual(full["excluded"], 0)
+
+    def test_the_post_application_view_starts_each_history_at_applied(self):
+        """`#56`. Onward in time, not only in population: a role discarded and re-opened
+        before it was ever applied to must not come back as an entry stub at `discarded`."""
+        from tracker.views import POST_APPLICATION_ORDER, _status_flow
+
+        self.history(9234, ["saved", "reviewing", "discarded", "reviewing", "applied"])
+        post = _status_flow(POST_APPLICATION_ORDER, population_from="applied")
+        self.assertNotIn("entry:discarded", [n["name"] for n in post["nodes"]])
+        self.assertTrue(post["reconciles"])
+
+    def test_status_labels_carry_how_many_ever_reached_them(self):
+        """`#56`(b). Cumulative, so `rejected (N)` is every rejection whichever status it
+        came from — the question that prompted it."""
+        from tracker.views import _status_flow
+
+        self.history(9232, ["saved", "rejected"])
+        self.history(9233, ["saved", "applied", "rejected"])
+        rejected = ApplicationStatusChange.objects.filter(to_status="rejected") \
+            .values("application_id").distinct().count()
+        labels = {n["name"]: n["label"] for n in _status_flow()["nodes"]}
+        self.assertEqual(labels["rejected"], f"rejected ({rejected})")
+        self.assertRegex(labels["inactive"], r"^inactive \(\d+\)$")
 
     # --------------------------------------------------------------- §4 stock
     def test_what_moved_in_a_week_is_not_what_sits_there(self):
@@ -1363,6 +1430,23 @@ class TableToolbarTests(TestCase):
                 self.assertIn(f'data-apps="{bucket}"', row)
                 self.assertIn(f'data-status="{company.status}"', row)
 
+    def test_every_company_row_carries_its_scan_state(self):
+        """`#54`. The filter matches `data-scanned` exactly, so a row without it would
+        silently never match."""
+        html = self.client.get("/companies/").content.decode()
+        self.assertIn('data-field="scanned"', html)
+        rows = re.findall(r"<tr data-search=.*?</tr>", html, re.S)
+        for company in Company.objects.all():
+            row = next(r for r in rows if f'/companies/{company.slug}/' in r)
+            with self.subTest(slug=company.slug):
+                self.assertIn(f'data-scanned="{company.scan_state}"', row)
+
+    def test_the_companies_lede_links_into_the_scan_filter(self):
+        html = self.client.get("/companies/").content.decode()
+        lede = re.search(r'<p class="lede">.*?</p>', html, re.S).group(0)
+        self.assertIn('href="#scanned=yes"', lede)
+        self.assertNotIn("?", lede)
+
     def test_the_per_company_chart_links_into_the_companies_list(self):
         """A fragment, not a querystring: the static build can publish the one page the
         link lands on, and `tabletools.js` reads the fragment to preselect the filter. A
@@ -1467,6 +1551,146 @@ class SavedEntryBackfillTests(TestCase):
         self.assertEqual(flow["mid_funnel"], 0)
         self.assertEqual(flow["entered"], Application.objects.count())
         self.assertTrue(flow["reconciles"])
+
+
+class HeadlineMetricsTests(TestCase):
+    """The "At a glance" row (2026-09-30) on `/stats/` and in `/jobstudio status`.
+
+    What is pinned is what each number is *out of*: submitted applications only, "ever
+    reached" for the two outcomes, and the recent window measured from first submission.
+    """
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        Application.objects.all().delete()  # cascades to the status log
+
+    def walked(self, num, path, days_ago):
+        """`path`, one step a day, ending `days_ago` days back."""
+        app = Application.objects.create(num=num, company_name=f"Co {num}", role="Role",
+                                         status=path[-1])
+        ApplicationStatusChange.objects.filter(application=app).delete()
+        end = timezone.now().replace(hour=12) - dt.timedelta(days=days_ago)
+        for i, status in enumerate(path):
+            ApplicationStatusChange.objects.create(
+                application=app, changed_at=end - dt.timedelta(days=len(path) - 1 - i),
+                from_status=path[i - 1] if i else "", to_status=status)
+        return app
+
+    def test_rates_are_out_of_submitted_applications_only(self):
+        from tracker.views import _headline_metrics
+
+        self.walked(9601, ["saved", "applied", "interviewing", "rejected"], 5)
+        self.walked(9602, ["saved", "applied", "rejected"], 5)
+        self.walked(9603, ["saved", "applied"], 5)
+        self.walked(9604, ["saved", "applied"], 5)
+        self.walked(9605, ["saved", "discarded"], 5)  # never a bet: not in the base
+        h = _headline_metrics()
+        self.assertEqual(h["submitted"], 4)
+        # Interviewed-then-rejected counts in both.
+        self.assertEqual((h["interviewed"], h["pct_interviewed"]), (1, 25))
+        self.assertEqual((h["rejected"], h["pct_rejected"]), (2, 50))
+        self.assertEqual((h["awaiting"], h["pct_awaiting"]), (2, 50))
+        self.assertEqual(h["resolved"], 2)
+
+    def test_the_recent_pace_counts_first_submissions_in_the_window(self):
+        from tracker.views import HEADLINE_RECENT_WEEKS, _headline_metrics
+
+        self.walked(9611, ["saved", "applied"], 3)
+        self.walked(9612, ["saved", "applied"], 3)
+        self.walked(9613, ["saved", "applied"], 7 * HEADLINE_RECENT_WEEKS + 100)
+        h = _headline_metrics()
+        self.assertEqual(h["recent"], 2)
+        self.assertEqual(h["per_week_recent"], round(2 / HEADLINE_RECENT_WEEKS, 1))
+        self.assertLess(h["per_week_all"], h["per_week_recent"])
+
+    def test_with_nothing_submitted_the_row_says_so_rather_than_showing_zeros(self):
+        self.walked(9621, ["saved"], 1)
+        html = self.client.get("/stats/").content.decode()
+        self.assertIn("No application has reached", html)
+        self.assertNotIn("reached interview</div>", html)
+
+    def test_the_row_leads_the_stats_page_and_the_cli_report_but_not_the_dashboard(self):
+        import io
+        from contextlib import redirect_stdout
+
+        import jobsdb
+
+        self.walked(9631, ["saved", "applied", "rejected"], 2)
+        stats = self.client.get("/stats/").content.decode()
+        self.assertLess(stats.index("At a glance"), stats.index('id="ageing"'))
+        self.assertNotIn("At a glance", self.client.get("/").content.decode())
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            jobsdb.print_status_report(jobsdb.dashboard_summary())
+        self.assertIn("rejected          100%", buffer.getvalue())
+
+
+class AppliedStepBackfillTests(TestCase):
+    """`backfill_applied_step` — a rejection or an interview implies an application.
+
+    Backfilled history ran `saved -> rejected` with the submission missing. The command
+    edits existing rows, so what is pinned is that it inserts exactly one `applied` step,
+    in the right order, on a midnight-preserving date, and leaves `closed` alone.
+    """
+
+    fixtures = FIXTURE
+
+    def walked(self, num, path):
+        app = Application.objects.create(num=num, company_name=f"Co {num}", role="Role",
+                                         status=path[-1])
+        ApplicationStatusChange.objects.filter(application=app).delete()
+        start = timezone.now().replace(microsecond=0) - dt.timedelta(days=30)
+        for i, status in enumerate(path):
+            ApplicationStatusChange.objects.create(
+                application=app, changed_at=start + dt.timedelta(days=i),
+                from_status=path[i - 1] if i else "", to_status=status)
+        return app, start
+
+    def run_command(self, **options):
+        out = StringIO()
+        call_command("backfill_applied_step", stdout=out, stderr=StringIO(), **options)
+        return out.getvalue()
+
+    def history(self, app):
+        return [(c.from_status, c.to_status, c.changed_at)
+                for c in app.status_changes.order_by("changed_at", "pk")]
+
+    def test_a_rejection_gains_an_applied_step_a_day_after_saved(self):
+        app, start = self.walked(9501, ["saved", "rejected"])
+        self.run_command()
+        day = dt.timedelta(days=1)
+        self.assertEqual(self.history(app), [
+            ("", "saved", start - day),         # moved back one day
+            ("saved", "applied", start),        # the old `saved` moment
+            ("applied", "rejected", start + day),  # untouched date
+        ])
+
+    def test_an_interview_after_saved_gains_one_and_later_steps_are_untouched(self):
+        app, start = self.walked(9502, ["saved", "interviewing", "rejected"])
+        self.run_command()
+        steps = [(f, t) for f, t, _ in self.history(app)]
+        self.assertEqual(steps, [("", "saved"), ("saved", "applied"),
+                                 ("applied", "interviewing"), ("interviewing", "rejected")])
+
+    def test_closed_and_already_applied_are_left_alone_and_a_rerun_is_a_no_op(self):
+        closed, _ = self.walked(9503, ["saved", "closed"])
+        applied, _ = self.walked(9504, ["saved", "applied", "rejected"])
+        target, _ = self.walked(9505, ["saved", "rejected"])
+        before = {a.pk: self.history(a) for a in (closed, applied)}
+        self.run_command()
+        once = self.history(target)
+        self.run_command()
+        for a in (closed, applied):
+            self.assertEqual(self.history(a), before[a.pk])
+        self.assertEqual(self.history(target), once)
+
+    def test_a_dry_run_writes_nothing(self):
+        app, _ = self.walked(9506, ["saved", "rejected"])
+        before = self.history(app)
+        out = self.run_command(dry_run=True)
+        self.assertIn("Dry run", out)
+        self.assertEqual(self.history(app), before)
 
 
 class CvPageTests(TestCase):

@@ -25,6 +25,19 @@ rewrite. `_recent_companies()` and `_recent_scans()` were extracted out of `home
 specifically to make this possible (2026-09-16); `_status_summary()`, `_activity_weeks()`
 and `_recently_applied()` were already standalone.
 
+## At a glance: pace and outcome rates
+
+Added 2026-09-30. The first thing on `/stats/` (not the dashboard, by choice) and the
+first block of `/jobstudio status`, both from `_headline_metrics()`:
+applications per week over the last 4 weeks and all time, and the share that reached
+interview, were rejected, and have no answer yet.
+
+Everything is **out of submitted applications**, meaning those whose history ever reached
+`applied`, not everything tracked. Interviewed and rejected are "ever reached", so an
+application interviewed and then rejected counts in both. "No answer yet" is shown beside
+them because while it is large, both rates are lower bounds. Submission dates that are
+backfill (exactly local midnight) are counted and the all-time pace says it is approximate.
+
 ## The charts page (`/stats/`)
 
 `/stats/` is where the charts from `backlog/dashboard-charts-plan.md` live. It is

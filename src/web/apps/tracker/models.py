@@ -167,6 +167,21 @@ class Company(models.Model):
         import scan_sources
         return scan_sources.coverage(self.name, self.url)
 
+    @cached_property
+    def scan_state(self) -> str:
+        """`scan_coverage` as one of three keys: "yes", "no-url" or "no".
+
+        Three, not two, for the reason `coverage` grades its reasons: a missing URL is a
+        one-minute fix, and a plain scanned/not-scanned split would hide it among the
+        cases nobody can act on. The detail-page badge and the list filter both read
+        this, so they cannot disagree with each other or with the Scan column.
+        """
+        import scan_sources
+        cov = self.scan_coverage
+        if cov["scanned"]:
+            return "yes"
+        return "no-url" if cov["reason"] == scan_sources.NO_URL else "no"
+
     @property
     def notes_path(self) -> Path | None:
         """jobs/companies/<slug>.md — long-form research, rendered at request time.
