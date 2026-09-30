@@ -139,6 +139,68 @@ def strip_h1(text):
     return re.sub(r"\A\s*#\s+.*?\n", "", text, count=1)
 
 
+# A line that opens a Q or an A in an interview prep file: `**Q:** …`, optionally as a
+# bullet. Only the five markers the prep template actually uses (Q and A, plus STAR).
+_QA_OPENER = re.compile(r"^(?P<lead>[ \t]*(?:[-*+][ \t]+)?)\*\*(?P<who>Q|A|S|T|R):\*\*")
+# Anything that ends a wrapped question: a blank line, a heading, or a new list item.
+_QA_BREAK = re.compile(r"^(?:[ \t]*$|[ \t]*#|[ \t]*(?:[-*+]|\d+[.)])[ \t])")
+
+# Rounds written before the `**Q:**` convention (2026-09-24) put the question in the heading
+# instead — `#### Why do you want to leave?`, or `### A1. "Walk me through a platform you
+# architected."`. Those are still questions and should still be coloured, so a heading counts
+# when it asks something or quotes what was asked. Deliberately narrow: a heading naming a
+# topic ("AWS — say it first", "Questions to ask them", "Why this role") has neither mark and
+# stays plain. The known false positive is a heading quoting a product name; it would only be
+# coloured, never broken.
+_HEADING = re.compile(r"^(?P<hashes>\#{2,6}[ \t]+)(?P<text>.+?)[ \t]*$")
+_QUESTION_HEADING = re.compile(r'\?|"[^"]+"|\u201c[^\u201d]+\u201d')
+
+
+def _wrap_questions(text: str) -> str:
+    """Put a span round each `**Q:** …` line, closing it where the question ends."""
+    out: list[str] = []
+    open_q = False
+    for line in text.split("\n"):
+        opener = _QA_OPENER.match(line)
+        if open_q and (opener or _QA_BREAK.match(line)):
+            out[-1] += "</span>"
+            open_q = False
+        heading = _HEADING.match(line)
+        if heading and _QUESTION_HEADING.search(heading.group("text")):
+            # Wrap the text only — the hashes have to stay at the line start to parse.
+            out.append(f'{heading.group("hashes")}<span class="qa-q">'
+                       f'{heading.group("text")}</span>')
+            continue
+        if opener and opener.group("who") == "Q":
+            lead = opener.group("lead")
+            out.append(f'{lead}<span class="qa-q">{line[len(lead):]}')
+            open_q = True
+        else:
+            out.append(line)
+    if open_q:
+        out[-1] += "</span>"
+    return "\n".join(out)
+
+
+@register.filter(name="mark_qa")
+def mark_qa(text):
+    """Mark up the questions in an interview round so the Interviews tab can colour them
+    — the eye needs to find the questions without reading the answers between them.
+
+    Source-level, like `strip_h1`, and applied only to interview rounds: `**Q:**` is that
+    file's convention, not the site's. A question hard-wrapped over several source lines
+    stays inside one span — wrapped prose is the norm in these files, and a colour that
+    stopped at the first line would read as a rendering bug.
+    """
+    if not text:
+        return ""
+    chunks = re.split(r"(```.*?```)", text, flags=re.S)
+    for i, chunk in enumerate(chunks):
+        if not chunk.startswith("```"):
+            chunks[i] = _wrap_questions(chunk)
+    return "".join(chunks)
+
+
 @register.filter
 def stars(value):
     try:

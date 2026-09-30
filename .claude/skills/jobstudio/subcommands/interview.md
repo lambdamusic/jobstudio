@@ -192,6 +192,19 @@ Structure:
 _(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
 
+**The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
+colours every question red so the eye can find them without reading the answers between
+(`mark_qa` in `jobs_extras.py`). That only works on the markers, so write every question as
+`- **Q:** …` with its `**A:**` beneath — never as a heading, a numbered list, or a bolded
+topic title. Four of the five rounds written before this convention each invented their own
+structure, and the result is a set of files that read differently from one another for no
+reason. Use `###` for the four category headings only (Role / technical, Behavioural,
+Emotional intelligence, Why this role).
+
+A question hard-wrapped over several source lines is fine — the whole question stays
+coloured. STAR sub-markers (`**S:**`, `**T:**`, `**A:**`, `**R:**`) sit inside an answer and
+are left plain.
+
 Then **add one line to `## Timeline` in `notes.md`** linking the new file, so the
 folder still reads as one process:
 

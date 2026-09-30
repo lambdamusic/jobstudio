@@ -2860,6 +2860,69 @@ class InterviewRoundTests(TestCase):
         self.assertTrue(appfolder.is_interview_filename(name))
         self.assertEqual(appfolder.interview_stage(name), "hiring-manager")
 
+    def test_questions_are_marked_up_for_colouring(self):
+        """`mark_qa` wraps each `**Q:** …` in a span so the Interviews tab can colour the
+        questions. Both source forms matter — a bullet (`- **Q:**`) and a bare paragraph —
+        and a question hard-wrapped over two lines must stay inside ONE span, or the colour
+        stops mid-sentence and reads as a rendering bug."""
+        from apps.tracker.templatetags.jobs_extras import mark_qa, markdownify
+
+        src = (
+            "### Role / technical\n\n"
+            "- **Q:** A bulleted question?\n"
+            "  **A:** Its answer, which is not coloured.\n\n"
+            "### Why this role\n\n"
+            "**Q:** A bare question that wraps over\n"
+            "two source lines, ending here.\n"
+            "**A:** And its answer.\n"
+        )
+        marked = mark_qa(src)
+        self.assertEqual(marked.count('<span class="qa-q">'), 2)
+        self.assertEqual(marked.count("</span>"), 2)
+        # The wrapped question's continuation is inside the span, the answer is outside.
+        self.assertIn("ending here.</span>", marked)
+        self.assertNotIn('<span class="qa-q">**A:**', marked)
+        # The marker stays markdown, so it still renders bold inside the span.
+        html = markdownify(marked)
+        self.assertIn('<span class="qa-q"><strong>Q:</strong>', html)
+        self.assertNotIn('<span class="qa-q"><strong>A:</strong>', html)
+
+    def test_question_headings_are_marked_up_too(self):
+        """Rounds written before the `**Q:**` convention (2026-09-24) put the question in the
+        heading. Those are still questions, so a heading that asks something or quotes what
+        was asked is coloured too — while a heading naming a topic stays plain."""
+        from apps.tracker.templatetags.jobs_extras import mark_qa, markdownify
+
+        coloured = [
+            "#### Why do you want to leave / why Grafana Labs?",
+            '### A0. "Why are you applying for a role below your last level?" — the one to nail',
+            '### A1. "Walk me through a data platform you architected end to end."',
+        ]
+        plain = [
+            "### A2. AWS — say it first, unprompted",
+            "## Questions to ask them",
+            "### Why this role",
+            "## Outcome",
+        ]
+        for line in coloured:
+            with self.subTest(line=line):
+                self.assertIn('<span class="qa-q">', mark_qa(line))
+        for line in plain:
+            with self.subTest(line=line):
+                self.assertNotIn("qa-q", mark_qa(line))
+
+        # The hashes must stay at the line start, or it stops being a heading.
+        html = markdownify(mark_qa("#### Why do you want to leave?"))
+        self.assertIn('<h4><span class="qa-q">Why do you want to leave?</span></h4>', html)
+
+    def test_interviews_panel_colours_the_questions(self):
+        """The filter is wired into the Interviews panel, and only there — `**Q:**` is the
+        round file's convention, not the whole site's."""
+        app = Application.objects.get(num="1")
+        r = self.client.get(f"/applications/{app.num}/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('<span class="qa-q">', r.content.decode())
+
 
 class CreateFolderActionTests(TestCase):
     """The application page's "Create folder" action (added 2026-09-09, for applications

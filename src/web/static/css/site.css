@@ -16,6 +16,9 @@
   --bg-side:   #f7f7f9;
   --bg-sunk:   #fafafb;
   --link:      #1a5c9a;
+  /* The question in an interview round's Q/A pairs. Not a status — the status reds
+     live in their own block below and mean 'rejected'. */
+  --qa-q:      #a32b2b;
   --radius:    7px;
 
   /* ---------- status palette ----------
@@ -457,6 +460,13 @@ tr.is-stale td { background: #fffdf5; }
 .round-index .round-index-date {
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
+
+/* The questions in a round's prep, coloured so they can be picked out without reading the
+   answers between them. `mark_qa` puts the span in — round a `**Q:** …` line (the current
+   convention), or round the text of a heading that asks a question (the rounds written
+   before it). A question hard-wrapped over several source lines is one span, so the colour
+   does not stop mid-sentence. Markers and headings keep their own weight. */
+.prose .qa-q { color: var(--qa-q); }
 
 /* ---------- fit summary (Record tab) ---------- */
 

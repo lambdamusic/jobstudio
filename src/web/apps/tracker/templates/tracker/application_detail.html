@@ -166,7 +166,7 @@
               <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
             {% endif %}
           </div>
-          {{ round.body_md|strip_h1|markdown|blank_links }}
+          {{ round.body_md|strip_h1|mark_qa|markdown|blank_links }}
         </div>
       {% endfor %}
     </section>
