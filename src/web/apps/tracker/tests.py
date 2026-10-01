@@ -1766,6 +1766,26 @@ class JobsDbTests(TestCase):
         import jobsdb
         self.assertTrue(all(u.startswith("http") for u in jobsdb.known_job_urls()))
 
+    def test_set_cv_base_changes_the_stored_base(self):
+        """`#60` — a `cv --base` override deliberately leaves the stored value alone, so
+        making a switch permanent needs its own command. Nothing on the agent-native path
+        could change `cv_base` before this."""
+        import jobsdb
+        from tracker.models import Application
+        row = jobsdb.set_cv_base(1, "chronological")
+        self.assertEqual(row["cv_base"], "chronological")
+        self.assertEqual(Application.objects.get(num=1).cv_base, "chronological")
+
+    def test_set_cv_base_refuses_an_unknown_base(self):
+        """An unknown value would save fine and then match no base CV on the next
+        tailoring run — the same reason the web app checks statuses from the URL."""
+        import jobsdb
+        from tracker.models import Application
+        before = Application.objects.get(num=1).cv_base
+        with self.assertRaises(ValueError):
+            jobsdb.set_cv_base(1, "reverse-chronological")
+        self.assertEqual(Application.objects.get(num=1).cv_base, before)
+
 
 class CategoryBootstrapTests(TestCase):
     """`#38` — a fresh tracker has no categories, and until now nothing outside the
@@ -2323,6 +2343,55 @@ class MechanicalCvCopyTests(TestCase):
             dest.write_text(dest.read_text() + "\n- Rewritten for this role.\n")
             self.assertFalse(app.cv_files[0]["untouched"])
             self.assertEqual([c["name"] for c in app.tailored_cvs], [dest.name])
+
+    def test_one_cv_per_base_coexists_and_each_gets_a_distinct_anchor(self):
+        """`#60` — asking for the other base adds a CV rather than replacing one, so the
+        tab indexes them. Distinct anchors are the whole point: two links to the same id
+        would scroll to the same CV and the index would silently lie."""
+        import appfolder
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        func = folder / "900-test-co-alex-rivera-cv-functional-2026-09-14.md"
+        chron = folder / "900-test-co-alex-rivera-cv-chronological-2026-10-01.md"
+        func.write_text("# Alex Rivera\n\nFunctional.\n")
+        chron.write_text("# Alex Rivera\n\nChronological.\n")
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        with override_settings(DATA_ROOT=str(root)):
+            cvs = app.cv_files
+            self.assertEqual(len(cvs), 2, "both bases must survive; neither replaces the other")
+            anchors = [c["anchor"] for c in cvs]
+            self.assertEqual(len(set(anchors)), 2, f"anchors must be distinct, got {anchors}")
+            self.assertTrue(all(a.startswith("cv-") for a in anchors))
+            labels = {c["label"] for c in cvs}
+            self.assertEqual(labels, {"Functional", "Chronological"})
+            self.assertTrue(all(c["date"] for c in cvs), "the index shows a date per CV")
+
+    def test_the_cv_index_appears_only_from_two_cvs_up(self):
+        """Same rule the interview-round index follows — a list of one is noise."""
+        import appfolder
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        appfolder.copy_cv(self.ROW, folder)
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root)):
+            one = self.client.get(f"/applications/{app.num}/").content.decode()
+            self.assertNotIn('aria-label="CVs for this application"', one)
+
+            (folder / "900-test-co-alex-rivera-cv-chronological-2026-10-01.md").write_text(
+                "# Alex Rivera\n\nChronological.\n")
+            two = self.client.get(f"/applications/{app.num}/").content.decode()
+            self.assertIn('aria-label="CVs for this application"', two)
 
 
 class AdminViewOnSiteTests(TestCase):

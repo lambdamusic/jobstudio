@@ -21,6 +21,35 @@ comes out blank or garbled in the rendered CV. So never treat "it rendered" as
 > was lost. This document is the contract — where another CV on disk disagrees with it,
 > this one is right.
 
+## The two files are not two views of one fact set
+
+The sections below describe both files, and it is easy to read that as one CV in two
+shapes. It isn't, and assuming it is has already cost content (TODO `#61`).
+
+**`cv_functional.md`'s `## Core Competencies` is the source of record.** It is where the
+load-bearing detail accumulates — figures, named initiatives, named events, scale and
+headcount numbers — because that is the section tailoring rewrites most often and
+therefore the one that gets sharpened. `cv_chronological.md`'s `## Experience` carries the
+same career in role order, but its bullets are typically the older, plainer version of the
+same claims, and routinely lack facts the functional file has. `## Skills` differs between
+the two as well, in wording and in what it groups.
+
+Two consequences, both load-bearing:
+
+- **Anything that regenerates both files from one collected set of facts must collect the
+  union of what both files say, not whichever file it read first.** That is `cv --rebuild`
+  (see `subcommands/cv.md` §A.1's pre-fill rule). Deriving both from the chronological
+  file's bullets alone drops every functional-only fact, and the result is well-formed —
+  so `--check` passes and nothing reports the loss.
+- **`--check` cannot catch this class of mistake, and is not meant to.** It answers "did
+  every section parse", which is why it catches a malformed file. A file that lost a fact
+  it used to carry is not malformed. The guards are reading both files before writing
+  either, and the `archive/` backups `--rebuild` takes before it writes.
+
+What the two files legitimately *do* share is the underlying career: the same employers,
+roles and dates, with the same education, publications and languages. Where they differ in
+those, one of them is wrong and should be fixed, not preserved.
+
 ## Shared: header and contact block
 
 ```markdown

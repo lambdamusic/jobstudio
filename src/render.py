@@ -489,6 +489,19 @@ def parse_check(md_path: Path, mode: str) -> tuple[dict, list[str], list[str]]:
                 f"{', '.join(empty)}.")
     _count('education entries', len(data['education']), section='Education')
     _count('skill groups', len(data['skills']), section='Skills')
+    # Languages are the one thing `_parse_skills` lifts out of the Skills section into
+    # their own list, so they are not in `data['skills']` and the skill-group count says
+    # nothing about them. Counting them separately is not cosmetic: without it a
+    # Languages line written `Italian - native` instead of `Italian (native)` parses to
+    # zero, every language is dropped from the output, and the summary line is
+    # byte-identical to a correct parse. Found 2026-10-01 while verifying TODO `#23`,
+    # and it is `#44`'s failure mode in the one section nothing was counting.
+    summary.append(f"languages: {len(data['languages'])}")
+    if not data['languages'] and re.search(r'\*\*languages:\*\*', _section_text(text, 'Skills'), re.I):
+        warnings.append(
+            "the Skills section has a Languages line but no language parsed from it — "
+            "every one was dropped. Each needs to be '{Language} ({level})', e.g. "
+            "'Italian (native), English (full professional)'.")
     _count('publications', len(data['publications']))
 
     return data, summary, warnings

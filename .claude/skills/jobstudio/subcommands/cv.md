@@ -32,6 +32,15 @@ files** (tailoring, cover letters, the `stocktake` pre-fill). Handle accordingly
 1. **Confirm before starting**, if either file already exists: tell the user this
    replaces both base CVs everywhere they're used, and that you'll back up the
    current ones first. Don't proceed without a clear yes.
+
+   **If both files already exist and are in good shape, say what `--rebuild` is for
+   before taking the yes.** It is a blank-page tool. Run against a good existing pair
+   the realistic outcome is eight steps of re-approving the user's own text, while the
+   one thing that genuinely changes is content that lives in only one of the two files
+   — and that change is a loss (see A.1's pre-fill rule, and TODO `#61`). Name the
+   alternatives in the same breath: editing the two files directly for a targeted
+   change, or `--import <path>` if there is a newer document to bring in. Then do what
+   the user asks. This is a steer, not a refusal.
 2. **Back up existing files before writing**, always, into
    `<DATA>/jobs/cv/base/archive/cv_functional-YYYY-MM-DD.md` /
    `cv_chronological-YYYY-MM-DD.md` (create `archive/` if needed). This directory is
@@ -49,8 +58,31 @@ from what's known, don't interrogate from a blank page):
 
 | Source | Feeds |
 |---|---|
-| Existing `<DATA>/jobs/cv/base/cv_functional.md` / `cv_chronological.md`, if present | Career history, wording, structure — even on a full rebuild, these are the best starting draft, not just something to discard |
+| Existing `<DATA>/jobs/cv/base/cv_functional.md` **and** `cv_chronological.md` — **read both, every time** | Career history, wording, structure — even on a full rebuild, these are the best starting draft, not just something to discard |
 | `<DATA>/jobs/profile/stocktake.md`, if it exists | §2 achievements/USPs, §6 positioning by audience — feeds the Summary framing and which achievements to lead with |
+
+**Read both base CVs and collect the union of what they say. This is the single
+easiest way to do real damage with this subcommand.** The two files are *not* two
+views of one fact set — they drift, and in practice the functional file's
+`## Core Competencies` ends up the richer document, carrying figures, named
+initiatives, named events and scale numbers that the chronological file's role bullets
+never had (`cv-base-format.md` says which file is the source of record). The failure is
+quiet and total: the chronological file's `## Experience` reads as the obvious
+career-history pre-fill, step 6 derives both files from whatever step 2 collected, and
+every functional-only fact is gone. Both files then parse perfectly and `--check`
+reports `CHECK OK`, because nothing is malformed — only poorer.
+
+So, concretely:
+
+- Diff the two in your head section by section before asking the user anything.
+- Where a fact appears in one file and not the other, **carry it into the collected set
+  and tell the user it was in only one** — a fact may be dropped because the user
+  decided to drop it, never because the pre-fill did not look.
+- The same applies to `## Skills`, which also differs between the files more often than
+  not. Step 4 collects one set and writes it to both, so it silently converges them:
+  show the difference and ask which wording is canonical rather than picking one.
+- This is why step 8's backups into `archive/` are not optional. No check can tell a
+  CV that lost a fact from one that never had it; the backup is the only way back.
 
 Work through these in order, one at a time — draft from pre-fill where possible, show
 it, get a yes/edit before moving on. Nothing is written to either base CV file until
@@ -164,8 +196,11 @@ place.
    straight to step 2.
 
 2. **Choose the base** — the application's stored `cv_base` (functional unless set
-   otherwise), or an explicit `--base functional`/`--base chronological` override for a
-   one-off (this never changes what's stored).
+   otherwise), or an explicit `--base functional`/`--base chronological` override.
+
+   An override does not change what is stored, and does not remove the CV already in
+   the folder: the application ends up with one CV per base, which is a legitimate
+   state (step 6). Only an explicit "from now on" changes the stored value.
 
 3. **Read the sources** — the chosen base CV, `job.md` (or note if it's not saved yet:
    "(No job description saved for this application.)"), and, if `area` is set, that
@@ -246,12 +281,38 @@ place.
 
    Print the saved path.
 
+   **A `--base` override adds a CV; it does not replace one** (TODO `#60`, decided
+   2026-10-01 after trying the other way). Running `--base chronological` on an
+   application stored as `functional` leaves the folder holding one CV of each, and
+   that is fine: they are two genuinely different documents for the same role, and the
+   earlier one may be what was already sent. Do **not** delete the other base's CV to
+   tidy up.
+
+   The "one CV per application" rule above is about *the same base* — a tailored pass
+   superseding an earlier copy of the file it tailored, where two files differing only
+   by date really is how the wrong one gets sent. Two different bases are not that.
+
+   - **Say which CVs the folder now holds**, when you print the saved path. The
+     application page's CV tab indexes them all when there is more than one, so the
+     answer to "which is live" is "look, they are both there, dated" rather than
+     something the toolkit decides by deleting a file.
+   - **Leave the stored `cv_base` alone** unless the user says the switch is permanent
+     — "use the chronological one for this role from now on". Then, and only then:
+
+     ```bash
+     tools/py src/jobsdb.py set-cv-base <num> chronological
+     ```
+
+     Without that it stays as it was, so the next `/jobstudio cv #N` with no override
+     tailors the original base again — which is correct, and will supersede that base's
+     own CV rather than the other one.
+
 ## User arguments
 
 For tailoring (B), the user may pass:
 - A company name or `#` row number to identify the application
-- `--base functional` / `--base chronological` to override the stored `cv_base` for a
-  one-off
+- `--base functional` / `--base chronological` to tailor from the other base. Adds a
+  CV alongside the one already there and leaves the stored `cv_base` as it was — step 6
 - Free-text additions: extra context, specific things to emphasise
 
 For bootstrapping (A):

@@ -1279,8 +1279,10 @@ Three passes, in this order (the first draft had this right; keeping it):
 - **Manual clean-room** ✅ **done 2026-09-21** — fresh folder, fresh clone, fresh venv,
   follow the README from zero on a different machine or a different user account. Note
   every silent assumption.
-- **A second real person** ⬜ — the actual bar implied by "share it with someone else".
-  Most convincing, slowest, burns someone else's time — so do the other two first.
+- **A second real person** ✅ **closed 2026-09-29, by substitute** — the actual bar implied
+  by "share it with someone else". Most convincing, slowest, burns someone else's time — so
+  the other two went first, and in the end this one was closed the same way the clean-room
+  pass was: by naming a substitute and what it does not cover. See below.
 
 **Clean-room result (see `log/2026-09-21-m18-cleanroom-verification.md`).** A different
 machine was not available; the substitute was a **fresh `$HOME`**, which is the part that
@@ -1310,6 +1312,45 @@ re-tested by planting a violation and watching the build refuse.
 This is §5.7's lesson in a smaller key — there the denylist made the verifier skip files
 and report clean on tree it had never read. Same shape: **an exemption no file needs is a
 blind spot waiting for the next file whose path matches it.**
+
+**Second-real-person result (see `log/2026-09-29-second-machine-findings.md`).** A second
+real person was not available either; the substitute was **a second machine, set up from
+zero against a CV the toolkit had never seen** — `main` fast-forwarded to `dev` (`aeea38e`),
+cloned onto a different Mac, and taken through the README and then `cv --import` with a real
+document nobody had tested against.
+
+**What it covered, and it was the productive pass of the three.** The install itself was
+clean — virtualenv, data root, wiring, `config.py --chain`, pre-push hook, admin account,
+every step working as written, first time, exactly as the clean room predicted. Everything
+that went wrong went wrong *after* the install, which is precisely the ground neither
+earlier pass could reach, because neither had a CV to import or a result to hand to anyone.
+Seven findings, four of which became TODO `#44`–`#47`. The worst: **both shipped example CVs
+were written in a format the parser cannot read**, so `example-data`'s functional CV parsed
+to three employers and zero roles, and the chronological one lost its entire work history —
+and the agent on that machine did the reasonable thing, read the shipped example to infer
+house style on the grounds that a file which ships must render, and produced a CV in the
+broken shape twice. That is a failure mode no clean-room install and no smoke test can
+surface, since both assert that commands exit zero rather than that content survived. It is
+why `render.py --check` now exists and runs on every CV render.
+
+**What it does not cover, stated plainly.** It was the same *person* on a different machine,
+so it tests nothing about a second person's mental model: whether the README's vocabulary
+lands for someone who did not write it, which questions `init` should have asked, where
+someone else's CV breaks assumptions nobody knew were assumptions, or what an outsider finds
+confusing enough to abandon. Michele has a second computer and can repeat the install pass
+on demand — but another install by the same person closes none of that, because the gap left
+is the person, not the machine. **M1.8 is closed on the judgement that the machine substitute
+bought the install-and-import confidence the milestone existed for, and that the remaining
+third needs a genuine outside user.**
+
+**A real one is now planned (2026-10-01).** Michele is arranging the install on a second
+machine with **someone other than himself** driving it, and will report back. So the
+substitute above is the floor, not the answer: when that run happens, its findings go here
+and the "what it does not cover" paragraph is what to read them against — the README's
+vocabulary, which questions `init` should have asked, where another person's CV breaks an
+assumption nobody knew was one. On the evidence of the other two passes, expect findings
+rather than a clean bill: every verification pass so far has produced some, and the ones
+from the second-machine run were the most valuable in the project.
 
 ### M2 — pip package
 
@@ -1515,6 +1556,20 @@ still served by M1 and M2, not by this.
 
 ## 9. Status
 
+**Updated 2026-10-01 — M1 is complete, and the plan's remaining milestones are now their
+own TODO items.** M1.8's third pass closed 2026-09-29 by substitute (see M1.8 above), which
+finished M1. TODO `#2` — the single umbrella item this plan served — is closed with it, and
+M2, M3 and M4 moved out to `#57`, `#58` and `#59` so each is an item that can actually be
+ticked. Nothing in the design below changes; this document stays the design of record for
+all three, and the milestone IDs stay what they were.
+
+**One correction to the 2026-09-21 entry below:** the data root moved again later that same
+day, from `_Jobs/jobstudio-data` to
+`_MINE/_Jobs/2026-09-job-studio/data-private`. `~/.jobstudio.ini` is the authority, and
+`tools/py src/config.py --path` is how to ask — never a path copied out of a document.
+
+---
+
 **Updated 2026-09-21 — M1 is done except verification.**
 
 **M1.7 landed (§5.7), and M1 is now complete bar M1.8.** The data root is
@@ -1532,7 +1587,7 @@ position, on Michele's call. The interesting part is what that exposed in
 `make-public-tree`: both were on its denylist, which after the move would have meant the
 verifier skipping them and reporting a clean tree it had never read. See §5.7.
 
-**M1.8 is now two-thirds done (2026-09-21).** The automated and clean-room passes are
+**M1.8 is now two-thirds done (2026-09-21)** — *superseded: all three passes closed 2026-09-29.* The automated and clean-room passes are
 both green — the clean room found nothing wrong with the install or the README, and two
 stale exemptions in `make-public-tree` that were letting real company names ship in
 `tests.py`. **Only the second real person remains**, and nothing in the toolkit blocks

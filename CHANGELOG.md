@@ -4,6 +4,60 @@ Dated entries, newest first.
 
 ## 2026-10-01
 
+- **`cv --rebuild` reads both base CVs before it asks anything** (`#61`). The interview
+  collected one set of facts and derived both files from it, on the documented assumption
+  that the two differ only in framing. They differ in content: the functional file's Core
+  Competencies accumulates the load-bearing detail — figures, named initiatives, named
+  events, scale numbers — and the chronological file's role bullets are the older,
+  plainer version of the same claims. Since step 2's pre-fill reads naturally as the
+  chronological career history, a literal run dropped every functional-only fact,
+  produced two well-formed files, and reported `CHECK OK`. The pre-fill now reads both and
+  collects the union, flagging anything that appears in only one; `--rebuild` says plainly
+  that it is a blank-page tool before being run against a good existing pair; and
+  `cv-base-format.md` states which file is the source of record instead of implying the
+  two are views of one fact set. No check catches this class of loss — both versions are
+  valid markdown — so the contract now says that too.
+
+- **An application can hold one CV per base, and the CV tab indexes them** (`#60`).
+  Asking for the other base used to leave the folder in the state the
+  one-CV-per-application rule exists to prevent — two CVs, no way to tell from a filename
+  which is live. Replacement was built first and backed out: two different bases are two
+  genuinely different documents for the same role, and the earlier one may be what was
+  already sent, so deleting it destroys a record to satisfy a rule aimed at a different
+  problem (the same base, twice, differing only by date). The answer is the UI showing
+  what is there instead of the toolkit deciding by deleting a file — so the CV tab now
+  renders an index above the CVs when there is more than one, the same pattern the
+  Interviews tab uses for rounds, with the base label, the date, an `unedited copy`
+  marker and an anchor into each full text.
+
+- **`jobsdb.py set-cv-base <num> {functional,chronological}`**, so making a base switch
+  permanent has a command behind it. A `--base` override deliberately does not change the
+  stored default; `cv_base` was settable at creation and in the Django admin and by
+  nothing on the agent-native path, which is where every other tracker write happens —
+  the same gap, and the same argument, as `#41`'s missing `update-company`.
+
+- **`render.py --check` counts languages, because nothing was counting them.** The
+  Languages line is the one thing `_parse_skills()` lifts *out* of the skills list into
+  its own structure, so the skill-group count never spoke for it. Written
+  `Italian - native` instead of `Italian (native)` it parsed to zero, every language
+  vanished from the rendered CV, `--check` printed `CHECK OK`, and its summary line was
+  byte-identical to a correct parse. `--check` now reports `languages: N` and fails with
+  a warning naming the required format; a CV that lists no languages at all is still
+  finished rather than thin, same stance as the optional header links. Found while
+  verifying the CV flows for backlog `#23`, and it is `#44`'s failure mode in the one
+  section nothing had a count for.
+
+- **Both agent-native CV flows are now verified against real inputs** (`#23`, closed).
+  Chronological tailoring and the `cv --rebuild` interview were the two that had never
+  been run live; each found something. The rebuild run is written up as `#61`, which is
+  the more serious of the two: the interview collects one set of facts and derives both
+  base CVs from it, on the documented assumption that the files differ only in framing —
+  and they do not, they differ in content, with the functional file's Core Competencies
+  carrying a good deal the chronological file has never had. A literal run drops it,
+  parses clean, and reports `CHECK OK`. No check can catch that; the pre-fill has to read
+  both files.
+
+
 - **Logging an application stops tailoring anything** (`#55`). The CV it puts in the
   folder is a mechanical copy of the base, and the cover letter is a thin generic draft:
   the job-ID line, one honest paragraph on why the role is interesting, one line on fit,

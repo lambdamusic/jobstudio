@@ -182,10 +182,30 @@
   {% if app.cv_snapshots %}
     <section class="tabpanel" data-panel="cv" role="tabpanel">
       <h2 class="panel-heading">CV</h2>
+      {% comment %}
+      Same index as the interview rounds above, and the same rule: only from two CVs up,
+      because a list of one is noise. An application legitimately holds more than one —
+      asking for the other base adds a CV rather than replacing one (TODO `#60`) — and
+      without this the tab is a stack of full CV texts you have to scroll to survey. The
+      anchors are real ids on the filenames below, so tabs.js resolves a link to one of
+      them back to this panel.
+      {% endcomment %}
+      {% if app.cv_files|length > 1 %}
+        <nav class="panel round-index" aria-label="CVs for this application">
+          <ol>
+            {% for cv in app.cv_files %}
+              <li><a href="#{{ cv.anchor }}">{{ cv.label }}</a>
+                {% if cv.date %}<span class="round-index-date">{{ cv.date|date:"j M Y" }}</span>{% endif %}
+                {% if cv.untouched %}<span class="pill">unedited copy</span>{% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+        </nav>
+      {% endif %}
       {% for cv in app.cv_files %}
         <div class="panel prose panel-sunk" style="margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-            <span><code style="font-size:12.5px">{{ cv.name }}</code>{% if cv.untouched %}
+            <span><code id="{{ cv.anchor }}" style="font-size:12.5px">{{ cv.name }}</code>{% if cv.untouched %}
               <span class="pill" title="A mechanical copy of the base CV — the roles in brackets stripped from the competencies, nothing else changed">unedited copy</span>{% endif %}</span>
             {% if IS_LOCAL %}
               <span>

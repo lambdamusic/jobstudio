@@ -324,15 +324,34 @@ class Application(models.Model):
         `untouched` is what the filename used to say: since the scaffolded copy is named
         for the application like any other CV (TODO `#55`), the page has to tell a plain
         copy of the base from one somebody has actually worked on.
+
+        `label`, `date` and `anchor` are for the index the tab renders above the CVs when
+        there is more than one (TODO `#60`). An application legitimately holds several —
+        asking for the other base adds a CV rather than replacing one — and a stack of
+        full CV texts with a filename over each is not something you can read the shape of.
         """
+        from .parsers import parse_date
+
         out = []
+        seen: dict[str, int] = {}
         for path in reversed(self.cv_snapshots):
+            variant = cv_variant(path.name)
+            # The anchor is the variant plus the date, not the filename: filenames carry
+            # the company and person slugs, which every CV in the folder repeats.
+            base = "cv-" + re.sub(r"[^a-z0-9]+", "-", (variant or "cv").lower()).strip("-")
+            date = parse_date(path.name)
+            if date:
+                base = f"{base}-{date.isoformat()}"
+            seen[base] = seen.get(base, 0) + 1
             out.append({
                 "name": path.name,
                 "path": path,
                 "body_md": _read(path),
                 "docx": exported_file(path),
                 "untouched": is_untouched_copy(path),
+                "label": variant.replace("_", " ").replace("-", " ").capitalize() or "CV",
+                "date": date,
+                "anchor": base if seen[base] == 1 else f"{base}-{seen[base]}",
             })
         return out
 

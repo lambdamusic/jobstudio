@@ -190,6 +190,32 @@ def set_status(num: int | str, status: str) -> dict:
     return _app_dict(a)
 
 
+def set_cv_base(num: int | str, cv_base: str) -> dict:
+    """Change which base CV an application tailors from.
+
+    Settable at creation (`add-application --cv-base`) and in the Django admin, and by
+    nothing on the agent-native path before this (TODO `#60`) — which is where every
+    other tracker write happens. So "use the chronological base for this role from now
+    on" had no command behind it, and a `--base` override deliberately does not change
+    the stored value: it adds a CV for that base and leaves the default alone. This is
+    what makes the switch permanent when the user actually asks for that.
+
+    Same gap, and the same argument, as `#41`'s missing `update-company`: the admin is
+    the editing surface for a person, not for an agent mid-flow.
+    """
+    setup()
+    from tracker.models import Application, CV_BASE_CHOICES
+    valid = [c[0] for c in CV_BASE_CHOICES]
+    if cv_base not in valid:
+        # Checked rather than trusted, same as the web app's set_status: an unknown value
+        # would save fine and then quietly match no base CV on the next tailoring run.
+        raise ValueError(f"unknown cv_base {cv_base!r} — expected one of {', '.join(valid)}")
+    a = Application.objects.get(num=int(num))
+    a.cv_base = cv_base
+    a.save()
+    return _app_dict(a)
+
+
 def set_fit(num: int | str, *, level: str, pros: str = "", cons: str = "",
            unknowns: str = "") -> dict:
     """Write the scannable pros/cons/unknowns fit summary shown on the Record tab —
@@ -457,6 +483,10 @@ def _main() -> None:
     p_st.add_argument("num")
     p_st.add_argument("status")
 
+    p_cvb = sub.add_parser("set-cv-base", help="Change which base CV an application tailors from")
+    p_cvb.add_argument("num")
+    p_cvb.add_argument("cv_base", choices=["functional", "chronological"])
+
     p_fit = sub.add_parser("set-fit", help="Set an application's fit summary (pros/cons/unknowns)")
     p_fit.add_argument("num")
     p_fit.add_argument("--level", required=True, choices=["strong", "moderate", "stretch", "weak"])
@@ -507,6 +537,9 @@ def _dispatch(args, json) -> None:
     elif args.cmd == "set-status":
         row = set_status(args.num, args.status)
         print(f"#{row['num']} {row['company']} -> {row['status']}")
+    elif args.cmd == "set-cv-base":
+        row = set_cv_base(args.num, args.cv_base)
+        print(f"#{row['num']} {row['company']} -> cv_base: {row['cv_base']}")
     elif args.cmd == "set-fit":
         row = set_fit(args.num, level=args.level, pros=args.pros, cons=args.cons,
                       unknowns=args.unknowns)

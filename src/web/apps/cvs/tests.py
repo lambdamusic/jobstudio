@@ -170,6 +170,44 @@ class ParseCheckTests(TestCase):
         self.assertTrue(any("'## Experience' is present but parsed to nothing" in w
                             for w in warnings))
 
+    def test_a_languages_line_that_parses_to_nothing_is_reported(self):
+        """Languages are lifted out of the Skills section into their own list, so the
+        skill-group count cannot speak for them. Written with dashes instead of
+        parentheses, every language is dropped and the summary line is otherwise
+        identical to a correct parse — so only a count of its own catches it."""
+        import render
+        p = self._write(
+            "# Test Person\n\n- **Email:** t@example.com\n\n"
+            "## Skills\n\n- **Technical:** Python, SQL\n"
+            "- **Languages:** Italian - native, English - full professional\n")
+        data, summary, warnings = render.parse_check(p, "chronological")
+        self.assertEqual(data["languages"], [])
+        self.assertIn("languages: 0", summary)
+        self.assertTrue(any("Languages line but no language parsed" in w for w in warnings),
+                        f"expected a dropped-languages warning, got {warnings}")
+
+    def test_a_well_formed_languages_line_parses_and_is_counted(self):
+        import render
+        p = self._write(
+            "# Test Person\n\n- **Email:** t@example.com\n\n"
+            "## Skills\n\n- **Technical:** Python, SQL\n"
+            "- **Languages:** Italian (native), English (full professional)\n")
+        data, summary, warnings = render.parse_check(p, "chronological")
+        self.assertEqual([l["lang"] for l in data["languages"]], ["Italian", "English"])
+        self.assertIn("languages: 2", summary)
+        self.assertFalse([w for w in warnings if "language" in w])
+
+    def test_no_languages_line_at_all_is_not_a_finding(self):
+        """A CV listing no languages is finished, not thin — same stance as the
+        optional header links (`#47`)."""
+        import render
+        p = self._write(
+            "# Test Person\n\n- **Email:** t@example.com\n\n"
+            "## Skills\n\n- **Technical:** Python, SQL\n")
+        _, summary, warnings = render.parse_check(p, "chronological")
+        self.assertIn("languages: 0", summary)
+        self.assertFalse([w for w in warnings if "language" in w])
+
 
 class DerivedRowRefreshTests(TestCase):
     """A base CV written after `init` must show up without a manual import.
