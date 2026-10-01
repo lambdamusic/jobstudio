@@ -28,9 +28,17 @@ company_overrides:
   Grafana Labs: {platform: greenhouse, token: grafanalabs}
   dbt Labs: {platform: greenhouse, token: dbtlabsinc}
   Incident.io: {platform: ashby, token: incident-io}
+  # Added 2026-10-01 with the companies they belong to (`#64`). Each token was checked
+  # against the live API when it was added, so a first `scan` on the example fetches
+  # real postings rather than demonstrating an error path.
+  Honeycomb: {platform: greenhouse, token: honeycomb}
+  Fastly: {platform: greenhouse, token: fastly}
+  Temporal: {platform: ashby, token: temporal}
+  Supabase: {platform: ashby, token: supabase}
+  Railway: {platform: ashby, token: railway}
 
 # Companies confirmed running on a specific ATS you have no fetcher for. Gives a
 # precise "not scanned" reason in the report instead of the generic bespoke-page one.
 known_unsupported:
-  Example Analytics Ltd: BambooHR — not yet integrated
   Northwind Foundation: Webitrent (UK public-sector ATS) — no public API found
+  Meridian Civic Trust: Oleeo — no public API found

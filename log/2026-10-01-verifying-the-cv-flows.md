@@ -263,3 +263,77 @@ anchors and ranked personal values are psychometric data about a named individua
 are in the public history of a repo that will be linked from a CV, and nothing above
 changes that. What changes is that a reader of the current tree does not meet them, and a
 second person running `stocktake` is no longer handed them as their own starting point.
+
+
+## The example app, and a bug underneath it
+
+Michele installed the example as a first-time user would, and reported that the charts
+did not work. He was right, and the cause was one thing with many symptoms: **the example
+had no status history.** Three applications, three `ApplicationStatusChange` rows, one
+each, every one `"" -> current`, all stamped at the same second. Nothing had ever moved,
+so every chart built on movement had nothing to draw — a Sankey with no status-to-status
+ribbon at all, a post-applied view of one node to one node, a stock chart refusing to
+render, an ageing list of one row.
+
+Two of the five faults I had written into `#64` turned out to be wrong, and reading
+`_fixture_rows.py` before changing it is what caught them. Application `#3`'s null company
+and empty folder are deliberate and commented: the tabs test needs an application whose
+sections are genuinely empty, and the null FK keeps three application-free companies for
+the status tests. And `dbt Labs` showing `reviewing` while its application said `saved` is
+correct — `Company.status` has its own vocabulary, in which both `saved` and `reviewing`
+on an application mean `reviewing` on the company. Neither was a bug. Had I "fixed" either,
+I would have broken working tests to satisfy a misreading.
+
+The fix is a `history` list per application and a `walk()` helper that drives the real
+transitions through the model, then backdates each one. That ordering matters: the
+`from -> to` pairing is produced by the actual post-save signal rather than re-implemented
+in the fixture, and only `changed_at` is set afterwards, which is exactly what that field
+is a plain `DateTimeField` for — its own docstring says so, because the 2026-09-08 backfill
+needed the same thing. The timestamps are deliberately off-midnight and one per day,
+because `_status_stock` reads a midnight stamp as reconstructed rather than observed and
+five changes in a day as a bulk logging session. A fixture dated at midnight would have
+produced a chart that correctly refused to draw itself, which would have looked like the
+original bug and had a different cause.
+
+### The bug underneath
+
+While checking the result, one chart reported an application as 0 days old when its last
+recorded change was sixteen days earlier. The arithmetic was right; the data was wrong.
+The database held 28 status changes where the dump file held 25.
+
+`_application_saved` had no `raw` guard. `loaddata` saves an `Application` before its
+`ApplicationStatusChange` rows, so the log looks empty, `_log_status_change` appends a
+`(logged) -> <current status>` row stamped at load time, and the real rows then load
+underneath it. **This is not an example-data problem.** The damage is to anyone restoring a
+backup, and it is quiet in the worst direction: the invented row is the most *recent*
+change, so every restored application reads as having moved today and the staleness
+flagging stops working — the one feature whose whole job is to tell you what you have
+forgotten. Nothing errors. The history is simply wrong, and wrong in the direction of
+looking healthier than it is. `#65`, fixed with the guard Django provides for exactly this.
+
+Third time this week the same shape: `#44` at the parser, `#61` at the interview, `#65` at
+the fixture boundary. In each the output was well-formed and the content was not what it
+should have been, and in each no check caught it because every check was asking whether
+the thing parsed.
+
+### Nine tests, and what they were actually asserting
+
+The fixture change broke nine tests, and not one of them was testing what its name said.
+`test_at_example_volume_the_history_charts_say_why_they_cannot_draw` asserted the charts
+*could not* draw. `test_a_band_that_was_never_occupied_is_not_a_series` rested on the
+example never having reached `interviewing`. `test_backward_edges_are_dropped_and_counted`
+asserted `dropped == 1`, true only while the example contributed none of its own. Each was
+borrowing the shipped example's poverty to supply its precondition for free.
+
+**A test that does that is a test that forbids improving the example.** One of them even
+said so in a comment — *"if the fixture grows past this, the example-tier assertions below
+are the ones to revisit"* — which is an honest note and also an admission that the
+fixture's thinness had become load-bearing. They now call `start_from_empty()` and state
+the precondition rather than inheriting it, and the example-tier test is flipped to assert
+the charts draw.
+
+Verified the way the `#64` entry asked for and the way the old tests could not: by
+rendering the pages. Eight status-to-status ribbons, five charts drawing, the backward-edge
+note reading "1 of 17 transitions runs backwards and is not shown", three of five ageing
+bands populated with one flagged stale, and none of the four "cannot draw" messages present
+anywhere on `/stats/`.

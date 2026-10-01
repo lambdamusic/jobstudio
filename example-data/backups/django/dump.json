@@ -25,6 +25,10 @@
       "data reliability",
       "analytics engineering"
     ],
+    "excludes": [
+      "Pure people-management of a data team with no hands-on scope — Head of Data Engineering, Engineering Manager (Data).",
+      "Analyst-level or graduate roles below current experience — Data Analyst, Junior/Associate Data Engineer."
+    ],
     "expand_sections": [
       "Platform engineering",
       "Reliability & cost"
@@ -61,6 +65,7 @@
       "community",
       "public speaking"
     ],
+    "excludes": [],
     "expand_sections": [
       "Community & writing",
       "Enablement"
@@ -121,7 +126,7 @@
     "url": "https://www.getdbt.com/careers",
     "role_target": "Solutions Engineer",
     "fit": 4,
-    "status": "watching",
+    "status": "reviewing",
     "category": 2,
     "notes": "The enablement programme was teaching dbt for a year.",
     "date_added": "2026-09-12"
@@ -137,7 +142,7 @@
     "url": "https://monzo.com/careers/",
     "role_target": "Data Platform Engineer",
     "fit": 3,
-    "status": "watching",
+    "status": "applied",
     "category": 3,
     "notes": "Closest to the current job — the appeal and the problem.",
     "date_added": "2026-09-14"
@@ -189,6 +194,86 @@
     "category": 2,
     "notes": "Behavioural data pipelines — close to the Meridian event work.",
     "date_added": "2026-09-19"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 7,
+  "fields": {
+    "num": 7,
+    "name": "Honeycomb",
+    "slug": "honeycomb",
+    "url": "https://www.honeycomb.io/careers",
+    "role_target": "Developer Advocate",
+    "fit": 4,
+    "status": "applied",
+    "category": 1,
+    "notes": "Observability with a strong writing culture — the closest thing to the target role.",
+    "date_added": "2026-07-11"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 8,
+  "fields": {
+    "num": 8,
+    "name": "Temporal",
+    "slug": "temporal",
+    "url": "https://temporal.io/careers",
+    "role_target": "Developer Advocate",
+    "fit": 3,
+    "status": "watching",
+    "category": 1,
+    "notes": "Durable execution. Interesting product, small advocacy team.",
+    "date_added": "2026-08-14"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 9,
+  "fields": {
+    "num": 9,
+    "name": "Supabase",
+    "slug": "supabase",
+    "url": "https://supabase.com/careers",
+    "role_target": "Solutions Engineer",
+    "fit": 3,
+    "status": "watching",
+    "category": 2,
+    "notes": "Postgres as a platform. Mostly US hours, which is the open question.",
+    "date_added": "2026-08-28"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 10,
+  "fields": {
+    "num": 10,
+    "name": "Fastly",
+    "slug": "fastly",
+    "url": "https://www.fastly.com/about/careers",
+    "role_target": "Solutions Engineer",
+    "fit": 3,
+    "status": "applied",
+    "category": 2,
+    "notes": "Edge compute. Wrote it off once on scope, then the role was re-posted.",
+    "date_added": "2026-07-24"
+  }
+},
+{
+  "model": "tracker.company",
+  "pk": 11,
+  "fields": {
+    "num": 11,
+    "name": "Railway",
+    "slug": "railway",
+    "url": "https://railway.app/careers",
+    "role_target": "Developer Advocate",
+    "fit": 2,
+    "status": "applied",
+    "category": 1,
+    "notes": "Deployment platform with a loud community. Small team, unclear seniority.",
+    "date_added": "2026-07-18"
   }
 },
 {
@@ -267,21 +352,186 @@
   }
 },
 {
-  "model": "tracker.applicationstatuschange",
-  "pk": 1,
+  "model": "tracker.application",
+  "pk": 4,
   "fields": {
-    "application": 1,
-    "changed_at": "2026-09-21T08:04:53.291Z",
-    "from_status": "",
-    "to_status": "applied"
+    "num": 4,
+    "date": "2026-08-11",
+    "company": 3,
+    "company_name": "Monzo",
+    "role": "Data Platform Engineer",
+    "job_url": "https://monzo.com/careers/",
+    "area": 1,
+    "cv_base": "functional",
+    "status": "interviewing",
+    "next_action": "Round 2 is booked — prep the SLO story and a view on their event schema",
+    "summary": "The sideways move: same work as now, better platform, no advocacy in it.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "moderate",
+    "fit_pros": "Platform at real scale\nStrong engineering culture\nLondon-based, hybrid",
+    "fit_cons": "No writing or speaking in the role\nWould park the advocacy switch for two years",
+    "fit_unknowns": "Whether the DX part of the remit is real or aspirational",
+    "folder": "jobs/applications/004-monzo",
+    "status_order": 1
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 5,
+  "fields": {
+    "num": 5,
+    "date": "2026-07-20",
+    "company": 7,
+    "company_name": "Honeycomb",
+    "role": "Developer Advocate",
+    "job_url": "https://www.honeycomb.io/careers",
+    "area": 2,
+    "cv_base": "functional",
+    "status": "rejected",
+    "next_action": "Reapply when the talk count is higher — they said to",
+    "summary": "The one that got away: right role, right company, too early in the switch.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "strong",
+    "fit_pros": "Writing culture is the product\nObservability overlaps the SLO work",
+    "fit_cons": "They wanted someone already speaking at conferences every month",
+    "fit_unknowns": "Whether to ask what tipped it — worth doing, they were generous with feedback",
+    "folder": "jobs/applications/005-honeycomb",
+    "status_order": 6
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 6,
+  "fields": {
+    "num": 6,
+    "date": "2026-08-17",
+    "company": 8,
+    "company_name": "Temporal",
+    "role": "Developer Advocate",
+    "job_url": "https://temporal.io/careers",
+    "area": 2,
+    "cv_base": "functional",
+    "status": "discarded",
+    "next_action": "",
+    "summary": "Read it properly and it is a conference-circuit job with a product attached.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "weak",
+    "fit_pros": "",
+    "fit_cons": "Travel-heavy\nAdvocacy team of one, reporting into marketing",
+    "fit_unknowns": "",
+    "folder": "",
+    "status_order": 4
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 7,
+  "fields": {
+    "num": 7,
+    "date": "2026-09-01",
+    "company": 9,
+    "company_name": "Supabase",
+    "role": "Solutions Engineer",
+    "job_url": "https://supabase.com/careers",
+    "area": 1,
+    "cv_base": "functional",
+    "status": "closed",
+    "next_action": "",
+    "summary": "Sat on it over a fortnight deciding about the time zones, and it closed.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "moderate",
+    "fit_pros": "",
+    "fit_cons": "US hours\nThe deciding took longer than the posting lasted",
+    "fit_unknowns": "",
+    "folder": "",
+    "status_order": 5
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 8,
+  "fields": {
+    "num": 8,
+    "date": "2026-09-22",
+    "company": 10,
+    "company_name": "Fastly",
+    "role": "Senior Solutions Engineer",
+    "job_url": "https://www.fastly.com/about/careers",
+    "area": 1,
+    "cv_base": "chronological",
+    "status": "applied",
+    "next_action": "Follow up if nothing by 2026-10-06",
+    "summary": "Written off in July on scope; re-posted in September with the DX half added.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "moderate",
+    "fit_pros": "Edge compute is genuinely interesting\nThe new scope includes enablement",
+    "fit_cons": "Still a pre-sales title\nSecond time reading it, so less sure of the read",
+    "fit_unknowns": "Whether the DX half survives contact with a quota",
+    "folder": "",
+    "status_order": 0
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 9,
+  "fields": {
+    "num": 9,
+    "date": "2026-07-27",
+    "company": 11,
+    "company_name": "Railway",
+    "role": "Developer Advocate",
+    "job_url": "https://railway.app/careers",
+    "area": 2,
+    "cv_base": "functional",
+    "status": "applied",
+    "next_action": "Chase or close it — it has been quiet too long",
+    "summary": "Applied on a whim, heard nothing, and never chased it.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "stretch",
+    "fit_pros": "Loud community, real product",
+    "fit_cons": "Small team\nNo stated seniority, which usually means junior",
+    "fit_unknowns": "",
+    "folder": "",
+    "status_order": 0
+  }
+},
+{
+  "model": "tracker.application",
+  "pk": 10,
+  "fields": {
+    "num": 10,
+    "date": "2026-09-09",
+    "company": 7,
+    "company_name": "Honeycomb",
+    "role": "Senior Technical Writer",
+    "job_url": "https://www.honeycomb.io/careers",
+    "area": 2,
+    "cv_base": "functional",
+    "status": "discarded",
+    "next_action": "",
+    "summary": "Came up a month after the advocacy rejection. Writing without the speaking.",
+    "notes": "",
+    "contact": "",
+    "fit_level": "weak",
+    "fit_pros": "Same company, same writing culture\nThey invited the application",
+    "fit_cons": "Pure documentation role — a step away from the switch, not towards it",
+    "fit_unknowns": "",
+    "folder": "",
+    "status_order": 4
   }
 },
 {
   "model": "tracker.applicationstatuschange",
   "pk": 2,
   "fields": {
-    "application": 2,
-    "changed_at": "2026-09-21T08:04:53.293Z",
+    "application": 1,
+    "changed_at": "2026-09-08T09:12:00Z",
     "from_status": "",
     "to_status": "saved"
   }
@@ -290,10 +540,260 @@
   "model": "tracker.applicationstatuschange",
   "pk": 3,
   "fields": {
-    "application": 3,
-    "changed_at": "2026-09-21T08:04:53.294Z",
-    "from_status": "",
+    "application": 1,
+    "changed_at": "2026-09-11T08:40:00Z",
+    "from_status": "saved",
     "to_status": "reviewing"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 4,
+  "fields": {
+    "application": 1,
+    "changed_at": "2026-09-15T15:22:00Z",
+    "from_status": "reviewing",
+    "to_status": "applied"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 6,
+  "fields": {
+    "application": 2,
+    "changed_at": "2026-09-18T10:05:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 8,
+  "fields": {
+    "application": 3,
+    "changed_at": "2026-09-20T07:50:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 9,
+  "fields": {
+    "application": 3,
+    "changed_at": "2026-09-24T16:30:00Z",
+    "from_status": "saved",
+    "to_status": "reviewing"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 11,
+  "fields": {
+    "application": 4,
+    "changed_at": "2026-08-03T08:15:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 12,
+  "fields": {
+    "application": 4,
+    "changed_at": "2026-08-06T13:20:00Z",
+    "from_status": "saved",
+    "to_status": "reviewing"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 13,
+  "fields": {
+    "application": 4,
+    "changed_at": "2026-08-11T09:05:00Z",
+    "from_status": "reviewing",
+    "to_status": "applied"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 14,
+  "fields": {
+    "application": 4,
+    "changed_at": "2026-08-27T14:45:00Z",
+    "from_status": "applied",
+    "to_status": "interviewing"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 16,
+  "fields": {
+    "application": 5,
+    "changed_at": "2026-07-14T08:30:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 17,
+  "fields": {
+    "application": 5,
+    "changed_at": "2026-07-20T10:15:00Z",
+    "from_status": "saved",
+    "to_status": "applied"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 18,
+  "fields": {
+    "application": 5,
+    "changed_at": "2026-08-05T07:40:00Z",
+    "from_status": "applied",
+    "to_status": "rejected"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 20,
+  "fields": {
+    "application": 6,
+    "changed_at": "2026-08-17T11:40:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 21,
+  "fields": {
+    "application": 6,
+    "changed_at": "2026-08-20T08:55:00Z",
+    "from_status": "saved",
+    "to_status": "reviewing"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 22,
+  "fields": {
+    "application": 6,
+    "changed_at": "2026-08-25T15:10:00Z",
+    "from_status": "reviewing",
+    "to_status": "discarded"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 24,
+  "fields": {
+    "application": 7,
+    "changed_at": "2026-09-01T09:20:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 25,
+  "fields": {
+    "application": 7,
+    "changed_at": "2026-09-12T12:35:00Z",
+    "from_status": "saved",
+    "to_status": "closed"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 27,
+  "fields": {
+    "application": 8,
+    "changed_at": "2026-07-28T08:05:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 28,
+  "fields": {
+    "application": 8,
+    "changed_at": "2026-07-31T14:10:00Z",
+    "from_status": "saved",
+    "to_status": "reviewing"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 29,
+  "fields": {
+    "application": 8,
+    "changed_at": "2026-08-04T10:50:00Z",
+    "from_status": "reviewing",
+    "to_status": "discarded"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 30,
+  "fields": {
+    "application": 8,
+    "changed_at": "2026-09-02T09:30:00Z",
+    "from_status": "discarded",
+    "to_status": "reviewing"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 31,
+  "fields": {
+    "application": 8,
+    "changed_at": "2026-09-22T13:15:00Z",
+    "from_status": "reviewing",
+    "to_status": "applied"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 33,
+  "fields": {
+    "application": 9,
+    "changed_at": "2026-07-21T09:40:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 34,
+  "fields": {
+    "application": 9,
+    "changed_at": "2026-07-27T08:25:00Z",
+    "from_status": "saved",
+    "to_status": "applied"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 36,
+  "fields": {
+    "application": 10,
+    "changed_at": "2026-09-09T10:30:00Z",
+    "from_status": "",
+    "to_status": "saved"
+  }
+},
+{
+  "model": "tracker.applicationstatuschange",
+  "pk": 37,
+  "fields": {
+    "application": 10,
+    "changed_at": "2026-09-16T08:20:00Z",
+    "from_status": "saved",
+    "to_status": "discarded"
   }
 },
 {

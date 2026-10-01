@@ -35,6 +35,24 @@ from tracker.models import (Application, ApplicationStatusChange, Area, Category
 FIXTURE = ["dump.json"]
 
 
+def start_from_empty():
+    """Clear the loaded example so a test can state a whole-tracker property.
+
+    Some assertions are only meaningful about a tracker whose entire contents the test
+    controls: the *total* count of dropped edges, whether *anything* is stale, whether a
+    status is occupied *at all*, whether the history is thin. Those used to lean on the
+    shipped example being thin enough to supply the condition for free — and that is
+    exactly what made the example impossible to improve. Filling it out for `#64` broke
+    nine tests, every one of them really asserting "the example has no transitions"
+    rather than the behaviour named in its own docstring.
+
+    So the precondition gets stated rather than inherited. A test that needs an empty
+    tracker says so here, and the example is then free to be as rich as a newcomer needs
+    without the suite treating that as a regression.
+    """
+    Application.objects.all().delete()
+
+
 class ParserTests(TestCase):
     """Only the filesystem parsers remain — the markdown tracker parsers went with
     applications.md and companies.md."""
@@ -570,9 +588,13 @@ class ScanCoverageTests(TestCase):
         """The hand-written reason is the point — it separates "no fetcher yet" from
         "nobody has looked", which the generic fallback cannot."""
         import scan_sources
-        cov = scan_sources.coverage("Example Analytics Ltd", "https://example.com/careers")
+        # The example's entry named BambooHR until 2026-10-01, which stopped being true
+        # when the BambooHR fetcher landed — `known_unsupported` is only consulted when no
+        # ATS resolves, so the example was teaching the opposite of the truth. Replaced
+        # with an ATS that genuinely has no fetcher.
+        cov = scan_sources.coverage("Meridian Civic Trust", "https://example.com/careers")
         self.assertFalse(cov["scanned"])
-        self.assertIn("BambooHR", cov["reason"])
+        self.assertIn("Oleeo", cov["reason"])
 
     def test_no_url_is_its_own_reason_not_the_bespoke_fallback(self):
         import scan_sources
@@ -878,22 +900,73 @@ class StatsPageTests(TestCase):
         self.assertEqual(volumes["entries"] + volumes["transitions"],
                          volumes["status_changes"])
         self.assertEqual(volumes["status_changes"], ApplicationStatusChange.objects.count())
-        # The example tier, and the sharp case in R3: three status changes and not one of
-        # them a transition. If the fixture grows past this, the example-tier assertions
-        # below are the ones to revisit.
-        self.assertEqual(volumes["applications"], 3)
-        self.assertEqual(volumes["transitions"], 0)
+        # The example used to have three applications and not one transition between
+        # statuses, and this assertion pinned that — with a note saying it was the thing to
+        # revisit if the fixture grew. `#64` grew it, for exactly the reason the charts
+        # needed: an example with no transitions cannot demonstrate a flow diagram. What is
+        # worth pinning now is the other direction — that the shipped example carries real
+        # movement, so a newcomer meets charts with something in them.
+        self.assertGreaterEqual(volumes["applications"], 9)
+        self.assertGreater(volumes["transitions"], 0)
+        self.assertGreater(volumes["entries"], 0)
 
-    def test_at_example_volume_the_history_charts_say_why_they_cannot_draw(self):
-        """R3's example tier: there is data, but nothing has moved between statuses, so
-        the charts built from transitions have nothing to plot and say so. The ones that
-        do not need history are not held back by it."""
+    def test_at_example_volume_the_history_charts_actually_draw(self):
+        """`#64`. This test asserted the opposite until 2026-10-01: that at example volume
+        the history charts had nothing to plot and said so. That was true, and it was the
+        bug — a first-time user installing the example met a status-flow diagram with no
+        ribbons and a stock chart refusing to render, which reads as broken rather than as
+        empty. The example now ships real transitions, so the charts draw; the
+        say-why-you-cannot paths are still covered, by tests that build a thin tracker
+        themselves instead of borrowing the example's thinness (see `start_from_empty`)."""
         sections = self.sections()
-        self.assertIn("no ribbons to draw", sections["flow"])
-        self.assertIn("needs transitions to replay", sections["stock"])
-        for anchor in ("ageing", "companies", "per-company"):
-            with self.subTest(anchor=anchor):
-                self.assertNotIn("transitions", sections[anchor])
+        self.assertNotIn("no ribbons to draw", sections["flow"])
+        self.assertNotIn("needs transitions to replay", sections["stock"])
+        # Ribbons between two real statuses, which is what the chart exists to show.
+        self.assertIn("<td class=\"nowrap\">applied</td>", sections["flow"])
+
+    def test_the_shipped_example_fills_the_funnel(self):
+        """`#64`. The example is the first thing anyone sees, and the charts are the part
+        that needs data to mean anything. This pins the shape rather than the counts: every
+        status reached, outcomes present, and at least one application that moved backwards
+        — because that is what makes the flow diagram, the stock chart and the cycle rule
+        all demonstrate something instead of rendering an apology."""
+        from tracker.views import FUNNEL_ORDER, _status_flow, _status_stock
+
+        reached = set(ApplicationStatusChange.objects.values_list("to_status", flat=True))
+        for status in FUNNEL_ORDER:
+            with self.subTest(status=status):
+                self.assertIn(status, reached,
+                              f"no example application ever reaches {status}")
+
+        flow = _status_flow()
+        moves = [l for l in flow["links"] if l["kind"] == "move"]
+        self.assertGreaterEqual(len(moves), 5,
+                                "the Sankey needs several status-to-status ribbons to be a funnel")
+        self.assertGreaterEqual(flow["dropped"], 1,
+                                "no backward transition, so the cycle rule is never exercised")
+        self.assertTrue(flow["reconciles"])
+        self.assertTrue(_status_stock()["ready"],
+                        "the stock chart still refuses to draw at example volume")
+
+    def test_loading_the_example_invents_no_status_history(self):
+        """`#65`. `loaddata` saves each Application before its ApplicationStatusChange
+        rows, so without a `raw` guard on the post-save signal the log looks empty and a
+        `(logged) -> <current>` row is appended, stamped at load time. That row then
+        becomes the most recent change — so every restored application reads as moved
+        today, and the staleness flagging silently stops working.
+
+        Asserted against the fixture file rather than a count, because the number will
+        change: whatever the dump holds is exactly what the database should hold."""
+        import json
+        from pathlib import Path as _Path
+
+        from django.conf import settings as _settings
+
+        dump = json.loads((_Path(_settings.DATA_ROOT) / "backups" / "django"
+                           / "dump.json").read_text())
+        in_file = sum(1 for o in dump if o["model"] == "tracker.applicationstatuschange")
+        self.assertEqual(ApplicationStatusChange.objects.count(), in_file,
+                         "loading the fixture created status changes that are not in it")
 
     def test_an_empty_tracker_states_the_absence_and_how_to_start(self):
         Application.objects.all().delete()
@@ -1032,6 +1105,7 @@ class AgeingTests(TestCase):
     def test_nothing_stale_says_nothing_on_the_stat_bar(self):
         """A note that is always there is furniture. This one only appears when something
         has actually gone quiet."""
+        start_from_empty()
         self.applied(9110, days_quiet=1)
         self.assertNotIn("/stats/#ageing", self.client.get("/").content.decode())
 
@@ -1102,6 +1176,7 @@ class ChartDataTests(TestCase):
         the edge cannot be drawn — but silently losing it is how a diagram starts lying."""
         from tracker.views import _status_flow
 
+        start_from_empty()
         self.history(9205, ["saved", "applied", "reviewing"])  # the last step goes back
         flow = _status_flow()
         self.assertEqual(flow["dropped"], 1)
@@ -1160,6 +1235,7 @@ class ChartDataTests(TestCase):
         view reports it rather than quietly losing an application."""
         from tracker.views import POST_APPLICATION_ORDER, _status_flow
 
+        start_from_empty()
         self.history(9210, ["applied", "saved"])
         post = _status_flow(POST_APPLICATION_ORDER)
         self.assertEqual(post["left"], 1)
@@ -1249,6 +1325,7 @@ class ChartDataTests(TestCase):
         guessed at. Unmarked, those weeks read as a burst of activity that never happened."""
         from tracker.views import _status_stock
 
+        start_from_empty()
         app = self.history(9213, ["saved", "applied"])
         midnight = timezone.make_aware(
             dt.datetime.combine(timezone.localdate() - dt.timedelta(days=21), dt.time(0, 0)))
@@ -1262,16 +1339,24 @@ class ChartDataTests(TestCase):
         outcome and improves on its own."""
         from tracker.views import _status_stock
 
+        start_from_empty()
+        self.history(9214, ["saved", "applied"])
         stock = _status_stock()
         self.assertFalse(stock["ready"])
         self.assertContains(self.client.get("/stats/"), "before the shape of a pipeline")
 
     def test_a_band_that_was_never_occupied_is_not_a_series(self):
         """R3: a legend entry for a series that does not exist is worse than one fewer
-        band. The example tracker has never had an application at `interviewing`."""
+        band. The example tracker used to supply this condition for free by never having
+        reached `interviewing`; since `#64` it does, so the test builds a tracker that has
+        not rather than relying on the example staying thin."""
         from tracker.views import _status_stock
 
-        self.assertNotIn("interviewing", _status_stock()["statuses"])
+        start_from_empty()
+        self.history(9215, ["saved", "reviewing", "applied"])
+        statuses = _status_stock()["statuses"]
+        self.assertIn("applied", statuses)
+        self.assertNotIn("interviewing", statuses)
 
     # -------------------------------------------------------------- the page
     def test_the_flow_toggle_needs_no_page_load(self):

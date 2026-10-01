@@ -592,7 +592,25 @@ def refresh_company_status(company: "Company | None") -> None:
 
 
 @receiver(models.signals.post_save, sender=Application)
-def _application_saved(sender, instance, **kwargs):
+def _application_saved(sender, instance, raw=False, **kwargs):
+    # `raw=True` means the save came from a fixture load (`loaddata`), where the instance
+    # is being restored field-for-field and no transition is happening. Without this guard
+    # every restore FABRICATED history: `loaddata` loads an Application before its
+    # ApplicationStatusChange rows, so the log looks empty, and `_log_status_change` dutifully
+    # appends a `(logged) -> <current status>` row stamped at restore time. The real rows
+    # then load underneath it.
+    #
+    # Found 2026-10-01 while fixing `#64` — the example's dump holds 25 changes and loading
+    # it produced 28. It is not an example-data problem: the damage is to anyone restoring a
+    # backup. The invented row becomes the most recent change, so `_ageing_at_applied` reads
+    # every restored application as last moved today and the staleness flagging silently
+    # stops working; the stock chart gets a cluster of changes that `is_organic` reads as a
+    # bulk logging session; and the Sankey grows entry stubs for transitions nobody made.
+    #
+    # `refresh_company_status` is skipped for the same reason: on a restore the company's
+    # status came out of the dump, where it had already been derived correctly.
+    if raw:
+        return
     refresh_company_status(instance.company)
     _log_status_change(instance)
 

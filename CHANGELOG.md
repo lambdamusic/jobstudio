@@ -4,6 +4,38 @@ Dated entries, newest first.
 
 ## 2026-10-01
 
+- **The example data exercises the app now, instead of just populating it** (`#64`). It
+  held three applications and three status changes — one each, all `"" → current`, all
+  stamped at the same second — so nothing had ever moved and every chart that measures
+  movement had nothing to draw. The status-flow Sankey had no status-to-status ribbon at
+  all, the "from applied onward" view was one node to one node, the stock chart refused to
+  render, and the ageing list had a single row. A first-time user met that and reasonably
+  read it as broken rather than as empty.
+
+  The fixture now walks each application through a real transition history — driven
+  through the model so the `from → to` pairing comes from the actual signal, with only
+  `changed_at` backdated — across ten applications and eleven companies: every status
+  reached, real outcomes, one application that moves *backwards* so the cycle rule is
+  exercised, one applied-and-forgotten past the staleness threshold, and a second
+  application at one company so the per-company histogram has more than one bar. Two
+  application folders gained a job description and notes, one with two interview rounds so
+  the round index has something to index, and the five new companies carry ATS tokens
+  verified live against the real API.
+
+  Nine tests failed on the change, and every one was really asserting "the example has no
+  transitions" rather than the behaviour in its own docstring — one of them named
+  `test_at_example_volume_the_history_charts_say_why_they_cannot_draw`. A test that borrows
+  the shipped example's poverty to supply its precondition is a test that forbids improving
+  the example; they now state the precondition themselves.
+
+- **Restoring a backup no longer invents status history** (`#65`). The post-save signal had
+  no `raw` guard, and `loaddata` saves an application before its status-change rows — so
+  the log looked empty, a `(logged) → <current>` row was appended stamped at load time, and
+  the real rows loaded underneath it. Quiet and consequential: the invented row is the most
+  recent change, so every restored application read as having moved today and the staleness
+  flagging silently stopped working. Found because one chart called an application 0 days
+  old when its last real change was 16 days earlier.
+
 - **The skill was publishing the maintainer's psychometric results, and every check had
   passed it.** `subcommands/stocktake.md` carried a completed career-anchors
   questionnaire — eight anchors, his averages, his three "most true" picks quoted — plus
