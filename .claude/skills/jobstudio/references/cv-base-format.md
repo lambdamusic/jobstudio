@@ -106,6 +106,11 @@ framing), not just length. Draft both, don't copy one into the other.
   `[[feedback-cv-tailoring-bullet-order]]` / `subcommands/cv.md`: bullets stay
   strict newest-role-first. This applies when building the cluster too, not just
   when tailoring it later.
+- **The role in brackets belongs in the base CV and not in the copies.** The master
+  needs it — a competency bullet has to say which job the work was done in — but the
+  per-application copy drops it, leaving `- **{Employer}:**`
+  (`appfolder.strip_competency_roles()`, TODO `#55`). Both forms parse; don't put the
+  role back when tailoring a copy, and don't strip it from the base.
 
 ## Functional only: `## Career History`
 

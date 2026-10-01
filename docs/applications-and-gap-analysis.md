@@ -74,8 +74,12 @@ Idempotent — creates whatever's missing:
   database and used to drift out of sync across three copies. No `## Interview prep`
   either, since 2026-09-24: interview rounds are their own files (see
   [interview-prep.md](interview-prep.md)), and `## Timeline` indexes them
-- an **untailored** copy of the functional CV (`appfolder.pick_cv()` — see
-  [cv-pipeline.md](cv-pipeline.md) for the tailored-vs-untailored logic)
+- **this application's copy of the functional CV** — `appfolder.copy_cv()`, named by the
+  convention below even though nothing has been tailored, with the role in brackets
+  stripped from every Core Competencies bullet and nothing else touched (2026-10-01,
+  TODO `#55`). Never overwritten on a re-run. See [cv-pipeline.md](cv-pipeline.md) for
+  the transform and for how "has this been worked on?" is answered now that the
+  filename doesn't
 - an **empty** cover-letter stub (`<folder>-<person-slug>-cover-letter-<date>.md`) —
   content is written later, on request (decided 2026-09-09, see §6 below)
 
@@ -95,7 +99,7 @@ structured fields if the full text wasn't available. Never overwritten after tha
 ## 6. Gap analysis — appended to `notes.md`
 
 Skipped entirely if `notes.md` already has a `### CV gaps` section (idempotency guard —
-re-running `application` on an existing row doesn't redo this). Otherwise, the CV variant
+re-running `application` on an existing row doesn't redo this). Otherwise, the CV
 copied into the folder, `jobs/profile/stocktake.md`, and `jobs/profile/criteria.yaml` are
 read together and the JD is analysed against both, appended under `## My notes`:
 
@@ -123,18 +127,33 @@ question, hard-filter unknown) but is still worth pursuing; `weak` fails a hard 
 is mostly cons. This is admin-editable and hand-maintained going forward — it's a
 five-second read, not a replacement for the Fit check prose.
 
-## 7. CV tailoring and cover-letter drafting (revised 2026-09-17)
+## 7. The CV and the cover letter (revised 2026-10-01)
 
-Both now run automatically as part of logging, right after the gap analysis —
-superseding the earlier "on request only" decision of 2026-09-09. Both are
-agent-native (no API call); the agent reads the job description and profile sources
-directly instead of sending them to a separate model call. Re-run either standalone
-later to redo a one-off:
+**Logging tailors neither** — TODO `#55`, superseding the 2026-09-17 decision to run
+both automatically. §4 already put a mechanical copy of the base CV in the folder, and
+that is the CV; the only drafting that happens here is a **thin cover letter**: the
+job-ID opening line, one short honest paragraph on why the role is interesting, one line
+on fit, standard close (~120–160 words, structure §3 in
+`references/cover-letter-structures.md`).
+
+The reason is that both documents get refined by hand before anything is sent, so a
+polished generated draft was not saving that work — it was producing something to read
+closely and undo. Two constraints survive into even the thin draft: it still opens with
+the job-ID line, and it must not overclaim the domain, since an otherwise-solid role can
+be discarded on domain mismatch alone and a letter that gushes about the sector is worse
+than a flat one.
+
+The full versions are a request, for the roles that earn them — both agent-native, no
+API call:
 
 ```
-/jobstudio cv [company or #N]             # tailor the CV
-/jobstudio cover-letter [company or #N]   # draft the letter
+/jobstudio cv [company or #N]             # tailor the CV, replacing the folder's copy
+/jobstudio cover-letter [company or #N]   # the full letter (Standard 1)
 ```
+
+**What this did not change:** the gap analysis in §6. It is not part of tailoring — the
+Fit check, CV gaps and Preparation steps feed the fit summary on the application page
+*and* are the main source for `interview`, so they still run on every log.
 
 See [cv-pipeline.md](cv-pipeline.md) and [cover-letters.md](cover-letters.md).
 
@@ -150,7 +169,7 @@ keeps its own convention — see [cv-pipeline.md](cv-pipeline.md)):
 ```
 
 `appfolder.app_filename()` is the single source of truth for building these names;
-`is_cv_filename()` / `is_tailored_cv()` / `is_cover_letter_filename()`
+`is_cv_filename()` / `is_app_cv()` / `is_cover_letter_filename()`
 recognise them — old-style names from before this date are still recognised, just not
 regenerated. This is also how the web app finds CV snapshots and cover letters with no
 database model at all: they're scanned off disk by filename pattern at request time

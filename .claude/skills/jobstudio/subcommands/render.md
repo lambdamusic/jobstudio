@@ -1,6 +1,6 @@
 # jobstudio render
 
-Render one application's tailored CV and cover letter to `.docx` — no API call.
+Render one application's CV and cover letter to `.docx` — no API call.
 
 `.docx` is what employers ask for and what gets sent, so it is the whole job here.
 HTML and PDF are no longer produced (TODO `#46`, 2026-09-29): this subcommand used to
@@ -17,7 +17,7 @@ Argument can be:
 
 1. If the argument is a row number or company name, resolve the folder with `python src/appfolder.py path <ref>` — this works regardless of status; all application folders live directly under `<DATA>/jobs/applications/`.
 
-2. **CV** — find all CV files in the folder (`*cv-*.md`, or the untailored `cv_functional.md`/`cv_chronological.md` if nothing has been tailored yet). If there are multiple (e.g. v1 and v2), pick the one with the latest date — or ask the user to confirm if it's ambiguous. Which flag to pass depends on which base the file is: `cv-functional` (or `cv_functional.md`) → `--functional`; `cv-chronological` (or `cv_chronological.md`) → `--chronological`. Use the folder name as `--label`. Run:
+2. **CV** — find all CV files in the folder (`*cv-*.md`, or a bare `cv_functional.md`/`cv_chronological.md` in folders scaffolded before 2026-10-01). If there are multiple (e.g. v1 and v2), pick the one with the latest date — or ask the user to confirm if it's ambiguous. The file may be a mechanical copy of the base rather than a tailored CV (TODO `#55`) — render it anyway, that is what gets sent; just don't describe it as tailored. Which flag to pass depends on which base the file is: `cv-functional` (or `cv_functional.md`) → `--functional`; `cv-chronological` (or `cv_chronological.md`) → `--chronological`. Use the folder name as `--label`. Run:
 
 ```bash
 tools/py src/render.py --functional --file {path_to_cv_file} --label {folder_name}
@@ -57,6 +57,6 @@ courtesy.
 ## Notes
 
 - Output lands where its source lives (2026-09-24): a source inside `<DATA>/jobs/applications/NNN-*/` renders into that application's `export/` subfolder, named by the application-folder convention (`<folder>-<person-slug>-<filetype>-<date>.<ext>`); a base CV from `<DATA>/jobs/cv/base/` renders into `<DATA>/jobs/cv/export/`. One copy, not two — `<DATA>/exports/<format>/<YYYY-MM-DD>/` is now only the fallback for a source that belongs to no folder.
-- Does not call the API — use the **`cv` subcommand** (`subcommands/cv.md`) to tailor a CV first, if you also need to regenerate it.
+- Does not call the API — use the **`cv` subcommand** (`subcommands/cv.md`) to tailor the CV first, if the role is worth it and nobody has yet.
 - Does not publish to the site — use `publish` after this if needed.
 - To check a base CV parses without rendering anything at all, use `tools/py src/render.py --functional --check` (see `cv.md` step 8).

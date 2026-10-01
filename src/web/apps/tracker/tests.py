@@ -2156,22 +2156,22 @@ class PipelineTests(TestCase):
         self.assertEqual(picked.name, "cv_functional.md")
         self.assertNotIn("_no_vp", picked.name)
 
-    def test_pick_cv_prefers_a_tailored_copy_in_the_folder(self):
+    def test_pick_cv_prefers_the_copy_in_the_folder(self):
         import appfolder
         row = {"num": "1", "company": "Grafana Labs", "role": "Senior Developer Advocate",
                "area": "developer-advocacy", "status": "applied"}
         picked = appfolder.pick_cv(row)
-        self.assertTrue(appfolder.is_tailored_cv(picked.name), picked.name)
+        self.assertTrue(appfolder.is_app_cv(picked.name), picked.name)
         self.assertIn("001-grafana-labs", str(picked))
 
-    def test_is_tailored_cv_recognises_area_named_cvs(self):
-        """Tailored CVs are named after the target AREA, not after the base CV.
+    def test_is_app_cv_recognises_area_named_cvs(self):
+        """Per-application CVs are usually named after the target AREA, not the base CV.
 
         The previous implementation matched only cv-functional / cv-chronological /
         cv_functional, so any CV tailored to an area was invisible — 15 of the 30 in
-        the author's job search — and pick_cv() silently fell back to the untailored
-        base. Pure filename logic on purpose: no fixture, no folder on disk, nothing
-        that depends on whatever happens to be in one person's job search.
+        the author's job search — and pick_cv() silently fell back to the base. Pure
+        filename logic on purpose: no fixture, no folder on disk, nothing that depends
+        on whatever happens to be in one person's job search.
         """
         import appfolder
         tailored = [
@@ -2183,17 +2183,17 @@ class PipelineTests(TestCase):
             "2026-06-07_cv_data_platform_dbt_labs.md",          # old naming
         ]
         for name in tailored:
-            self.assertTrue(appfolder.is_tailored_cv(name), f"should be tailored: {name}")
+            self.assertTrue(appfolder.is_app_cv(name), f"should belong to an app: {name}")
 
         not_tailored = [
-            "cv_functional.md",                                  # untailored base copy
+            "cv_functional.md",                                  # the base CV itself
             "cv_chronological.md",
             "notes.md",
             "job.md",
             "004-incident-io-alex-rivera-cover-letter-2026-09-03.md",
         ]
         for name in not_tailored:
-            self.assertFalse(appfolder.is_tailored_cv(name), f"should NOT be tailored: {name}")
+            self.assertFalse(appfolder.is_app_cv(name), f"should NOT belong to an app: {name}")
 
     def test_functional_cv_has_the_section_the_tailoring_splices(self):
         """generate_functional() splices on these markers — fail loudly if they move."""
@@ -2202,6 +2202,127 @@ class PipelineTests(TestCase):
         self.assertIn("## Core Competencies", cv)
         start = cv.index("## Core Competencies")
         self.assertIn("\n## ", cv[start + 20:], "no section follows Core Competencies")
+
+
+class MechanicalCvCopyTests(TestCase):
+    """The per-application CV copy — TODO #55, 2026-10-01.
+
+    Logging an application no longer tailors anything: the folder gets a mechanical
+    copy of the base CV, named for the application, with the role in brackets stripped
+    from every Core Competencies bullet. The copy is what gets refined by hand (or
+    tailored later, on request), so these tests guard the two things that can go
+    silently wrong — stripping roles where the role is the point, and a refresh
+    overwriting work that has already been done.
+    """
+
+    fixtures = FIXTURE
+
+    ROW = {"num": "900", "company": "Test Co", "role": "Data Lead",
+           "area": "data-platform", "status": "saved"}
+
+    def _folder(self):
+        folder = Path(tempfile.mkdtemp()) / "900-test-co"
+        folder.mkdir()
+        return folder
+
+    def test_the_copy_is_named_for_the_application_not_the_base(self):
+        """Decided 2026-10-01: the standard name even when nothing was changed — the file a
+        person edits and sends should be named for the job it is going to."""
+        import appfolder
+        folder = self._folder()
+        dest = appfolder.copy_cv(self.ROW, folder)
+        self.assertIsNotNone(dest)
+        self.assertTrue(dest.name.startswith("900-test-co-"), dest.name)
+        self.assertIn("-cv-functional-", dest.name)
+        self.assertTrue(appfolder.is_app_cv(dest.name), dest.name)
+
+    def test_the_copy_drops_the_role_in_brackets_from_the_competencies(self):
+        import appfolder
+        dest = appfolder.copy_cv(self.ROW, self._folder())
+        body = dest.read_text()
+        competencies = body[body.index("## Core Competencies"):]
+        competencies = competencies[:competencies.index("\n## ")]
+        self.assertIn("- **Kestrel Financial:**", competencies)
+        self.assertNotIn("(Senior Data Platform Engineer):**", competencies)
+
+    def test_career_history_keeps_its_role_titles(self):
+        """The regex is scoped to one section for exactly this reason: in Career /
+        Employment History the role title is the whole content of the line."""
+        import appfolder
+        dest = appfolder.copy_cv(self.ROW, self._folder())
+        body = dest.read_text()
+        self.assertIn("Senior Data Platform Engineer", body[body.index("## Career History"):])
+
+    def test_a_bullet_with_no_employer_prefix_is_left_alone(self):
+        import appfolder
+        text = ("## Core Competencies\n\n### Community\n\n"
+                "- Maintains **some-lib** (a small package) used by others.\n"
+                "- **Acme (Head of Data):** did the work.\n\n"
+                "## Career History\n\n- Head of Data (Acme) — *2020*\n")
+        out = appfolder.strip_competency_roles(text)
+        self.assertIn("- Maintains **some-lib** (a small package)", out)
+        self.assertIn("- **Acme:** did the work.", out)
+        self.assertIn("- Head of Data (Acme) — *2020*", out)
+
+    def test_a_cv_with_no_competencies_section_is_copied_verbatim(self):
+        """The chronological base has no Core Competencies at all — the transform must
+        be a no-op there rather than a guess at the nearest thing."""
+        import appfolder
+        text = "# Someone\n\n## Experience\n\n**Engineer (Acme)** | 2020\n"
+        self.assertEqual(appfolder.strip_competency_roles(text), text)
+
+    def test_a_second_run_does_not_touch_the_cv_already_there(self):
+        """`ensure_folder` is run again on every refresh. Before #55 that was safe
+        because the copy was byte-identical; now the file in the folder is the one
+        being worked on, so overwriting it would lose the work."""
+        import appfolder
+        folder = self._folder()
+        dest = appfolder.copy_cv(self.ROW, folder)
+        dest.write_text(dest.read_text() + "\n- A line I added by hand.\n")
+        again = appfolder.copy_cv(self.ROW, folder)
+        self.assertEqual(again, dest)
+        self.assertIn("by hand", dest.read_text())
+        self.assertEqual(len([p for p in folder.glob("*.md")]), 1)
+
+    def test_an_older_folder_keeps_its_bare_cv_functional(self):
+        """Folders scaffolded before #55 are not migrated — the same stance export/
+        took in 2026-09-24."""
+        import appfolder
+        folder = self._folder()
+        (folder / "cv_functional.md").write_text("# Someone\n")
+        appfolder.copy_cv(self.ROW, folder)
+        self.assertEqual([p.name for p in folder.glob("*.md")], ["cv_functional.md"])
+
+    def test_untouched_is_content_not_filename(self):
+        """The name says "this CV belongs to application 900" and nothing more, so
+        "has anyone worked on it?" has to read the file."""
+        import appfolder
+        dest = appfolder.copy_cv(self.ROW, self._folder())
+        self.assertTrue(appfolder.is_untouched_copy(dest))
+        dest.write_text(dest.read_text().replace("## Summary", "## Summary\n\nTailored."))
+        self.assertFalse(appfolder.is_untouched_copy(dest))
+
+    def test_an_untouched_copy_is_not_counted_as_tailored(self):
+        """/cvs/ lists the CVs actually written for a role. Every application has a
+        file named like a tailored CV now, so an unedited copy must not inflate it."""
+        import appfolder
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        dest = appfolder.copy_cv(self.ROW, folder)
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        with override_settings(DATA_ROOT=str(root)):
+            self.assertEqual([c["name"] for c in app.cv_files], [dest.name])
+            self.assertTrue(app.cv_files[0]["untouched"])
+            self.assertEqual(app.tailored_cvs, [])
+
+            dest.write_text(dest.read_text() + "\n- Rewritten for this role.\n")
+            self.assertFalse(app.cv_files[0]["untouched"])
+            self.assertEqual([c["name"] for c in app.tailored_cvs], [dest.name])
 
 
 class AdminViewOnSiteTests(TestCase):
@@ -2545,9 +2666,10 @@ class ExportFolderTests(TestCase):
         self.assertNotIn(f"{appfolder.EXPORT_DIRNAME}/{new.name}", rels)
 
     def test_two_sources_of_one_kind_means_no_guess(self):
-        """`ensure_folder()` scaffolds an untailored `cv_functional.md` beside the
-        tailored CV. With two candidate sources, pairing an export with one of them is a
-        guess — and linking the same file under two headings reads as two documents."""
+        """Folders scaffolded before 2026-10-01 carry a bare `cv_functional.md` beside
+        the per-application CV. With two candidate sources, pairing an export with one of
+        them is a guess — and linking the same file under two headings reads as two
+        documents."""
         import appfolder
 
         app, cv_md = self._cv_markdown()
@@ -3167,7 +3289,7 @@ class CreateFolderActionTests(TestCase):
             if folder.is_dir():
                 shutil.rmtree(folder)
 
-    def test_creates_folder_with_untailored_cv_and_empty_cover_letter(self):
+    def test_creates_folder_with_a_cv_copy_and_an_empty_cover_letter(self):
         with self.settings(ENVIRONMENT="local"):
             resp = self.client.get(f"/actions/create-folder/{self.app.num}/")
         self.assertEqual(resp.status_code, 302)
@@ -3176,7 +3298,11 @@ class CreateFolderActionTests(TestCase):
         self.assertTrue(self.app.folder)
         folder = Path(settings.DATA_ROOT) / self.app.folder
         self.assertTrue((folder / "notes.md").is_file())
-        self.assertTrue((folder / "cv_functional.md").is_file())
+        # Named for the application even though nothing has been tailored (#55) — the
+        # bare cv_functional.md copy was retired on 2026-10-01.
+        cvs = [p.name for p in folder.glob("*-cv-functional-*.md")]
+        self.assertEqual(len(cvs), 1, f"expected one CV copy, got {sorted(folder.iterdir())}")
+        self.assertFalse((folder / "cv_functional.md").exists())
 
         cover_letters = list(folder.glob("*cover-letter*.md"))
         self.assertEqual(len(cover_letters), 1)

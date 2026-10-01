@@ -15,7 +15,6 @@ CLI usage:
 from __future__ import annotations
 
 import re
-import shutil
 import sys
 import unicodedata
 from datetime import date
@@ -202,15 +201,21 @@ def exported_file(md_path: Path, ext: str = "docx") -> Path | None:
     return same_kind[-1] if same_kind else None
 
 
-def is_tailored_cv(name: str) -> bool:
-    """A per-application tailored CV — anything `is_cv_filename()` recognises except
-    the two untailored starting copies.
+def is_app_cv(name: str) -> bool:
+    """A CV that belongs to one application — anything `is_cv_filename()` recognises
+    except the two bare base-CV basenames.
 
-    Tailored CVs are named after the *target area*, not after the base they came from:
-    `004-<company>-<person-slug>-cv-<area-slug>-2026-06-23.md`. An earlier
-    version of this matched only `cv-functional` / `cv-chronological` / `cv_functional`,
-    so half of them were invisible — 15 of 30 in one real job search when this was found —
-    and `pick_cv()` fell back to the untailored base for those applications.
+    Was `is_tailored_cv()` until 2026-10-01, and the rename is the point: since the
+    per-application copy is named by the folder convention whether or not anyone
+    tailored it (TODO `#55`), the *name* no longer says if the content was written for
+    the role. "Has this CV been worked on?" is `is_untouched_copy()`, which reads the
+    file.
+
+    Per-application CVs are usually named after the *target area* rather than the base
+    they came from: `004-<company>-<person-slug>-cv-<area-slug>-2026-06-23.md`. An
+    earlier version of this matched only `cv-functional` / `cv-chronological` /
+    `cv_functional`, so half of them were invisible — 15 of 30 in one real job search
+    when this was found — and `pick_cv()` fell back to the base for those applications.
     """
     if name in ("cv_functional.md", "cv_chronological.md"):
         return False
@@ -347,54 +352,141 @@ FUNCTIONAL_CV = DATA_ROOT / "jobs" / "cv" / "base" / "cv_functional.md"
 CHRONOLOGICAL_CV = DATA_ROOT / "jobs" / "cv" / "base" / "cv_chronological.md"
 
 
+def base_kind(row: dict) -> str:
+    """"functional" (the default) or "chronological" — which base CV this application
+    starts from, per its `cv_base` field."""
+    return "chronological" if row.get("cv_base") == "chronological" else "functional"
+
+
+def base_cv(row: dict) -> Path:
+    return CHRONOLOGICAL_CV if base_kind(row) == "chronological" else FUNCTIONAL_CV
+
+
+# ---------------------------------------------------------------------------
+# The per-application CV copy (2026-10-01, TODO #55)
+#
+# Logging an application used to kick off a full agent tailoring pass. It doesn't
+# any more: the folder gets a *mechanical* copy of the base CV, and tailoring is
+# something you ask for (`/jobstudio cv #N`) for the roles that earn it. The reason
+# is that the copy gets refined by hand before anything is sent, so an elaborate
+# generated draft was not saving that work — it was producing something to read
+# closely and undo.
+#
+# The one transform the copy does get is mechanical, which is why it lives here and
+# not in a prompt: Core Competencies bullets carry the role in brackets
+# (`- **Employer (Head of Data):** …`) because the base CV needs to say which job a
+# piece of work was done in. On a CV going out for one specific role that bracket is
+# noise, and the employer-only form is already the standing house rule.
+# ---------------------------------------------------------------------------
+
+COMPETENCIES_HEADING = "## Core Competencies"
+
+# `- **Employer (Role Title):** text` -> `- **Employer:** text`. Anchored on the whole
+# bullet prefix so the bullets that carry no employer at all ("- Maintains **some-lib**,
+# a small open-source package") are left alone, and `[^*()]` keeps it from eating a
+# bullet whose body happens to contain brackets.
+_COMPETENCY_ROLE_RE = re.compile(r"^(-\s+\*\*[^*()]+?)\s*\([^()]*\)(:\*\*)", re.MULTILINE)
+
+
+def strip_competency_roles(text: str) -> str:
+    """Drop the role in brackets from every Core Competencies bullet, leaving the
+    employer: `- **Employer (Role):** …` -> `- **Employer:** …`.
+
+    **Scoped to the `## Core Competencies` section only**, deliberately. In Career /
+    Employment History the role title is the entire point of the line, and a regex let
+    loose on the whole file would strip it there too.
+    """
+    start = text.find(COMPETENCIES_HEADING)
+    if start == -1:
+        return text
+    after = text.find("\n## ", start + len(COMPETENCIES_HEADING))
+    end = len(text) if after == -1 else after
+    return text[:start] + _COMPETENCY_ROLE_RE.sub(r"\1\2", text[start:end]) + text[end:]
+
+
 def pick_cv(row: dict) -> Path | None:
-    """Return the CV to put in this application's folder.
+    """Return the CV this application's folder should present.
 
     There are two base CVs — functional (default) and chronological — chosen per
-    application via its `cv_base` field. Either is tailored per job by the agent-native
-    `cv` skill subcommand (`.claude/skills/jobstudio/subcommands/cv.md`), which writes
-    a tailored copy straight into the application folder (never into a pre-generated
-    library). Once a tailored copy exists it wins. Until then the folder gets the
-    untailored base matching `row["cv_base"]` as a starting point.
+    application via its `cv_base` field. Once the folder has a CV of its own that one
+    wins, whether it is the mechanical copy `copy_cv()` installs, a copy refined by
+    hand, or a full tailoring from the `cv` subcommand
+    (`.claude/skills/jobstudio/subcommands/cv.md`). Until then the base itself is
+    returned, which is what `copy_cv()` copies from.
     """
     folder = existing_folder(row)
     if folder is not None:
-        tailored = sorted((p for p in folder.glob("*.md") if is_tailored_cv(p.name)),
-                          reverse=True)
-        if tailored:
-            return tailored[0]
-    base = CHRONOLOGICAL_CV if row.get("cv_base") == "chronological" else FUNCTIONAL_CV
+        own = sorted((p for p in folder.glob("*.md") if is_app_cv(p.name)), reverse=True)
+        if own:
+            return own[0]
+    base = base_cv(row)
     return base if base.is_file() else None
 
 
 def copy_cv(row: dict, folder: Path) -> Path | None:
-    """Copy the selected CV variant into the app folder. Return destination path or None."""
-    src = pick_cv(row)
+    """Install this application's own copy of its base CV, named by the folder
+    convention (`NNN-company-<person-slug>-cv-functional-YYYY-MM-DD.md`) and with the
+    bracketed roles stripped from Core Competencies. Return it, or None if there is no
+    base CV to copy.
+
+    Idempotent, and never overwrites: a folder that already holds *any* CV keeps it —
+    including the bare `cv_functional.md` of folders scaffolded before 2026-10-01,
+    which are left as they are rather than migrated (the same stance the export/ split
+    took). The copy carries the application's name even though nothing has been
+    tailored, so that the file a person edits and sends is named for the job it is
+    going to; whether it has actually been worked on is `is_untouched_copy()`'s
+    question, not the filename's.
+    """
+    present = sorted((p for p in folder.glob("*.md") if is_cv_filename(p.name)), reverse=True)
+    if present:
+        return present[0]
+    src = pick_cv(row)          # the base, since the folder holds no CV of its own
     if src is None:
         return None
-    dest = folder / src.name
-    shutil.copy2(src, dest)
+    dest = folder / app_filename(folder, f"cv-{base_kind(row)}", "md")
+    dest.write_text(strip_competency_roles(src.read_text(encoding="utf-8")), encoding="utf-8")
     return dest
 
 
-def ensure_folder(row: dict) -> Path:
-    """Create the application folder, notes.md, an untailored CV copy, and an empty
-    cover-letter stub, for whatever doesn't already exist. Return the folder path.
+def is_untouched_copy(path: Path) -> bool:
+    """Is this CV still exactly what `copy_cv()` wrote — i.e. has nobody tailored,
+    edited or refined it since?
 
-    This is scaffolding only — the plain functional CV plus a blank cover-letter file.
-    Tailoring the CV and drafting the cover letter are separate agent-native steps
-    (`subcommands/cv.md`, `subcommands/cover-letter.md`) that the `application` skill
-    subcommand now runs automatically right after this, as part of logging (revised
-    2026-09-17 — previously deferred until the user asked for them explicitly).
+    Content, not filename: every per-application CV is named the same way now, so the
+    name cannot answer this (see `is_app_cv()`). Compared against both bases rather
+    than the application's own `cv_base`, since the caller is usually iterating over
+    files and a CV copied before the field was changed is still an untouched copy.
+    Trailing-whitespace-insensitive and nothing more — a hand edit of any substance
+    changes a line, and guessing at "trivial" differences would make a plainly edited
+    CV read as untouched.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    for base in (FUNCTIONAL_CV, CHRONOLOGICAL_CV):
+        if not base.is_file():
+            continue
+        if text.strip() == strip_competency_roles(base.read_text(encoding="utf-8")).strip():
+            return True
+    return False
+
+
+def ensure_folder(row: dict) -> Path:
+    """Create the application folder, notes.md, the per-application CV copy, and an
+    empty cover-letter stub, for whatever doesn't already exist. Return the folder path.
+
+    This is scaffolding, and since 2026-10-01 (TODO `#55`) it is also the whole of the
+    CV side of logging an application: `copy_cv()` installs a mechanical copy of the
+    base CV and nothing drafts over it. Full tailoring (`subcommands/cv.md` §B) and a
+    full cover letter (`subcommands/cover-letter.md`) are reachable on request for the
+    roles worth the effort — `application` Step 8 asks for a thin generic letter only.
     """
     folder = app_folder(row)
     folder.mkdir(parents=True, exist_ok=True)
     if not (folder / "notes.md").exists():
         (folder / "notes.md").write_text(notes_stub(row))
-    # Copy CV if no CV file is present yet (folder may pre-date CV copy feature)
-    cv_src = pick_cv(row)
-    if cv_src and not (folder / cv_src.name).exists():
-        shutil.copy2(cv_src, folder / cv_src.name)
+    copy_cv(row, folder)
     # Empty cover-letter stub — content is written later, on request
     if not any(is_cover_letter_filename(p.name) for p in folder.iterdir()):
         (folder / app_filename(folder, "cover-letter", "md")).touch()

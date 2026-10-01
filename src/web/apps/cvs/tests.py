@@ -1,8 +1,9 @@
 """CV page tests.
 
 The tailored-CV list on /cvs/ has no database behind it — a tailored CV is a file in an
-application folder, recognised by naming convention — so these run against the real
-example-data/ tree, and will fail loudly if that convention drifts.
+application folder, recognised by naming convention and then by *not* being an untouched
+copy of the base (TODO #55) — so these run against the real example-data/ tree, and will
+fail loudly if that convention drifts.
 """
 
 from django.test import TestCase
@@ -42,7 +43,7 @@ class CvVariantTests(TestCase):
 class TailoredCvListTests(TestCase):
     fixtures = FIXTURE
 
-    def test_lists_tailored_cvs_but_not_the_untailored_base_copies(self):
+    def test_lists_tailored_cvs_but_not_the_base_cvs(self):
         rows = tailored_cvs()
         self.assertTrue(rows, "example-data has at least one tailored CV")
         names = [r["name"] for r in rows]

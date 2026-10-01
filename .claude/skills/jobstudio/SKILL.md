@@ -26,14 +26,14 @@ When the argument is `help` or no argument is given, output ONLY the following a
 |---|---|
 | `init` | First-run setup: create a data root, wire this checkout to it, and start from the example, an existing CV, public web research, or a blank interview |
 | `company` | Add a company to the tracker for watching |
-| `application` | Log a job application: creates folder, gap analysis, tailored CV, and cover letter |
-| `cv` | Tailor a CV to a specific application (agent-native, no API call) |
-| `cover-letter` | Generate a tailored cover letter for an application |
+| `application` | Log a job application: creates folder, gap analysis, a CV copy, and a thin cover-letter draft |
+| `cv` | Tailor a CV to a specific application, on request (agent-native, no API call) |
+| `cover-letter` | Write the full tailored cover letter for an application |
 | `stocktake` | Guided "taking stock" interview — builds the career profile in `jobs/profile/` |
 | `interview` | Prep for an actual interview with a company — likely questions, drafted answers (incl. emotional-intelligence questions), questions to ask them |
 | `status` | Dashboard summary of companies and applications |
 | `scan` | Rescan tracked companies for new open roles, score matches, report for review |
-| `render` | Render a tailored application CV/cover letter to .docx (no API call) |
+| `render` | Render an application's CV/cover letter to .docx (no API call) |
 | `publish` | Refresh site/ and sync to Surge |
 
 **Usage examples:**
@@ -57,15 +57,15 @@ Each subcommand has its own instruction file under `subcommands/`:
 | Invocation | Description |
 |---|---|
 | `company [name or url]` | Track a new company — extracts details, picks category, inserts row |
-| `application [description, url, or #N]` | Log a new application or refresh an existing one — creates folder, saves job.md, gap analysis, tailored CV, and cover letter |
-| `cv [company or #N] [--base functional/chronological]` | Tailor a CV to a specific application (agent-native, no API call) — functional rewrites Summary + Core Competencies, chronological rewrites the whole document |
+| `application [description, url, or #N]` | Log a new application or refresh an existing one — creates folder, saves job.md, gap analysis, a mechanical copy of the base CV, and a thin generic cover-letter draft. Tailoring neither (TODO `#55`): ask for `cv` / `cover-letter` on the roles worth it |
+| `cv [company or #N] [--base functional/chronological]` | Tailor a CV to a specific application, on request (agent-native, no API call) — functional rewrites Summary + Core Competencies, chronological rewrites the whole document, replacing the copy in the application folder |
 | `cv --rebuild` / `cv --import <path>` | Bootstrap the two base CVs from scratch via interview, or from an existing CV document — high blast radius, always confirms and backs up first (see `subcommands/cv.md` §A) |
-| `cover-letter [company or #N] [--standard2] [extra context]` | Draft a tailored cover letter — standard structure, Standard 1 by default or Standard 2 (a shorter alternative) on request — from the application entry, functional CV, company notes, and `jobs/profile/` |
+| `cover-letter [company or #N] [--standard2] [--thin] [extra context]` | Draft a cover letter — standard structure, Standard 1 by default, Standard 2 (a shorter alternative) or `--thin` (the generic draft `application` leaves) on request — from the application entry, CV, company notes, and `jobs/profile/` |
 | `stocktake` | Guided interview through Step 1 of a structured career-transition process ("taking stock") — writes `jobs/profile/stocktake.md` and `jobs/profile/criteria.yaml`. Section-by-section, pre-filled from existing notes, resumable |
 | `interview [company or #N]` | Prep for an actual interview — reads the job description, fit check, CV gaps, and `jobs/profile/`, drafts likely questions (technical, behavioural, emotional-intelligence) with STAR-grounded answers and questions to ask them, writes into the application's `notes.md` "Interview prep" section, and offers to promote durable answers into the reusable `jobs/notes/interview-technique.md` bank |
 | `status` | Dashboard: application counts by status/area, active applications, companies by category and fit |
 | `scan [--api]` | Run `python src/scan-portals.py` (mechanical fetch), then score live by default (agent-native, no API call) or via `python src/score-candidates.py` if `--api`; render with `python src/scan_report.py`; summarize the report: top matches, unscored roles, not-scanned companies |
-| `render` | Render a specific application's tailored CV and cover letter to .docx, no API call |
+| `render` | Render a specific application's CV and cover letter to .docx, no API call |
 | `publish` | Run `tools/publish-surge.sh` — refresh site/ and push to Surge |
 
 **To execute a subcommand**: read the corresponding file in `subcommands/` and follow its instructions exactly.
@@ -125,7 +125,7 @@ Invoke `company` when the user says: "new company", "add this company", "log thi
 
 Invoke `application` when the user says: "new application", "log this job", "add this role", "track this application", or pastes a job description.
 
-Invoke `cv` when the user says: "tailor the CV for X", "regenerate the CV", "redo the CV in chronological", or references tailoring a CV for a specific application.
+Invoke `cv` when the user says: "tailor the CV for X", "regenerate the CV", "redo the CV in chronological", or references tailoring a CV for a specific application. Logging an application does **not** invoke it — the folder's CV is a mechanical copy until someone asks for more (TODO `#55`).
 
 Invoke `cv --rebuild`/`--import` when the user says: "rebuild my CVs from scratch", "redo my base CVs", "import my CV from this file", or the base CVs don't exist yet and a CV-dependent workflow needs them.
 

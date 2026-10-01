@@ -72,8 +72,9 @@ default base).
 
 ### Tailor for an application
 
-Tailoring is agent-native (no API call) and runs automatically when an application is
-logged (§3) — re-run it standalone only to redo a one-off:
+Tailoring is agent-native (no API call) and happens **on request** — logging an
+application leaves a mechanical copy of the base in the folder (§3), and this is the
+upgrade from it, for the roles worth the effort:
 
 ```
 /jobstudio cv 30                        # default base (functional)
@@ -87,10 +88,12 @@ logged (§3) — re-run it standalone only to redo a one-off:
 - **Chronological** rewrites the whole document — bullets reordered per role, Summary
   tailored to the specific job.
 
-`appfolder.pick_cv` follows the same rule either way: a tailored CV already in the
-folder wins (new or old naming — see "File naming inside an application folder" below),
-otherwise the untailored base matching the application's `cv_base` is copied in as a
-starting point.
+`appfolder.pick_cv` follows the same rule either way: a CV already in the folder wins
+(new or old naming — see "File naming inside an application folder" below), otherwise
+the base matching the application's `cv_base` is what gets copied in. Since every
+per-application CV carries the same kind of name, "has this one actually been worked
+on?" is a content question — `appfolder.is_untouched_copy()`, which is what the
+"unedited copy" marker on the CV tab and the tailored count on `/cvs/` both read.
 
 **How tailoring and export actually work internally:** see
 **[cv-pipeline.md](cv-pipeline.md)**.
@@ -180,7 +183,7 @@ A company's derived status on the companies page is `applied` if it has any appl
 
 1. Fetches/parses the posting and extracts company, role, area, status, next action
 2. Confirms the extracted fields with you, then creates the application in the tracker database
-3. Creates `jobs/applications/NNN-company/`, copies the **untailored** functional CV in, and creates an **empty** cover-letter file as a placeholder
+3. Creates `jobs/applications/NNN-company/`, copies the functional CV in — named for the application, with the bracketed roles stripped from the competencies and nothing else changed — and creates an **empty** cover-letter file as a placeholder
 4. Saves `job.md` with the full job description
 5. Generates a gap analysis (CV gaps, improvements, prep steps) appended to `notes.md`
 
@@ -188,11 +191,14 @@ A company's derived status on the companies page is `applied` if it has any appl
 **[applications-and-gap-analysis.md](applications-and-gap-analysis.md)**. For how a new
 company gets tracked along the way, see **[companies.md](companies.md)**.
 
-**CV tailoring and writing the cover letter now happen automatically as part of
-logging** (revised 2026-09-17, superseding the earlier "on request only" decision) —
-both are agent-native, no API call. Re-run either standalone later to redo a one-off:
-`/jobstudio cv [company or #N]` for the CV, `/jobstudio cover-letter [company or
-#N]` for the letter.
+**Logging does not tailor anything** (revised 2026-10-01, TODO `#55`, superseding the
+2026-09-17 decision to do both automatically). The CV is a mechanical copy and the
+cover letter is a thin generic draft — three short paragraphs opening with the job-ID
+line — because both get refined by hand before they are sent, so a polished draft was
+producing work to undo rather than saving it. Ask for the full versions on the roles
+that earn them: `/jobstudio cv [company or #N]` for a tailored CV,
+`/jobstudio cover-letter [company or #N]` for a full letter. Both are agent-native, no
+API call.
 
 Calling the same command again on an existing entry (`/jobstudio application #11` or `... Grafana Labs`) is **refresh mode** — it fills in only whatever's missing, without re-logging or re-asking for confirmation.
 
@@ -212,7 +218,7 @@ Decided 2026-09-08 — applies only to files generated inside `jobs/applications
 
 `<filetype>` is `cv-functional` or `cv-chronological`, or `cover-letter`.
 `appfolder.app_filename()` is the single source of truth for building these names;
-`appfolder.is_cv_filename()` / `is_tailored_cv()` / `is_cover_letter_filename()`
+`appfolder.is_cv_filename()` / `is_app_cv()` / `is_cover_letter_filename()`
 recognise them (old-style names from before this date are still recognised, just not
 regenerated).
 
@@ -222,8 +228,8 @@ The application folder structure:
 jobs/applications/001-grafana-labs/
   job.md                                                            ← full job description
   notes.md                                                          ← JD detail + gap analysis + personal notes
-  001-grafana-labs-<person-slug>-cv-functional-2026-09-08.md        ← tailored CV
-  001-grafana-labs-<person-slug>-cover-letter-2026-09-08.md         ← generated cover letter
+  001-grafana-labs-<person-slug>-cv-functional-2026-09-08.md        ← this application's CV
+  001-grafana-labs-<person-slug>-cover-letter-2026-09-08.md         ← this application's cover letter
   export/
     001-grafana-labs-<person-slug>-cv-functional-2026-09-08.docx    ← ATS-friendly export
     001-grafana-labs-<person-slug>-cover-letter-2026-09-08.docx     ← ATS-friendly export

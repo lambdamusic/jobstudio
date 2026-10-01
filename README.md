@@ -32,9 +32,11 @@ you get from `--from-example`, before putting any of your own data in.*
   Teamtailor and Rippling, filters by location, scores what is left against what you
   actually want, and writes you a report. It never writes to your tracker — the
   decision stays yours.
-- **A tailored CV and cover letter per application**, drawn from your own base CV and
-  the role's description, plus a gap analysis telling you where you fall short *before*
-  you apply.
+- **A CV and cover letter per application**, drawn from your own base CV and the role's
+  description, plus a gap analysis telling you where you fall short *before* you apply.
+  Logging a role is deliberately light — a copy of your CV and a thin draft letter to
+  edit — and a full tailoring pass on either is one command away, for the roles that
+  earn it.
 - **It remembers, so you don't.** Every application keeps its job description, notes,
   documents and status history in a folder, and the web app makes the whole search
   browsable — what is outstanding, what went quiet, what you said to whom.
@@ -95,7 +97,7 @@ running, the configuration files, and the checks to run if you are changing the 
 |---|---|
 | `/jobstudio init` | First-run setup: create a data root and wire this checkout to it |
 | `/jobstudio company` | Track a company to watch, with researched notes |
-| `/jobstudio application` | Log an application: folder, gap analysis, tailored CV, cover letter |
+| `/jobstudio application` | Log an application: folder, gap analysis, CV copy, draft cover letter |
 | `/jobstudio cv` | Tailor a CV to a role, or rebuild/import your base CVs |
 | `/jobstudio cover-letter` | Draft a cover letter from the application, CV and company notes |
 | `/jobstudio stocktake` | Guided interview that builds your career profile |

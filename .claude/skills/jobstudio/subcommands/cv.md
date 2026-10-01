@@ -6,7 +6,9 @@ Two responsibilities, both agent-native (no API call):
   an existing CV — when they don't exist yet, or on an explicit full rebuild request.
 - **B. Tailor** a base CV to one specific application, reading the job description and
   target-area profile directly and writing the tailored text itself, the same way
-  `cover-letter` drafts a letter.
+  `cover-letter` drafts a letter. **On request only** — `application` stopped doing this
+  automatically on 2026-10-01 (TODO `#55`); every application folder gets a mechanical
+  copy of the base instead, and this is what you run for the roles worth the effort.
 
 Both read and write `<DATA>/jobs/cv/base/cv_functional.md` / `cv_chronological.md` (A) or a
 per-application copy of them (B) — **always following the exact structural contract
@@ -139,6 +141,13 @@ recap progress in chat if they want to pause and resume within the same session)
 
 ## B. Tailor a CV to one application
 
+Asked for, not automatic: `/jobstudio cv #N`, "tailor the CV for X", or the user asking
+for a rewrite. Logging an application leaves a mechanical copy of the base in the folder
+(`appfolder.copy_cv()` — the bracketed roles stripped from Core Competencies and nothing
+else), because these get refined by hand before they are sent. This subcommand is the
+upgrade from that copy to a CV actually written for the role, and it replaces it in
+place.
+
 ### Sources
 
 | File | Purpose |
@@ -199,7 +208,8 @@ recap progress in chat if they want to pause and resume within the same session)
      recency, never by topical fit to the JD
    - add a cluster whose content isn't already supported by the bullets given
    - change the markdown structure: `### Cluster name` headings with
-     `- **Employer (Role):**` bullets
+     `- **Employer:**` bullets — employer only, since you are tailoring the folder's
+     copy, which already has the bracketed roles stripped (see `cv-base-format.md`)
 
    Output only the rewritten `## Summary` and `## Core Competencies` sections — no
    preamble, no other sections.
@@ -225,9 +235,12 @@ recap progress in chat if they want to pause and resume within the same session)
 
 6. **On confirmation, save** following the application-folder naming convention:
    - Functional: `{folder}/{folder-name}-<person-slug>-cv-functional-YYYY-MM-DD.md` —
-     splice the new Summary and Core Competencies sections into the base CV (everything
-     else stays as-is), replacing whichever untailored/previously-tailored copy
-     `ensure_folder` put there.
+     splice the new Summary and Core Competencies sections into the **copy already in
+     the folder** (everything else stays as-is), and **delete the copy you tailored
+     from if its filename differs** (an earlier date, say). One CV per application: two
+     files one of which is a stale copy is how the wrong one gets sent. Keep the
+     competency bullets in the employer-only form the copy is already in — the
+     bracketed role does not come back.
    - Chronological: `{folder}/{folder-name}-<person-slug>-cv-chronological-YYYY-MM-DD.md`
      — the full rewritten document.
 

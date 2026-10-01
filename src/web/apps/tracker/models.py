@@ -35,10 +35,11 @@ from appfolder import (
     STATUS_SORT_ORDER,
     cv_variant,
     exported_file,
+    is_app_cv,
     is_cover_letter_filename,
-    is_interview_filename,
     is_cv_filename,
-    is_tailored_cv,
+    is_interview_filename,
+    is_untouched_copy,
     slug as slugify_name,
 )
 
@@ -318,7 +319,12 @@ class Application(models.Model):
         """CV snapshots for the CV tab, newest first, with their markdown body and the
         .docx rendered from it, if one has been. The export lives in the folder's
         `export/` subfolder, or beside the markdown in folders written before
-        2026-09-24 — `exported_file()` accepts both."""
+        2026-09-24 — `exported_file()` accepts both.
+
+        `untouched` is what the filename used to say: since the scaffolded copy is named
+        for the application like any other CV (TODO `#55`), the page has to tell a plain
+        copy of the base from one somebody has actually worked on.
+        """
         out = []
         for path in reversed(self.cv_snapshots):
             out.append({
@@ -326,13 +332,22 @@ class Application(models.Model):
                 "path": path,
                 "body_md": _read(path),
                 "docx": exported_file(path),
+                "untouched": is_untouched_copy(path),
             })
         return out
 
     @property
     def tailored_cvs(self) -> list[dict]:
-        """The CVs actually written for this role, newest first — `cv_snapshots` minus
-        the untailored base copy `ensure_folder()` scaffolds every folder with.
+        """The CVs actually worked on for this role, newest first — `cv_snapshots` minus
+        the mechanical copy of the base that `ensure_folder()` scaffolds every folder
+        with.
+
+        Since 2026-10-01 that copy carries the application's own name (TODO `#55`), so
+        the filename no longer separates the two and the content has to: `is_app_cv()`
+        for "belongs to this application", then `is_untouched_copy()` for "and somebody
+        has since changed it". Which also means a copy *hand*-refined counts, where
+        before only an agent tailoring pass did — and by hand is how these get
+        finished.
 
         Feeds the all-CVs list on /cvs/, so unlike `cv_files` it carries a label and a
         date rather than the markdown body: the body is rendered on this application's
@@ -342,7 +357,7 @@ class Application(models.Model):
 
         out = []
         for path in self.cv_snapshots:
-            if not is_tailored_cv(path.name):
+            if not is_app_cv(path.name) or is_untouched_copy(path):
                 continue
             variant = cv_variant(path.name)
             out.append({

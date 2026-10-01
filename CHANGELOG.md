@@ -2,6 +2,47 @@
 
 Dated entries, newest first.
 
+## 2026-10-01
+
+- **Logging an application stops tailoring anything** (`#55`). The CV it puts in the
+  folder is a mechanical copy of the base, and the cover letter is a thin generic draft:
+  the job-ID line, one honest paragraph on why the role is interesting, one line on fit,
+  standard close. Both documents get refined by hand before they are sent, so the
+  automatic full drafts added on 2026-09-17 were not saving that work — they were
+  producing something to read closely and undo. A thin, predictable starting point is
+  worth more than a polished wrong one, and logging a role is fast again.
+
+  The full versions are still there, demoted to a request: `/jobstudio cv #N` tailors the
+  CV in place, `/jobstudio cover-letter #N` writes the real letter. Deleting working
+  capability to simplify a default is a poor trade when the default is the thing that
+  was wrong.
+
+- **The copy's one transform is mechanical, so a regex does it, not an agent.** Core
+  Competencies bullets carry the role in brackets — `- **Employer (Head of Data):** …` —
+  because the master CV has to say which job a piece of work was done in. On a CV going
+  out for one role that bracket is noise, and the employer-only form already occurs in
+  the base, so `appfolder.strip_competency_roles()` drops it on the way in. Scoped to
+  that one section: in Career History the role title is the entire content of the line.
+  The base CVs keep their brackets.
+
+- **The copy is named for the application, tailored or not** —
+  `NNN-company-<person-slug>-cv-functional-<date>.md`, not the bare `cv_functional.md` it
+  used to be. It is the file that gets edited and sent, so it is named for the job it is
+  going to; the `.docx` rendered from it always was. Folders scaffolded before this are
+  left alone, and a second run never overwrites a CV that is already there.
+
+  Which means the filename no longer says whether anyone has worked on a CV, so
+  `is_tailored_cv()` became **`is_app_cv()`** ("belongs to this application") and the real
+  question moved to **`is_untouched_copy()`**, which compares the file to a fresh copy of
+  each base. The tailored list on `/cvs/` keeps its meaning, the application page's CV tab
+  marks an untouched one "unedited copy", and a CV refined *by hand* now counts as worked
+  on where before only an agent pass did — which is how these actually get finished.
+
+- **What deliberately did not change:** the gap analysis. `### Fit check`, `### CV gaps`
+  and `### Preparation steps` are not part of tailoring — they feed the fit summary on the
+  application page and are the main source for `interview` — so they still run on every
+  log. Dropping CV tailoring must not drop the analysis that happens to precede it.
+
 ## 2026-09-29
 
 - **The docs are two layers now, and say which is which.** They interleaved

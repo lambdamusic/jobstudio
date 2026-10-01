@@ -185,7 +185,8 @@
       {% for cv in app.cv_files %}
         <div class="panel prose panel-sunk" style="margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-            <code style="font-size:12.5px">{{ cv.name }}</code>
+            <span><code style="font-size:12.5px">{{ cv.name }}</code>{% if cv.untouched %}
+              <span class="pill" title="A mechanical copy of the base CV — the roles in brackets stripped from the competencies, nothing else changed">unedited copy</span>{% endif %}</span>
             {% if IS_LOCAL %}
               <span>
                 <a href="{{ EDITOR_URL_SCHEME }}{{ cv.path }}">Open in VS Code</a>

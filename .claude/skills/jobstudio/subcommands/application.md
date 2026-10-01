@@ -1,6 +1,11 @@
 # jobstudio application
 
-Log a job application and set up its full workspace in one step: index entry, company profile, folder, tailored CV, job description file, gap analysis + fit summary, and cover letter.
+Log a job application and set up its full workspace in one step: index entry, company profile, folder, a copy of the CV, job description file, gap analysis + fit summary, and a thin cover-letter draft.
+
+**It does not tailor anything** (revised 2026-10-01, TODO `#55`). The CV copy is
+mechanical and the cover letter is a short generic draft, because both get refined by
+hand before they are sent — a polished draft was producing work to undo rather than
+saving it. Full tailoring is a request: `/jobstudio cv #N`, `/jobstudio cover-letter #N`.
 
 Handles two modes automatically:
 - **New application** — URL or text not yet in the tracker: log it, then build the full workspace.
@@ -13,7 +18,7 @@ Handles two modes automatically:
 | Source | Purpose |
 |---|---|
 | Tracker database (`src/jobsdb.py`) | Applications and companies — the source of truth |
-| `<DATA>/jobs/cv/base/cv_functional.md`, `<DATA>/jobs/cv/base/cv_chronological.md` | Master CVs — the untailored functional CV (default) is copied into the folder; chronological is opt-in via an application's `cv_base` field |
+| `<DATA>/jobs/cv/base/cv_functional.md`, `<DATA>/jobs/cv/base/cv_chronological.md` | Master CVs — the functional one (default) is copied into the folder as-is, bar the mechanical role-strip; chronological is opt-in via an application's `cv_base` field |
 | `<DATA>/jobs/profile/stocktake.md` | Career profile: §6 positioning by audience, §2 achievements/USPs, §5 objectives, §7 narratives to have ready |
 | `<DATA>/jobs/profile/criteria.yaml` | Hard filters, weighted motivators, bonus signals — for the gap analysis's fit check |
 | `<DATA>/jobs/companies/README.md` | Template for the long-form company research file |
@@ -136,7 +141,27 @@ Run:
 tools/py src/appfolder.py ensure <row-num>
 ```
 
-This idempotently creates the folder `<DATA>/jobs/applications/NNN-company-name/`, writes `notes.md` if it doesn't exist, copies the **untailored** functional CV if none is present, and creates an **empty** cover-letter file as a placeholder (decided 2026-09-09 — neither is tailored/drafted at this stage; see "After review" below). Print the folder path.
+This idempotently creates the folder `<DATA>/jobs/applications/NNN-company-name/`,
+writes `notes.md` if it doesn't exist, installs the application's own copy of the CV if
+the folder has none, and creates an **empty** cover-letter file as a placeholder. Print
+the folder path.
+
+The CV copy (2026-10-01, TODO `#55`):
+
+- Named by the folder convention —
+  `NNN-company-<person-slug>-cv-functional-YYYY-MM-DD.md` — **even though nothing has
+  been tailored**. It is the file that gets edited and sent, so it is named for the job
+  it is going to.
+- The one change from the base is mechanical, and `appfolder.copy_cv()` does it, not
+  you: the role in brackets comes off every `## Core Competencies` bullet
+  (`- **Employer (Head of Data):** …` → `- **Employer:** …`). Career History keeps its
+  role titles.
+- **Never overwritten.** A second run on a folder that already has a CV leaves it
+  alone, whether it was tailored, hand-edited, or the bare `cv_functional.md` of a
+  folder scaffolded before this change.
+- Whether a CV has actually been worked on is a content question, not a filename one
+  (`appfolder.is_untouched_copy()`); the application page's CV tab marks an untouched
+  one "unedited copy".
 
 All application folders live directly under `<DATA>/jobs/applications/` regardless of status
 (the archive/ split by status was retired 2026-09-08 — the database is the source of
@@ -166,8 +191,8 @@ If `{folder}/job.md` does not already exist, write it with the full extracted jo
 
 ## Step 7 — Gap analysis (append to notes.md)
 
-Read the CV copied into the folder (the `.md` file that is not `notes.md` — the untailored
-functional CV by default, unless the application's `cv_base` is chronological).
+Read the CV in the folder (the `*-cv-*.md` file — a copy of the functional base by
+default, unless the application's `cv_base` is chronological).
 Read `<DATA>/jobs/profile/stocktake.md` and `<DATA>/jobs/profile/criteria.yaml`. Analyse the JD
 against the CV **and** against the user's profile.
 
@@ -233,29 +258,32 @@ tools/py src/jobsdb.py set-fit <row-num> \
 
 ---
 
-## Step 8 — Tailor the CV and write the cover letter (revised 2026-09-17)
+## Step 8 — Thin cover-letter draft (revised 2026-10-01)
 
-These now run automatically as part of logging — **not** on request (supersedes the
-2026-09-09 decision to defer both until the user asked). Both are agent-native (no API
-call): the agent reads the job description and profile sources directly and writes the
-content itself, the same way it just wrote the gap analysis above.
+**No CV tailoring here** — Step 5 already put the application's CV in the folder and
+that is the CV. Tailoring it is a separate request (`/jobstudio cv #N`, i.e.
+`subcommands/cv.md` §B) for the roles that earn the effort; don't offer to do it as
+part of logging, and don't do it unasked. The reason is in TODO `#55`: these documents
+get refined by hand before they go out, so a generated draft is something to read
+closely and undo, not a saving. A thin, predictable starting point is worth more than a
+polished wrong one.
 
-### Tailor the CV to this job
+### Write a thin cover letter
 
-Follow the **`cv` subcommand** (`subcommands/cv.md`) using its default base (the
-application's stored `cv_base`, functional unless set otherwise). Show the draft for
-review before saving, as `cv.md` describes.
+Follow the **`cover-letter` subcommand** in its `--thin` mode
+(`subcommands/cover-letter.md` → "Thin draft", structure §3 in
+`references/cover-letter-structures.md`): the job-ID opening line, one short honest
+paragraph on why the role is interesting, one line on fit, standard close. ~120–160
+words, agent-native, and no company research beyond what Step 4 already wrote.
 
-### Write the cover letter
+Two rules do not relax: it opens with the "I'm applying for `<role>` at `<company>`"
+line, and it must not overclaim the domain — a letter that enthuses about a sector the
+user is lukewarm on is worse than a flat one they can rewrite.
 
-Follow the **`cover-letter` subcommand** (`subcommands/cover-letter.md`) — default
-structure (Standard 1) unless the user asked for the alternative. Step 5 already
-created the empty `{folder-name}-<person-slug>-cover-letter-YYYY-MM-DD.md` stub;
-drafting fills it in. Show the draft for review before saving, unless the user has
-said not to.
-
-Both drafts can be shown together in the same turn rather than one at a time — use
-judgement based on how much the user seems to want to review closely.
+Step 5 created the empty `{folder-name}-<person-slug>-cover-letter-YYYY-MM-DD.md` stub;
+this fills it in. Show the draft for review (saying plainly that it is a thin draft to
+refine, and that `/jobstudio cover-letter #N` writes the full version), unless the user
+has said not to. Don't render a `.docx` — nothing is going out in this state.
 
 ---
 
@@ -271,6 +299,10 @@ Done: {Company} — {Role}
   ✓ job.md                                   [new] / [already present]
   ✓ Gap analysis appended to notes.md        [new] / [already present]
   ✓ Fit summary (pros/cons/unknowns) saved   [new] / [already present]
-  ✓ CV tailored: {cv-filename}.md            [new] / [already present]
-  ✓ Cover letter drafted: {filename}.md      [new] / [already present]
+  ✓ CV copied: {cv-filename}.md              [new] / [already present]
+  ✓ Cover letter (thin draft): {filename}.md [new] / [already present]
 ```
+
+Then one line on what is *not* done, since this used to do it: the CV is a mechanical
+copy and the letter is a thin draft — `/jobstudio cv {N}` and
+`/jobstudio cover-letter {N}` write tailored versions if this role is worth it.

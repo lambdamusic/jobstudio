@@ -20,8 +20,11 @@ engine, so the contract matters). High blast radius — every workflow in this s
 reads from these two files — so it always confirms and backs up the existing files
 before overwriting.
 
-Both are tailored the same way: **agent-native, fresh, straight into the application
-folder.** There is no pre-generated library of per-area variants any more — a July–September
+Neither is tailored when an application is logged (2026-10-01, TODO `#55`): the folder
+gets a **mechanical copy** of its base, and tailoring is something you ask for. See
+"The per-application copy" below — then the tailoring section, which is what `/jobstudio
+cv #N` still does when a role earns it: **agent-native, fresh, straight into the
+application folder.** There is no pre-generated library of per-area variants any more — a July–September
 2026 line of work (`jobs/targets/*.yaml` driving `--runall`/`--target` into
 `jobs/cv/variants/<area>/`) accumulated dozens of dated files with no downstream consumer
 once the functional CV became the default base, and was retired in favour of this simpler,
@@ -35,7 +38,9 @@ already running the `jobstudio application`/`cv` skill subcommands. Since that
 session already has full context, the API round-trip was redundant judgement work, not
 new capability — see `backlog/done/drop-direct-anthropic-api-plan.md`. This also means
 tailoring now runs automatically when an application is logged, not on request
-(superseding the earlier "on request only" behaviour).
+(superseding the earlier "on request only" behaviour). **Reverted 2026-10-01 for the
+*automatic* half only** — tailoring is agent-native as described here, but it runs on
+request again, not on every log; see below.
 
 Follow the **`cv` subcommand** (`.claude/skills/jobstudio/subcommands/cv.md`) — it
 documents the rules the agent follows directly instead of sending them out as a
@@ -60,13 +65,41 @@ from `jobs/targets/<area>.yaml` (`emphasis`, `key_terms`, `tone`, `expand_sectio
   guidance, not a script to copy verbatim). Saved as
   `<folder>-<person-slug>-cv-chronological-<date>.md`.
 
+### The per-application copy (2026-10-01, TODO `#55`)
+
+Logging an application installs a copy of its base CV and stops there —
+`appfolder.copy_cv()`, called by `ensure_folder()`. Three things to know:
+
+- **It is named like any other per-application CV**
+  (`NNN-company-<person-slug>-cv-functional-<date>.md`), even though nothing was
+  tailored — decided deliberately: the file that gets edited and sent should be named
+  for the job it is going to, and the `.docx` rendered from it already was.
+- **The one transform is mechanical** — `strip_competency_roles()` drops the role in
+  brackets from every `## Core Competencies` bullet (`- **Employer (Head of Data):** …`
+  → `- **Employer:** …`), scoped to that section so Career History keeps its titles.
+  It is a regex rather than an agent pass because the target form already occurs in the
+  base and the rule has no judgement in it. The base CVs keep their brackets.
+- **Nothing overwrites it.** `copy_cv()` leaves a folder alone if it holds any CV at
+  all, including the bare `cv_functional.md` of folders scaffolded before this (not
+  migrated, same stance as the `export/` split).
+
+Why: both documents get refined by hand before they are sent, so an elaborate generated
+draft was not saving that work — it produced something to read closely and undo. A thin,
+predictable starting point makes logging fast again, and the roles worth a real
+tailoring pass get one on request.
+
 ### Which CV a folder actually contains
 
-`appfolder.pick_cv()` is the single place this is decided, and both `ensure_folder()`
-and the cover-letter skill read it: a tailored CV already in the folder
-(`is_tailored_cv()`, matching either base and either naming era) always wins; until one
-exists, the untailored base matching the application's `cv_base` is copied in as a
-placeholder.
+`appfolder.pick_cv()` is the single place this is decided: a CV already in the folder
+(`is_app_cv()`, matching either base and either naming era) always wins; until one
+exists, the base matching the application's `cv_base` is what gets copied in.
+
+Because every per-application CV now carries the same kind of name, the name no longer
+says whether anyone has worked on it — `appfolder.is_untouched_copy()` answers that by
+comparing the file to a fresh mechanical copy of each base. That is what keeps the
+tailored-CV list on `/cvs/` meaning something, and what puts the "unedited copy" marker
+on the application page's CV tab. A hand edit counts as work, which is the point: these
+get finished by hand, not by an agent.
 
 ## Rendering (no API call)
 

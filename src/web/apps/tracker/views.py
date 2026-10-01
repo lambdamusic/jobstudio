@@ -978,8 +978,9 @@ HELP_STEPS = [
      "commands": ["company", "scan"]},
     {"heading": "Apply",
      "body": "Logging a role creates its folder, saves the job description, runs a gap "
-             "analysis, and tailors a CV and cover letter to it. Then render the "
-             "documents that actually get sent.",
+             "analysis, and leaves a copy of your CV and a thin cover-letter draft to "
+             "work from. Ask for a tailored CV or a full letter on the roles worth it, "
+             "then render the documents that actually get sent.",
      "commands": ["application", "cv", "cover-letter", "render"]},
     {"heading": "Follow up",
      "body": "Prep for the conversation, and keep an eye on where everything stands.",

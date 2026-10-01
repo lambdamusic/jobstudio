@@ -20,8 +20,10 @@ Still derived from files on disk, and refreshed by `manage.py import_jobs`:
 | `jobs/scans/*.md` | `Scan` |
 
 `import_jobs` never touches applications or companies. There is no model for
-per-application tailored CVs — those are scanned from the application folder by naming
-convention at request time, same as cover letters (see below).
+per-application CVs — those are scanned from the application folder by naming
+convention at request time, same as cover letters (see below). Whether one has actually
+been tailored is read from its *content* (`appfolder.is_untouched_copy()`), since every
+per-application CV carries the same kind of name (TODO `#55`).
 
 `Scan` is a special case: `src/scan-portals.py` calls `manage.py import_jobs --quiet`
 itself at the end of every run (`refresh_web_db()`, 2026-09-13), so a new report shows

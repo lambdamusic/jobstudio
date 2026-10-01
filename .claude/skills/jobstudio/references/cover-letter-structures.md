@@ -6,24 +6,28 @@
 > base CV's `# Name` heading. These reference files are shared toolkit code, not one
 > person's documents, so no real name belongs in them.
 
-One structure family — **standard** — with two variants. Standard 1 follows a
-conventional career-transition cover-letter shape. Standard 2 is based on a template
-Supplied by the toolkit's author 2026-09-17, adapted to this file's sourcing rules and close guidance.
+One structure family — **standard** — with two variants, plus a **thin draft** for the
+letter that gets written automatically when an application is logged. Standard 1
+follows a conventional career-transition cover-letter shape. Standard 2 is based on a
+template supplied by the toolkit's author 2026-09-17, adapted to this file's sourcing
+rules and close guidance. The thin draft (§3) is not a shorter Standard — it is a
+deliberate placeholder, and the only one of the three that is allowed to be generic.
 
 > Revised 2026-09-17: the earlier **mirror** and **advanced** structures were retired
 > (see `backlog/done/drop-direct-anthropic-api-plan.md` §1.2) — one structure family is
 > simpler to keep aligned than three, and Standard 2 gives a punchier alternative
 > without their extra mode-selection logic.
 
-Pick a variant with the logic in `subcommands/cover-letter.md` (Standard 1 default,
-Standard 2 only if asked for). In every variant: first-person, British English, no
+Pick a structure with the logic in `subcommands/cover-letter.md`: Standard 1 when the
+user asks for a letter, Standard 2 only if asked for by name, the thin draft when
+`application` is logging a role. In every variant: first-person, British English, no
 filler openers, no "enclosed CV", never mention salary or availability. Numbered beats
 below are the scaffold for drafting — **they are never printed as headings in the
 final letter.**
 
 ---
 
-## File structure (both variants)
+## File structure (all three)
 
 ```
 # Cover letter — <Company>, <Role>
@@ -104,7 +108,43 @@ supplied 2026-09-17; use only when explicitly asked for (`--standard2`).
 
 ---
 
-## Close guidance (both variants)
+## 3. Thin draft (what `application` writes on log) — ~120–160 words, 3 short paragraphs
+
+Added 2026-10-01 (TODO `#55`). `application` used to draft a full Standard 1 for every
+role it logged. It doesn't any more: every letter gets reviewed and rewritten by hand
+before it is sent, so a polished draft was not saving that work — it was producing
+something to read closely and undo. This is a starting point to edit, nothing more.
+
+**It is still a real letter** — same file structure, same letterhead, same close
+guidance. What it drops is the research and the marketing.
+
+1. **The job-ID line, exactly as Standard 1.** Its own short paragraph, naming the role
+   and the req number if there is one. This is a standing rule and the thin draft does
+   not get an exception.
+2. **Why this is interesting — one short paragraph, honestly thin.** Generic is fine
+   here; *overclaiming is not*. Name only what the job description and the company file
+   actually support: the scale or breadth of the data, the fact that the work reaches
+   people outside the building, a genuine technical overlap. Two or three sentences.
+   - **Do not gush about the domain.** The user may well discard an otherwise-solid
+     role purely on domain mismatch, and they are the one who has to send this. A
+     sentence about the sector they only half-agree with is worse than a flat one they
+     can rewrite: write the domain line plainly, short enough to replace in one go.
+   - No invented enthusiasm, no superlatives about the company, no claim about its
+     mission that isn't in the sources.
+3. **One line on fit, then the close.** A single sentence naming the closest thing on
+   the CV — the most obviously relevant role or achievement, not three of them — and
+   then the standard close: no call-to-action, "Yours sincerely".
+
+Sources: the application entry and `job.md` are enough. Don't go and research the
+company for a thin draft — if the role deserves that, it deserves a Standard 1
+(`/jobstudio cover-letter #N`).
+
+**Say what it is when you show it.** One line: this is a thin draft to refine, and
+`/jobstudio cover-letter #N` writes the full version.
+
+---
+
+## Close guidance (all three)
 
 **Default — portal / ATS application, no named contact:**
 One sentence of specific interest in their particular challenge (not "your company's
