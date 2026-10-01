@@ -170,3 +170,70 @@ floor, not the answer, and the plan's M1.8 section now says so with somewhere fo
 findings to land. On the record of the other two passes, the expectation should be findings
 rather than a clean bill — every verification pass in this project has produced some, and
 the second-machine run produced the most valuable ones in it.
+
+
+## The second-person pass, same day — and what it found
+
+`#2`'s third verification pass happened a few hours after being closed by substitute: a
+second person installed the toolkit from zero on a second machine, with their own CV, and
+ran it through to a scored scan.
+
+The setup path worked. Virtualenv reuse, data root, `config.py --chain`, pre-push hook,
+both base CVs written and parsing, a drafted profile honest about which sections the CV
+could not fill, two target areas, seventeen companies, board lookups for the fourteen
+behind corporate careers pages, two scans. Nothing in the install failed, which is the
+third pass in a row to say that.
+
+**Then it found the worst thing in this project's history.** The public repo was
+publishing the maintainer's completed psychometric results: `subcommands/stocktake.md`
+held the career-anchors questionnaire as a ranked table of eight anchors with his
+averages, his three "most true" picks quoted verbatim, and his values exercise ranked into
+four groups. `docs/career-stocktake-profile.md` held a second copy of the anchors. Public
+since the repo was cut.
+
+Every single run of `make-public-tree --check` had passed it — including the ones in this
+session, including the pre-push hook. Not because of a bad exemption this time, but
+because **no check in it had a notion of that category.** Psychometric results are not a
+company name, not an email address, not a home path. They are not any of the things
+someone had thought to ask the guard about.
+
+That is §5.7's lesson for the third time, and in its sharpest form. The data-root split
+found a denylist that made the verifier skip files it had never read. The clean room found
+an `ALLOW_NAME` exemption hiding real company names in a test fixture. Both were about a
+check being *pointed at the wrong place*. This one is about a check that was never
+written. **A guard refuses only what someone thought to ask it about**, and the way you
+discover what you forgot to ask is to put the thing in front of someone who does not share
+your assumptions. That is the entire argument for M1.8's third pass, and it took one
+afternoon to be proved right after I had argued it could be closed without.
+
+The second person's session was also right about the second half, which I nearly missed:
+the file was not only leaking, it was *written about one person*, in the third person
+throughout. So a new user running `stocktake` was being handed someone else's completed
+answers as their own starting point — a correctness bug sitting underneath the privacy
+one.
+
+**The fix, and the guard for the class.** Results gone from both files, which now describe
+the method and point at the data root for the answers. All third-person singular rewritten.
+`make-public-tree` gained a check refusing any shipping `.md` that uses *his/him/hers/she's*
+— the pronoun being the tractable signal, and one that would have fired thirteen times in
+that file alone; `backlog/`, `log/` and `CHANGELOG.md` are exempt by path, being dated
+records of this project's decisions, where naming the maintainer is correct. Verified by
+planting a violation and watching the build refuse, as the clean-room pass established. And
+on its first real run it caught the `docs/` copy that the second person's session never
+reached — a check earning its keep inside a minute of existing.
+
+**Three more findings.** A Workday board returned one posting among 125 carrying only
+`bulletFields`, and `j["title"]` raised `KeyError`, so "unexpected response shape" marked
+the whole company NOT SCANNED and threw away 124 usable postings — `#63`, fixed, skipping
+and *counting* the unusable rows per `#44`, verified live. `#41`'s missing
+`update-company` was hit inside the hour by a user who could not correct two stale careers
+URLs and was told to go to the Django admin; independent confirmation from someone who did
+not write the item, and it is retitled from "optional". And a scan run before `stocktake`
+produces Ideal-Job Scores of ≤ 3 for everything, rendered in the same column shape as the
+real scores — noise presented as measurement, caught only because the agent happened to
+mention it twice. That is `#62`: the fix is honesty in the output, not better scoring.
+
+**What it did not cover,** since the same honesty applies here: one person, one CV, one
+afternoon, and a CV about a decade out of date. Nothing in it speaks to a CV in an unusual
+shape, a job search outside the UK, or what someone does when they disagree with what the
+toolkit suggests. The pass is closed. It is not exhausted.

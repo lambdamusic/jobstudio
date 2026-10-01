@@ -276,6 +276,31 @@ hits=$(cd "$DEST" && grep -rn "Manual pp\.\|manual pp\." . 2>/dev/null \
 hits=$(cd "$DEST" && grep -rl "/Users/" . 2>/dev/null | sed 's|^\./||' | grep -Ev "$ALLOW_PATH" || true)
 [ -z "$hits" ] || fail $'absolute home-directory paths in:\n'"$hits"
 
+# A toolkit everyone installs must never talk about its user in the third person
+# singular. Added 2026-10-01 after the first install by a SECOND PERSON found what every
+# earlier check had passed over: `subcommands/stocktake.md` carried the maintainer's own
+# completed career-anchors questionnaire — a ranked table of eight anchors with his
+# averages — plus his ranked values exercise, introduced as "his three most true picks".
+# Psychometric results about a named individual, public since the repo was cut, and
+# reported CLEAN by every run of this script, because no check here had a notion of that
+# category: not a company name, not an email, not a home path.
+#
+# The pronoun is the tractable signal, and it is the one that would have fired — thirteen
+# hits in that file alone. Prose written for whoever installs this says "the user" or
+# "they"; prose that says "him" was written about one person and is carrying that person's
+# details with it. Scoped to the shipping prose: backlog/ and log/ are dated records of
+# this project's own decisions, where referring to the maintainer is correct.
+#
+# This is §5.7's lesson a third time, and the sharpest version of it: the clean-room pass
+# found an exemption hiding real company names, and here a whole CLASS of personal data
+# had no check at all. A guard only refuses what someone thought to ask it about.
+hits=$(cd "$DEST" && grep -rnEi '\b(his|him|he'"'"'s|hers|she'"'"'s)\b' \
+       --include='*.md' . 2>/dev/null | sed 's|^\./||' \
+       | grep -Ev "^(backlog/|log/|CHANGELOG\.md|tools/make-public-tree)" || true)
+if [ -n "$hits" ]; then
+    fail $'the user is referred to in the third person singular, so this prose was written about one person:\n'"$hits"$'\n\n  Rewrite as "the user" / "they". A file that says "his" is usually\n  carrying that person\x27s own details with it \x2d- check what else is in it.'
+fi
+
 for f in db.sqlite3 backups/django/dump.json tools/py tools/env.sh src/web/local_settings.py; do
     [ -e "$DEST/$f" ] && fail "$f was copied and must never ship"
 done

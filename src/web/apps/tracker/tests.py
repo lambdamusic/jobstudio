@@ -3435,6 +3435,48 @@ class ScanConfigTests(TestCase):
                     config.data_root = orig
                     sc._cache = None
 
+    def test_workday_skips_postings_with_no_title_instead_of_aborting(self):
+        """A real Workday board returned one posting carrying only `bulletFields` among
+        125. `j["title"]` raised KeyError, the generic handler turned it into "unexpected
+        response shape", and the whole company came back NOT SCANNED — 124 usable
+        postings lost to one unusable row. Found 2026-10-01 by the second-person install
+        pass (`#2` M1.8)."""
+        import importlib.util
+        import httpx
+
+        spec = importlib.util.spec_from_file_location(
+            "scan_portals_under_test", Path(settings.SITE_ROOT) / "src" / "scan-portals.py")
+        sp = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sp)
+
+        page = {"total": 3, "jobPostings": [
+            {"title": "Data Scientist", "externalPath": "/job/1", "locationsText": "London"},
+            {"bulletFields": ["JR123"]},                      # the row that used to crash
+            {"title": "No path here", "locationsText": "Remote"},   # unusable too
+        ]}
+
+        class _Resp:
+            status_code = 200
+            def raise_for_status(self): pass
+            def json(self): return page
+
+        class _Client:
+            calls = 0
+            def post(self, *a, **kw):
+                _Client.calls += 1
+                # Second page empty, so the paging loop terminates.
+                if _Client.calls > 1:
+                    page["jobPostings"] = []
+                return _Resp()
+
+        source = {"platform": "workday", "tenant": "acme", "wd": "wd3", "site": "AcmeJobs"}
+        jobs, truncated = sp.fetch_jobs(source, "data scientist", _Client())
+
+        self.assertEqual([j["title"] for j in jobs], ["Data Scientist"],
+                         "the one usable posting must survive the two that are not")
+        self.assertTrue(jobs[0]["url"].endswith("/job/1"))
+        self.assertEqual(truncated, 3, "the board's own total is still reported")
+
     def test_no_company_names_left_in_the_scanner(self):
         """The regression guard. `scan-portals.py` may name PLATFORMS (greenhouse,
         workday…) but never a company or its endpoint — that is data, and it lives in

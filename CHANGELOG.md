@@ -4,6 +4,32 @@ Dated entries, newest first.
 
 ## 2026-10-01
 
+- **The skill was publishing the maintainer's psychometric results, and every check had
+  passed it.** `subcommands/stocktake.md` carried a completed career-anchors
+  questionnaire — eight anchors, his averages, his three "most true" picks quoted — plus
+  his values exercise ranked into groups; `docs/career-stocktake-profile.md` carried a
+  second copy of the anchors. Public since the repo was cut, and reported CLEAN by every
+  run of `make-public-tree --check`, because none of its checks had a notion of that
+  category: not a company name, not an email, not a home path. Found by the first install
+  **by a second person**, whose session flagged it twice and declined to touch the file.
+
+  Both files now describe the method and point at the data root for the answers, and the
+  prose no longer refers to its user in the third person — the other half of the problem,
+  since a second user running `stocktake` was being handed someone else's completed
+  answers as their starting point. `make-public-tree` gained a check that refuses any
+  shipping `.md` using *his/him/hers/she's*; `backlog/`, `log/` and this changelog are
+  exempt, being dated records where naming the maintainer is correct. It was proved by
+  planting a violation, and on its first real run it found the `docs/` copy the second
+  person's session never reached.
+
+- **One malformed Workday posting no longer takes a whole company's scan down with it**
+  (`#63`). A board returned 125 postings, one carrying only `bulletFields` — no title, no
+  path — and reading `j["title"]` raised `KeyError`, which surfaced as "unexpected
+  response shape" and marked the company NOT SCANNED, discarding 124 usable postings. The
+  message was its own second problem: 124 of 125 rows parsed, so it sent you to inspect a
+  board that worked. Unusable rows are now skipped and counted, with a note naming the
+  tenant and the tally — counted, not silently dropped, per `#44`.
+
 - **`cv --rebuild` reads both base CVs before it asks anything** (`#61`). The interview
   collected one set of facts and derived both files from it, on the documented assumption
   that the two differ only in framing. They differ in content: the functional file's Core

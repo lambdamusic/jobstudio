@@ -1343,14 +1343,70 @@ is the person, not the machine. **M1.8 is closed on the judgement that the machi
 bought the install-and-import confidence the milestone existed for, and that the remaining
 third needs a genuine outside user.**
 
-**A real one is now planned (2026-10-01).** Michele is arranging the install on a second
-machine with **someone other than himself** driving it, and will report back. So the
-substitute above is the floor, not the answer: when that run happens, its findings go here
-and the "what it does not cover" paragraph is what to read them against — the README's
-vocabulary, which questions `init` should have asked, where another person's CV breaks an
-assumption nobody knew was one. On the evidence of the other two passes, expect findings
-rather than a clean bill: every verification pass so far has produced some, and the ones
-from the second-machine run were the most valuable in the project.
+### The real second-person pass — done 2026-10-01
+
+**A second person installed the toolkit from zero on a second machine, with their own CV,
+and ran it through to a scored scan.** The install itself worked: virtualenv reuse,
+data root, `config.py --chain`, pre-push hook, both base CVs written and parsing, a drafted
+profile, two target areas, 17 companies, board lookups for the ones behind corporate
+careers pages, and two scans. Nothing in the setup path failed.
+
+**And it found the worst thing in this project's history — which is exactly the argument
+for the pass.** The two earlier passes and every run of `make-public-tree --check` had
+reported clean on a public repo that was publishing the maintainer's **completed
+psychometric results**: `subcommands/stocktake.md` carried his career-anchors
+questionnaire as a ranked table of eight anchors with his averages, his three "most true"
+picks quoted, and his values exercise ranked into four groups. `docs/career-stocktake-profile.md`
+carried a second copy of the anchors. Public since the repo was cut.
+
+Every check in `make-public-tree` passed it, because the file is not a company name, not
+an email, not a home path — the categories someone had thought to check for. **This is
+§5.7's lesson a third time and in its sharpest form:** the data-root split found a denylist
+that made the verifier skip files it never read; the clean room found an exemption hiding
+real company names; here a whole *class* of personal data had no check at all. A guard
+refuses only what someone thought to ask it about.
+
+What the second person's session actually said, and it said it twice: *"the stocktake
+instructions contain the maintainer's own completed career-anchor and values results,
+which are personal data in a public repo. I didn't touch the file. It also needs
+genericising before anyone else runs stocktake."* Both halves were right. The file was not
+just leaking — it was written *about one person*, in the third person, so a second user
+running `stocktake` was being handed someone else's answers as their starting point.
+
+**Fixed, and the class now has a guard.** The results are gone from both files, which now
+describe the method and point at the data root for the answers; all third-person singular
+references are rewritten. `make-public-tree` gained a check that refuses any shipping
+`.md` using *his/him/hers/she's* — the pronoun is the tractable signal and would have
+fired thirteen times in that one file. `backlog/`, `log/` and `CHANGELOG.md` are exempt by
+path, being dated records of this project's own decisions where naming the maintainer is
+correct. The check was verified by planting a violation and watching the build refuse, and
+**on its first real run it found the second copy in `docs/` that the second person's
+session never reached.**
+
+**Three more findings, all real:**
+
+- **A Workday board killed a whole company's scan with one malformed row.** One posting
+  among 125 carried only `bulletFields` — no title, no path — and `j["title"]` raised
+  KeyError, which the generic handler reported as "unexpected response shape", so the
+  company came back NOT SCANNED and 124 usable postings were lost. Blaming the response
+  shape when 124 of 125 rows parsed also sends you looking in the wrong place. The fetcher
+  now skips what it cannot use and **counts it**, per `#44`. Verified against the live
+  board: 124 jobs where there had been none.
+- **`#41` confirmed by someone who was not its author.** Two tracked companies' careers
+  URLs were stale (one 404, one redirecting to an acquirer) and the second person could not
+  fix them, because `add-company` cannot edit a company — the session's own words: *"you'll
+  need to do it in the web admin"*. That is `#41` exactly, now with independent evidence
+  that it bites a new user in their first hour.
+- **A scan run before `stocktake` produces ideal-job scores that look like data and are
+  not.** With no motivators, dealbreakers or salary floor in the profile, every ideal-job
+  score came back ≤ 3, and the session had to explain that twice unprompted. The scoring
+  is working as designed; what is missing is the toolkit saying so itself rather than
+  relying on the agent to notice. Raised as `#62`.
+
+**What it did not cover.** One person, one CV, one afternoon, and a CV about a decade out
+of date — so nothing here speaks to a CV in an unusual shape, a non-UK job search, or what
+someone does when they disagree with the toolkit's suggestions. The pass is closed, not
+exhausted.
 
 ### M2 — pip package
 

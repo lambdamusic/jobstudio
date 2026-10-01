@@ -24,9 +24,11 @@ empty YAML keys). This command fills them in through conversation.
   confirms — he shouldn't be starting from a blank box.
 - **Resumable.** A section that no longer contains `_(not started)_` is done —
   skip it unless the user says "redo section N" or "revisit anchors".
-- **His voice.** British English, casual but precise, concrete over abstract.
+- **Their voice, not yours.** Match how the user writes and talks — this document gets
+  read back to them for years, and prose in someone else's register reads as untrue even
+  when the facts are right.
   Match `<DATA>/jobs/notes/ideal-job-notes.md`.
-- **Stop when he wants to stop.** This is long. It's fine to do two sections and
+- **Stop when the user wants to stop.** This is long. It's fine to do two sections and
   resume another day — the files hold state.
 
 ---
@@ -62,14 +64,14 @@ their results are already in `stocktake.md` §3. Re-read them only if the user s
 
 1. Read the sources above and both `<DATA>/jobs/profile/` files.
 2. Tell the user which sections are already filled and which are `_(not started)_`.
-3. Ask where he wants to start (default: first unfilled section, in order).
+3. Ask where they want to start (default: first unfilled section, in order).
 
 ---
 
 ## Step 1 — `stocktake.md` §1 · Career so far
 
 Work through these five prompts. For each, offer a pre-filled
-draft from `ideal-job-notes.md`, then refine with him:
+draft from `ideal-job-notes.md`, then refine with them:
 
 - Roles / parts of roles enjoyed most, and why
 - Roles / parts of roles disliked, and why
@@ -85,7 +87,7 @@ Write the confirmed prose into the matching subsections, replacing `_(not starte
 
 1. **Six most significant achievements** — pull candidates from `cv_functional.md`
    and any existing `stocktake.md` §2. For each, capture: what
-   happened · circumstances that made it possible · what motivated him · how it
+   happened · circumstances that made it possible · what motivated them · how it
    added value (money made/saved, productivity, time-to-market, quality, customer
    outcomes). Aim for six; fewer is fine if that's honest.
 2. **Specialist skills** (technical, most marketable)
@@ -102,41 +104,34 @@ Write the confirmed prose into the matching subsections, replacing `_(not starte
 Schein's eight career anchors, plus the separate values exercise. (Schein's anchors
 are a published framework in their own right, not part of any one course's materials.)
 
-**The questionnaire is already completed** —
-`<DATA>/extras/career-coach/materials/2.CareeranchorsquestionnaireExcel1.xlsx` (read the
-`Summary` sheet for the averages; ignore the `Ranking Report` sheet, its ordering is
-a stale template). As transcribed 2026-09-09:
+**If a completed questionnaire is on disk, read it rather than asking from scratch.**
+The conventional place is
+`<DATA>/extras/career-coach/materials/` — an `.xlsx` export of the anchors
+questionnaire (read its `Summary` sheet for the per-anchor averages; a `Ranking Report`
+sheet in the common template orders them wrongly, so ignore it) and any values-exercise
+file alongside it. Both live in the **data root**, not here: they are one person's
+results, and this file is a method shared by everyone who installs the toolkit.
 
-| Rank | Anchor | Avg |
-|---|---|---|
-| 1= | Autonomy / independence (AU) | 6.2 |
-| 1= | Lifestyle (LS) | 6.2 |
-| 3 | Technical / functional competence (FT) | 5.4 |
-| 4= | Security / stability (SE) | 4.6 |
-| 4= | Entrepreneurial creativity (EC) | 4.6 |
-| 6= | Service / dedication to a cause (VS) | 4.2 |
-| 6= | Pure challenge (CH) | 4.2 |
-| 8 | General managerial competence (GM) | 3.2 |
+If there is no questionnaire, administer the anchors inline — the eight definitions
+below are enough to self-rank against, and a self-ranking the user believes is worth
+more than a score they have no feel for.
 
-His three "most true" picks (+4 weighting): AU ("freedom to do a job my own way, my
-own schedule"), EC ("build something entirely the result of my own ideas and
-efforts"), LS ("balance personal, family and career requirements"). Note the EC
-signal is *creative ownership*, not "start a business" — statements 5/13/37 about
-literally founding a company scored low (2/2/3).
+Either way:
 
-1. Confirm this ranking with him and capture any nuance (e.g. how AU/LS/FT trade off
-   against each other in practice).
-2. Fill the §3 anchors table in `stocktake.md` and write the **Top 3 and what they
+1. **Show the ranking back and confirm it**, capturing the nuance the numbers lose —
+   how the top anchors trade off against each other in practice, and whether a
+   high-scoring anchor means what its label implies. Entrepreneurial creativity is the
+   one that most often misleads: it can read as "wants to found a company" when the real
+   signal is creative ownership, which the per-statement answers distinguish and the
+   average does not.
+2. **Fill the §3 anchors table** in `stocktake.md` and write the **Top 3 and what they
    mean for this search** paragraph.
+3. **The values exercise** is the same shape: group the selected values, rank the groups,
+   and write them to `stocktake.md` §3 "Personal values" and `criteria.yaml`
+   `preferences.values` / `preferences.culture`. Note which groups were selected but not
+   ranked rather than discarding them — an unranked group still rules a culture out.
 
-**Values exercise** (also completed 2026-09-09) — his selected values, grouped and
-ranked top four: (1) Creativity, Curiosity, Innovation, Vitality · (2) Family,
-Flexibility · (3) Ambition, Achievement, Challenge · (4) Accountability, Honesty,
-Professionalism. Two more groups selected but not ranked: Decisiveness; Tolerance,
-Wisdom. These are in `stocktake.md` §3 "Personal values" and `criteria.yaml`
-`preferences.values` / `preferences.culture`. Confirm and update if he's redone it.
-
-The 8 anchors, with one-line definitions to prompt him:
+The 8 anchors, with one-line definitions to prompt with:
 
 | Anchor | It's your anchor if… |
 |---|---|
@@ -196,7 +191,7 @@ memory (UK or 100% remote only), and `2026-09-08-my-goals.md`.
 - `weighted_motivators` — **the decision matrix**. Draft 8–12 motivators from
   `ideal-job-notes.md` (deep work, creating projects from scratch, customer-facing
   / evangelist, open source & open data, data storytelling, teaching, hands-on
-  building, mission alignment, …). Ask him to weight each **1–5** (5 = critical).
+  building, mission alignment, …). Ask them to weight each **1–5** (5 = critical).
   Drop anything he weights 1.
 
 Write valid YAML. Set `last_updated` to today. Lists of scalars inline
@@ -208,7 +203,7 @@ Write valid YAML. Set `last_updated` to today. Lists of scalars inline
 ## Step 6 — `stocktake.md` §5 · Summary
 
 Once §§1–4 and `criteria.yaml` are done, draft the **capabilities and career
-objectives** statement — 2–3 short paragraphs synthesising: what he's proven he can
+objectives** statement — 2–3 short paragraphs synthesising: what they have proven they can
 do, the anchors and motivators that must be satisfied, and the realistic shape of
 the next role (type, level, sector, working style). Show it, refine, write it.
 
@@ -219,7 +214,7 @@ the next role (type, level, sector, working style). Show it, refine, write it.
 1. Update the header of `stocktake.md`: `**Status:**` → `in progress` or `complete`
    (complete only when no `_(not started)_` remains), `**Last updated:**` → today.
 2. Print a short summary: which sections were filled this session, which remain.
-3. Remind him of any deferred items.
+3. Remind them of any deferred items.
 4. **If `<DATA>/jobs/targets/` is empty**, offer to define the target areas now — §6
    has just been written, which is what they are derived from. Without them `scan`
    still runs and scores every posting against nothing, silently. Follow

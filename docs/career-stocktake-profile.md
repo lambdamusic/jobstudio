@@ -36,7 +36,7 @@ unless explicitly revisited.
 | §1 Career so far | Roles/orgs/cultures enjoyed vs. disliked, and why |
 | §2 What I can offer | Six significant achievements (what happened, circumstances, motivation, value added), specialist/transferable/day-to-day skills, USPs, and areas of less success + lessons |
 | §3 Career anchors & values | Schein's 8 anchors, scored from a questionnaire done outside the chat; the values exercise, also done outside the chat |
-| §4 Career stage | Which of the 10-stage ladder he's at now, which is next, and how big that jump is |
+| §4 Career stage | which of the 10-stage ladder the user is at now, which is next, and how big that jump is |
 | §5 Summary | 2–3 paragraph synthesis: proven capability + anchors/motivators that must be satisfied + realistic shape of the next role |
 
 Two of the §3 inputs are genuinely completed outside the interview and only
@@ -48,11 +48,12 @@ Snappy-compressed `.iwa` Pages file; the Step 2 groupings live in one `DataList`
 inside it). Both were done 2026-09-09 and are re-read only if the user says they have redone
 them.
 
-His anchors, as transcribed: **Autonomy** and **Lifestyle** tied top (6.2), **Technical
-/ functional competence** third (5.4), **General managerial competence** last (3.2) —
-read together, this is the concrete evidence behind "not a full-time manager" showing
-up everywhere else in the pipeline (CV framing, cover-letter voice, the Fit check in
-gap analyses).
+The transcribed ranking is the concrete evidence the rest of the pipeline leans on:
+where someone's anchors put *general managerial competence* relative to *technical /
+functional competence* is what turns "not a full-time manager" from a preference into a
+documented constraint, and that then shows up in CV framing, cover-letter voice and the
+Fit check in gap analyses. The results themselves live in the data root, with the
+questionnaire they came from — this file describes the mechanism, not one person's scores.
 
 ## `criteria.yaml` — the same material as scoring inputs
 

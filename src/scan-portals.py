@@ -31,6 +31,7 @@ import argparse
 import dataclasses
 import json
 import re
+import sys
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -200,6 +201,7 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
             jobs = []
             total = None
             offset = 0
+            unusable = 0
             while True:
                 resp = client.post(
                     f"https://{tenant}.{wd}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
@@ -213,17 +215,33 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 postings = data.get("jobPostings", [])
                 if not postings:
                     break
-                jobs.extend(
-                    {
-                        "title": j["title"],
-                        "url": f"https://{tenant}.{wd}.myworkdayjobs.com/{site}{j.get('externalPath', '')}",
+                # A Workday board can return a posting carrying only `bulletFields` — no
+                # title, no externalPath, nothing to link to. Found 2026-10-01 on a real
+                # board, one such row among 125: `j["title"]` raised KeyError, the generic
+                # handler at the end of this function turned it into "unexpected response
+                # shape", and the whole company came back NOT SCANNED. Losing 124 usable
+                # postings to one unusable row is the wrong trade, and blaming the response
+                # shape when 124 of 125 rows parsed sends you looking in the wrong place.
+                #
+                # So skip what cannot be used and count it — never silently, which is
+                # `#44`'s lesson: a row dropped with no number beside it is
+                # indistinguishable from a row that was never there.
+                for j in postings:
+                    title, path = j.get("title"), j.get("externalPath")
+                    if not title or not path:
+                        unusable += 1
+                        continue
+                    jobs.append({
+                        "title": title,
+                        "url": f"https://{tenant}.{wd}.myworkdayjobs.com/{site}{path}",
                         "location": j.get("locationsText", "unknown"),
-                    }
-                    for j in postings
-                )
+                    })
                 offset += page_size
                 if (isinstance(total, int) and offset >= total) or len(jobs) >= MAX_RESULTS_PER_COMPANY:
                     break
+            if unusable:
+                print(f"  NOTE: {tenant}/{site} returned {unusable} posting(s) with no "
+                      f"title or path — skipped, {len(jobs)} usable", file=sys.stderr)
             truncated_total = total if isinstance(total, int) and total > len(jobs) else None
             return jobs, truncated_total
 
