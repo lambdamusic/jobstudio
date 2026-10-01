@@ -10,6 +10,9 @@ there are two very different questions people arrive with.
 You drive this toolkit by talking to a Claude Code session opened in it. Every task has
 a command; none of them require reading any Python.
 
+- **[screenshots.md](screenshots.md)** — **start here if you just want to see it.** A
+  captioned tour of every page of the web app, shot against the example data. No setup
+  required to read it.
 - **[getting-started.md](getting-started.md)** — installing it, signing in, the web
   app, the configuration files, and the checks to run if you are changing the code. The
   [README](../README.md#quick-start)'s quick start is the short version; this is

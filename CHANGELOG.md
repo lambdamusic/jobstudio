@@ -4,6 +4,45 @@ Dated entries, newest first.
 
 ## 2026-10-01
 
+- **`docs/screenshots.md`** — a captioned tour of every page of the web app, shot
+  against the example data, so the toolkit can be understood without installing it. The
+  intro animation was the only visual before this, and an animation cannot be linked to
+  a paragraph or read at your own pace. Each caption says why a page is built the way it
+  is rather than labelling it, and the charts get their edge cases written down — the
+  Sankey's two toggle modes answer different questions, the donut's `watching` slice
+  covers both never-applied-to and tried-and-finished, and status-over-time is stock
+  where the dashboard's activity chart is events.
+
+  No company is named anywhere in the captions. That is a guard, not a style choice:
+  `make-public-tree --check` greps prose against every company in the author's real
+  tracker, and the example set shares plausible names with it.
+
+- **Re-encoded the intro animation**, 16.3 MB to 5.3 MB with no frames cut. The recorder
+  had written every frame as a full-size image with its own local colour table, so
+  `gifsicle -O3` alone — pure inter-frame delta and crop, no quality loss — took off more
+  than half; `--colors 64` took the rest. Stopped there deliberately: at 32 colours the
+  body text picks up dithering noise and the donut chart's grey segment shifts green,
+  which is a poor trade in a recording whose job is partly to show the charts off.
+  `--lossy` is worthless on flat UI — `--lossy=80` saved 0.1 MB.
+
+  It is still larger than the GIF it replaces (3.7 MB) purely because it runs 80s against
+  46s. Per second it is the more efficient recording: 66 KB/s against 80 KB/s.
+
+- **`tools/run-demo`** — the web app on the repo's example data, for screen recordings
+  and for showing someone the tool without showing them a real job search. It copies
+  `example-data/` into a throwaway root, loads the fixture and serves that on port 8011,
+  so one command replaces the six-step incantation this previously took.
+
+  Two details are load-bearing. It builds a *copy* rather than using `example-data/`
+  itself, because `migrate` would turn the tracked 0-byte `db.sqlite3` placeholder into
+  a real database sitting in the working tree — the same reason
+  `tools/build-example-fixture` works in a temp root. And it only ever passes
+  `$JOBSTUDIO_DATA` for its own process, never writing the pointer file, which is what
+  separates it from `init --from-example`: that gets you the same data by repointing the
+  checkout, so it replaces the data root you were using. `run-demo` is safe to run
+  mid-session on a real setup. A marker file guards the `rm -rf`, so a mistyped
+  `$JOBSTUDIO_DEMO_ROOT` costs an error message rather than a job search.
+
 - **`jobsdb.py update-company`** (`#41`), so changing a tracked company no longer means
   the Django admin. Creating one had a CLI; changing one did not — fine for a person, and
   wrong for an agent, which is how every other tracker write happens. Only the flags you
