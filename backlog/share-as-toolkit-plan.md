@@ -1403,6 +1403,18 @@ session never reached.**
   is working as designed; what is missing is the toolkit saying so itself rather than
   relying on the agent to notice. Raised as `#62`.
 
+**The history is not being rewritten — Michele's call, 2026-10-01.** Removing the results
+from `HEAD` does not remove them from the repository, and anyone who cloned already has
+them. A `filter-repo` pass plus a force-push would scrub the blobs at the cost of
+invalidating every clone and breaking the commit hashes `backlog/`, `log/` and the
+changelog reference as this project's decision record — an incomplete fix paid for with
+the thing that makes that record checkable. **So the exposure is accepted knowingly, and
+nobody should propose a rewrite on the strength of rediscovering it.** The residual risk,
+stated rather than filed away: psychometric data about a named individual remains in the
+public history of a repo that will be linked from a CV. What changed is that a reader of
+the current tree does not meet it, and a second person running `stocktake` is no longer
+handed it as their own starting point.
+
 **What it did not cover.** One person, one CV, one afternoon, and a CV about a decade out
 of date — so nothing here speaks to a CV in an unusual shape, a non-UK job search, or what
 someone does when they disagree with the toolkit's suggestions. The pass is closed, not

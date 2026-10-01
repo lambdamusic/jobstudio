@@ -237,3 +237,29 @@ mention it twice. That is `#62`: the fix is honesty in the output, not better sc
 afternoon, and a CV about a decade out of date. Nothing in it speaks to a CV in an unusual
 shape, a job search outside the UK, or what someone does when they disagree with what the
 toolkit suggests. The pass is closed. It is not exhausted.
+
+
+## The history is not being rewritten — decided 2026-10-01
+
+Stripping the results from `HEAD` does not remove them from the repository. `git log -p`
+on either file still carries them, and anyone who cloned in the ten days or so since the
+repo was cut has them on disk. **Michele's call: accept it as published, do not rewrite
+history.**
+
+Recording it because the alternative is attractive and wrong to reach for later. A
+`filter-repo` pass plus a force-push would scrub the blobs, and it would also invalidate
+every existing clone, break any commit hash referenced from `backlog/`, `log/` or the
+changelog — which this project leans on heavily as its decision record — and still not
+recall a copy anyone already has. Rewriting public history buys an incomplete fix at the
+cost of the thing that makes this repo's own documentation checkable.
+
+So the data stays in the history deliberately, not by oversight. **Nobody should propose a
+rewrite on the strength of rediscovering this later**: the exposure is understood, the
+decision was made by the person whose data it is, and the useful work — getting it out of
+`HEAD`, and making the guard refuse the whole class so it cannot recur — is done.
+
+The residual risk is worth stating plainly rather than filed away as closed: career
+anchors and ranked personal values are psychometric data about a named individual, they
+are in the public history of a repo that will be linked from a CV, and nothing above
+changes that. What changes is that a reader of the current tree does not meet them, and a
+second person running `stocktake` is no longer handed them as their own starting point.
