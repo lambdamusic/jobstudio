@@ -3494,6 +3494,108 @@ class ScanConfigTests(TestCase):
         self.assertIn(sc.default_area(), {a.stem for a in Path(settings.TARGETS_DIR).glob("*.yaml")},
                       "default_area must name a real target area")
 
+    def _criteria_root(self, criteria):
+        """A throwaway data root whose criteria.yaml is exactly `criteria`."""
+        import tempfile
+
+        import yaml as _yaml
+
+        root = Path(tempfile.mkdtemp())
+        (root / "jobs" / "profile").mkdir(parents=True)
+        (root / "jobs" / "targets").mkdir(parents=True)
+        if criteria is not None:
+            (root / "jobs" / "profile" / "criteria.yaml").write_text(_yaml.safe_dump(criteria))
+        return root
+
+    def test_the_ideal_job_score_knows_when_it_has_nothing_to_score_against(self):
+        """`#62`. On a fresh data root `criteria.yaml` is a draft with no motivators, so
+        every Ideal-Job Score comes back low whatever the role — the empty profile
+        talking, not the postings. The number renders beside the Area Score in the same
+        column shape, so it has to be able to say it is not ready."""
+        import config
+
+        sc = self._scan_config()
+        orig = config.data_root
+        try:
+            for label, criteria, ready in [
+                ("no file at all", None, False),
+                ("file with nothing in it", {}, False),
+                ("dealbreakers but no motivators",
+                 {"hard_filters": {"exclude": ["pure people-management"]}}, False),
+                ("motivators present",
+                 {"weighted_motivators": [{"name": "hands-on", "weight": 5}]}, True),
+            ]:
+                with self.subTest(case=label):
+                    root = self._criteria_root(criteria)
+                    config.data_root = lambda root=root: root
+                    self.assertEqual(sc.ideal_score_inputs()["ready"], ready)
+        finally:
+            config.data_root = orig
+
+    def test_dealbreakers_alone_do_not_make_the_score_ready(self):
+        """Dealbreakers can only push a score down; they never establish that a role is
+        wanted. So a profile carrying only those is still not something to rank on, and
+        `check` says which part is missing rather than only that something is."""
+        import config
+
+        sc = self._scan_config()
+        orig = config.data_root
+        try:
+            root = self._criteria_root({"hard_filters": {"exclude": ["backstage pipeline work"]}})
+            config.data_root = lambda: root
+            inputs = sc.ideal_score_inputs()
+            self.assertEqual(inputs["dealbreakers"], 1)
+            self.assertEqual(inputs["motivators"], 0)
+            self.assertFalse(inputs["ready"])
+            messages = [m for _, m in sc.check(targets=root / "jobs" / "targets",
+                                               tracked_categories=[], tracked_companies=[])]
+            self.assertTrue(any("weighted_motivators" in m for m in messages), messages)
+        finally:
+            config.data_root = orig
+
+    def test_the_report_warns_at_the_top_when_the_ideal_score_is_not_ready(self):
+        """`#62`. The banner is the whole fix, so it has to appear before the tables and
+        say the two things a reader cannot work out from the column: that the number is
+        about the empty profile rather than the role, and that the Strong-matches cut is
+        on the combined score, so the bar has moved too."""
+        import importlib
+        import config
+        import scan_report
+
+        orig = config.data_root
+        try:
+            root = self._criteria_root({"weighted_motivators": []})
+            (root / "jobs" / "scans").mkdir(parents=True)
+            config.data_root = lambda: root
+            importlib.reload(scan_report)
+
+            c = scan_report.Candidate(
+                company="Acme", title="Developer Advocate", url="https://example.com/1",
+                role_target="Developer Advocate", area="developer-advocacy",
+                category="Developer tools", location="London, UK")
+            c.cv_score, c.ideal_score, c.location_category, c.notes = 5, 2, "uk", "Note."
+            out = scan_report.write_report(
+                scanned_count=1, not_scanned=[], matches=[c], discarded_by_location=[],
+                needs_review=[], no_roles=[], total_found=1, total_skipped_dedup=0,
+                coverage_notes=[], prefiltered={}, location_prefiltered={})
+            text = out.read_text()
+
+            self.assertIn("not yet meaningful", text)
+            self.assertIn("stocktake", text)
+            self.assertIn("combined", text, "the ranking consequence must be stated")
+            self.assertLess(text.index("not yet meaningful"), text.index("## Strong matches"),
+                            "the warning has to come before the tables, not after")
+        finally:
+            config.data_root = orig
+            importlib.reload(scan_report)
+
+    def test_the_example_profile_is_ready_so_no_banner_is_shown(self):
+        """The shipped example must not carry the warning — a newcomer meeting it would
+        reasonably read the example as broken (`#64`'s lesson, one file over)."""
+        sc = self._scan_config()
+        self.assertTrue(sc.ideal_score_inputs()["ready"],
+                        "example-data's criteria.yaml should have weighted_motivators")
+
     def test_every_mapped_area_exists(self):
         """A category pointing at a missing target area scores against nothing."""
         sc = self._scan_config()

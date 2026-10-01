@@ -4,6 +4,31 @@ Dated entries, newest first.
 
 ## 2026-10-01
 
+- **A scan before `stocktake` says its Ideal-Job Scores are not meaningful yet** (`#62`).
+  That column scores a posting against what the person wants, which lives in
+  `criteria.yaml` — and `init` leaves that a draft, so on a fresh data root every score
+  came back low whatever the role. It rendered beside the Area Score in the same column
+  shape, so it read as a measurement rather than as an absence.
+
+  The report now opens with a banner when the profile has nothing to score against, above
+  the tables rather than after them, and it names the consequence for the *ranking* as
+  well as the column: the Strong-matches cut is on the combined score, so with one half
+  flat the bar is effectively Area Score plus a constant — the ordering within a bucket
+  holds, where the line falls does not. `scan_config.py --check` warns on the same
+  condition, and `subcommands/scan.md` tells the agent-native path to say it too rather
+  than leaving the banner as the only source.
+
+  **`init` now states what skipping `stocktake` costs**, in those terms: a scan run before
+  it will sort the right roles into the wrong buckets. It was previously a next step
+  mentioned in passing, which reads as optional tidying. Dealbreakers alone do not make
+  the score ready — they can push a score down but never establish that a role is wanted.
+
+- **`smoke-test` counted the example's applications from the fixture** instead of
+  hardcoding three. The literal had been right until `#64` took the example to ten, and
+  the way it failed is worth recording: `smoke-test` clones HEAD, so a run *before*
+  committing tests the previous fixture and passes. A hardcoded count there does not just
+  go stale — it reports PASS for the previous state of the thing it checks.
+
 - **The example data exercises the app now, instead of just populating it** (`#64`). It
   held three applications and three status changes — one each, all `"" → current`, all
   stamped at the same second — so nothing had ever moved and every chart that measures

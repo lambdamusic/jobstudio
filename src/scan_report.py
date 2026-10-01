@@ -199,6 +199,39 @@ def write_report(
     today = date.today().isoformat()
     lines = [f"# Portal Scan — {today}", ""]
 
+    # `#62`. The Ideal-Job Score compares a posting to what the person wants, which lives
+    # in `criteria.yaml`. With no `weighted_motivators` there is nothing to compare it
+    # with, so every score comes back low — and it renders beside the Area Score in the
+    # same column shape, which reads as a measurement rather than as an absence. Said here,
+    # at the top, rather than left to whoever is driving the scan to notice and mention:
+    # the second-person install pass (`#2` M1.8) only caught it because that session
+    # happened to say so twice, unprompted.
+    #
+    # The ranking is affected too, not just the column, so the note has to say that. The
+    # Strong-matches cut is on the COMBINED score, so a flat Ideal-Job Score makes the
+    # threshold effectively "Area Score plus a constant" — the order is still useful, the
+    # bar is not where it looks.
+    ideal = scan_config.ideal_score_inputs()
+    if not ideal["ready"]:
+        missing = ("There is no `jobs/profile/criteria.yaml`"
+                   if not ideal["exists"] else
+                   "`jobs/profile/criteria.yaml` has no `weighted_motivators`")
+        lines += [
+            "> **The Ideal-Job Scores in this report are not yet meaningful.** "
+            f"{missing}, so there is nothing for them to be scored against and they all "
+            "come back low — that is the empty profile talking, not the roles. "
+            "**Read the Area Score column and ignore the Ideal-Job one for now.**",
+            ">",
+            "> It also moves the bar: the Strong-matches cut is on the *combined* score, "
+            "so with one half flat it is effectively Area Score plus a constant. The "
+            "ordering within a bucket still holds; where the line falls does not.",
+            ">",
+            "> Run `/jobstudio stocktake` and scan again — it is the step that makes this "
+            "column mean something, and it changes the ranking rather than just adding a "
+            "number.",
+            "",
+        ]
+
     strong = sorted((c for c in matches if c.combined_score >= STRONG_THRESHOLD),
                      key=lambda c: c.combined_score, reverse=True)
     other_matches = sorted((c for c in matches if c.combined_score < STRONG_THRESHOLD),

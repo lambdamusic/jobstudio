@@ -52,8 +52,18 @@ ok "checkout wired: pointer + tools/py"
 
 # The real question: does the toolkit run against a data root it has never seen?
 STATUS="$("$REPO/tools/py" "$REPO/src/jobsdb.py" status 2>&1)" || { echo "$STATUS"; fail "status failed"; }
-echo "$STATUS" | grep -q "3 applications tracked" || { echo "$STATUS"; fail "status did not report the 3 example applications"; }
-ok "status runs and sees the example data"
+# Counted from the fixture rather than hardcoded. It was hardcoded to 3 until 2026-10-01,
+# when `#64` took the example to ten applications and this check started failing one commit
+# later than the change — because smoke-test clones HEAD, so a run before committing tests
+# the OLD fixture and passes. A literal here does not just go stale, it reports PASS for the
+# previous state of the thing it is meant to be checking.
+WANT_APPS="$("$PY" - "$REPO/example-data/backups/django/dump.json" <<'PYCOUNT'
+import json, sys
+print(sum(1 for o in json.load(open(sys.argv[1])) if o["model"] == "tracker.application"))
+PYCOUNT
+)"
+echo "$STATUS" | grep -q "$WANT_APPS applications tracked" || { echo "$STATUS"; fail "status did not report the $WANT_APPS example applications"; }
+ok "status runs and sees the example data ($WANT_APPS applications)"
 
 JOBSTUDIO_DATA="$DATA" SMOKE_REPO="$REPO" "$PY" - <<'PYRENDER' || fail "docx render failed"
 import sys, os

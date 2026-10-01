@@ -150,6 +150,47 @@ def company_overrides() -> dict[str, dict]:
     return _mapping("company_overrides")
 
 
+def criteria_path() -> Path:
+    """`jobs/profile/criteria.yaml` — the machine-readable half of the stocktake."""
+    return config.data_root() / "jobs" / "profile" / "criteria.yaml"
+
+
+def ideal_score_inputs() -> dict:
+    """What the Ideal-Job Score has to score against, and whether there is any of it.
+
+    The Area Score compares a posting to a target-area profile; the Ideal-Job Score
+    compares it to what the person actually wants, which lives in `criteria.yaml` —
+    `weighted_motivators`, `hard_filters.exclude`, and the salary floor. On a fresh data
+    root that file is a draft with none of them, and the consequence is `#62`: every
+    Ideal-Job Score comes back low, not because the roles are poor fits but because there
+    is nothing to compare them with. The number renders beside the Area Score in the same
+    column shape, so it reads as a measurement.
+
+    `ready` is False when a scan would produce that. Returns the counts too, so a report
+    or a check can say which part is missing rather than only that something is.
+    """
+    path = criteria_path()
+    out = {"exists": path.is_file(), "motivators": 0, "dealbreakers": 0,
+           "has_salary_floor": False, "ready": False}
+    if not out["exists"]:
+        return out
+    try:
+        data = yaml.safe_load(path.read_text()) or {}
+    except yaml.YAMLError:
+        return out
+    if not isinstance(data, dict):
+        return out
+    out["motivators"] = len(data.get("weighted_motivators") or [])
+    hard = data.get("hard_filters") or {}
+    out["dealbreakers"] = len(hard.get("exclude") or []) if isinstance(hard, dict) else 0
+    out["has_salary_floor"] = bool(isinstance(hard, dict) and hard.get("salary_min"))
+    # Motivators are what the score is mostly built from, so they are the one that
+    # decides this. Dealbreakers alone can only push a score down, never establish that
+    # a role is wanted.
+    out["ready"] = out["motivators"] > 0
+    return out
+
+
 def known_unsupported() -> dict[str, str]:
     """Company name → why it isn't scanned, for companies confirmed on a specific ATS
     with no fetcher built. Gives a precise reason in the report instead of the generic
@@ -241,6 +282,28 @@ def check(*, targets: Path | None = None, tracked_categories: list[str] | None =
         for category in sorted(set(mapping) - set(tracked_categories)):
             results.append((WARN, f"category_to_area names '{category}', which is not a "
                                   "tracked category — a rename, or a typo."))
+
+    # The other half of a scan that looks like it worked (`#62`). Everything above is
+    # about the Area Score having something to compare against; this is the same question
+    # for the Ideal-Job Score, and it fails the same way — a number with nothing behind it
+    # rather than an absence.
+    inputs = ideal_score_inputs()
+    if not inputs["exists"]:
+        results.append((WARN, "no jobs/profile/criteria.yaml — the Ideal-Job Score has "
+                              "nothing to score against. Run `/jobstudio stocktake`."))
+    elif not inputs["ready"]:
+        results.append((WARN, "criteria.yaml has no weighted_motivators — every Ideal-Job "
+                              "Score will come back low whatever the role, and the report "
+                              "says so. Run `/jobstudio stocktake` to fill it in."))
+    else:
+        missing = []
+        if not inputs["dealbreakers"]:
+            missing.append("no hard_filters.exclude")
+        if not inputs["has_salary_floor"]:
+            missing.append("no salary floor")
+        detail = f" ({', '.join(missing)})" if missing else ""
+        results.append((OK, f"Ideal-Job Score has {inputs['motivators']} weighted "
+                            f"motivator(s) to score against{detail}."))
 
     return results
 

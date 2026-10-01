@@ -42,7 +42,9 @@ that is welcome rather than nagging.
 
 `stocktake` is where the depth really gets captured, so it is fine for `init` itself to
 stay brisk — but say that `stocktake` is coming and why, rather than leaving it as a
-suggestion at the end that reads as optional.
+suggestion at the end that reads as optional. The concrete version of "why" is in
+**Afterwards** below and is worth previewing here: without it, half of every scan's
+ranking is missing, and the half that is missing does not announce itself.
 
 ## Ask first
 
@@ -447,3 +449,24 @@ Confirm it worked by running `/jobstudio status`, then say what is next: `stockt
 for an empty start (and then seeding the tracker, above), or just browsing for the
 example. Mention that `tools/smoke-test` re-runs the whole thing from a clean clone if
 they ever want to check the install.
+
+**Say plainly that skipping `stocktake` degrades `scan`, and say how.** Not as a
+suggestion to be thorough — as a fact about what the next scan will produce:
+
+- Every posting gets **two** scores. The **Area Score** compares it to a target-area
+  profile and works from the moment those files exist. The **Ideal-Job Score** compares
+  it to what the person actually wants, which lives in `criteria.yaml` — and `init`
+  leaves that a draft with no `weighted_motivators`, so until `stocktake` runs **every
+  Ideal-Job Score comes back low whatever the role**.
+- That is not a smaller version of the right answer, it is half the ranking missing. The
+  Strong-matches cut is on the *combined* score, so with one half flat the bar is
+  effectively Area Score plus a constant — a scan run now will **sort the right roles
+  into the wrong buckets**, and nothing in the table shows which half is doing the work.
+  The report carries a banner saying so (`#62`), which is a warning label, not a fix.
+- So: `stocktake` is **before the first scan worth acting on**, not a later refinement.
+  A scan now is a demo — fine, and worth running to see the machinery work, as long as
+  they know that is what they are looking at.
+
+Do not soften this into "for best results". The failure is silent and it looks like
+output, which is exactly the class of thing this toolkit says out loud rather than
+leaving a user to infer from a column of threes.

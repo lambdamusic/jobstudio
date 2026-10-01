@@ -139,6 +139,22 @@ Scoring ends with four fields per candidate (`cv_score`, `ideal_score`,
 `location_category`, `notes`), written directly onto each candidate object. `notes` is
 where the reasoning goes, e.g. naming a dealbreaker or bonus signal spotted.
 
+**The Ideal-Job Score needs `criteria.yaml` to mean anything, and says so when it does
+not.** The two scores have different dependencies: the Area Score needs a target-area
+file, and the Ideal-Job Score needs `jobs/profile/criteria.yaml` —
+`weighted_motivators` above all. `init` leaves that file a draft, so on a fresh data
+root every Ideal-Job Score comes back low whatever the role. That is the empty profile
+talking, not the postings.
+
+Since it renders beside the Area Score in the same column shape, it reads as a
+measurement, which is why the report now opens with a banner when
+`scan_config.ideal_score_inputs()` reports the profile is not ready, and why
+`scan_config.py --check` warns on it. The banner names the consequence for the ranking
+as well as the column: the Strong-matches cut below is on the **combined** score, so
+with one half flat the bar is effectively Area Score plus a constant — the ordering
+within a bucket survives, the position of the line does not. `/jobstudio stocktake` is
+the fix, and it belongs before the first scan anyone acts on.
+
 ## 4. Bucketing the results
 
 Area Score + Ideal-Job Score, summed, against `STRONG_THRESHOLD` (currently 7), decides

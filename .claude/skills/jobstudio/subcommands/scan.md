@@ -72,6 +72,20 @@ promote anything worth pursuing.
    describes). Write the whole updated structure — context sections unchanged,
    candidates now scored — to `<DATA>/jobs/scans/YYYY-MM-DD-scored.json`.
 
+   **If `criteria.yaml` has no `weighted_motivators`, say so when you hand the report
+   over** (TODO `#62`). Still score — a low `ideal_score` with a note saying what could
+   not be judged is more useful than a blank — but the number is then about the empty
+   profile rather than the role, and the person reading it cannot tell those apart from
+   the column. `scan_report.py` puts a banner at the top of the report saying this, so
+   you are reinforcing it rather than being its only source; **do not leave it to the
+   banner alone**, because the point of failure is a reader who skims to the table.
+
+   Name the consequence for the *ranking*, not just the column: the Strong-matches cut
+   is on the combined score, so with one half flat the bar is effectively Area Score
+   plus a constant. Then point at `/jobstudio stocktake` as the fix, and say it changes
+   the ordering rather than merely filling in a blank — otherwise it reads as optional
+   tidying.
+
    **Opt-in — `--api`:**
    ```bash
    tools/py src/score-candidates.py --candidates <DATA>/jobs/scans/YYYY-MM-DD-candidates.json

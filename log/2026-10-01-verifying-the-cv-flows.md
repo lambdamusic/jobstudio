@@ -337,3 +337,50 @@ rendering the pages. Eight status-to-status ribbons, five charts drawing, the ba
 note reading "1 of 17 transitions runs backwards and is not shown", three of five ageing
 bands populated with one flagged stale, and none of the four "cannot draw" messages present
 anywhere on `/stats/`.
+
+
+## `#62`, and a check that was passing for the wrong reason
+
+The last finding from the second-person pass. A scan on a fresh data root gives every
+posting an Ideal-Job Score of three or less, because that column scores against
+`criteria.yaml` and `init` leaves it a draft with no motivators. The scores render beside
+the Area Scores in the same column shape, so they read as measurement. In the pass the
+agent caught it and explained it twice unprompted — the system working by luck rather
+than by design.
+
+Fixed as honesty in the output rather than as better scoring, in four places so that it
+does not depend on whoever drives the scan noticing: a readiness function in
+`scan_config`, a banner above the tables in the report, a warning in
+`scan_config.py --check`, and an instruction in `subcommands/scan.md` to say it as well
+rather than relying on the banner. The banner names the thing a reader could not possibly
+infer from a column of twos: the Strong-matches cut is on the *combined* score, so with
+one half flat the bar is effectively Area Score plus a constant. The ordering within a
+bucket survives; the position of the line does not. One half of the ranking being absent
+is not a smaller version of the right answer.
+
+`init` now says what skipping `stocktake` costs, in those terms rather than as a
+suggestion to be thorough — a scan run now will sort the right roles into the wrong
+buckets — with an explicit instruction in the skill not to soften it into "for best
+results". Dealbreakers alone deliberately do not count as readiness: they can push a
+score down, never establish that a role is wanted.
+
+### The check that was passing for the wrong reason
+
+Then `tools/smoke-test` failed: *"status did not report the 3 example applications"*. It
+greps for a hardcoded `3 applications tracked`, and `#64` had taken the example to ten.
+
+The part worth recording is not the stale literal, it is *when* it failed. **I reported
+SMOKE PASS on the `#64` commit, and it was true and meaningless.** `smoke-test` runs
+against a fresh clone, which contains only committed files — so running it before
+committing tested the *previous* fixture, which still had three applications. The check
+passed by describing a state the working tree had already left. One commit later, with
+nothing else changed, it failed.
+
+A hardcoded count in a test that reads from a clone does not merely go stale. It reports
+PASS for the previous state of the thing it is checking, and it does so at exactly the
+moment you are looking for reassurance that a change was safe. The count now comes from
+the fixture file, so it cannot drift, and the comment says why rather than just what.
+
+That is the same shape as the nine tests `#64` broke, one layer out: a check whose
+precondition was supplied for free by something that was always going to change, in a way
+that made the check agree with whatever that thing used to be.
