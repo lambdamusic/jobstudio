@@ -128,10 +128,23 @@ Depth: **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)**.
 ```bash
 tools/run-dev-local-db            # http://127.0.0.1:8010, foreground until Ctrl-C
 tools/run-dev-local-db 8020       # if 8010 is busy
+tools/run-demo                    # the same app on example data, http://127.0.0.1:8011
 tools/site-build --clean          # render the whole site to <DATA>/site/
 tools/site-preview                # browse that build locally
 bash tools/publish-surge.sh       # site-build, then push to Surge
 ```
+
+`run-demo` is the one to reach for when the app is going to be *seen* — a screen
+recording, showing someone the tool, or eyeballing a UI change against data that looks
+the same on every machine. It copies `example-data/` into a throwaway root, loads the
+fixture, and serves that, so the app is fully populated with Alex Rivera and Grafana
+Labs while the real data root is never opened. `--keep` reuses the root from last time
+instead of rebuilding it.
+
+Note what it does *not* do: `/jobstudio init --from-example` also gets you an app full
+of example data, but it does it by repointing the checkout — so it replaces whatever
+data root you were using. `run-demo` passes `$JOBSTUDIO_DATA` for one process and leaves
+the pointer file alone, which is why it is safe to run mid-session on a real setup.
 
 Django management commands, run as `tools/py src/web/manage.py <name>`:
 
