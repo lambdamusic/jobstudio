@@ -4,10 +4,11 @@ An agent-native job-search toolkit: track companies, log applications, tailor a 
 role, draft cover letters, and scan ATS job boards for new postings — driven end to end
 from a Claude Code session, with a local Django web app for browsing.
 
-![A tour of the jobstudio web app: the dashboard, a tracked company's research notes, and the target areas behind each CV variant](docs/images/quick-intro.gif)
+![A tour of the jobstudio web app: the dashboard, the applications list, an application with its tailored CV, the target areas behind each CV, the charts on the stats page, and the two base CVs](docs/images/quick-intro.gif)
 
 *The web app, running against the bundled example job search — so this is exactly what
-you get from `--from-example`, before putting any of your own data in.*
+you get from `--from-example`, before putting any of your own data in. `tools/run-demo`
+brings up this same thing in one command, without touching a data root of your own.*
 
 ---
 
