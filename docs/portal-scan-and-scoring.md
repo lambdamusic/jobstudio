@@ -4,33 +4,18 @@ Part of the **[docs/](README.md)** guide collection. For *when* to run the scan,
 [workflow.md](workflow.md) — this is a deep dive into what `/jobstudio scan` /
 `src/scan-portals.py` actually does, step by step.
 
-Revised 2026-09-17: scoring is now a separate step from fetching, with two
-interchangeable paths — see `backlog/done/drop-direct-anthropic-api-plan.md` §2.
+Revised 2026-09-17: scoring is a separate step from fetching — see
+`backlog/done/drop-direct-anthropic-api-plan.md` §2.
 
 ```bash
 python src/scan-portals.py                                              # 1. fetch + pre-filter (mechanical, no API)
-# then either:
-#   default — the `scan` skill subcommand scores live, agent-native, no API call
-# or:
-python src/score-candidates.py --candidates jobs/scans/YYYY-MM-DD-candidates.json   # opt-in API scoring
-python src/scan_report.py --scored jobs/scans/YYYY-MM-DD-scored.json    # 3. render (mechanical, no API; skip if --api already did it)
+#                                                                       # 2. score — the `scan` skill subcommand, agent-native, no API call
+python src/scan_report.py --scored jobs/scans/YYYY-MM-DD-scored.json    # 3. render (mechanical, no API)
 ```
 
-`--api` needs `ANTHROPIC_API_KEY` in the environment — the one place in the toolkit that uses a key. `tools/env.sh` is a convention for holding it, not a shipped file: it is gitignored, so write your own (`export ANTHROPIC_API_KEY=...`) or export the variable however you normally do.
-
-It is read only by the opt-in `score-candidates.py`
-path — the default path needs no API key at all. Nothing from a scan is ever
-auto-written into the tracker — it only produces a report for you to review and act
-on manually via `/jobstudio company` / `/jobstudio application`.
-
-**Why two scoring paths instead of one:** agent-native scoring (the default) spends
-Claude Code session/rate-limit budget rather than API dollars — fine at today's scale
-(~20 candidates/run), but worth having a per-token-billed alternative as scan volume
-grows, or when session budget is tight, or for a fully headless/cron-able run
-(`scan-portals.py` → `score-candidates.py` chained needs no interactive session at
-all). Both paths score against the exact same rubric
-(`src/prompts/scan_score_rubric.md`) so methodology can't drift between them, and
-both produce output in the same shape that `scan_report.py` renders identically.
+No API key is involved anywhere in this. Nothing from a scan is ever auto-written into
+the tracker either — it only produces a report for you to review and act on manually
+via `/jobstudio company` / `/jobstudio application`.
 
 ---
 
@@ -114,19 +99,12 @@ mention the UK or "remote" anywhere.
 
 Only postings that survive step 2 reach here — as a separate step from fetching now,
 reading `jobs/scans/YYYY-MM-DD-candidates.json` rather than being wired directly into
-the fetch script. Two interchangeable paths, both applying the same rubric
-(`src/prompts/scan_score_rubric.md` — the canonical source, read directly by the
-agent path and `.format()`-ted by the API path):
+the fetch script. **Agent-native, no API call:** the `scan` skill subcommand reads the
+candidates file and the rubric (`src/prompts/scan_score_rubric.md` — the canonical
+source) directly and scores live, writing a `*-scored.json` file with the same shape
+plus four filled-in fields per candidate.
 
-- **Default — agent-native, no API call.** The `scan` skill subcommand reads the
-  candidates file and the rubric directly and scores live, writing a
-  `*-scored.json` file with the same shape plus four filled-in fields per candidate.
-- **Opt-in — `score-candidates.py --candidates <path>`.** Batched by area, in chunks
-  of 20 (`SCORING_CHUNK_SIZE`, to keep each response well under the token limit), one
-  `claude-sonnet-4-6` API call per chunk (`score_candidates()`). Needs
-  `ANTHROPIC_API_KEY` in the environment.
-
-Either way, each candidate is scored on **three independent dimensions**:
+Each candidate is scored on **three independent dimensions**:
 
 - **Area Score (1–5)** — purely role/domain/seniority match against the assigned area's
   target YAML: its `description`, `emphasis` bullets, and `key_terms`. Location is
@@ -136,9 +114,8 @@ Either way, each candidate is scored on **three independent dimensions**:
   customer-facing vs. backstage, autonomy, etc.), judged from title/role_target alone —
   the scorer never sees the full job description at this stage. Fed by two sources:
   - `jobs/notes/ideal-job-notes.md` — free-text notes on what makes a job satisfying.
-  - `jobs/profile/criteria.yaml` — the API path formats it via `load_criteria_block()`
-    (now in `score-candidates.py`); the agent path reads the YAML directly and applies
-    the same rules, spelled out in `scan_score_rubric.md`:
+  - `jobs/profile/criteria.yaml` — read directly, applying the rules spelled out in
+    `scan_score_rubric.md`:
     - **Dealbreakers** (`hard_filters.exclude`) — pull the score down hard (1–2), and
       the note must say so if a role clearly looks like one.
     - **Salary floor** (`hard_filters.salary_floor_gbp`) — flags a stated range that
@@ -158,10 +135,9 @@ Either way, each candidate is scored on **three independent dimensions**:
   into either 1–5 score. `remote` means genuinely globally remote, not restricted to a
   non-UK region.
 
-Either path ends up with the same four fields per candidate (`cv_score`, `ideal_score`,
-`location_category`, `notes`) — the API path as one compact JSON object per candidate
-in the model's response, the agent path written directly onto each candidate object.
-`notes` is where the reasoning goes, e.g. naming a dealbreaker or bonus signal spotted.
+Scoring ends with four fields per candidate (`cv_score`, `ideal_score`,
+`location_category`, `notes`), written directly onto each candidate object. `notes` is
+where the reasoning goes, e.g. naming a dealbreaker or bonus signal spotted.
 
 ## 4. Bucketing the results
 
@@ -218,3 +194,18 @@ renders whatever sections a given report actually contains.
 Nothing is ever auto-written to the tracker. The scan is purely advisory — a match,
 however high-scoring, only becomes an application when you (or Claude, on request) run
 `/jobstudio application` against it.
+
+## The legacy API scoring path
+
+`src/score-candidates.py` scores the same candidates file through the Anthropic API
+instead — batched by area in chunks of 20 (`SCORING_CHUNK_SIZE`), one call per chunk,
+against this same rubric, producing a `*-scored.json` of the same shape. It needs
+`ANTHROPIC_API_KEY` in the environment and is the only thing in the toolkit that reads a
+key. It exists because, before the default was agent-native, a fully headless run (cron,
+no interactive session) had nowhere else to go.
+
+**Legacy, and likely to be removed** (backlog `#52`). `claude setup-token` now prints a
+long-lived OAuth token that lets a non-interactive `claude -p` run do the ordinary
+agent-native scan on your own subscription, which removes the only reason this path was
+kept. Nothing else in the docs mentions it: treat it as unsupported, don't build on it,
+and expect it to go.

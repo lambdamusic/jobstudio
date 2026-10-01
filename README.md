@@ -21,9 +21,8 @@ you get from `--from-example`, before putting any of your own data in.*
   (`src/prompts/scan_score_rubric.md`); if the letters read like someone else, change
   the structure file (`references/cover-letter-structures.md`). Nobody else gets to
   decide what "a good match" means for your search.
-- **No API key needed.** Every default workflow runs inside your Claude Code session —
-  CV tailoring and scan scoring included. One opt-in path (`scan --api`, for scoring
-  headlessly from cron) wants an Anthropic key; nothing else does.
+- **No API key needed.** Every workflow runs inside your Claude Code session — CV
+  tailoring and scan scoring included. There is nothing to bill and no key to hold.
 - **Your data is yours, and separate.** Your CVs, applications, research and tracker
   live in a directory you choose, outside this repo. Nothing personal is ever committed
   here, and there is no account, no server and nothing phoning home.
@@ -52,9 +51,9 @@ you get from `--from-example`, before putting any of your own data in.*
 | **git** | To clone it |
 | **macOS or Linux** | Windows is out of scope: the `tools/` scripts are bash. It may work under WSL; nothing is built or tested for it |
 
-Optional, and only where you'd expect: **Chrome** for the opt-in PDF export, **surge**
-for publishing a private copy of the site, and an **Anthropic API key** for
-`scan --api`. None of them is needed for a normal install.
+Optional, and only where you'd expect: **Chrome** for the opt-in PDF export, and
+**surge** for publishing a private copy of the site. Neither is needed for a normal
+install.
 
 ## Quick start
 

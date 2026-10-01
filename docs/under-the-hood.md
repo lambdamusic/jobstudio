@@ -105,15 +105,8 @@ tools/py src/scan_report.py --scored <path>              # scored candidates -> 
 ```
 
 The fetch is mechanical and writes `jobs/scans/YYYY-MM-DD-candidates.json`. Scoring is
-normally done by the agent reading that file (no API call). The opt-in API path —
-for running a scan headlessly, from cron — is the one place an Anthropic key is used:
-
-```bash
-export ANTHROPIC_API_KEY=...      # or however you normally supply it
-tools/py src/score-candidates.py --candidates <path>
-```
-
-`--api` needs `ANTHROPIC_API_KEY` in the environment — the one place in the toolkit that uses a key. `tools/env.sh` is a convention for holding it, not a shipped file: it is gitignored, so write your own (`export ANTHROPIC_API_KEY=...`) or export the variable however you normally do.
+done by the agent reading that file against the rubric — no API call, and no key
+anywhere in the toolkit.
 
 `scan_sources.py` is the useful one when adding companies: it answers whether a careers
 URL resolves to a supported ATS *before* a row is written, rather than leaving you to

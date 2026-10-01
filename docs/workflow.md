@@ -34,8 +34,8 @@ per-company interview prep, not the career-profile-building exercise.
 
 | Phase | What you're doing | Main commands |
 |-------|-------------------|---------------|
-| **1. Prepare a CV** | Edit base files; tailoring per application now happens automatically when logging (Phase 3) — re-run it standalone only for a one-off; export to .docx | `/jobstudio cv [company or #N]` (agent-native, no API call — tailors the functional CV by default, `--base chronological` for the other base)<br>`/jobstudio render [company or #N]` |
-| **2. Scan for postings** | Rescan tracked companies for new open roles, scored for review | `/jobstudio scan` (fetches, then scores live — agent-native, no API call by default; `--api` for the opt-in API path) |
+| **1. Prepare a CV** | Edit base files; logging an application (Phase 3) copies one in mechanically, so tailor per application only when a role earns it; export to .docx | `/jobstudio cv [company or #N]` (agent-native, no API call — tailors the functional CV by default, `--base chronological` for the other base)<br>`/jobstudio render [company or #N]` |
+| **2. Scan for postings** | Rescan tracked companies for new open roles, scored for review | `/jobstudio scan` (fetches, then scores live — agent-native, no API call) |
 | **3. Log & work applications** | Log a role, set up its folder, refine notes + cover letter, finalise to .docx | `/jobstudio application [url or paste]` (or `#N` / company name to refresh)<br>`/jobstudio cover-letter [company or #N] [extra context]`<br>`/jobstudio render #N`<br>`/jobstudio company [name or url]` (track a new company) |
 | **3c. Interview prep** | Once an interview is scheduled — likely questions, STAR-grounded draft answers, questions to ask them | `/jobstudio interview [company or #N]` |
 | **3b. Review / edit** | Browse and change statuses | `tools/run-dev-local-db` → http://127.0.0.1:8010/ |
@@ -144,10 +144,8 @@ no longer where work with a home of its own goes.
 `/jobstudio scan` rescans every tracked company for new open roles, without writing to the tracker — it only surfaces candidates for you to review and decide on manually.
 
 Two steps behind one command: a mechanical fetch and pre-filter, then scoring. Scoring
-is done live by the agent reading the fetched candidates, with no API call — the
-alternative is `/jobstudio scan --api`, which bills a key instead and exists so the
-whole thing can run headlessly from cron. Both paths read the same rubric, so the
-methodology cannot drift between them. Running either step on its own:
+is done live by the agent reading the fetched candidates, against the rubric in
+`src/prompts/scan_score_rubric.md`. Running either step on its own:
 **[under-the-hood.md](under-the-hood.md#scanning-job-boards)**.
 
 **How the fetching, scoring and report work:** see
@@ -263,7 +261,7 @@ Once the CV variant and cover letter for an application are settled, render them
 /jobstudio render grafana-labs
 ```
 
-This finds the latest tailored CV and cover letter in the application's folder and renders both to `.docx`, straight into that application's `export/` subfolder, named by the application-folder convention. No API call — use the "After review" tailoring step in `application.md` first if the CV itself still needs regenerating.
+This finds the latest CV and cover letter in the application's folder and renders both to `.docx`, straight into that application's `export/` subfolder, named by the application-folder convention. No API call — run `/jobstudio cv [company or #N]` first if the CV is still the mechanical copy and this role deserves a tailored one.
 
 ### Using the local web app
 
