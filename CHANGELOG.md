@@ -22,13 +22,23 @@ Dated entries, newest first.
   planting a violation, and on its first real run it found the `docs/` copy the second
   person's session never reached.
 
-- **One malformed Workday posting no longer takes a whole company's scan down with it**
-  (`#63`). A board returned 125 postings, one carrying only `bulletFields` — no title, no
-  path — and reading `j["title"]` raised `KeyError`, which surfaced as "unexpected
-  response shape" and marked the company NOT SCANNED, discarding 124 usable postings. The
-  message was its own second problem: 124 of 125 rows parsed, so it sent you to inspect a
-  board that worked. Unusable rows are now skipped and counted, with a note naming the
-  tenant and the tally — counted, not silently dropped, per `#44`.
+- **No fetcher loses a whole company to one malformed row any more** (`#63`). All ten
+  read a title and a link out of someone else's JSON, and all ten did it with a hard
+  subscript, so one bad row raised `KeyError`, surfaced as "unexpected response shape"
+  and marked the company NOT SCANNED. A real Workday board did exactly that: 125
+  postings, one carrying only `bulletFields`, 124 usable ones discarded. The message was
+  its own second problem, since 124 of 125 rows parsed, so it sent you to inspect a board
+  that worked.
+
+  Every branch now funnels rows through one `_Postings` sink that skips what it cannot use
+  and **counts it** — per `#44`, because a row dropped with no number beside it is
+  indistinguishable from a row that was never there. It also closes a quieter hazard the
+  Workday fix had not: Ashby and Workable reached their URL through `.get()`, so a posting
+  with no link raised nothing at all and instead crashed later, in the caller's
+  `_normalize(j["url"])`. A test asserts no fetcher reads a posting field directly, and it
+  was proved by planting one and watching it fail. Verified live against Greenhouse,
+  Ashby, Workable, Workday and SmartRecruiters: 545 real postings, no malformed row
+  surviving.
 
 - **`cv --rebuild` reads both base CVs before it asks anything** (`#61`). The interview
   collected one set of facts and derived both files from it, on the documented assumption

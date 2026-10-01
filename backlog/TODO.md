@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #64 -->
+     Next available: #65 -->
 
 ## Architecture
 
@@ -38,7 +38,7 @@
 
   Fixed in `scan-portals.py`'s workday branch: a posting with no title or no path is skipped and **counted**, with a `NOTE` naming the tenant, how many were skipped and how many were usable. Counted rather than silently dropped because that is `#44`'s lesson — a row dropped with no number beside it is indistinguishable from a row that was never there. Verified against the live board (124 jobs where there had been none) and covered by a test that feeds the fetcher the exact three-posting shape, one good and two unusable.
 
-  Worth noting the other fetchers read `title` the same hard way; this one is fixed because it is the one a real board broke. The general lesson — a per-row parse failure should cost that row, not the company — applies to all of them.
+  **Generalised to all ten fetchers the same day, at Michele's request.** Every one read a title and a link with a hard subscript, so every one could lose a company to a single row; they now funnel through one `_Postings` sink that skips and counts. That also closed a quieter hazard the Workday-only fix had not: Ashby and Workable reached their URL through `.get()`, so a posting with no link raised nothing at the fetcher and instead crashed downstream in the caller's `_normalize(j["url"])` — a bad row passing silently is worse than one that fails loudly. Four tests, including a regression guard asserting no fetcher reads a posting field directly (proved by planting one), and a live run across Greenhouse, Ashby, Workable, Workday and SmartRecruiters — 545 real postings, no malformed row surviving.
 
 - [ ] `#57` **M2 — ship `jobstudio` as a pip package** — spun out of `#2` on 2026-10-01, where it was milestone M2; design in [`share-as-toolkit-plan.md`](share-as-toolkit-plan.md) §2a and §6. Move `src/` under a package namespace, replace the `tools/py src/foo.py` calls with console-script entry points (which retires `tools/py` and most of M1.4), make `init` a real CLI command, add `MANIFEST`/package data for `example-data/` and the skill, publish to PyPI. The bulk of the work is a mechanical pass over the ~104 `tools/py src/...` references in `.claude/skills/jobstudio/subcommands/` — `tools/py src/jobsdb.py status` becomes `jobstudio db status`.
 
@@ -179,6 +179,33 @@ had tested against (`#2`'s "a second real person" pass, and the `cv --import` ha
 - [x] `#16` Simplify CV pipeline to two tailored-per-application base CVs (functional default, chronological opt-in via `Application.cv_base`), dropping the pre-generated variant library — done 2026-09-17, see `backlog/done/simplify-cv-pipeline-plan.md`
 
 ## Onboarding and docs
+
+- [ ] `#64` **Make the example data exercise the app, not just populate it** — raised 2026-10-01 by Michele after installing the example as a first-time user would. *"As a first-time user, when I create the example data I would like to explore all features of the app, including the various charts."* The example is the first thing anyone sees, and the charts are the part of the app that most needs data to mean anything — so an example that cannot drive them undersells the whole thing and reads as broken rather than empty.
+
+  **Verified against a live example data root 2026-10-01** (`example-data` copied to a scratch root, migrated, `dump.json` loaded, the chart builders called directly). Michele's reading was right, and the root cause is one thing with several symptoms.
+
+  **The cause: there is no status history.** `example-data/backups/django/dump.json` holds three applications and exactly three `ApplicationStatusChange` rows — one per application, every one `from_status: ""` → its current status, all stamped at the same second (`2026-09-21T08:04:53`). So **no application in the example has ever moved**, and every chart that measures movement has nothing to draw.
+
+  Symptoms, each confirmed:
+
+  - **The status-flow Sankey has no status-to-status link at all.** Its five links are `saved → active`, `reviewing → active`, `applied → active` plus two entry stubs — three parallel one-hop ribbons into `active`. Two separate nodes are both labelled `added` (the stubs for `reviewing` and `applied`), which is the exact confusion `#56` was raised to fix, reappearing here because the example reproduces the condition that causes it.
+  - **The "from applied onward" view is a single ribbon**, `applied (1) → active (1)`: one node to one node. That is also the likely source of *"status only shows applied, not saved"* — in the narrowed view, `applied` is the only status present, because only one application ever reached it.
+  - **The status-over-time stock chart does not render**, reporting `ready: False`, and its second week shows zero moves.
+  - **The ageing chart has one bar.** `_ageing_at_applied()` counts applications that reached `applied`, and exactly one did.
+
+  **Two separate data faults found while confirming it, both worth fixing regardless:**
+
+  - **Application `#3` is an orphan:** `company=None` and `folder=""`. It inflates every count while having no company to link to and no folder, so it demonstrates none of the per-application tabs (job description, CV, cover letter, interviews).
+  - **The companies list contradicts the applications list.** `Company.status` is derived, but the fixture's values were hand-set and never recomputed: `dbt Labs` is stored as `reviewing` while its only application is `saved`. A first-time user comparing the two pages sees the app disagreeing with itself.
+
+  **What the fix needs**, and the shape matters more than the volume — three applications is enough rows, what is missing is *history*:
+
+  - [ ] **Give each application a real transition history** spread over weeks: something that reaches `interviewing`, something `rejected`, something `discarded` before applying, and at least one backward move, so the Sankey has ribbons between statuses, the cycle rule has something to exercise, and the stock chart passes `ready`. This is the whole fix for the charts.
+  - [ ] **More applications, but chosen to populate the funnel** rather than to raise the count — Michele asked for at least three and there are already three; six to eight across the full `STATUS_SORT_ORDER` would let every chart show a distribution instead of a single bar.
+  - [ ] **Give `#3` a company and a folder**, or drop it. An application row with neither is not an example of anything.
+  - [ ] **Recompute `Company.status` when building the fixture** rather than storing hand-set values, so the derived field cannot drift from the applications it is derived from. `tools/build-example-fixture` is where this belongs.
+  - [ ] **Check the result by looking at it**, not by loading it: render `/stats/` against the built example and confirm every chart draws something a newcomer would learn from. The faults above all pass every existing test, because the tests assert the builders work on their own fixtures, not that the shipped example produces a legible page — which is `#44`'s lesson again, one layer out.
+
 
 Also from the 2026-09-29 second-machine install — see
 `log/2026-09-29-second-machine-findings.md`.

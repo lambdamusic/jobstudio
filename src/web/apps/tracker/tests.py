@@ -3435,6 +3435,61 @@ class ScanConfigTests(TestCase):
                     config.data_root = orig
                     sc._cache = None
 
+    def _scan_portals(self):
+        """`scan-portals.py` cannot be imported normally — the hyphen in the filename."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "scan_portals_under_test", Path(settings.SITE_ROOT) / "src" / "scan-portals.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_a_posting_with_no_title_or_no_link_is_skipped_and_counted(self):
+        """`#63` generalised to every fetcher. A posting needs a title and a link to be
+        worth anything, and a row that has neither must cost that row rather than the
+        whole company — counted, not silently dropped (`#44`)."""
+        sp = self._scan_portals()
+        out = sp._Postings("test/board")
+
+        out.add("Data Scientist", "https://example.com/1", "London")
+        out.add(None, "https://example.com/2", "London")          # the `#63` row
+        out.add("No link here", None, "London")                   # the quieter hazard
+        out.add("", "https://example.com/4")                      # empty, not missing
+        out.add("Blank link", "")
+
+        self.assertEqual([j["title"] for j in out.jobs], ["Data Scientist"])
+        self.assertEqual(out.unusable, 4)
+        jobs, truncated = out.done(total=5)
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(truncated, 5, "the board's own total survives the skipping")
+
+    def test_every_surviving_posting_has_the_three_fields_the_scan_relies_on(self):
+        """The caller does `_normalize(j["url"])` and the report renders a title and a
+        location, so a row that reaches either without them crashes the scan downstream
+        rather than at the fetcher. Location is the one that may legitimately be absent."""
+        sp = self._scan_portals()
+        out = sp._Postings("test/board")
+        out.add("  Padded Title  ", "https://example.com/1")
+        out.add("Located", "https://example.com/2", "Bristol, UK")
+        jobs, _ = out.done()
+        self.assertEqual([j["title"] for j in jobs], ["Padded Title", "Located"])
+        self.assertEqual([j["location"] for j in jobs], ["unknown", "Bristol, UK"])
+        self.assertTrue(all(j["title"] and j["url"] and j["location"] for j in jobs))
+
+    def test_no_fetcher_reads_a_posting_field_with_a_hard_subscript(self):
+        """The regression guard for `#63`'s general form. Every branch funnels rows
+        through `_Postings.add()` with `.get()`, so one malformed row cannot take a
+        company's whole scan down. A new fetcher written the old way reintroduces it."""
+        src = (Path(settings.SITE_ROOT) / "src" / "scan-portals.py").read_text()
+        # Bounded to fetch_jobs itself. Past its last line the caller does
+        # `_normalize(j["url"])`, which is fine: by then `_Postings.add` has guaranteed
+        # every row has a url, which is the whole point of routing through it.
+        body = src.split("def fetch_jobs(", 1)[1].split("unknown platform", 1)[0]
+        offenders = re.findall(r'^\s*(?!#).*\b(?:j|it|e|item)\["[a-zA-Z_]+"\]', body, re.M)
+        self.assertEqual([o.strip() for o in offenders], [],
+                         "a fetcher reads a posting field with a hard subscript; route it "
+                         "through _Postings.add() with .get() instead")
+
     def test_workday_skips_postings_with_no_title_instead_of_aborting(self):
         """A real Workday board returned one posting carrying only `bulletFields` among
         125. `j["title"]` raised KeyError, the generic handler turned it into "unexpected

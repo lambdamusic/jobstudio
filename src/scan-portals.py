@@ -139,6 +139,57 @@ def _search_keyword(role_target: str) -> str:
     return m.group(0) if m else ""
 
 
+class _Postings:
+    """A per-row sink that drops a posting it cannot use, and counts what it dropped.
+
+    Every fetcher below reads a title and a link out of somebody else's JSON, and until
+    2026-10-01 each did it with a hard subscript. So one malformed row raised `KeyError`,
+    the handler at the end of `fetch_jobs` reported it as "unexpected response shape", and
+    the whole company came back NOT SCANNED. `#63` is that happening on a real board: 124
+    usable postings thrown away because one row carried only `bulletFields`. The error
+    message compounded it — 124 of 125 rows had parsed, so "unexpected response shape"
+    sends you to inspect a board that works.
+
+    Two rules, and they are the ones the rest of this toolkit already follows:
+
+    - **A per-row parse failure costs that row, not the company.** A board of hundreds is
+      not worthless because one posting is malformed.
+    - **What was dropped is counted** (`#44`). A row discarded with no number beside it is
+      indistinguishable from a row that was never there, which is how silent loss gets to
+      look like a clean run.
+
+    A posting needs a title and a link to be worth anything: it is a thing you read and
+    then click. `url` is the second half of that and was the quieter hazard — Ashby and
+    Workable both reach it through `.get()`, so a posting with no link produced no error at
+    all, just a row that reached `_normalize(j["url"])` downstream and crashed the scan
+    there instead. Location is genuinely optional and falls back to `"unknown"`, which the
+    location pre-filter already reads as "cannot tell".
+    """
+
+    def __init__(self, label: str) -> None:
+        self.label = label
+        self.jobs: list[dict] = []
+        self.unusable = 0
+
+    def add(self, title, url, location=None) -> None:
+        if not title or not url:
+            self.unusable += 1
+            return
+        self.jobs.append({
+            "title": str(title).strip(),
+            "url": str(url),
+            "location": location or "unknown",
+        })
+
+    def done(self, total: int | None = None) -> tuple[list[dict], int | None]:
+        """The (jobs, total_available) pair `fetch_jobs` returns, plus the skip note."""
+        if self.unusable:
+            print(f"  NOTE: {self.label} returned {self.unusable} posting(s) with no title "
+                  f"or link — skipped, {len(self.jobs)} usable", file=sys.stderr)
+        truncated = total if isinstance(total, int) and total > len(self.jobs) else None
+        return self.jobs, truncated
+
+
 def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[list[dict], int | None]:
     """Returns (jobs, total_available). total_available is set only when the source
     reported more results than were fetched (i.e. results were truncated)."""
@@ -149,30 +200,26 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
             resp = client.get(f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs", timeout=HTTP_TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
-            jobs = [
-                {
-                    "title": j["title"],
-                    "url": j["absolute_url"],
-                    "location": (j.get("location") or {}).get("name", "unknown"),
-                }
-                for j in data.get("jobs", [])
-            ]
-            return jobs, None
+            out = _Postings(f"greenhouse/{token}")
+            for j in data.get("jobs", []):
+                out.add(j.get("title"), j.get("absolute_url"),
+                        (j.get("location") or {}).get("name"))
+            return out.done()
 
         if platform == "lever":
             token = source["token"]
             resp = client.get(f"https://api.lever.co/v0/postings/{token}?mode=json", timeout=HTTP_TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
-            jobs = []
+            out = _Postings(f"lever/{token}")
             for j in data:
                 categories = j.get("categories", {})
                 loc = categories.get("location", "unknown")
                 workplace = j.get("workplaceType")
                 if workplace:
                     loc = f"{loc} ({workplace})"
-                jobs.append({"title": j["text"], "url": j["hostedUrl"], "location": loc})
-            return jobs, None
+                out.add(j.get("text"), j.get("hostedUrl"), loc)
+            return out.done()
 
         if platform == "workable":
             token = source["token"]
@@ -181,27 +228,22 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
             data = resp.json()
             if "jobs" not in data:
                 raise ScanError(f"workable account '{token}' returned no jobs field")
-            jobs = []
+            out = _Postings(f"workable/{token}")
             for j in data["jobs"]:
                 parts = [p for p in (j.get("city"), j.get("state"), j.get("country")) if p]
                 loc = ", ".join(parts) or "unknown"
                 if j.get("telecommuting"):
                     loc = f"{loc} (remote)"
-                jobs.append({
-                    "title": j["title"],
-                    "url": j.get("url") or j.get("shortlink"),
-                    "location": loc,
-                })
-            return jobs, None
+                out.add(j.get("title"), j.get("url") or j.get("shortlink"), loc)
+            return out.done()
 
         if platform == "workday":
             tenant, wd, site = source["tenant"], source["wd"], source["site"]
             search_text = _search_keyword(role_target)
             page_size = 20
-            jobs = []
+            out = _Postings(f"workday/{tenant}/{site}")
             total = None
             offset = 0
-            unusable = 0
             while True:
                 resp = client.post(
                     f"https://{tenant}.{wd}.myworkdayjobs.com/wday/cxs/{tenant}/{site}/jobs",
@@ -215,42 +257,24 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 postings = data.get("jobPostings", [])
                 if not postings:
                     break
-                # A Workday board can return a posting carrying only `bulletFields` — no
-                # title, no externalPath, nothing to link to. Found 2026-10-01 on a real
-                # board, one such row among 125: `j["title"]` raised KeyError, the generic
-                # handler at the end of this function turned it into "unexpected response
-                # shape", and the whole company came back NOT SCANNED. Losing 124 usable
-                # postings to one unusable row is the wrong trade, and blaming the response
-                # shape when 124 of 125 rows parsed sends you looking in the wrong place.
-                #
-                # So skip what cannot be used and count it — never silently, which is
-                # `#44`'s lesson: a row dropped with no number beside it is
-                # indistinguishable from a row that was never there.
+                # This is the board that produced `#63`: one row among 125 carrying only
+                # `bulletFields`, no title and no path. See `_Postings`.
                 for j in postings:
-                    title, path = j.get("title"), j.get("externalPath")
-                    if not title or not path:
-                        unusable += 1
-                        continue
-                    jobs.append({
-                        "title": title,
-                        "url": f"https://{tenant}.{wd}.myworkdayjobs.com/{site}{path}",
-                        "location": j.get("locationsText", "unknown"),
-                    })
+                    path = j.get("externalPath")
+                    out.add(j.get("title"),
+                            f"https://{tenant}.{wd}.myworkdayjobs.com/{site}{path}" if path else None,
+                            j.get("locationsText"))
                 offset += page_size
-                if (isinstance(total, int) and offset >= total) or len(jobs) >= MAX_RESULTS_PER_COMPANY:
+                if (isinstance(total, int) and offset >= total) or len(out.jobs) >= MAX_RESULTS_PER_COMPANY:
                     break
-            if unusable:
-                print(f"  NOTE: {tenant}/{site} returned {unusable} posting(s) with no "
-                      f"title or path — skipped, {len(jobs)} usable", file=sys.stderr)
-            truncated_total = total if isinstance(total, int) and total > len(jobs) else None
-            return jobs, truncated_total
+            return out.done(total)
 
         if platform == "ashby":
             token = source["token"]
             resp = client.get(f"https://api.ashbyhq.com/posting-api/job-board/{token}", timeout=HTTP_TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
-            jobs = []
+            out = _Postings(f"ashby/{token}")
             for j in data.get("jobs", []):
                 # `location` is the PRIMARY location only. A posting open in several places
                 # carries the rest in `secondaryLocations`, and ignoring them silently lost
@@ -264,8 +288,8 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 loc = "; ".join(dict.fromkeys(parts))
                 if j.get("isRemote"):
                     loc = f"{loc} (remote)"
-                jobs.append({"title": j["title"], "url": j.get("jobUrl"), "location": loc})
-            return jobs, None
+                out.add(j.get("title"), j.get("jobUrl"), loc)
+            return out.done()
 
         if platform == "bamboohr":
             # Public JSON behind every BambooHR careers page: no key, no paging, the
@@ -275,7 +299,7 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                               headers={"Accept": "application/json"}, timeout=HTTP_TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
-            jobs = []
+            out = _Postings(f"bamboohr/{token}")
             for j in data.get("result", []):
                 # Two location objects, and which one is filled depends on
                 # `locationType`: type 1 (remote) carries `atsLocation`, the office
@@ -290,18 +314,17 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 loc = ", ".join(dict.fromkeys(parts)) or "unknown"
                 if str(j.get("locationType")) == "1":
                     loc = f"{loc} (remote)" if loc != "unknown" else "remote"
-                jobs.append({
-                    "title": j["jobOpeningName"],
-                    "url": f"https://{token}.bamboohr.com/careers/{j['id']}",
-                    "location": loc,
-                })
-            return jobs, None
+                job_id = j.get("id")
+                out.add(j.get("jobOpeningName"),
+                        f"https://{token}.bamboohr.com/careers/{job_id}" if job_id else None,
+                        loc)
+            return out.done()
 
         if platform == "smartrecruiters":
             token = source["token"]
             keyword = _search_keyword(role_target)
             page_size = 100
-            jobs = []
+            out = _Postings(f"smartrecruiters/{token}")
             total = None
             offset = 0
             while True:
@@ -322,23 +345,21 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                     loc = loc_info.get("fullLocation", "unknown")
                     if loc_info.get("remote"):
                         loc = f"{loc} (remote)"
-                    jobs.append({
-                        "title": j["name"],
-                        "url": f"https://jobs.smartrecruiters.com/{token}/{j['id']}",
-                        "location": loc,
-                    })
+                    job_id = j.get("id")
+                    out.add(j.get("name"),
+                            f"https://jobs.smartrecruiters.com/{token}/{job_id}" if job_id else None,
+                            loc)
                 offset += page_size
-                if (isinstance(total, int) and offset >= total) or len(jobs) >= MAX_RESULTS_PER_COMPANY:
+                if (isinstance(total, int) and offset >= total) or len(out.jobs) >= MAX_RESULTS_PER_COMPANY:
                     break
-            truncated_total = total if isinstance(total, int) and total > len(jobs) else None
-            return jobs, truncated_total
+            return out.done(total)
 
         if platform == "teamtailor":
             domain = source["domain"]
             resp = client.get(f"https://{domain}/jobs.json", timeout=HTTP_TIMEOUT)
             resp.raise_for_status()
             data = resp.json()
-            jobs = []
+            out = _Postings(f"teamtailor/{domain}")
             for item in data.get("items", []):
                 job_posting = item.get("_jobposting") or {}
                 locations = job_posting.get("jobLocation") or []
@@ -348,12 +369,9 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                     place = ", ".join(p for p in (addr.get("addressLocality"), addr.get("addressCountry")) if p)
                     if place:
                         parts.append(place)
-                jobs.append({
-                    "title": item["title"],
-                    "url": item["url"],
-                    "location": "; ".join(parts) if parts else "unknown",
-                })
-            return jobs, None
+                out.add(item.get("title"), item.get("url"),
+                        "; ".join(parts) if parts else None)
+            return out.done()
 
         if platform == "rippling":
             # No public API — reads the Next.js SSR hydration payload embedded in the
@@ -370,12 +388,12 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 items = next_data["props"]["pageProps"]["dehydratedState"]["queries"][0]["state"]["data"]["items"]
             except (KeyError, IndexError, TypeError):
                 raise ScanError("rippling: __NEXT_DATA__ shape changed, could not locate job items")
-            jobs = []
+            out = _Postings(f"rippling/{token}")
             for it in items:
                 locs = it.get("locations") or []
                 loc = locs[0].get("name", "unknown") if locs else "unknown"
-                jobs.append({"title": it["name"], "url": it["url"], "location": loc})
-            return jobs, None
+                out.add(it.get("name"), it.get("url"), loc)
+            return out.done()
 
         if platform == "firstparty_entries":
             # Not an ATS at all: some companies' own frontends call a first-party JSON
@@ -391,13 +409,10 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
             )
             resp.raise_for_status()
             data = resp.json()
-            jobs = [
-                {"title": e["title"], "url": e["url"], "location": e.get("officeTeamLocation", "unknown")}
-                for e in data.get("entries", [])
-            ]
-            total = data.get("totalJobsEntries")
-            truncated_total = total if isinstance(total, int) and total > len(jobs) else None
-            return jobs, truncated_total
+            out = _Postings("firstparty_entries")
+            for e in data.get("entries", []):
+                out.add(e.get("title"), e.get("url"), e.get("officeTeamLocation"))
+            return out.done(data.get("totalJobsEntries"))
 
     except httpx.TimeoutException:
         raise ScanError(f"{platform} request timed out after {HTTP_TIMEOUT}s")
