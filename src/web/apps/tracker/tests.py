@@ -1851,6 +1851,71 @@ class JobsDbTests(TestCase):
         import jobsdb
         self.assertTrue(all(u.startswith("http") for u in jobsdb.known_job_urls()))
 
+    def test_update_company_touches_only_the_fields_passed(self):
+        """`#41`. `add-company` existed and nothing could change a row afterwards, so an
+        agent had to shell out to the Django admin. Only-what-you-pass is the whole
+        contract: a command that reset the fields it was not given would be worse than no
+        command, because the loss would be invisible."""
+        import jobsdb
+        from tracker.models import Company
+
+        before = Company.objects.get(num=1)
+        original = (before.name, before.notes, before.category_id, before.url)
+        row = jobsdb.update_company("1", role_target="Analytics Engineer", fit=5)
+
+        after = Company.objects.get(num=1)
+        self.assertEqual(after.role_target, "Analytics Engineer")
+        self.assertEqual(after.fit, 5)
+        self.assertEqual((after.name, after.notes, after.category_id, after.url), original,
+                         "a field that was not passed must not be touched")
+        self.assertEqual(row["role_target"], "Analytics Engineer")
+
+    def test_update_company_can_clear_a_field(self):
+        """A stale careers URL has to be clearable, which is why the defaults are a
+        sentinel rather than None — the second-person install pass found two tracked URLs
+        gone bad (a 404 and a redirect to an acquirer) and had no command to fix either."""
+        import jobsdb
+        from tracker.models import Company
+
+        self.assertTrue(Company.objects.get(num=1).url, "fixture company should have a URL")
+        jobsdb.update_company("1", url="")
+        self.assertEqual(Company.objects.get(num=1).url, "")
+
+    def test_update_company_refuses_an_unknown_category(self):
+        """Reuses `add-company`'s resolver rather than inventing a laxer rule: silently
+        dropping an unknown name reports success and surfaces later as a company scored
+        against the wrong target area."""
+        import jobsdb
+        from tracker.models import Company
+
+        before = Company.objects.get(num=1).category_id
+        with self.assertRaises(ValueError):
+            jobsdb.update_company("1", category="No Such Category")
+        self.assertEqual(Company.objects.get(num=1).category_id, before)
+
+    def test_update_company_refuses_an_ambiguous_prefix(self):
+        """The one place this resolver is deliberately stricter than `find_application`,
+        which resolves a prefix to the lowest `num`. A read can afford that guess; an
+        update cannot — editing the wrong company silently is worse than being asked to
+        be specific."""
+        import jobsdb
+        from tracker.models import Category, Company
+
+        cat = Category.objects.first()
+        Company.objects.create(num=900, name="Grafana Clone", slug="grafana-clone",
+                               category=cat, date_added=dt.date.today())
+        with self.assertRaises(ValueError) as caught:
+            jobsdb.update_company("Grafana", fit=1)
+        self.assertIn("more than one", str(caught.exception))
+
+    def test_update_company_resolves_by_number_name_and_prefix(self):
+        import jobsdb
+
+        self.assertEqual(jobsdb.update_company("1", fit=4)["num"], "1")
+        name = jobsdb.update_company("1", fit=4)["name"]
+        self.assertEqual(jobsdb.update_company(name, fit=3)["num"], "1")
+        self.assertEqual(jobsdb.update_company(name[:6], fit=2)["num"], "1")
+
     def test_set_cv_base_changes_the_stored_base(self):
         """`#60` — a `cv --base` override deliberately leaves the stored value alone, so
         making a switch permanent needs its own command. Nothing on the agent-native path

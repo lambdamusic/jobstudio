@@ -27,6 +27,28 @@ tools/py src/jobsdb.py add-company \
 | **notes** | A single scannable line. Deep research goes in `jobs/companies/<slug>.md` instead (see below), not here. |
 | **date_added** | Set automatically to today by `add-company` — not a CLI flag. Blank for rows that predate this field (added recently; only *new* additions set it). |
 
+## Changing a company afterwards
+
+```bash
+tools/py src/jobsdb.py update-company <num|exact name|unique prefix> \
+  [--role-target "..."] [--fit {1-5}] [--category "..."] [--url "..."] [--notes "..."]
+```
+
+Only the flags given are touched. An empty string **clears** the field, so `--url ""`
+removes a careers URL that has gone stale — which is what this exists for: a tracked URL
+that 404s or redirects to an acquirer is a company the scanner can no longer reach, and
+there was no way to correct one outside the Django admin until 2026-10-01 (`#41`).
+
+Two deliberate refusals. An unknown `--category` is rejected by the same resolver
+`add-company` uses, rather than writing the company without one. And a name prefix
+matching more than one company is rejected rather than resolved to the lowest `num` — the
+opposite of `find_application`, because a read can afford that guess and an update cannot.
+
+**No `--name`.** The slug derives from the name, and the company page URL plus the
+`company_overrides`, `company_areas` and `known_unsupported` keys in
+`<DATA>/jobs/scan-config.yaml` are all keyed on name or slug. Renaming is a separate job
+that has to update those too, or scan coverage for that company breaks silently.
+
 ## Status is derived, never set by hand
 
 A company has exactly three states, maintained by `refresh_company_status()` off

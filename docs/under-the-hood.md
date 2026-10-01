@@ -56,6 +56,8 @@ tools/py src/jobsdb.py status                    # counts, the same ones /jobstu
 tools/py src/jobsdb.py list                      # applications
 tools/py src/jobsdb.py show <num>                # one application
 tools/py src/jobsdb.py add-company --name ... --url ... --category ... --fit N
+tools/py src/jobsdb.py update-company <num|name|prefix> [--role-target ...] [--fit N] \
+                                      [--category ...] [--url ...] [--notes ...]
 tools/py src/jobsdb.py add-category --name ... --order N
 tools/py src/jobsdb.py set-status <num> <status>
 tools/py src/jobsdb.py set-fit <num> --level {strong,moderate,stretch,weak} [--pros ...] [--cons ...]
@@ -65,8 +67,15 @@ tools/py src/jobsdb.py show-company <slug>
 tools/py src/jobsdb.py categories
 ```
 
-There is no `update-company` yet (backlog `#41`) — editing a tracked company means the
-Django admin, or a `manage.py shell -c` one-liner.
+`update-company` touches only the flags you pass, and an empty string clears a field
+(`--url ""` for a careers URL that has gone stale). It has no `--name`: the slug derives
+from the name, and the company page URL plus the `company_overrides`, `company_areas` and
+`known_unsupported` keys in `scan-config.yaml` are keyed on it — renaming is a separate
+job. See [companies.md](companies.md).
+
+There is still no CLI for changing a company's **name**, or for an application's free-text
+fields (`summary`, `notes`, `contact`, `next_action`) — those remain the Django admin or a
+`manage.py shell -c` one-liner.
 
 ## CVs and cover letters
 

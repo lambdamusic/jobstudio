@@ -364,6 +364,81 @@ def add_company(*, name: str, url: str = "", role_target: str = "", fit: int = 3
     return _company_dict(c)
 
 
+_UNSET = object()
+
+
+def _resolve_company(ref: str):
+    """A company by row number or name, or a message saying which it was not.
+
+    Number first, then exact name, then a unique prefix — the same widening
+    `find_application` does, with one difference that matters for a *write*: a prefix
+    matching more than one company is refused rather than resolved to the lowest `num`.
+    Editing the wrong company silently is worse than being asked to be specific, and a
+    read can afford a guess where an update cannot.
+    """
+    from tracker.models import Company
+
+    ref = str(ref).strip().lstrip("#")
+    if ref.isdigit():
+        c = Company.objects.filter(num=ref).first()
+        if c is not None:
+            return c
+        raise ValueError(f"no company numbered {ref}.")
+    c = Company.objects.filter(name__iexact=ref).first()
+    if c is not None:
+        return c
+    matches = list(Company.objects.filter(name__istartswith=ref).order_by("num")[:6])
+    if not matches:
+        raise ValueError(f"no company matching {ref!r}. `jobsdb.py show-company <name>` "
+                         "takes an exact name; this takes a number, a name or a prefix.")
+    if len(matches) > 1:
+        names = ", ".join(f"#{m.num} {m.name}" for m in matches)
+        raise ValueError(f"{ref!r} matches more than one company ({names}) — name one "
+                         "exactly, or use its number.")
+    return matches[0]
+
+
+def update_company(ref: str, *, url=_UNSET, role_target=_UNSET, fit=_UNSET,
+                   category=_UNSET, notes=_UNSET) -> dict:
+    """Change a tracked company. Only the fields passed are touched (`#41`).
+
+    `add-company` existed from the start and nothing could change a row afterwards, so
+    editing a `role_target`, `fit`, `category`, `url` or `notes` meant the Django admin
+    or a `manage.py shell -c` one-liner. That is fine for a person — the admin is the
+    editing surface by design — and wrong for an agent, which is how every other tracker
+    write happens. The case that made it worth building is a change of direction: one
+    pivot re-pointed three fields across two companies, as three shell calls; a pivot
+    across twenty rows would be unbearable. The second-person install pass then hit the
+    same wall for a plainer reason — two careers URLs had gone stale (a 404 and a
+    redirect to an acquirer) and there was no command to correct them.
+
+    **Deliberately not a general-purpose field setter**, and deliberately no `--name`:
+    renaming changes the slug, and the company page URL plus the `company_overrides`,
+    `company_areas` and `known_unsupported` keys in scan-config.yaml are all keyed on
+    name or slug. A rename is its own job, with those call sites to update.
+
+    `_UNSET` rather than `None` as the default, because "" is a meaningful value here:
+    clearing a stale URL or emptying the notes has to be possible, and `None` would make
+    that indistinguishable from leaving the field alone.
+    """
+    setup()
+    c = _resolve_company(ref)
+    if category is not _UNSET:
+        # Reused so an unknown category is refused here exactly as `add-company` refuses
+        # it, rather than this command inventing a second, laxer rule.
+        c.category = _resolve_category(category)
+    if url is not _UNSET:
+        c.url = url
+    if role_target is not _UNSET:
+        c.role_target = role_target
+    if fit is not _UNSET:
+        c.fit = int(fit)
+    if notes is not _UNSET:
+        c.notes = notes
+    c.save()
+    return _company_dict(c)
+
+
 # ---------------------------------------------------------------------------
 # Status report — terminal mirror of the web dashboard
 # ---------------------------------------------------------------------------
@@ -479,6 +554,17 @@ def _main() -> None:
     p_co.add_argument("--category", default="")
     p_co.add_argument("--notes", default="")
 
+    p_upco = sub.add_parser("update-company",
+                            help="Change a tracked company (only the flags you pass)")
+    p_upco.add_argument("ref", help="Company number, exact name, or a unique name prefix")
+    # `default=None` plus an explicit None check, so passing `--url ""` clears the field
+    # while omitting the flag leaves it alone. A stale careers URL needs to be clearable.
+    p_upco.add_argument("--url", default=None)
+    p_upco.add_argument("--role-target", default=None)
+    p_upco.add_argument("--fit", type=int, default=None, choices=[1, 2, 3, 4, 5])
+    p_upco.add_argument("--category", default=None)
+    p_upco.add_argument("--notes", default=None)
+
     p_st = sub.add_parser("set-status", help="Change an application's status")
     p_st.add_argument("num")
     p_st.add_argument("status")
@@ -534,6 +620,16 @@ def _dispatch(args, json) -> None:
         row = add_company(name=args.name, url=args.url, role_target=args.role_target,
                           fit=args.fit, category=args.category, notes=args.notes)
         print(row["num"])
+    elif args.cmd == "update-company":
+        fields = {k: v for k, v in (("url", args.url), ("role_target", args.role_target),
+                                    ("fit", args.fit), ("category", args.category),
+                                    ("notes", args.notes)) if v is not None}
+        if not fields:
+            raise SystemExit("update-company: nothing to change — pass at least one of "
+                             "--url, --role-target, --fit, --category, --notes.")
+        row = update_company(args.ref, **fields)
+        print(f"#{row['num']} {row['name']} -> " +
+              ", ".join(f"{k}={row.get(k)!r}" for k in sorted(fields)))
     elif args.cmd == "set-status":
         row = set_status(args.num, args.status)
         print(f"#{row['num']} {row['company']} -> {row['status']}")

@@ -95,5 +95,26 @@ Status is not set by hand and is maintained automatically: `watching` until the 
 has a live application, `reviewing` while one is open but unsent, `applied` once one has
 actually been submitted.
 
+**To change an existing company, use `update-company` — do not send the user to the
+Django admin** (TODO `#41`, built 2026-10-01):
+
+```
+tools/py src/jobsdb.py update-company {number, exact name, or unique prefix} \
+  [--role-target "..."] [--fit {1-5}] [--category "..."] [--url "..."] [--notes "..."]
+```
+
+Only the flags given are touched, so this is safe to use for a single field. Passing an
+empty string **clears** a field — `--url ""` is how a careers URL that has gone stale
+gets removed, which is the case that made this worth building. An unknown `--category` is
+refused exactly as `add-company` refuses it, and a name prefix matching more than one
+company is refused rather than resolved to the first — for a write, being asked to be
+specific beats editing the wrong row silently.
+
+**There is deliberately no `--name`.** Renaming changes the slug, and the company page
+URL plus the `company_overrides`, `company_areas` and `known_unsupported` keys in
+`scan-config.yaml` are keyed on name or slug. A rename is a separate job that has to
+update those call sites too; doing it through this command would quietly break scan
+coverage for that company.
+
 For substantial background research, add `<DATA>/jobs/companies/<slug>.md` following the template
 in `<DATA>/jobs/companies/README.md` — it renders on the company page.

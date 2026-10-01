@@ -4,6 +4,18 @@ Dated entries, newest first.
 
 ## 2026-10-01
 
+- **`jobsdb.py update-company`** (`#41`), so changing a tracked company no longer means
+  the Django admin. Creating one had a CLI; changing one did not — fine for a person, and
+  wrong for an agent, which is how every other tracker write happens. Only the flags you
+  pass are touched, and an empty string clears a field: `--url ""` is how a careers URL
+  that has gone stale gets removed, which is the case a new user hit in their first hour.
+
+  An ambiguous name prefix is refused rather than resolved to the first match —
+  deliberately stricter than the read path, because editing the wrong company silently is
+  worse than being asked to be specific. There is no `--name`: the slug derives from it,
+  and the company page URL plus three keys in `scan-config.yaml` are keyed on name or
+  slug, so a rename is a separate job with those call sites to update.
+
 - **A scan before `stocktake` says its Ideal-Job Scores are not meaningful yet** (`#62`).
   That column scores a posting against what the person wants, which lives in
   `criteria.yaml` — and `init` leaves that a draft, so on a fresh data root every score
