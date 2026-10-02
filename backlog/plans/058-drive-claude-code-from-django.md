@@ -9,15 +9,19 @@
 > and `log/2026-09-23-status-menu.md` all cite §8.1–§8.4 — renumbering would break every
 > one of them for no gain. So this file starts at §8.
 >
-> **Written 2026-09-20, before the `jobstudio` rename settled** (`002-share-as-toolkit.md`
-> §2e). The text below is verbatim and still says `/jobs-search`,
-> `.claude/skills/jobs-search/` and `.jobsearch-data`; read those as `/jobstudio`,
-> `.claude/skills/jobstudio/` and `.jobstudio-data`. Left as written rather than quietly
-> edited, because this is a dated research record and the commands it names were real on
-> the day.
+> **Written 2026-09-20; names brought up to date 2026-10-02.** It predates the
+> `jobstudio` rename (`002-share-as-toolkit.md` §2e), so it was written against
+> `/jobs-search`, `.claude/skills/jobs-search/` and `.jobsearch-data`. Those are now
+> `/jobstudio`, `.claude/skills/jobstudio/` and `.jobstudio-data` throughout — this is a
+> plan somebody will work from, and a `claude -p "/jobs-search …"` example that does not
+> run is exactly the drift `#51` records for `render-html-pdf`. Nothing else was touched;
+> the 2026-09-20 wording is in git, and in `002-share-as-toolkit.md`'s history.
 >
-> Background it refers to — the data root (§3.1), the Dropbox question (§5.2), the
-> milestones (§6) — stays in `002-share-as-toolkit.md`.
+> Milestone names are left as written (M1, M2, M3). They are what `002-share-as-toolkit.md`
+> §6 and the `log/` entries call them; M2 is now `#57` and M3 is this item, `#58`.
+>
+> Background it refers to stays in `002-share-as-toolkit.md` — the data root (§3.1), the
+> Dropbox question (§5.2), the milestones (§6).
 
 ---
 
@@ -25,9 +29,9 @@
 
 Michele's question, 2026-09-20: *is there a way to control Claude Code from a local
 Django app?* Yes — two officially supported routes, and this is a much better fit for
-this project than §7, because **the web app already exists**.
+this project than the Cowork route ([`059-claude-desktop-cowork.md`](059-claude-desktop-cowork.md) §7), because **the web app already exists**.
 
-The idea: buttons in the tracker that run `/jobs-search` subcommands. "Tailor CV" on
+The idea: buttons in the tracker that run `/jobstudio` subcommands. "Tailor CV" on
 the application detail page. "Run scan" on the scans page. "Log application" from a
 pasted job description. Claude Code becomes the engine behind the UI Michele already
 uses daily, rather than a separate terminal he has to switch to.
@@ -36,8 +40,8 @@ uses daily, rather than a separate terminal he has to switch to.
 
 | | **`claude -p` subprocess** | **Python Agent SDK** |
 |---|---|---|
-| How | Django shells out to `claude -p "/jobs-search cv #18" --output-format stream-json --verbose` | `claude-agent-sdk` embeds the same agent loop in-process |
-| Skill discovery | **Automatic** — cwd at repo root picks up `.claude/skills/jobs-search/` and `CLAUDE.md` exactly as an interactive session does | **Must be explicit** — the SDK loads *no* filesystem settings by default; pass `setting_sources=["user", "project"]` or the skill is invisible |
+| How | Django shells out to `claude -p "/jobstudio cv #18" --output-format stream-json --verbose` | `claude-agent-sdk` embeds the same agent loop in-process |
+| Skill discovery | **Automatic** — cwd at repo root picks up `.claude/skills/jobstudio/` and `CLAUDE.md` exactly as an interactive session does | **Must be explicit** — the SDK loads *no* filesystem settings by default; pass `setting_sources=["user", "project"]` or the skill is invisible |
 | Output | Newline-delimited JSON events (needs `--verbose`; `--include-partial-messages` for token deltas) | Structured message objects |
 | Effort | ~a day | More, but better error handling and permission control |
 
@@ -58,7 +62,7 @@ OAuth for third-party products doesn't apply to your own projects.
 toolkit is used today: the credit is a **dollar allowance, separate from the
 subscription's session limits**. It doesn't roll over. When it's exhausted, requests
 either bill at API rates or stop outright if usage credits aren't enabled. So driving
-the toolkit from Django is *metered differently* from typing `/jobs-search` in a
+the toolkit from Django is *metered differently* from typing `/jobstudio` in a
 terminal — not more expensive in any simple sense, but not the same pool. Worth
 watching for a month before leaning on it.
 
@@ -81,9 +85,9 @@ watching for a month before leaning on it.
    button that runs a file-writing agent deserves deliberate thought even on a
    local-only app — worth deciding per subcommand rather than granting blanket edit
    rights.
-4. **cwd must be the repo root**, or skill discovery silently fails. With the §3.1
+4. **cwd must be the repo root**, or skill discovery silently fails. With the `002-share-as-toolkit.md` §3.1
    data-root split this means: code repo as cwd, data root resolved from
-   `.jobsearch-data` — which the refactor gives for free.
+   `.jobstudio-data` — which the refactor gives for free.
 5. **Ordering:** M3 does *not* depend on M1 or M2. It could be prototyped this week
    against the repo as it stands today. That's a point in its favour.
 
