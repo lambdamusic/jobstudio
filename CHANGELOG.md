@@ -24,9 +24,36 @@ Dated entries, newest first.
   still there if the stylesheet fails to load. The page says what it dropped and links
   the full round.
 
-  The index is plain anchor links and works with JavaScript off; `round-nav.js` only adds
-  the highlight. `build_static` publishes one page per round — not optional, since every
-  application page links them and its own link check fails otherwise.
+  **Sections are collapsible and closed by default**, one `<details>` per `##`, so a
+  round opens as a short menu of numbered headings rather than a wall of prose, with
+  expand/collapse-all. **Numbered `1 / 1.1 / 1.2 / 2`** in the pills and on the headings:
+  the index is a flat row, where "What they asked" otherwise reads as a sibling of the
+  "Outcome" it sits inside, and a number is the only thing that fits in a one-line pill.
+
+  **The highlight is computed from scroll position**, not from an observer band. The
+  first attempt lit whichever heading sat in a thin band at the top of the viewport —
+  but clicking a pill scrolls the target *above* that band, so clicking "Outcome"
+  highlighted the section after it, and with no heading in the band at all (most of the
+  time) the highlight went stale. It now marks the last heading above the sticky bar's
+  lower edge, which is right whether you scrolled, clicked, or arrived on a deep link.
+  `scroll-margin-top` is the other half.
+
+  `build_static` publishes one page per round — not optional, since every application
+  page links them and its own link check fails otherwise.
+
+- **An interview round links the people it names** (`#71`), when the URL is already in
+  the job posting, the company site, the scan data or something you pasted. It does not
+  search for one: a searched-for profile cannot be confirmed to be the right person, and
+  the cost of being wrong lands on a named individual and on whoever walks into the call
+  having read about somebody else.
+
+- **`Interviewing` is in the sidebar** under Applications, ahead of Reviewing — the
+  sub-nav now runs down the funnel, and it is the status where something is already in
+  motion and needs preparing for.
+
+- **Fixed: `strip_h1` required a trailing newline**, so a document that is only a title
+  kept it. Latent until a round's preamble — everything before its first `##` — turned
+  out to be exactly that, and rendered the title twice.
 
 ## 2026-10-01
 

@@ -428,7 +428,7 @@ class Application(models.Model):
         folder = self.folder_path
         if folder is None:
             return []
-        from .parsers import find_interviews, split_interview_sections
+        from .parsers import find_interviews, interview_section_index, split_interview_round
 
         out = []
         for round_ in find_interviews(folder):
@@ -457,15 +457,24 @@ class Application(models.Model):
             seen[base] = seen.get(base, 0) + 1
             round_["anchor"] = base if seen[base] == 1 else f"{base}-{seen[base]}"
 
-        # The jump index within each round (`#66`). Section anchors are scoped by the
-        # round's own anchor because the Interviews tab stacks every round into one
-        # page — two rounds both carrying "## Outcome" would otherwise collide, and the
-        # browser would send every "Outcome" link to whichever came first.
+        # The collapsible blocks and the jump index within each round (`#66`). Anchors
+        # are scoped by the round's own anchor because the Interviews tab stacks every
+        # round into one page — two rounds both carrying "## Outcome" would otherwise
+        # collide, and the browser would send every "Outcome" link to whichever came
+        # first.
         for round_ in out:
-            round_["sections"] = [
-                {**sec, "anchor": f"{round_['anchor']}--{sec['anchor']}"}
-                for sec in split_interview_sections(round_["body_md"])
+            split = split_interview_round(round_["body_md"])
+            prefix = round_["anchor"]
+            blocks = [
+                {**b,
+                 "anchor": f"{prefix}--{b['anchor']}",
+                 "subsections": [{**sub, "anchor": f"{prefix}--{sub['anchor']}"}
+                                 for sub in b["subsections"]]}
+                for b in split["blocks"]
             ]
+            round_["preamble_md"] = split["preamble"]
+            round_["blocks"] = blocks
+            round_["sections"] = interview_section_index(blocks)
         return out
 
     @property

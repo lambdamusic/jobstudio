@@ -201,86 +201,115 @@ def find_interviews(folder: Path) -> list[dict]:
     return out
 
 
-# A round's headings are indexed in the order they appear, not against a fixed list.
+# A round is split into collapsible `##` blocks, numbered, and indexed in the order the
+# headings appear rather than against a canonical list.
 #
-# `#66` was planned the other way — the canonical vocabulary from `subcommands/interview.md`
-# step 4, with absent sections dimmed in place so an item sat at the same position in
-# every round. The example data killed it: rounds come in (at least) two shapes. A round
-# written *before* the call uses the prep vocabulary (Details / Prep / Questions to ask
-# them / Study before / Outcome); a round written *after* it records what happened
-# (Questions and answers / What to do differently). Indexed against one canonical list,
-# a post-interview round renders ten dimmed chips and two live ones.
+# `#66` was planned against the canonical vocabulary from `subcommands/interview.md`
+# step 4, with absent sections dimmed in place. The data killed it: rounds come in at
+# least two shapes. One written *before* the call uses the prep vocabulary (Details /
+# Prep / Questions to ask them / Study before / Outcome); one written *after* records
+# what happened (Questions and answers / What to do differently). Indexed against one
+# list, a post-interview round renders ten dimmed chips and two live ones.
 #
-# Document order also keeps the bar agreeing with the page, which matters once something
-# highlights the section you are reading: a canonical order would have the highlight
-# jumping backwards and forwards along the bar as you scroll steadily down.
+# Document order also keeps the index agreeing with the page, which a highlight tracking
+# scroll position depends on.
 PRIVATE_SECTION_PREFIX = "private"
 
 
 def interview_section_slug(label: str) -> str:
-    """Slug for one round-section heading. Shared by the parser and the `section_ids`
-    template filter, so the nav's hrefs and the rendered heading ids cannot drift."""
+    """Slug for one round-section heading. Shared by the parser, the nav's hrefs and the
+    `number_sections` filter that stamps ids onto the rendered headings, so the three
+    cannot drift."""
     return _slugify(label)
 
 
-def _heading_lines(body_md: str):
-    """`##`/`###` headings of a markdown body, skipping fenced code. Yields (level, text)."""
+def _is_fence(line: str) -> bool:
+    return line.startswith("```") or line.startswith("~~~")
+
+
+def split_interview_round(body_md: str) -> dict:
+    """One interview round, split for the collapsible reading view (`#66`).
+
+    Returns `preamble` (anything before the first `##` — the Date/With/Format line in
+    most rounds, which is short and always wanted, so it is never collapsed), and
+    `blocks`: one per `##`, each carrying its own markdown and its `###` subsections.
+
+    **Sections are numbered** — `1`, `1.1`, `1.2`, `2` — because the index is a flat row
+    of pills, where nesting is otherwise invisible: "What they asked" sitting under
+    "Outcome" reads as a sibling of it. The number is the only thing in a one-line pill
+    that can carry depth. Numbers are positional, so they renumber if a round is edited;
+    the slug, not the number, is what anchors a link.
+
+    Anchors are unprefixed here. The caller scopes them per round, because the Interviews
+    tab stacks every round on one page and ids have to stay unique across them.
+    """
+    lines = body_md.splitlines()
+    preamble: list[str] = []
+    blocks: list[dict] = []
     in_fence = False
-    for raw in body_md.splitlines():
+
+    for raw in lines:
         line = raw.strip()
-        if line.startswith("```") or line.startswith("~~~"):
+        if _is_fence(line):
             in_fence = not in_fence
+        is_h2 = not in_fence and line.startswith("## ") and not line.startswith("### ")
+        is_h3 = not in_fence and line.startswith("### ") and not line.startswith("#### ")
+
+        if is_h2:
+            label = line[3:].strip().rstrip("#").strip()
+            slug = interview_section_slug(label)
+            blocks.append({
+                "number": str(len(blocks) + 1),
+                "label": label,
+                "anchor": slug,
+                "private": slug.startswith(PRIVATE_SECTION_PREFIX),
+                "lines": [],
+                "subsections": [],
+            })
             continue
-        if in_fence or not line.startswith("##"):
+
+        if not blocks:
+            preamble.append(raw)
             continue
-        level = len(line) - len(line.lstrip("#"))
-        text = line[level:].strip().rstrip("#").strip()
-        if level in (2, 3) and text:
-            yield level, text
+
+        block = blocks[-1]
+        if is_h3:
+            label = line[4:].strip().rstrip("#").strip()
+            slug = interview_section_slug(label)
+            # A repeated subheading inside one block is indexed once — a second pill
+            # would be an anchor pointing at the first, which is worse than no pill.
+            if slug not in {s["anchor"] for s in block["subsections"]}:
+                block["subsections"].append({
+                    "number": f"{block['number']}.{len(block['subsections']) + 1}",
+                    "label": label,
+                    "anchor": slug,
+                })
+        block["lines"].append(raw)
+
+    for block in blocks:
+        block["body_md"] = "\n".join(block.pop("lines")).strip("\n")
+
+    # The leading `# Title` is dropped here rather than by `strip_h1` in the template:
+    # every round file opens with one, the page renders the title itself, and leaving it
+    # in means a preamble that is empty after filtering but still truthy — an empty
+    # styled box on most rounds.
+    text = "\n".join(preamble).strip("\n")
+    text = re.sub(r"\A\s*#\s+.*?(?:\n|\Z)", "", text, count=1).strip("\n")
+    return {"preamble": text, "blocks": blocks}
 
 
-def split_interview_sections(body_md: str) -> list[dict]:
-    """The jump index for one interview round — its headings, in document order.
-
-    `anchor` is left unprefixed here; the caller scopes it per round, because the
-    Interviews tab stacks every round on one page and ids have to stay unique across
-    them. A duplicate heading inside one round is indexed once: the second would be an
-    anchor pointing at the first, which is worse than not offering it.
-    """
-    out, seen = [], set()
-    for level, text in _heading_lines(body_md):
-        slug = interview_section_slug(text)
-        if not slug or slug in seen:
-            continue
-        seen.add(slug)
-        out.append({
-            "label": text,
-            "level": level,
-            "anchor": slug,
-            "private": slug.startswith(PRIVATE_SECTION_PREFIX),
-        })
+def interview_section_index(blocks: list[dict]) -> list[dict]:
+    """The flat pill row: every block and subsection, in page order, with its number."""
+    out = []
+    for block in blocks:
+        out.append({"number": block["number"], "label": block["label"],
+                    "anchor": block["anchor"], "level": 2,
+                    "private": block["private"], "parent": block["anchor"]})
+        for sub in block["subsections"]:
+            out.append({"number": sub["number"], "label": sub["label"],
+                        "anchor": sub["anchor"], "level": 3,
+                        "private": block["private"], "parent": block["anchor"]})
     return out
-
-
-def strip_interview_section(body_md: str, slug: str) -> str:
-    """Drop one `##` section — heading and body — from a round, up to the next `##`.
-
-    Used by the focus view for "Private — not for the call", which is the one section
-    that must not be on screen while the call is happening. Removing it from the markdown
-    rather than hiding it in CSS is deliberate: a `display:none` section is still in the
-    page source, still found by the browser's find-in-page, and still there if a
-    stylesheet fails to load.
-    """
-    out, skipping, in_fence = [], False, False
-    for raw in body_md.splitlines():
-        line = raw.strip()
-        if line.startswith("```") or line.startswith("~~~"):
-            in_fence = not in_fence
-        elif not in_fence and line.startswith("## ") and not line.startswith("### "):
-            skipping = interview_section_slug(line[2:].strip()) == slug
-        if not skipping:
-            out.append(raw)
-    return "\n".join(out)
 
 
 def find_scans(scans_dir: Path) -> list[dict]:

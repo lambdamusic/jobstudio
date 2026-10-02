@@ -2627,6 +2627,28 @@ class TabsTests(TestCase):
             call_command("build_static", output=tmp, clean=True, stdout=StringIO())
 
 
+class SidebarTests(TestCase):
+    """The Applications sub-nav."""
+
+    fixtures = FIXTURE
+
+    def test_interviewing_is_listed_first_under_applications(self):
+        """The sub-nav runs down the funnel, and Interviewing is the status where
+        something is already in motion and needs preparing for."""
+        html = self.client.get("/").content.decode()
+        order = ["/applications/status/interviewing/",
+                 "/applications/status/reviewing/",
+                 "/applications/status/saved/",
+                 "/applications/all/"]
+        positions = [html.index(f'href="{h}"') for h in order]
+        self.assertEqual(positions, sorted(positions), "sub-nav is out of funnel order")
+
+    def test_the_interviewing_page_marks_its_own_sidebar_entry(self):
+        html = self.client.get("/applications/status/interviewing/").content.decode()
+        self.assertIn('href="/applications/status/interviewing/" class="nav-sub active"',
+                      html.replace("  ", " "))
+
+
 class FitSummaryTests(TestCase):
     """The pros/cons/unknowns boxes on the Record tab, driven by the Application fields."""
 
@@ -3334,24 +3356,64 @@ class InterviewRoundTests(TestCase):
 
     # ---- the in-round jump index and the focus view (`#66`) ----
 
-    def test_sections_are_indexed_in_document_order(self):
+    def test_sections_are_indexed_in_document_order_and_numbered(self):
         """Not against a canonical list. Rounds come in two shapes — a prep round and a
         post-interview record — and the example data carries both, so indexing against
-        one vocabulary would leave the other almost entirely unmatched. Document order
-        is also what keeps the bar agreeing with the page as you scroll."""
-        from .parsers import split_interview_sections
-        body = ("## Questions and answers\n\ntext\n\n"
-                "### Follow-ups\n\ntext\n\n## What to do differently\n\ntext\n")
-        got = [(s["level"], s["label"]) for s in split_interview_sections(body)]
-        self.assertEqual(got, [(2, "Questions and answers"),
-                               (3, "Follow-ups"),
-                               (2, "What to do differently")])
+        one vocabulary would leave the other almost entirely unmatched.
+
+        The numbering is what makes nesting visible: the index is a flat row of pills,
+        where "Follow-ups" otherwise reads as a sibling of the section it sits inside.
+        """
+        body = ("preamble\n\n## Questions and answers\n\ntext\n\n"
+                "### Follow-ups\n\ntext\n\n### Tangents\n\ntext\n\n"
+                "## What to do differently\n\ntext\n")
+        split = P.split_interview_round(body)
+        self.assertEqual(split["preamble"], "preamble")
+
+    def test_the_preamble_drops_the_title_and_is_empty_when_that_is_all_there_is(self):
+        """Every round file opens with `# Title`, which the page renders itself. Left in
+        the preamble it is shown twice; filtered in the template instead, the preamble
+        is empty-but-truthy and renders an empty styled box on most rounds."""
+        self.assertEqual(
+            P.split_interview_round("# HR screen — Dana\n\n## Details\n\nx\n")["preamble"],
+            "")
+        self.assertEqual(
+            P.split_interview_round("# T\n\nkept\n\n## Details\n\nx\n")["preamble"],
+            "kept")
+
+    def test_strip_h1_handles_a_title_with_nothing_after_it(self):
+        """Latent before `#66`: the regex required a trailing newline, so a document
+        that is only a title kept it."""
+        from .templatetags.jobs_extras import strip_h1
+        self.assertEqual(strip_h1("# Title only"), "")
+        self.assertEqual(strip_h1("# Title\nbody"), "body")
+
+    def test_section_numbers_follow_the_document(self):
+        body = ("preamble\n\n## Questions and answers\n\ntext\n\n"
+                "### Follow-ups\n\ntext\n\n### Tangents\n\ntext\n\n"
+                "## What to do differently\n\ntext\n")
+        split = P.split_interview_round(body)
+        got = [(s["number"], s["level"], s["label"])
+               for s in P.interview_section_index(split["blocks"])]
+        self.assertEqual(got, [("1", 2, "Questions and answers"),
+                               ("1.1", 3, "Follow-ups"),
+                               ("1.2", 3, "Tangents"),
+                               ("2", 2, "What to do differently")])
+
+    def test_a_subsection_stays_inside_its_own_block(self):
+        """`1.1` has to belong to `1`, not to whichever block renders next — the pill
+        opens its parent, so a subsection filed under the wrong one opens the wrong
+        section and scrolls nowhere."""
+        body = "## One\n\n### Inner\n\ntext\n\n## Two\n\ntext\n"
+        blocks = P.split_interview_round(body)["blocks"]
+        self.assertEqual([b["label"] for b in blocks], ["One", "Two"])
+        self.assertEqual([s["label"] for s in blocks[0]["subsections"]], ["Inner"])
+        self.assertEqual(blocks[1]["subsections"], [])
 
     def test_sections_ignore_headings_inside_fenced_code(self):
-        from .parsers import split_interview_sections
         body = "## Real\n\n```\n## Not a heading\n```\n\n## Also real\n"
-        self.assertEqual([s["label"] for s in split_interview_sections(body)],
-                         ["Real", "Also real"])
+        blocks = P.split_interview_round(body)["blocks"]
+        self.assertEqual([b["label"] for b in blocks], ["Real", "Also real"])
 
     def test_section_anchors_are_unique_across_rounds_on_one_page(self):
         """Two rounds of one application both carry "## Questions and answers". The tab
@@ -3398,17 +3460,41 @@ class InterviewRoundTests(TestCase):
         secret = "DO-NOT-SAY-THIS-OUT-LOUD"
         body = (round_["body_md"]
                 + f"\n\n## Private — not for the call\n\n{secret}\n")
+        prefix = round_["anchor"]
+        split = P.split_interview_round(body)
+        blocks = [{**b, "anchor": f"{prefix}--{b['anchor']}",
+                   "subsections": [{**s, "anchor": f"{prefix}--{s['anchor']}"}
+                                   for s in b["subsections"]]}
+                  for b in split["blocks"]]
+        self.assertTrue(any(b["private"] for b in blocks),
+                        "the planted section should be recognised as private")
         with mock.patch.object(Application, "interview_files",
                                new_callable=mock.PropertyMock) as files:
-            sections = P.split_interview_sections(body)
             files.return_value = [{**round_, "body_md": body,
-                                   "sections": [{**s, "anchor": f"{round_['anchor']}--{s['anchor']}"}
-                                                for s in sections]}]
+                                   "preamble_md": split["preamble"],
+                                   "blocks": blocks,
+                                   "sections": P.interview_section_index(blocks)}]
             html = self.client.get(
-                f"/applications/{app.num}/rounds/{round_['anchor']}/").content.decode()
+                f"/applications/{app.num}/rounds/{prefix}/").content.decode()
         self.assertNotIn(secret, html)
+        # Absent from the index too — a pill pointing at a section that is not on the
+        # page is its own bug, and it would also name the section in the nav.
+        self.assertNotIn("not-for-the-call", html)
         # ...but the page says it dropped something, rather than silently shortening.
         self.assertIn("full round", html)
+
+    def test_a_pill_can_open_the_block_its_target_sits_in(self):
+        """Every pill names the block to open (`data-parent`) as well as the id to
+        scroll to. A `###` target is inside a closed `<details>`, so without the parent
+        the browser's own jump lands nowhere."""
+        app = Application.objects.get(num=1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for round_ in app.interview_files:
+            blocks = {b["anchor"] for b in round_["blocks"]}
+            for sec in round_["sections"]:
+                with self.subTest(anchor=sec["anchor"]):
+                    self.assertIn(sec["parent"], blocks)
+                    self.assertIn(f'data-parent="{sec["parent"]}"', html)
 
     def test_every_round_has_a_unique_anchor(self):
         for app in Application.objects.exclude(folder=""):

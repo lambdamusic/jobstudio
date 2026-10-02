@@ -3,7 +3,7 @@
 <!-- Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #71 -->
+     Next available: #72 -->
 
 ## Architecture
 
@@ -244,6 +244,12 @@ had tested against (`#2`'s "a second real person" pass, and the `cv --import` ha
 
   Pairs with `#43` and `#50`, which were the same complaint one layer down: the docs answered "how do I drive it" before "why would I want this".
 
+- [x] `#71` **Link the people and organisations a round names — from sources already to hand** — raised 2026-10-02 by Michele while reviewing `#66`: *"when people or key entities are mentioned in the text, always hyperlink to outside pages (eg Hannah Kemp => linkedIn page)"*. **Done the same day** as a writing rule in `subcommands/interview.md` step 4, where `## Who I'm meeting` makes it pay off most.
+
+  **Sourced links only, and that limit is the substance of the item rather than a caveat on it.** The agent links a person, company, product or talk when the URL is already in the job posting, the company's own site, the scan data, the application folder or something the user pasted. It does not search for one. A searched-for profile cannot be confirmed to be the right person — names repeat — and the cost of being wrong lands on a named individual and on the user, who walks into the call having read about somebody else. No link is a small loss; a confident link to the wrong person is not. If the user wants a profile found they can hand over the URL, and then it is sourced.
+
+  Chosen by Michele from four options when the verification problem was put to him. Currently scoped to interview rounds; company notes and gap analyses have the same opportunity and the same hazard, so generalising it is a follow-up if wanted.
+
 ## Web app / admin site
 - [x] `#17` Make external links open in a new tab/window (e.g. company detail page `/companies/<slug>/` renders notes.md with several external source URLs — currently they navigate away from the app in-place) — done 2026-09-17: chained the existing `blank_links` filter (already used on scan reports) onto every `|markdown` render across the templates — company/area/note/profile pages and all of application detail (record, job description, my notes, CV, cover letters, other files)
 - [x] `#18` Reorder the application detail page tabs (`src/web/apps/tracker/templates/tracker/application_detail.html`) to: Record, Job description, My notes, CV, Cover letters, History — done 2026-09-17. "Other files" and "Also at `<company>`" stayed after History.
@@ -304,7 +310,17 @@ had tested against (`#2`'s "a second real person" pass, and the `cv --import` ha
 
   **Three bugs the checks caught that review would not have:** a multi-line `{# … #}` in `base.html` leaked verbatim into every page (Django's `{# #}` is single-line only) — caught by `test_templates_have_no_leaked_comment_markup`; the new template used `{% url %}` where the codebase hardcodes paths, and the tracker urlconf sets `app_name`, so every reverse failed; and `build_static`'s link checker failed the build until the round pages were enumerated.
 
-  **Not built, from the five options here:** collapsible sections, question-only mode, and keyboard jumps. The first was argued against in this entry and still is. The other two are worth their own items if wanted.
+  **Reworked 2026-10-02 after review.** Michele read it against a real round and asked for collapsible sections *collapsed by default* — which this entry had argued against, on the grounds that mid-call a click costs more than a scroll. Wrong: on a real round the sections are long enough that the scroll never ends, and a round that opens as a short menu of numbered headings is far quicker to work than one that opens as prose. Each `##` is now a `<details>`, closed, with expand/collapse-all.
+
+  Three other things came out of that review:
+
+  - **The pill highlight was simply wrong.** Clicking `…--outcome` highlighted the *next* section down. The first version watched a thin band at the top of the viewport with `IntersectionObserver` and lit whichever heading was inside it — but clicking a pill scrolls the target to `y=0`, *above* that band, so the heading in the band was the one after it. The band was also the only input, so with no heading inside it, which is most of the time, the highlight went stale. Now computed from scroll position — the last heading whose top is above the sticky bar's lower edge — which is correct whether you scrolled, clicked, or loaded a deep link. `scroll-margin-top` is the other half: without it the browser parks the target *under* the sticky bar and the arithmetic disagrees with the eye.
+  - **Nesting was invisible.** A flat row of pills renders "What they asked" as a sibling of the "Outcome" it sits inside. Sections are now numbered `1 / 1.1 / 1.2 / 2`, in the pills and on the headings. Michele's suggestion, and it is the only thing that fits in a one-line pill.
+  - **JS-off and `build_static` support are not requirements.** Both still work and neither cost anything to keep — `<details>` collapses without script, and the static build already enumerates the round pages — so they stay, but they are no longer constraints on the design.
+
+  **Two bugs found while verifying the rework, neither of which a test would have caught:** the active pill rendered navy-on-navy, because `a.section-chip:hover` is specificity (0,2,1) and beat the (0,2,0) `.here` — and the cursor is *always* on the pill you just clicked, so that was the normal case, not an edge one. And `strip_h1` required a trailing newline, so a round whose preamble is only its title rendered the title twice; the preamble now drops it in the parser, and `strip_h1` handles end-of-string for everyone else.
+
+  **Not built, from the five options here:** question-only mode and keyboard jumps. Worth their own items if wanted.
 
 - [x] `#67` **Move the Interviews tab to sit immediately before History** — raised 2026-10-01 by Michele, a follow-up to `#18`, which set the tab order before Interviews existed. **Done 2026-10-01.** Order is now `Record, Job description, My notes, CV, Cover letters, Other files, Interviews, History` (`Also at <company>` still last), following the chronology of the process rather than what gets reread most.
 

@@ -273,14 +273,13 @@
             </span>
           </div>
           {% comment %}
-          The in-round jump index (`#66`). A round is long enough that finding a section
-          by scrolling is slow, which is a problem precisely when there is least time —
-          mid-call. Sections a round does not have stay in place, dimmed, so an item's
-          position is the same in every round and the bar can be glanced at rather than
-          read. `section_ids` puts the matching ids on the rendered headings.
+          The numbered jump index and the collapsed sections (`#66`). A round is long
+          enough that finding a section by scrolling is slow, which is a problem exactly
+          when there is least time — mid-call. Both partials are shared with the focus
+          view so the two readings of a round cannot drift.
           {% endcomment %}
           {% include "tracker/_round_sections.html" with sections=round.sections %}
-          {{ round.body_md|strip_h1|mark_qa|markdown|blank_links|section_ids:round.anchor }}
+          {% include "tracker/_round_body.html" with round=round %}
         </div>
       {% endfor %}
     </section>

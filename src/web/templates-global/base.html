@@ -124,6 +124,12 @@ one — the head, the stylesheet and the title convention all stay shared.
       <a href="/applications/" class="{% if nav_apps == 'applications' %}active{% endif %}">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-applications"/></svg><span>Applications</span>
         <span class="nav-count">{{ nav_counts.active }}</span></a>
+      {% comment %}
+      Interviewing first: the sub-nav runs down the funnel, and it is the one status
+      where something is already in motion and needs preparing for.
+      {% endcomment %}
+      <a href="/applications/status/interviewing/" class="nav-sub {% if nav_apps == 'interviewing' %}active{% endif %}">
+        Interviewing <span class="nav-count">{{ nav_counts.interviewing }}</span></a>
       <a href="/applications/status/reviewing/" class="nav-sub {% if nav_apps == 'reviewing' %}active{% endif %}">
         Reviewing <span class="nav-count">{{ nav_counts.reviewing }}</span></a>
       <a href="/applications/status/saved/" class="nav-sub {% if nav_apps == 'saved' %}active{% endif %}">

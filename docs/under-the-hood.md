@@ -159,11 +159,26 @@ someone other than its owner, and a hidden section is still in the source, still
 findable with find-in-page, and still there if the stylesheet fails. The page says what
 it dropped and links the full round.
 
-And the **jump index** above each round — in the focus view and in the Interviews tab —
-indexes the headings the file actually has, in document order. Not a canonical section
-list: rounds come in two shapes, one written before the call (Details / Prep / Questions
-to ask them / Study before / Outcome) and one after it (Questions and answers / What to
-do differently), so a fixed vocabulary matches one and misses the other.
+Each round renders as **numbered, collapsible sections, closed by default** — one
+`<details>` per `##`, so a round opens as a short menu rather than a wall of prose. The
+**jump index** above it (both here and in the Interviews tab) lists those sections and
+their `###` subsections in document order, numbered `1 / 1.1 / 1.2 / 2`.
+
+Two things about that are easy to get wrong:
+
+- **Document order, not a canonical list.** Rounds come in two shapes — written before
+  the call (Details / Prep / Questions to ask them / Study before / Outcome) and written
+  after it (Questions and answers / What to do differently) — so a fixed vocabulary
+  matches one and misses the other.
+- **The numbers are the only thing carrying depth.** The index is a flat row of pills,
+  where "What they asked" sitting under "Outcome" otherwise reads as its sibling.
+  Numbers are positional and renumber if a round is edited; the slug, not the number,
+  is what a link anchors to.
+
+`round-nav.js` opens the block a link points *into* (a `###` target sits inside a closed
+`<details>`, so the browser's own jump would land nowhere), drives expand/collapse all,
+and highlights the section being read — computed from scroll position against the sticky
+bar's lower edge, paired with `scroll-margin-top` in the CSS.
 
 Django management commands, run as `tools/py src/web/manage.py <name>`:
 

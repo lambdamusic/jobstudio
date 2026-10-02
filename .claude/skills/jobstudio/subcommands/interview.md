@@ -140,6 +140,19 @@ folder — one file per round, never appended to `notes.md`:
   name is what `appfolder.app_filename(folder, f"interview-{stage}", "md", when=<date>)`
   builds, so use that rather than assembling the string by hand.
 
+**Link the people and organisations you name — from sources you already have, never
+from a search.** An interviewer, the company, a product, a paper or talk someone is
+known for: if a URL for it is in the job posting, the company's own site, the scan data,
+the application folder, or something the user pasted into this session, make the mention
+a markdown link. `## Who I'm meeting` is where this pays off most — a name you can click
+through to beats a paragraph describing who they are.
+
+**Do not go looking for one.** A searched-for profile cannot be confirmed to be the
+right person: names repeat, and the cost of being wrong lands on a named individual and
+on the user, who walks into a call having read about someone else. No link is a small
+loss; a confident link to the wrong person is not. If the user wants a profile found,
+they can hand you the URL — then it is sourced and you link it.
+
 Structure:
 
 ```markdown

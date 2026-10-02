@@ -133,10 +133,16 @@ def blank_links(html):
 
 @register.filter(name="strip_h1")
 def strip_h1(text):
-    """Drop a leading '# Title' — the page already shows it as a heading."""
+    """Drop a leading '# Title' — the page already shows it as a heading.
+
+    `(?:\n|\Z)` rather than `\n`: the title may be the whole string, with nothing after
+    it. That happens for a round's preamble (`#66`), which is everything before the
+    first `##` — in a round that goes straight into its sections, the title is all there
+    is, and requiring a trailing newline left it rendered twice.
+    """
     if not text:
         return ""
-    return re.sub(r"\A\s*#\s+.*?\n", "", text, count=1)
+    return re.sub(r"\A\s*#\s+.*?(?:\n|\Z)", "", text, count=1)
 
 
 # A line that opens a Q or an A in an interview prep file: `**Q:** …`, optionally as a
@@ -201,34 +207,36 @@ def mark_qa(text):
     return "".join(chunks)
 
 
-_H23_RE = re.compile(r"<(h[23])(?![^>]*\bid=)([^>]*)>(.*?)</\1>", re.DOTALL)
-_TAG_RE = re.compile(r"<[^>]+>")
+_H3_RE = re.compile(r"<h3(?![^>]*\bid=)([^>]*)>(.*?)</h3>", re.DOTALL)
 
 
-@register.filter(name="section_ids")
-def section_ids(html, prefix):
-    """Give every `<h2>`/`<h3>` an id, so the in-round jump index has somewhere to land.
+@register.filter(name="number_sections")
+def number_sections(html, block):
+    """Stamp each `<h3>` in a collapsed block with its id and section number.
 
-    The markdown renderer has no `toc` extension (see MD_EXTENSIONS) and adding one is
-    the wrong fix here: ids have to be scoped per round, since the Interviews tab stacks
-    several rounds into one page. The slug comes from `parsers.interview_section_slug`,
-    the same function that builds the nav's hrefs — one source, so the two cannot drift.
+    Matched **by position**, not by re-slugging the heading text: the subsection list was
+    built by walking the same markdown in the same order, so the Nth `<h3>` here is the
+    Nth entry there. Re-deriving the slug from the rendered HTML would mean the same
+    string being slugged by two different code paths — the drift this is written to
+    avoid, since the nav's href and the heading's id have to be character-identical.
 
-    A heading that already carries an id is left alone, which keeps this safe to chain
-    after any filter that sets one.
+    A heading that already carries an id is left alone, so this is safe to chain.
     """
     if not html:
         return ""
-    from ..parsers import interview_section_slug
+    subs = list(block.get("subsections") or [])
+    i = 0
 
     def one(m):
-        tag, attrs, inner = m.group(1), m.group(2), m.group(3)
-        slug = interview_section_slug(_TAG_RE.sub("", inner).strip())
-        if not slug:
+        nonlocal i
+        if i >= len(subs):
             return m.group(0)
-        return f'<{tag}{attrs} id="{prefix}--{slug}">{inner}</{tag}>'
+        sub = subs[i]
+        i += 1
+        return (f'<h3{m.group(1)} id="{sub["anchor"]}">'
+                f'<span class="sec-n">{sub["number"]}</span> {m.group(2)}</h3>')
 
-    return mark_safe(_H23_RE.sub(one, str(html)))
+    return mark_safe(_H3_RE.sub(one, str(html)))
 
 
 @register.filter
