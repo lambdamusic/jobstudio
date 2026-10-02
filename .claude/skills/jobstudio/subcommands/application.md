@@ -306,3 +306,27 @@ Done: {Company} — {Role}
 Then one line on what is *not* done, since this used to do it: the CV is a mechanical
 copy and the letter is a thin draft — `/jobstudio cv {N}` and
 `/jobstudio cover-letter {N}` write tailored versions if this role is worth it.
+
+## Changing an existing application — status, next action, the rest
+
+"Mark #N as discarded", "#N: rejected", "change the next action on #N" are updates, not
+a new log. Use `update-application`, not the Django admin:
+
+```
+tools/py src/jobsdb.py update-application {N} \
+  [--status {status}] [--next-action "..."] [--summary "..."] [--notes "..."] \
+  [--contact "..."] [--url "..."]
+```
+
+Only the flags given are touched; `""` clears a field. An unknown status is refused.
+**When a status change ends the plan** (discarded, rejected, closed), set the next action
+in the same call, e.g. `--next-action "None — discarded YYYY-MM-DD ({short reason})"`.
+`set-status` alone leaves the old "Review CV and apply" showing on the list views.
+
+Record the reason as a dated line under `## Timeline` in
+`<DATA>/jobs/applications/{folder}/notes.md`:
+
+```
+- **YYYY-MM-DD** — Discarded. {The user's reason, in their terms.}
+```
+

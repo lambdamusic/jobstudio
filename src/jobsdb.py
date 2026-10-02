@@ -181,9 +181,14 @@ def dashboard_summary(activity_weeks: int = 8) -> dict:
 # Writes
 # ---------------------------------------------------------------------------
 
+# "Not passed" for the update commands, where "" is a real value (it clears a field).
+_UNSET = object()
+
+
 def set_status(num: int | str, status: str) -> dict:
     setup()
     from tracker.models import Application
+    _check_status(status)
     a = Application.objects.get(num=int(num))
     a.status = status
     a.save()
@@ -214,6 +219,43 @@ def set_cv_base(num: int | str, cv_base: str) -> dict:
     a.cv_base = cv_base
     a.save()
     return _app_dict(a)
+
+
+def update_application(num: int | str, *, status=_UNSET, next_action=_UNSET,
+                       summary=_UNSET, notes=_UNSET, contact=_UNSET, job_url=_UNSET) -> dict:
+    """Change an application's free-text fields. Only the fields passed are touched.
+
+    The application-side twin of `update-company` (`#41`), for the same reason: these
+    fields were settable at creation and in the Django admin, and by nothing an agent
+    could call afterwards. The case that made it worth building is discarding a role —
+    `set-status` flips the status and leaves the `next_action` saying "Review CV and
+    apply", so the list views went on showing a plan for a role already turned down.
+    `--status` is here as well so that change is one call, not two.
+
+    `_UNSET` rather than `None`, as in `update_company`: "" is a real value, and
+    clearing a stale next action has to be possible.
+    """
+    setup()
+    from tracker.models import Application
+    if status is not _UNSET:
+        _check_status(status)
+    a = Application.objects.get(num=int(num))
+    for field, value in (("status", status), ("next_action", next_action),
+                         ("summary", summary), ("notes", notes), ("contact", contact),
+                         ("job_url", job_url)):
+        if value is not _UNSET:
+            setattr(a, field, value)
+    a.save()
+    return _app_dict(a)
+
+
+def _check_status(status: str) -> None:
+    # Checked rather than trusted, same as the web app's set_status: an unknown value
+    # saves fine and then sorts last and matches no status filter.
+    from appfolder import STATUS_SORT_ORDER
+    if status not in STATUS_SORT_ORDER:
+        raise ValueError(f"unknown status {status!r} — expected one of "
+                         f"{', '.join(STATUS_SORT_ORDER)}")
 
 
 def set_fit(num: int | str, *, level: str, pros: str = "", cons: str = "",
@@ -362,9 +404,6 @@ def add_company(*, name: str, url: str = "", role_target: str = "", fit: int = 3
         date_added=dt.date.today(),
     )
     return _company_dict(c)
-
-
-_UNSET = object()
 
 
 def _resolve_company(ref: str):
@@ -569,6 +608,18 @@ def _main() -> None:
     p_st.add_argument("num")
     p_st.add_argument("status")
 
+    p_upapp = sub.add_parser("update-application",
+                             help="Change an application's status and free-text fields "
+                                  "(only the flags you pass)")
+    p_upapp.add_argument("num")
+    # Same None-means-not-passed convention as update-company: `--next-action ""` clears.
+    p_upapp.add_argument("--status", default=None)
+    p_upapp.add_argument("--next-action", default=None)
+    p_upapp.add_argument("--summary", default=None)
+    p_upapp.add_argument("--notes", default=None)
+    p_upapp.add_argument("--contact", default=None)
+    p_upapp.add_argument("--url", default=None)
+
     p_cvb = sub.add_parser("set-cv-base", help="Change which base CV an application tailors from")
     p_cvb.add_argument("num")
     p_cvb.add_argument("cv_base", choices=["functional", "chronological"])
@@ -633,6 +684,17 @@ def _dispatch(args, json) -> None:
     elif args.cmd == "set-status":
         row = set_status(args.num, args.status)
         print(f"#{row['num']} {row['company']} -> {row['status']}")
+    elif args.cmd == "update-application":
+        fields = {k: v for k, v in (("status", args.status), ("next_action", args.next_action),
+                                    ("summary", args.summary), ("notes", args.notes),
+                                    ("contact", args.contact), ("job_url", args.url))
+                  if v is not None}
+        if not fields:
+            raise SystemExit("update-application: nothing to change — pass at least one of "
+                             "--status, --next-action, --summary, --notes, --contact, --url.")
+        row = update_application(args.num, **fields)
+        print(f"#{row['num']} {row['company']} -> " +
+              ", ".join(f"{k}={row.get(k)!r}" for k in sorted(fields)))
     elif args.cmd == "set-cv-base":
         row = set_cv_base(args.num, args.cv_base)
         print(f"#{row['num']} {row['company']} -> cv_base: {row['cv_base']}")

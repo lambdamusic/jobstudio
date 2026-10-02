@@ -4,6 +4,13 @@ Dated entries, newest first.
 
 ## 2026-10-02
 
+- **`jobsdb.py update-application`**: the application-side twin of `update-company`.
+  It changes `status`, `next_action`, `summary`, `notes`, `contact` or `job_url`, and
+  touches only the flags passed (`""` clears a field). The reason for building it:
+  discarding a role with `set-status` left its next action saying "Review CV and apply",
+  and nothing on the agent path could change that. Both commands now refuse an unknown
+  status, as the web app's status menu already did.
+
 - **`/notes/` is one tab per note, each with its own jump index** (`#73`) — reading two
   strategy notes no longer means two page loads and a back button. **The per-note pages
   at `/notes/<slug>/` are kept**: they are what the published site is built from and the

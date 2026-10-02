@@ -1998,6 +1998,37 @@ class JobsDbTests(TestCase):
         self.assertEqual(jobsdb.update_company(name, fit=3)["num"], "1")
         self.assertEqual(jobsdb.update_company(name[:6], fit=2)["num"], "1")
 
+    def test_update_application_touches_only_the_fields_passed(self):
+        """Discarding a role used to leave its next action saying "Review CV and apply" —
+        `set-status` could change the status and nothing could change the rest. Status and
+        next action in one call is the case it was built for."""
+        import jobsdb
+        from tracker.models import Application
+
+        before = Application.objects.get(num=1)
+        original = (before.role, before.summary, before.notes, before.contact, before.job_url)
+        row = jobsdb.update_application(1, status="discarded", next_action="")
+
+        after = Application.objects.get(num=1)
+        self.assertEqual(after.status, "discarded")
+        self.assertEqual(after.next_action, "", "an empty string must clear the field")
+        self.assertEqual((after.role, after.summary, after.notes, after.contact, after.job_url),
+                         original, "a field that was not passed must not be touched")
+        self.assertEqual(row["status"], "discarded")
+
+    def test_status_writes_refuse_an_unknown_status(self):
+        """Same check as the web app's status menu: an unknown value would save, then sort
+        last and match no status filter."""
+        import jobsdb
+        from tracker.models import Application
+
+        before = Application.objects.get(num=1).status
+        with self.assertRaises(ValueError):
+            jobsdb.update_application(1, status="binned")
+        with self.assertRaises(ValueError):
+            jobsdb.set_status(1, "binned")
+        self.assertEqual(Application.objects.get(num=1).status, before)
+
     def test_set_cv_base_changes_the_stored_base(self):
         """`#60` — a `cv --base` override deliberately leaves the stored value alone, so
         making a switch permanent needs its own command. Nothing on the agent-native path
