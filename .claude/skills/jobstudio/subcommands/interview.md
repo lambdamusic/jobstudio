@@ -147,6 +147,15 @@ the application folder, or something the user pasted into this session, make the
 a markdown link. `## Who I'm meeting` is where this pays off most — a name you can click
 through to beats a paragraph describing who they are.
 
+**Add the link inside the existing line; never re-wrap the paragraph to fit it.** The
+app renders these files with markdown's `nl2br`, so **every newline in the source is a
+visible line break on the page**. Source lines look like ordinary wrapped prose only
+because they are all about the same width — break one in a new place and the reader gets
+a short ragged line mid-sentence. `[Derin](https://…)` makes a line long in the file and
+changes nothing on the page; moving the words onto a new line changes the page. The same
+goes for link text: a `[…](…)` whose label spans two lines renders with a `<br />` inside
+the anchor.
+
 **Do not go looking for one.** A searched-for profile cannot be confirmed to be the
 right person: names repeat, and the cost of being wrong lands on a named individual and
 on the user, who walks into a call having read about someone else. No link is a small
