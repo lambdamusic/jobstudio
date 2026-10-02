@@ -482,19 +482,27 @@ tr.is-stale td { background: #fffdf5; }
 
 /* Sticky, because the whole point is reaching it without scrolling back up: a round is
    long, and the moment you need it is the moment you have least time. */
+/* Grey tray, white pills — the same device as `.company-jump` on a scan report, adopted
+   here 2026-10-02 because it reads far better: what makes a pill row scannable is the
+   contrast between pill and tray, not the pill borders. Outlined pills directly on the
+   page background read as a line of loose text.
+
+   Not shared with `.company-jump` as one rule, because that one is a static box in the
+   flow and this one is sticky — which is the whole difference in the padding, the radius
+   and the z-index below. */
 .section-index {
   position: sticky; top: 0; z-index: 5;
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-  margin: 0 0 18px; padding: 10px 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
+  margin: 0 0 18px; padding: 10px 12px;
+  background: var(--bg-sunk);
+  border: 1px solid var(--line); border-radius: var(--radius);
 }
 
 .section-chip {
   font-size: 12.5px; line-height: 1; white-space: nowrap;
   padding: 6px 10px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--muted);
-  text-decoration: none; background: none;
+  text-decoration: none; background: var(--bg);
 }
 a.section-chip:hover { border-color: var(--navy); color: var(--navy); }
 
