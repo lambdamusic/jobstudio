@@ -133,10 +133,16 @@ def blank_links(html):
 
 @register.filter(name="strip_h1")
 def strip_h1(text):
-    """Drop a leading '# Title' — the page already shows it as a heading."""
+    """Drop a leading '# Title' — the page already shows it as a heading.
+
+    `(?:\n|\Z)` rather than `\n`: the title may be the whole string, with nothing after
+    it. That happens for a round's preamble (`#66`), which is everything before the
+    first `##` — in a round that goes straight into its sections, the title is all there
+    is, and requiring a trailing newline left it rendered twice.
+    """
     if not text:
         return ""
-    return re.sub(r"\A\s*#\s+.*?\n", "", text, count=1)
+    return re.sub(r"\A\s*#\s+.*?(?:\n|\Z)", "", text, count=1)
 
 
 # A line that opens a Q or an A in an interview prep file: `**Q:** …`, optionally as a
@@ -199,6 +205,38 @@ def mark_qa(text):
         if not chunk.startswith("```"):
             chunks[i] = _wrap_questions(chunk)
     return "".join(chunks)
+
+
+_H3_RE = re.compile(r"<h3(?![^>]*\bid=)([^>]*)>(.*?)</h3>", re.DOTALL)
+
+
+@register.filter(name="number_sections")
+def number_sections(html, block):
+    """Stamp each `<h3>` in a collapsed block with its id and section number.
+
+    Matched **by position**, not by re-slugging the heading text: the subsection list was
+    built by walking the same markdown in the same order, so the Nth `<h3>` here is the
+    Nth entry there. Re-deriving the slug from the rendered HTML would mean the same
+    string being slugged by two different code paths — the drift this is written to
+    avoid, since the nav's href and the heading's id have to be character-identical.
+
+    A heading that already carries an id is left alone, so this is safe to chain.
+    """
+    if not html:
+        return ""
+    subs = list(block.get("subsections") or [])
+    i = 0
+
+    def one(m):
+        nonlocal i
+        if i >= len(subs):
+            return m.group(0)
+        sub = subs[i]
+        i += 1
+        return (f'<h3{m.group(1)} id="{sub["anchor"]}">'
+                f'<span class="sec-n">{sub["number"]}</span> {m.group(2)}</h3>')
+
+    return mark_safe(_H3_RE.sub(one, str(html)))
 
 
 @register.filter

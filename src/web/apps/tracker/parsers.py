@@ -201,6 +201,117 @@ def find_interviews(folder: Path) -> list[dict]:
     return out
 
 
+# A round is split into collapsible `##` blocks, numbered, and indexed in the order the
+# headings appear rather than against a canonical list.
+#
+# `#66` was planned against the canonical vocabulary from `subcommands/interview.md`
+# step 4, with absent sections dimmed in place. The data killed it: rounds come in at
+# least two shapes. One written *before* the call uses the prep vocabulary (Details /
+# Prep / Questions to ask them / Study before / Outcome); one written *after* records
+# what happened (Questions and answers / What to do differently). Indexed against one
+# list, a post-interview round renders ten dimmed chips and two live ones.
+#
+# Document order also keeps the index agreeing with the page, which a highlight tracking
+# scroll position depends on.
+PRIVATE_SECTION_PREFIX = "private"
+
+
+def interview_section_slug(label: str) -> str:
+    """Slug for one round-section heading. Shared by the parser, the nav's hrefs and the
+    `number_sections` filter that stamps ids onto the rendered headings, so the three
+    cannot drift."""
+    return _slugify(label)
+
+
+def _is_fence(line: str) -> bool:
+    return line.startswith("```") or line.startswith("~~~")
+
+
+def split_interview_round(body_md: str) -> dict:
+    """One interview round, split for the collapsible reading view (`#66`).
+
+    Returns `preamble` (anything before the first `##` — the Date/With/Format line in
+    most rounds, which is short and always wanted, so it is never collapsed), and
+    `blocks`: one per `##`, each carrying its own markdown and its `###` subsections.
+
+    **Sections are numbered** — `1`, `1.1`, `1.2`, `2` — because the index is a flat row
+    of pills, where nesting is otherwise invisible: "What they asked" sitting under
+    "Outcome" reads as a sibling of it. The number is the only thing in a one-line pill
+    that can carry depth. Numbers are positional, so they renumber if a round is edited;
+    the slug, not the number, is what anchors a link.
+
+    Anchors are unprefixed here. The caller scopes them per round, because the Interviews
+    tab stacks every round on one page and ids have to stay unique across them.
+    """
+    lines = body_md.splitlines()
+    preamble: list[str] = []
+    blocks: list[dict] = []
+    in_fence = False
+
+    for raw in lines:
+        line = raw.strip()
+        if _is_fence(line):
+            in_fence = not in_fence
+        is_h2 = not in_fence and line.startswith("## ") and not line.startswith("### ")
+        is_h3 = not in_fence and line.startswith("### ") and not line.startswith("#### ")
+
+        if is_h2:
+            label = line[3:].strip().rstrip("#").strip()
+            slug = interview_section_slug(label)
+            blocks.append({
+                "number": str(len(blocks) + 1),
+                "label": label,
+                "anchor": slug,
+                "private": slug.startswith(PRIVATE_SECTION_PREFIX),
+                "lines": [],
+                "subsections": [],
+            })
+            continue
+
+        if not blocks:
+            preamble.append(raw)
+            continue
+
+        block = blocks[-1]
+        if is_h3:
+            label = line[4:].strip().rstrip("#").strip()
+            slug = interview_section_slug(label)
+            # A repeated subheading inside one block is indexed once — a second pill
+            # would be an anchor pointing at the first, which is worse than no pill.
+            if slug not in {s["anchor"] for s in block["subsections"]}:
+                block["subsections"].append({
+                    "number": f"{block['number']}.{len(block['subsections']) + 1}",
+                    "label": label,
+                    "anchor": slug,
+                })
+        block["lines"].append(raw)
+
+    for block in blocks:
+        block["body_md"] = "\n".join(block.pop("lines")).strip("\n")
+
+    # The leading `# Title` is dropped here rather than by `strip_h1` in the template:
+    # every round file opens with one, the page renders the title itself, and leaving it
+    # in means a preamble that is empty after filtering but still truthy — an empty
+    # styled box on most rounds.
+    text = "\n".join(preamble).strip("\n")
+    text = re.sub(r"\A\s*#\s+.*?(?:\n|\Z)", "", text, count=1).strip("\n")
+    return {"preamble": text, "blocks": blocks}
+
+
+def interview_section_index(blocks: list[dict]) -> list[dict]:
+    """The flat pill row: every block and subsection, in page order, with its number."""
+    out = []
+    for block in blocks:
+        out.append({"number": block["number"], "label": block["label"],
+                    "anchor": block["anchor"], "level": 2,
+                    "private": block["private"], "parent": block["anchor"]})
+        for sub in block["subsections"]:
+            out.append({"number": sub["number"], "label": sub["label"],
+                        "anchor": sub["anchor"], "level": 3,
+                        "private": block["private"], "parent": block["anchor"]})
+    return out
+
+
 def find_scans(scans_dir: Path) -> list[dict]:
     out: list[dict] = []
     if not scans_dir.is_dir():

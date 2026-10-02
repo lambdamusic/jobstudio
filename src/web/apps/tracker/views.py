@@ -819,10 +819,10 @@ def application_list(request, status=None, area=None, active=False, show_all=Fal
 
     if show_all:
         nav_apps = "all"
-    elif status == "reviewing":
-        nav_apps = "reviewing"
-    elif status == "saved":
-        nav_apps = "saved"
+    elif status in ("interviewing", "reviewing", "saved"):
+        # The three statuses with their own sidebar entry; the name matches the
+        # template's check, so adding a fourth is a one-line change in both places.
+        nav_apps = status
     else:
         nav_apps = "applications"
 
@@ -857,6 +857,46 @@ def application_detail(request, num):
         "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],
         "siblings": (Application.objects.filter(company_name=app.company_name)
                      .exclude(pk=app.pk).order_by(*BROWSE_ORDER)),
+    })
+
+
+def interview_round(request, num, anchor):
+    """One interview round, on its own page, with nothing else on screen (`#66`).
+
+    The Interviews tab is the right shape for preparing and the wrong one for the twenty
+    minutes you are actually in the call: sidebar, tab strip, metadata block and every
+    other round of the process all compete with the round being used. This drops them.
+
+    **"Private — not for the call" never reaches the page.** Its block is dropped before
+    rendering rather than hidden, so the text is absent from the page source — not merely
+    invisible. A page open during a call can be visible to someone other than its owner,
+    over a shoulder or a shared screen, and a CSS-hidden section survives find-in-page,
+    "view source", and a stylesheet that failed to load. The full round stays one link
+    away, so nothing is lost, only moved behind a deliberate click.
+    """
+    app = get_object_or_404(
+        Application.objects.select_related("company", "area"), num=num)
+    rounds = app.interview_files
+    round_ = next((r for r in rounds if r["anchor"] == anchor), None)
+    if round_ is None:
+        raise Http404(f"no interview round {anchor!r} on application {num}")
+
+    hidden = [b for b in round_["blocks"] if b["private"]]
+    shown = [b for b in round_["blocks"] if not b["private"]]
+    focus_round = {**round_, "blocks": shown,
+                   "sections": P.interview_section_index(shown)}
+
+    return render(request, "tracker/interview_round.html", {
+        "page": "applications",
+        "nav_apps": "applications",
+        "app": app,
+        "round": round_,
+        "focus_round": focus_round,
+        "sections": focus_round["sections"],
+        "hidden_sections": hidden,
+        # Previous/next by the same ordering the tab uses (newest first), so moving
+        # between rounds mid-process does not need a trip back to the application.
+        "others": [r for r in rounds if r["anchor"] != anchor],
     })
 
 

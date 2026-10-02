@@ -2,6 +2,59 @@
 
 Dated entries, newest first.
 
+## 2026-10-02
+
+- **An interview round can be navigated during the call** (`#66`) — a sticky jump index
+  over each round's sections, and a focus view at `/applications/<n>/rounds/<anchor>/`
+  that drops the sidebar, the tab strip and the metadata and renders one round at
+  reading size.
+
+  **The planned design did not survive the data.** The index was going to run against
+  the canonical section vocabulary in `subcommands/interview.md`, with absent sections
+  dimmed so an item kept its position between rounds. Built and looked at, the example's
+  post-interview rounds came out as ten dimmed chips and two live ones: a round written
+  *before* the call uses one vocabulary (Details / Prep / Questions to ask them) and one
+  written *after* it uses another (Questions and answers / What to do differently). It
+  now indexes the headings each file actually has, in document order — which also avoids
+  a highlight that would have jumped around the bar while scrolling steadily down.
+
+  **`Private — not for the call` is removed from the focus view's markdown, not hidden.**
+  A page open during a call can be visible to someone other than its owner, and a
+  CSS-hidden section is still in the page source, still findable with find-in-page, and
+  still there if the stylesheet fails to load. The page says what it dropped and links
+  the full round.
+
+  **Sections are collapsible and closed by default**, one `<details>` per `##`, so a
+  round opens as a short menu of numbered headings rather than a wall of prose, with
+  expand/collapse-all. **Numbered `1 / 1.1 / 1.2 / 2`** in the pills and on the headings:
+  the index is a flat row, where "What they asked" otherwise reads as a sibling of the
+  "Outcome" it sits inside, and a number is the only thing that fits in a one-line pill.
+
+  **The highlight is computed from scroll position**, not from an observer band. The
+  first attempt lit whichever heading sat in a thin band at the top of the viewport —
+  but clicking a pill scrolls the target *above* that band, so clicking "Outcome"
+  highlighted the section after it, and with no heading in the band at all (most of the
+  time) the highlight went stale. It now marks the last heading above the sticky bar's
+  lower edge, which is right whether you scrolled, clicked, or arrived on a deep link.
+  `scroll-margin-top` is the other half.
+
+  `build_static` publishes one page per round — not optional, since every application
+  page links them and its own link check fails otherwise.
+
+- **An interview round links the people it names** (`#71`), when the URL is already in
+  the job posting, the company site, the scan data or something you pasted. It does not
+  search for one: a searched-for profile cannot be confirmed to be the right person, and
+  the cost of being wrong lands on a named individual and on whoever walks into the call
+  having read about somebody else.
+
+- **`Interviewing` is in the sidebar** under Applications, ahead of Reviewing — the
+  sub-nav now runs down the funnel, and it is the status where something is already in
+  motion and needs preparing for.
+
+- **Fixed: `strip_h1` required a trailing newline**, so a document that is only a title
+  kept it. Latent until a round's preamble — everything before its first `##` — turned
+  out to be exactly that, and rendered the title twice.
+
 ## 2026-10-01
 
 - **The Interviews tab moved to sit immediately before History** (`#67`), so the tab

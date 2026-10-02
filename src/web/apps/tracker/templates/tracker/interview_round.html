@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load jobs_extras %}
+{% comment %}
+One interview round, read during the call (`#66`).
+
+Deliberately not the application page with things switched off. What is absent is the
+point: no sidebar, no tab strip, no status controls, no other rounds, no metadata block
+beyond the one line naming what this is. Everything that remains is the round.
+
+The view removes "Private — not for the call" from the markdown before it gets here, so
+it is absent from the page source rather than hidden by a rule that a failed stylesheet
+would undo.
+{% endcomment %}
+{% block title %}{{ round.label }} · {{ app.company_name }}{% endblock %}
+{% block layout_mod %} layout-bare{% endblock %}
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<div class="round-focus">
+
+  <div class="round-focus-head">
+    <div>
+      <a class="round-focus-back" href="/applications/{{ app.num }}/#{{ round.anchor }}">← {{ app.company_name }} · {{ app.role }}</a>
+      <h1>{{ round.label }}{% if round.date %} <span class="round-focus-date">{{ round.date|date:"j M Y" }}</span>{% endif %}</h1>
+    </div>
+    {% if IS_LOCAL %}
+      <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
+    {% endif %}
+  </div>
+
+  {% include "tracker/_round_sections.html" with sections=sections %}
+
+  <article class="panel prose round-focus-body">
+    {% include "tracker/_round_body.html" with round=focus_round %}
+  </article>
+
+  <footer class="round-focus-foot">
+    {% if hidden_sections %}
+      {% comment %}
+      Say that something was removed, and where it went. A page that quietly drops a
+      section is worse than one that shows it: next time you would not know whether the
+      round had the section at all.
+      {% endcomment %}
+      <p class="round-focus-note">
+        {% for s in hidden_sections %}{% if not forloop.first %}, {% endif %}<strong>{{ s.label }}</strong>{% endfor %}
+        {{ hidden_sections|pluralize:"is,are" }} kept off this page — read
+        {{ hidden_sections|pluralize:"it,them" }} on the
+        <a href="/applications/{{ app.num }}/#{{ round.anchor }}">full round</a>.
+      </p>
+    {% endif %}
+    {% if others %}
+      <p class="round-focus-note">Other rounds:
+        {% for r in others %}{% if not forloop.first %} · {% endif %}<a href="/applications/{{ app.num }}/rounds/{{ r.anchor }}/">{{ r.label }}</a>{% endfor %}
+      </p>
+    {% endif %}
+  </footer>
+
+</div>
+{% endblock %}

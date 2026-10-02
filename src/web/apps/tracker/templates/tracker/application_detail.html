@@ -265,11 +265,21 @@
         <div class="panel prose">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
             <h3 id="{{ round.anchor }}" style="margin-top:0">{{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}</h3>
-            {% if IS_LOCAL %}
-              <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
-            {% endif %}
+            <span>
+              <a href="/applications/{{ app.num }}/rounds/{{ round.anchor }}/">Focus view ↗</a>
+              {% if IS_LOCAL %}
+                · <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
+              {% endif %}
+            </span>
           </div>
-          {{ round.body_md|strip_h1|mark_qa|markdown|blank_links }}
+          {% comment %}
+          The numbered jump index and the collapsed sections (`#66`). A round is long
+          enough that finding a section by scrolling is slow, which is a problem exactly
+          when there is least time — mid-call. Both partials are shared with the focus
+          view so the two readings of a round cannot drift.
+          {% endcomment %}
+          {% include "tracker/_round_sections.html" with sections=round.sections %}
+          {% include "tracker/_round_body.html" with round=round %}
         </div>
       {% endfor %}
     </section>
