@@ -92,7 +92,7 @@ an interview flow shaped like the `jobs/profile/stocktake.md` interview in the
 `interview` subcommand. This is genuinely **new scope**, not part of the original
 Anthropic-API-removal ask — it surfaced because making tailoring agent-native forces
 the "what if there's no base CV yet" question to be answered somewhere. It also feeds
-directly into `#2`/`backlog/share-as-toolkit-plan.md` (a new user starting from
+directly into `#2`/`backlog/plans/002-share-as-toolkit.md` (a new user starting from
 scratch has no base CV at all), so scope it properly as its own sub-step rather than a
 one-liner when this is picked up — don't bolt it on as an afterthought to (b) below.
 
@@ -209,7 +209,7 @@ made at implementation time, not fully settled in the draft above:
   #39) and had never been fixed in the prompt file itself. `cv.md` now states the
   newest-to-oldest rule directly.
 - §1.1(a) (base-CV bootstrap) is untouched, as planned — still separate scope for
-  later, ideally alongside `#2`/`share-as-toolkit-plan.md`.
+  later, ideally alongside `#2`/`002-share-as-toolkit.md`.
 - Not yet done: a new CHANGELOG.md entry for this work, and running the Django test
   suite / actually using `/jobs-search application` end-to-end to confirm the new
   flow in practice (docs and subcommand files were updated, not exercised live).
@@ -341,7 +341,7 @@ the dependency."
   them: update `README.md`, `docs/workflow.md`, `docs/portal-scan-and-scoring.md`,
   `subcommands/scan.md` to say it's required only if using `scan --api`, not remove
   all mention of it.
-- Update `backlog/share-as-toolkit-plan.md` §8 to match: a new user doesn't *need* an
+- Update `backlog/plans/002-share-as-toolkit.md` §8 to match: a new user doesn't *need* an
   Anthropic API key to use either default path — only if they explicitly want the
   `scan --api` fallback. Softer framing than "no longer needed at all."
 - Re-grep the repo for `anthropic`/`ANTHROPIC_API_KEY` before closing this out. Now the
@@ -353,7 +353,7 @@ the dependency."
 normal (non-extras) dependency, with a `pyproject.toml` comment explaining it's
 opt-in-only; `tools/env.sh`/`ANTHROPIC_API_KEY` reframed (not removed) across
 `README.md`, `docs/workflow.md`, `docs/portal-scan-and-scoring.md`, `scan.md`;
-`share-as-toolkit-plan.md` §8 updated; re-grep confirms exactly one code hit
+`002-share-as-toolkit.md` §8 updated; re-grep confirms exactly one code hit
 (`score-candidates.py`). Not done: actually moving `anthropic` into an extras group —
 left as a normal dependency per the "otherwise" branch above, a deliberate choice, not
 an oversight.
@@ -416,7 +416,7 @@ Do **Part A first**, but split it into two waves rather than one block:
   small and self-contained (two subcommand docs, one script, no batching to redesign).
   Resolve the §1.3 close-guidance question before writing `cover-letter-structures.md`.
 - **A-later** (§1.1(a), the base-CV bootstrap flow) — **implemented 2026-09-17**, on
-  request, ahead of `#2`/`share-as-toolkit-plan.md` rather than designed alongside it
+  request, ahead of `#2`/`002-share-as-toolkit.md` rather than designed alongside it
   as originally suggested. Worth revisiting whether `#2`'s onboarding story wants
   anything different from what `cv.md` §A already does once that plan is picked up.
 

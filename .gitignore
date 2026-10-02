@@ -61,7 +61,7 @@ tools/py
 
 # ---------------------------------------------------------------------------
 # User data now lives in the data root, outside this repo (src/config.py,
-# backlog/share-as-toolkit-plan.md §3.1). These paths are ignored so that a
+# backlog/plans/002-share-as-toolkit.md §3.1). These paths are ignored so that a
 # not-yet-migrated checkout, or a data root that happens to sit inside the repo,
 # can never commit someone's job search.
 # ---------------------------------------------------------------------------

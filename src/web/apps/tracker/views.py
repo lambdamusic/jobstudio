@@ -184,7 +184,7 @@ def home(request):
 # chart designs are still being judged, and this one can carry the debugging affordances
 # a finished dashboard should not: the raw numbers beside each chart, so a diagram can be
 # checked rather than trusted. Promotion to the dashboard is a later decision, chart by
-# chart. See backlog/dashboard-charts-plan.md §2a.
+# chart. See backlog/plans/042-dashboard-charts.md §2a.
 # ---------------------------------------------------------------------------
 
 

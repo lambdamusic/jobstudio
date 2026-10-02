@@ -19,7 +19,7 @@ urlpatterns = [
     path("applications/<int:num>/rounds/<slug:anchor>/",
          views.interview_round, name="interview_round"),
     # The charts page. Not the dashboard on purpose — a staging ground while the
-    # chart designs are judged (backlog/dashboard-charts-plan.md §2a).
+    # chart designs are judged (backlog/plans/042-dashboard-charts.md §2a).
     path("stats/", views.stats, name="stats"),
     path("companies/", views.company_list, name="company_list"),
     path("companies/<slug:slug>/", views.company_detail, name="company_detail"),

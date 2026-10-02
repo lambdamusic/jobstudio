@@ -13,7 +13,7 @@ subcommand over it is how it gets replaced with a real letter.
 > retired — one structure family (standard) is simpler to maintain, and Standard 2
 > covers some of what mirror/advanced offered (a punchier, more direct alternative)
 > without their extra selection logic. See
-> `backlog/done/drop-direct-anthropic-api-plan.md` §1.2 for the reasoning.
+> `backlog/plans/001-drop-direct-anthropic-api.md` §1.2 for the reasoning.
 
 ## Sources
 

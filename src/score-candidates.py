@@ -4,7 +4,7 @@ score-candidates.py
 
 Opt-in, API-based scoring for the portal scan — the alternative to the default
 agent-native scoring the `scan` skill subcommand does live. The only place `anthropic`
-gets imported for scan (see backlog/drop-direct-anthropic-api-plan.md §2.2).
+gets imported for scan (see backlog/plans/001-drop-direct-anthropic-api.md §2.2).
 
 Why this exists alongside the agent-native default: agent-native scoring spends Claude
 Code session/rate-limit budget, not API dollars. This path bills separately per token

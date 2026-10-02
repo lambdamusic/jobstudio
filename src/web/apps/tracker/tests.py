@@ -851,7 +851,7 @@ class ViewTests(TestCase):
 
 
 class StatsPageTests(TestCase):
-    """`/stats/` — the charts page (backlog/dashboard-charts-plan.md §2a).
+    """`/stats/` — the charts page (backlog/plans/042-dashboard-charts.md §2a).
 
     What these pin is the frame every chart lands into rather than any one chart: the
     volume readout the charts get checked against, and R3's three data tiers — what a

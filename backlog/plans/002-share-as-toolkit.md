@@ -1119,7 +1119,7 @@ and the guard exists to stop job-search *content* leaking, not to hide who wrote
 toolkit, whose name is on the `LICENSE` and every commit.
 
 Running it after the change **caught two real things** and is why the tool is worth
-keeping: the citation check fired on `m1.1-inventory.md` and a log entry that quote the
+keeping: the citation check fired on `002-m1.1-inventory.md` and a log entry that quote the
 `Manual pp.` strings *while recording their removal*, and then fired on its own new
 comment. Both are now path-scoped.
 
@@ -1138,10 +1138,10 @@ exemption, so the two lists are now separate: `ALLOW_NAME` still covers them (th
 is deliberate and unavoidable), `ALLOW_PATH` does not. A future plan document pasting a
 real home path is now caught instead of inherited-permission'd through. Verified by
 planting one and watching the build refuse. The one bare home-path literal left — in
-`m1.1-inventory.md`, *describing* a path it had removed — was rephrased rather than
+`002-m1.1-inventory.md`, *describing* a path it had removed — was rephrased rather than
 exempted, so the check needs no special cases at all.
 
-**One rescue.** `backlog/m1.1-inventory.md` existed only in the retired sandbox — written
+**One rescue.** `backlog/plans/002-m1.1-inventory.md` existed only in the retired sandbox — written
 during M1.1, never copied to the Dropbox repo, and referenced by `make-public-tree`. It
 would have been destroyed by TODO `#26`. It is now in `jobstudio/backlog/`.
 
@@ -1660,7 +1660,7 @@ both green — the clean room found nothing wrong with the install or the README
 stale exemptions in `make-public-tree` that were letting real company names ship in
 `tests.py`. **Only the second real person remains**, and nothing in the toolkit blocks
 it: it needs someone else's machine and someone else's time. TODO `#26` is closed — the
-retired sandbox is deleted, its one unique file (`backlog/m1.1-inventory.md`) rescued
+retired sandbox is deleted, its one unique file (`backlog/plans/002-m1.1-inventory.md`) rescued
 first.
 
 ---

@@ -18,7 +18,7 @@ trade anyone asked for. `build_static._copy_static()` already copies every
 
 ## Why ECharts
 
-It covers every chart in `backlog/dashboard-charts-plan.md` — Sankey, stacked area, donut,
+It covers every chart in `backlog/plans/042-dashboard-charts.md` — Sankey, stacked area, donut,
 bar — in one file. The alternative was authoring four chart types by hand on d3, which is
 smaller and more controllable but is four times the work for a page that is still being
 judged. See the plan's §1.
