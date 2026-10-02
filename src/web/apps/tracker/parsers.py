@@ -216,6 +216,31 @@ def find_interviews(folder: Path) -> list[dict]:
 PRIVATE_SECTION_PREFIX = "private"
 
 
+def first_heading(body_md: str) -> str:
+    """The document's own `# Title`, or "" if it has none (`#73`).
+
+    Notes are titled by their first line, and deriving a title from the filename instead
+    mangles it — `ai-safety-pivot` title-cases to "Ai Safety Pivot". The file knows what
+    it is called; ask it, and keep the slug only as a fallback.
+    """
+    for line in body_md.splitlines():
+        if line.startswith("# ") and not line.startswith("## "):
+            return line[2:].strip().rstrip("#").strip()
+        if line.strip():
+            break  # a title is the first thing or it is not the title
+    return ""
+
+
+# A full title is often "Short name — the longer description of what is in here". A tab
+# can only show the first half, so this is where it is cut.
+_TITLE_TAIL_RE = re.compile(r"\s+[—:–]\s+.*$")
+
+
+def short_title(title: str) -> str:
+    """The part of a title a tab label can hold."""
+    return _TITLE_TAIL_RE.sub("", title).strip() or title
+
+
 def section_slug(label: str) -> str:
     """Slug for one section heading. Shared by the parser, the nav's hrefs and the
     `number_sections` filter that stamps ids onto the rendered headings, so the three
@@ -226,6 +251,16 @@ def section_slug(label: str) -> str:
 # A heading that numbers itself — "## 4. Multi-tenant isolation". Interview rounds never
 # do; notes and study files written outside this app often do (`#72`).
 _SELF_NUMBERED_RE = re.compile(r"^\d+[.)]\s+")
+
+# Inline emphasis and code spans inside a heading. A pill is plain text, so `**Trend 1**`
+# would otherwise show its asterisks (`#73`). Paired delimiters only — a lone `*` in a
+# heading is a literal asterisk and stays one.
+_EMPHASIS_RE = [
+    (re.compile(r"\*\*(.+?)\*\*", re.S), r"\1"),
+    (re.compile(r"__(.+?)__", re.S), r"\1"),
+    (re.compile(r"(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?![*\w])", re.S), r"\1"),
+    (re.compile(r"`(.+?)`", re.S), r"\1"),
+]
 
 
 def section_label(raw: str) -> str:
@@ -241,8 +276,15 @@ def section_label(raw: str) -> str:
     **The author's own number.** The pill already carries a generated `1 / 1.1 / 2`, so a
     self-numbered heading rendered as "4 4. Multi-tenant…" — in the summary line as well
     as the pill. Ours is positional and matches the body, so it is the one to keep.
+
+    **Emphasis and code spans** (`#73`), for the same reason as the link markup: a note
+    whose subheadings are written `### **Trend 1 — ...**` showed its asterisks in every
+    pill. Paired delimiters only, so a lone asterisk in a heading survives as itself.
     """
-    return _SELF_NUMBERED_RE.sub("", strip_links(raw).strip()).strip()
+    out = _SELF_NUMBERED_RE.sub("", strip_links(raw).strip())
+    for pattern, repl in _EMPHASIS_RE:
+        out = pattern.sub(repl, out)
+    return out.strip()
 
 
 def _is_fence(line: str) -> bool:

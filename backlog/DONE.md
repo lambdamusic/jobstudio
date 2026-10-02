@@ -341,6 +341,51 @@
   id is silent in HTML, sending a pill to the wrong section. 326 tests green, static build 264
   pages with the link check clean, leak check CLEAN.
 
+- [x] `#73` **Browse `/notes/` as tabs, with pills inside each note** — raised 2026-10-02 by Michele: *"I want to be able to browse the files in `/notes/` as tabs, and for each one having pills navigation like in the 'interview' section"*. Today `/notes/` is a bare list of links (`note_list.html` — one `<div>` per note, no lede beyond the source directory) and each note is its own page at `/notes/<slug>/`, rendered as a single undivided block of prose. So reading two strategy notes side by side means two page loads and a back button, and finding a section inside one means scrolling.
+
+  Sibling of `#72` — the in-note pills are the same reuse, so build whichever of the two comes first in a way the other can take. The tab strip is the part that is new here, and it is the part with a decision in it:
+
+  - [x] **Decide what happens to the per-note URLs.** `/notes/<slug>/` is linked from elsewhere and `build_static` enumerates one page per note (`build_static.py:58`, via `_notes_files`). A single tabbed page can keep them — `tabs.js` reflects the active tab in the hash and `activateContaining()` resolves an inbound anchor by finding the panel that holds it, which is exactly how a `#round-<slug>` link into the Interviews tab works. The likely shape is therefore `/notes/#<slug>` as the browsing view with the detail pages kept, not replaced; confirm before deleting any route.
+  - [x] Watch for a hash collision between the two mechanisms: with tabs *and* section pills on one page, the tab name and the section anchors share one hash. On the application page these coexist because section anchors are prefixed per round; notes will need the note slug to play that role.
+  - [x] `tabs.js` renders every panel visible with JavaScript off, by design — with every note inlined that is one very long page. Acceptable (it is what the Interviews tab already does), but worth a look at real note sizes, since `#66` decided JS-off support is no longer a design constraint.
+  - [x] The page also wants an actual lede. If it becomes the place strategy notes are read rather than a directory listing, "Strategy notes from `jobs/notes/`" is doing less work than it should.
+
+  **Done 2026-10-02.** `/notes/` is one tab per note, each with the `#72` index inside it,
+  and **the per-note pages are kept**: `build_static` publishes them, they are the honest
+  target for a link from outside the app, and the tabbed view is for moving between notes
+  rather than a replacement for reading one. Each panel links its own page.
+
+  **The slug does both jobs.** It is the tab name *and* the prefix on that note's section
+  anchors, so `#<slug>` opens a note and `#<slug>--<section>` opens it and jumps inside —
+  two kinds of hash that cannot collide, resolved by `tabs.js`'s existing
+  `activateContaining()`. Verified in-browser: a deep link into a section of one note opens
+  the right tab, scrolls to the right place and highlights the right pill.
+
+  **Titles now come from the file, not the filename** — `first_heading()`, with the slug
+  only as fallback, because `ai-safety-pivot`.title() is "Ai Safety Pivot". The tab shows
+  `short_title()` (the part before the em-dash) and the panel the full title.
+
+  **Two bugs found, both the same family as `#72`'s and both caught by looking at the page
+  rather than by a test.** A multi-line `{# … #}` leaked verbatim into `/notes/` — Django's
+  `{# #}` is single-line only, the exact bug `#66` hit in `base.html` and added
+  `test_templates_have_no_leaked_comment_markup` for. **That test did not fire**, because it
+  walked a hand-written list of nine URLs that never gained `/notes/`, `/profile/`, `/help/`,
+  an application page or a round focus view. It now walks `build_static.site_urls()` — the
+  enumeration the published site is built from, so a page that ships is a page it checks.
+  Proven by planting the regression and watching it fail on `/notes/`. Second bug: pills
+  showed raw `**Trend 1 — …**`, so `section_label()` now strips paired emphasis and code
+  spans as well as links and self-numbering. Slugs were already collapsing the asterisks, so
+  no anchor moved.
+
+  **`tabs.js` gained a `hashchange` listener.** A same-page fragment link changed the hash
+  without reloading, so the load-time read never ran again and the tab did not move — I hit
+  this myself navigating between tabs while testing. Exactly the bug `#54` fixed in
+  `tabletools.js`, in the same place for the same reason. No fallback on that path: an
+  unrelated hash leaves the open tab alone rather than snapping to the first.
+
+  The page also got a real lede, as the last sub-item asked. Six tests; 332 green, static
+  build 264 pages with the link check clean.
+
 ## File naming
 - [x] `#35` **Put rendered exports in an `export/` subfolder inside the application folder** — done 2026-09-24. A `.docx` rendered from a tailored CV or a cover letter now lands in `applications/<num>-<slug>/export/`, leaving only authored markdown (`job.md`, `notes.md`, the CV, the cover letter, the interview rounds) at the top level. `<DATA>/exports/<fmt>/<date>/` — plural, at the data root — is untouched.
 

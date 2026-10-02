@@ -71,10 +71,20 @@
       return true;
     }
 
-    var fromHash = window.location.hash.replace("#", "");
-    if (!fromHash || !(activate(fromHash, false) || activateContaining(fromHash))) {
-      activate(tabs[0].getAttribute("data-tab"), false);
+    function openFromHash(fallback) {
+      var id = window.location.hash.replace("#", "");
+      if (id && (activate(id, false) || activateContaining(id))) return;
+      if (fallback) activate(tabs[0].getAttribute("data-tab"), false);
     }
+
+    openFromHash(true);
+
+    // A same-page fragment link changes the hash without reloading, so the load-time read
+    // above never runs again and the tab does not move. Exactly the bug `#54` fixed in
+    // `tabletools.js` for its filter preselect, in the same place for the same reason.
+    // No fallback on this path: an unrelated hash should leave the open tab alone rather
+    // than snapping back to the first.
+    window.addEventListener("hashchange", function () { openFromHash(false); });
   }
 
   document.addEventListener("DOMContentLoaded", function () {

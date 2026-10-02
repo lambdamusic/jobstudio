@@ -762,6 +762,74 @@ class ViewTests(TestCase):
             with self.subTest(slug=slug):
                 self.assertEqual(self.client.get(f"/notes/{slug}/").status_code, 200)
 
+    # ---- /notes/ as tabs, with the shared section index (`#73`) ----
+
+    def test_notes_page_has_one_tab_per_note_named_by_its_slug(self):
+        """The slug is the tab name *and* the prefix on that note's section anchors, which
+        is what keeps the two kinds of hash apart: `#<slug>` opens a note, `#<slug>--<sec>`
+        opens the note and jumps inside it."""
+        from tracker.views import _notes_files
+
+        html = self.client.get("/notes/").content.decode()
+        slugs = [p.stem for p in _notes_files()]
+        self.assertTrue(slugs, "no notes in the example data")
+        for slug in slugs:
+            with self.subTest(slug=slug):
+                self.assertIn(f'data-tab="{slug}"', html)
+                self.assertIn(f'data-panel="{slug}"', html)
+
+    def test_note_titles_come_from_the_file_not_the_filename(self):
+        """`ai-safety-pivot`.title() is "Ai Safety Pivot". The file says what it is called;
+        the slug is only the fallback."""
+        self.assertEqual(P.first_heading("# AI safety pivot\n\nbody"), "AI safety pivot")
+        self.assertEqual(P.first_heading("no heading here"), "")
+        # A title's trailing description is cut for the tab, kept for the heading.
+        self.assertEqual(P.short_title("Product Discovery — technique and evidence"),
+                         "Product Discovery")
+        self.assertEqual(P.short_title("Recruiter Leads"), "Recruiter Leads")
+
+    def test_section_label_strips_emphasis_and_code_spans(self):
+        """A note whose subheadings are written `### **Trend 1 — ...**` showed its
+        asterisks in every pill. Paired delimiters only — a lone `*` stays a literal."""
+        self.assertEqual(P.section_label("**Trend 1 — delivery mode**"),
+                         "Trend 1 — delivery mode")
+        self.assertEqual(P.section_label("4. *Performance* and `latency`"),
+                         "Performance and latency")
+        self.assertEqual(P.section_label("A 5 * 3 grid"), "A 5 * 3 grid")
+
+    def test_every_id_on_the_notes_page_is_unique(self):
+        """Every note is on this page at once, so two sharing a `## Reading list` would
+        mint the same id — and `tabs.js` resolves an inbound anchor by finding the panel
+        holding it, so a collision opens the wrong note."""
+        html = self.client.get("/notes/").content.decode()
+        ids = re.findall(r'id="([^"]+)"', html)
+        dupes = {i for i in ids if ids.count(i) > 1}
+        self.assertEqual(dupes, set(), f"duplicate ids: {sorted(dupes)}")
+
+    def test_a_note_has_the_same_anchors_on_both_of_its_pages(self):
+        """The tabbed view and `/notes/<slug>/` render the same note, so a link copied
+        from one has to land in the same place on the other."""
+        from tracker.views import _notes_files
+
+        for path in _notes_files():
+            listed = self.client.get("/notes/").content.decode()
+            single = self.client.get(f"/notes/{path.stem}/").content.decode()
+            with self.subTest(slug=path.stem):
+                for anchor in re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single):
+                    self.assertIn(f'id="{anchor}"', listed)
+
+    def test_the_per_note_pages_survive(self):
+        """`build_static` publishes one page per note and they are the honest target for a
+        link from outside the app, so the tabbed view is an addition, not a replacement."""
+        from tracker.management.commands.build_static import site_urls
+        from tracker.views import _notes_files
+
+        urls = site_urls()
+        for path in _notes_files():
+            with self.subTest(slug=path.stem):
+                self.assertIn(f"/notes/{path.stem}/", urls)
+                self.assertEqual(self.client.get(f"/notes/{path.stem}/").status_code, 200)
+
     def test_profile_renders(self):
         r = self.client.get("/profile/")
         self.assertEqual(r.status_code, 200)
@@ -809,8 +877,22 @@ class ViewTests(TestCase):
         self.assertIn("<h2", html)
 
     def test_templates_have_no_leaked_comment_markup(self):
-        for url in ["/", "/applications/", "/applications/all/", "/companies/", "/areas/",
-                    "/stats/", "/cvs/", "/scans/", "/scans/all/"]:
+        """Django's `{# #}` is single-line only, so a multi-line one renders verbatim into
+        the page. `#66` hit it in `base.html` and added this test; `#73` hit it again in
+        `note_list.html` and this test did not fire, because it walked a hand-written list
+        of nine URLs that never gained `/notes/`, `/profile/`, `/help/`, an application
+        page or a round focus view.
+
+        It now walks `build_static.site_urls()` — the enumeration the published site is
+        built from, so a page that ships is a page this checks. Same reasoning as `#51`'s
+        help page reading its command list from `SKILL.md`: a second copy of a list drifts,
+        and the copy that drifts is the one nobody is looking at.
+        """
+        from tracker.management.commands.build_static import site_urls
+
+        urls = site_urls()
+        self.assertGreater(len(urls), 20, "site_urls() returned implausibly few pages")
+        for url in urls:
             html = self.client.get(url).content.decode()
             with self.subTest(url=url):
                 self.assertNotIn("{#", html)

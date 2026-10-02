@@ -4,6 +4,30 @@ Dated entries, newest first.
 
 ## 2026-10-02
 
+- **`/notes/` is one tab per note, each with its own jump index** (`#73`) — reading two
+  strategy notes no longer means two page loads and a back button. **The per-note pages
+  at `/notes/<slug>/` are kept**: they are what the published site is built from and the
+  honest target for a link from outside, so this is an addition rather than a
+  replacement, and each panel links its own page.
+
+  The note's slug is both the tab name and the prefix on its section anchors, so
+  `#<slug>` opens a note and `#<slug>--<section>` opens it and jumps inside — resolved by
+  the `activateContaining()` that `tabs.js` already had for interview rounds. Titles now
+  come from each file's own `# heading` rather than its filename, which was title-casing
+  `ai-safety-pivot` into "Ai Safety Pivot".
+
+  **A test that should have caught a bug did not, and that is the part worth recording.**
+  A multi-line `{# … #}` leaked verbatim into the page — Django's `{# #}` is single-line
+  only, the same bug `#66` hit in `base.html` and added a test for. The test walked a
+  hand-written list of nine URLs that never gained `/notes/`, `/profile/`, `/help/`, an
+  application page or a round focus view. It now walks `build_static.site_urls()`, so a
+  page that ships is a page it checks.
+
+  Also: `section_label()` strips paired emphasis and code spans, so a pill no longer shows
+  `**Trend 1 — …**` with its asterisks; and `tabs.js` listens for `hashchange`, so a
+  same-page fragment link moves the tab instead of doing nothing — the bug `#54` fixed in
+  `tabletools.js`, in the same place for the same reason.
+
 - **The same jump index on My notes and Other files** (`#72`) — the pill row and the
   collapsible sections built for interview rounds now serve all three tabs, from one set
   of partials (`_doc_sections.html`, `_doc_body.html`), one parser entry point

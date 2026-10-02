@@ -478,6 +478,17 @@ tr.is-stale td { background: #fffdf5; }
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 
+/* ---------- the notes page (#73) ---------- */
+
+/* Each note's own title plus the link to its standalone page. The title is here rather
+   than in a `.panel-heading` because that is hidden once tabs are live. */
+.note-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.note-head h2 { margin: 0; font-size: 17px; }
+.note-head a { font-size: 12.5px; }
+
 /* ---------- section index — interview rounds, My notes, Other files (#66, #72) ---------- */
 
 /* Sticky, because the whole point is reaching it without scrolling back up: a round is

@@ -963,21 +963,37 @@ def _notes_files():
     return sorted(notes_dir.glob("*.md"))
 
 
+def _note(path):
+    """One note, ready to render: its own title, and its sections (`#73`).
+
+    The anchor prefix is the slug, which is what lets every note sit on one page. `/notes/`
+    stacks all of them, so two notes both carrying `## Reading list` would otherwise mint
+    the same id — and `tabs.js` resolves an inbound anchor by finding the panel that holds
+    it, so a collision would open the wrong note.
+    """
+    body = path.read_text()
+    title = P.first_heading(body) or path.stem.replace("-", " ").title()
+    return {"slug": path.stem, "title": title, "short": P.short_title(title),
+            "body": body, "doc": P.sectioned(body, path.stem)}
+
+
 def note_list(request):
-    notes = [{"slug": p.stem, "title": p.stem.replace("-", " ").title()}
-             for p in _notes_files()]
-    return render(request, "tracker/note_list.html", {"page": "notes", "notes": notes})
+    """All the notes on one page, one tab each (`#73`).
+
+    The per-note pages at `/notes/<slug>/` stay. They are what `build_static` publishes,
+    what a link from outside the app can point at, and the right thing for reading one
+    note on its own — this page is for moving between them.
+    """
+    return render(request, "tracker/note_list.html",
+                  {"page": "notes", "notes": [_note(p) for p in _notes_files()]})
 
 
 def note_detail(request, slug):
     match = next((p for p in _notes_files() if p.stem == slug), None)
     if match is None:
         raise Http404("No such note")
-    return render(request, "tracker/note_detail.html", {
-        "page": "notes",
-        "title": slug.replace("-", " ").title(),
-        "body": match.read_text(),
-    })
+    return render(request, "tracker/note_detail.html",
+                  {"page": "notes", "note": _note(match)})
 
 
 def profile_view(request):

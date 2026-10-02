@@ -3,13 +3,62 @@
 {% block content %}
 <div class="page-head">
   <h1>Notes</h1>
-  <p class="lede">Strategy notes from <code>jobs/notes/</code>. See also the <a href="/profile/">career stocktake</a>.</p>
+  <p class="lede">
+    The strategy notes behind the search — what I am aiming at, what I have learned
+    interviewing, and the techniques worth rehearsing. Read from <code>jobs/notes/</code>;
+    the career stocktake has its own page at <a href="/profile/">Profile</a>.
+  </p>
 </div>
-<div class="panel">
-  {% for n in notes %}
-    <div style="padding:5px 0"><a href="/notes/{{ n.slug }}/">{{ n.title }}</a></div>
-  {% empty %}
-    <p class="empty">No notes yet.</p>
-  {% endfor %}
-</div>
+
+{% comment %}
+One tab per note, with the same jump index the Interviews tab and My notes use (`#73`).
+
+**The per-note pages at `/notes/<slug>/` are kept, not replaced.** They are what
+`build_static` publishes, and the honest target for a link from outside the app. This
+page is for moving between notes without a trip through a list and a back button; each
+panel links its own page for reading one on its own.
+
+**Why the slug prefixes the section anchors.** Every note is on this page at once, so two
+notes both carrying `## Reading list` would mint the same id. `tabs.js` resolves an
+inbound `#...` by finding the panel that holds it, so a collision opens the wrong note —
+the tab name is the note's slug and the sections sit under `<slug>--...`, which keeps the
+two kinds of hash distinct as well as unique.
+
+Without JavaScript every panel renders, so this is one long page rather than a broken
+one — the same bargain `tabs.js` makes everywhere.
+{% endcomment %}
+{% if notes %}
+  <div data-tabs>
+    <div class="tablist" role="tablist" aria-label="Notes">
+      {% for n in notes %}
+        <button class="tab" data-tab="{{ n.slug }}" role="tab" type="button">{{ n.short }}</button>
+      {% endfor %}
+    </div>
+
+    {% for n in notes %}
+      <section class="tabpanel" data-panel="{{ n.slug }}" role="tabpanel">
+        <div class="panel prose">
+          {% comment %}
+          Carries the title itself rather than a `.panel-heading`, which `.js-tabs` hides
+          — with JavaScript off that would print the title twice, and with it on the tab
+          shows only the short form, so the full one is worth keeping here.
+          {% endcomment %}
+          <div class="note-head">
+            <h2>{{ n.title }}</h2>
+            <a href="/notes/{{ n.slug }}/">Open on its own page</a>
+          </div>
+          {% comment %}
+          Expanded, like My notes and unlike an interview round: a strategy note is read
+          while thinking, with no clock running, and collapsing it would hide the file
+          behind a click per section while the pills already answer "where is X".
+          {% endcomment %}
+          {% include "tracker/_doc_sections.html" with sections=n.doc.sections %}
+          {% include "tracker/_doc_body.html" with doc=n.doc qa=False open=True %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="panel"><p class="empty">No notes yet.</p></div>
+{% endif %}
 {% endblock %}
