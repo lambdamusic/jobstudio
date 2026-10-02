@@ -4,6 +4,19 @@ Dated entries, newest first.
 
 ## 2026-10-01
 
+- **The Interviews tab moved to sit immediately before History** (`#67`), so the tab
+  strip runs in the order the process does: what the role is, what you wrote about it,
+  what you sent, then who you spoke to. It had sat third since the tab was added, on the
+  argument that live rounds are what gets reread — which is served by linking straight to
+  a round, not by tab position.
+
+  The panel moved with the button. Without `tabs.js` the sections stack as a plain
+  document in source order, so a button moved alone would read correctly only while the
+  script loads. The existing position test already asserted both orders and failed on the
+  move, which is what it was for; it now has `test_tab_order_and_panel_order_agree`
+  alongside it, checking the two sequences match across every application rather than for
+  Interviews alone.
+
 - **`docs/screenshots.md`** — a captioned tour of every page of the web app, shot
   against the example data, so the toolkit can be understood without installing it. The
   intro animation was the only visual before this, and an animation cannot be linked to

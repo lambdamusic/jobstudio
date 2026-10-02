@@ -3298,20 +3298,39 @@ class InterviewRoundTests(TestCase):
         self.assertIn('data-panel="interviews"', html)
         self.assertIn("HR screen", html)
 
-    def test_interviews_tab_sits_between_job_description_and_notes(self):
-        """Once a process is live the rounds are what gets reread, and the JD is what
-        they're read against — so Interviews follows Job description, ahead of My notes.
-        Asserted on the panel order too: with JS off the panels are the reading order."""
+    # The tab strip runs in the order the process does — what the role is, what you
+    # wrote about it, what you sent, then who you spoke to — with History closing it
+    # (`#67`). Interviews sat third until 2026-10-01, on the argument that live rounds
+    # are what gets reread; that is served by linking to a round, not by tab position.
+    TAB_ORDER = ("record", "job", "notes", "cv", "letters", "files",
+                 "interviews", "history", "siblings")
+
+    def test_interviews_tab_sits_last_before_history(self):
+        """Interviews comes after everything you produced for the application and
+        immediately before History. Asserted on the panel order too: with JS off the
+        panels are the reading order."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         for attr in ("data-tab", "data-panel"):
             with self.subTest(attr=attr):
-                order = [t for t in ("record", "job", "interviews", "notes", "cv",
-                                     "letters", "files", "history")
-                         if f'{attr}="{t}"' in html]
-                positions = {t: html.index(f'{attr}="{t}"') for t in order}
-                self.assertLess(positions["job"], positions["interviews"])
-                self.assertLess(positions["interviews"], positions["notes"])
+                positions = {t: html.index(f'{attr}="{t}"')
+                             for t in self.TAB_ORDER if f'{attr}="{t}"' in html}
+                self.assertIn("interviews", positions)
+                self.assertLess(positions["files"], positions["interviews"])
+                self.assertLess(positions["interviews"], positions["history"])
+
+    def test_tab_order_and_panel_order_agree(self):
+        """The one invariant that makes moving a tab a two-part edit: tabs.js hides
+        panels, so with JS off (or failing to load) the panels ARE the page, in source
+        order. A button moved without its panel reads correctly only while the script
+        works. Checked across every application, since which tabs exist varies."""
+        for app in Application.objects.all():
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            seq = {attr: sorted((t for t in self.TAB_ORDER if f'{attr}="{t}"' in html),
+                                key=lambda t: html.index(f'{attr}="{t}"'))
+                   for attr in ("data-tab", "data-panel")}
+            with self.subTest(num=app.num):
+                self.assertEqual(seq["data-tab"], seq["data-panel"])
 
     def test_every_round_has_a_unique_anchor(self):
         for app in Application.objects.exclude(folder=""):
