@@ -14,7 +14,7 @@ rules and close guidance. The thin draft (§3) is not a shorter Standard — it 
 deliberate placeholder, and the only one of the three that is allowed to be generic.
 
 > Revised 2026-09-17: the earlier **mirror** and **advanced** structures were retired
-> (see `backlog/done/drop-direct-anthropic-api-plan.md` §1.2) — one structure family is
+> (see `backlog/plans/001-drop-direct-anthropic-api.md` §1.2) — one structure family is
 > simpler to keep aligned than three, and Standard 2 gives a punchier alternative
 > without their extra mode-selection logic.
 

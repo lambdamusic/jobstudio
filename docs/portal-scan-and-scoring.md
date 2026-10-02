@@ -5,7 +5,7 @@ Part of the **[docs/](README.md)** guide collection. For *when* to run the scan,
 `src/scan-portals.py` actually does, step by step.
 
 Revised 2026-09-17: scoring is a separate step from fetching — see
-`backlog/done/drop-direct-anthropic-api-plan.md` §2.
+`backlog/plans/001-drop-direct-anthropic-api.md` §2.
 
 ```bash
 python src/scan-portals.py                                              # 1. fetch + pre-filter (mechanical, no API)

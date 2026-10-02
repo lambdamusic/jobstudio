@@ -10,7 +10,7 @@ dedup, keyword + location pre-filter, classify not-scanned companies. Never impo
 
 Writes the plausible (unscored) candidates plus every already-computed bookkeeping
 section to jobs/scans/YYYY-MM-DD-candidates.json. Scoring happens next, as a separate
-step, one of two ways (see backlog/drop-direct-anthropic-api-plan.md §2):
+step, one of two ways (see backlog/plans/001-drop-direct-anthropic-api.md §2):
 
 - Default, agent-native — the `scan` skill subcommand reads the candidates file and
   scores live, no API call.

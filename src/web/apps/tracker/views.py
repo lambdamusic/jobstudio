@@ -184,7 +184,7 @@ def home(request):
 # chart designs are still being judged, and this one can carry the debugging affordances
 # a finished dashboard should not: the raw numbers beside each chart, so a diagram can be
 # checked rather than trusted. Promotion to the dashboard is a later decision, chart by
-# chart. See backlog/dashboard-charts-plan.md §2a.
+# chart. See backlog/plans/042-dashboard-charts.md §2a.
 # ---------------------------------------------------------------------------
 
 
@@ -819,10 +819,10 @@ def application_list(request, status=None, area=None, active=False, show_all=Fal
 
     if show_all:
         nav_apps = "all"
-    elif status == "reviewing":
-        nav_apps = "reviewing"
-    elif status == "saved":
-        nav_apps = "saved"
+    elif status in ("interviewing", "reviewing", "saved"):
+        # The three statuses with their own sidebar entry; the name matches the
+        # template's check, so adding a fourth is a one-line change in both places.
+        nav_apps = status
     else:
         nav_apps = "applications"
 
@@ -857,6 +857,46 @@ def application_detail(request, num):
         "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],
         "siblings": (Application.objects.filter(company_name=app.company_name)
                      .exclude(pk=app.pk).order_by(*BROWSE_ORDER)),
+    })
+
+
+def interview_round(request, num, anchor):
+    """One interview round, on its own page, with nothing else on screen (`#66`).
+
+    The Interviews tab is the right shape for preparing and the wrong one for the twenty
+    minutes you are actually in the call: sidebar, tab strip, metadata block and every
+    other round of the process all compete with the round being used. This drops them.
+
+    **"Private — not for the call" never reaches the page.** Its block is dropped before
+    rendering rather than hidden, so the text is absent from the page source — not merely
+    invisible. A page open during a call can be visible to someone other than its owner,
+    over a shoulder or a shared screen, and a CSS-hidden section survives find-in-page,
+    "view source", and a stylesheet that failed to load. The full round stays one link
+    away, so nothing is lost, only moved behind a deliberate click.
+    """
+    app = get_object_or_404(
+        Application.objects.select_related("company", "area"), num=num)
+    rounds = app.interview_files
+    round_ = next((r for r in rounds if r["anchor"] == anchor), None)
+    if round_ is None:
+        raise Http404(f"no interview round {anchor!r} on application {num}")
+
+    hidden = [b for b in round_["blocks"] if b["private"]]
+    shown = [b for b in round_["blocks"] if not b["private"]]
+    focus_round = {**round_, "blocks": shown,
+                   "sections": P.section_index(shown)}
+
+    return render(request, "tracker/interview_round.html", {
+        "page": "applications",
+        "nav_apps": "applications",
+        "app": app,
+        "round": round_,
+        "focus_round": focus_round,
+        "sections": focus_round["sections"],
+        "hidden_sections": hidden,
+        # Previous/next by the same ordering the tab uses (newest first), so moving
+        # between rounds mid-process does not need a trip back to the application.
+        "others": [r for r in rounds if r["anchor"] != anchor],
     })
 
 
@@ -923,21 +963,37 @@ def _notes_files():
     return sorted(notes_dir.glob("*.md"))
 
 
+def _note(path):
+    """One note, ready to render: its own title, and its sections (`#73`).
+
+    The anchor prefix is the slug, which is what lets every note sit on one page. `/notes/`
+    stacks all of them, so two notes both carrying `## Reading list` would otherwise mint
+    the same id — and `tabs.js` resolves an inbound anchor by finding the panel that holds
+    it, so a collision would open the wrong note.
+    """
+    body = path.read_text()
+    title = P.first_heading(body) or path.stem.replace("-", " ").title()
+    return {"slug": path.stem, "title": title, "short": P.short_title(title),
+            "body": body, "doc": P.sectioned(body, path.stem)}
+
+
 def note_list(request):
-    notes = [{"slug": p.stem, "title": p.stem.replace("-", " ").title()}
-             for p in _notes_files()]
-    return render(request, "tracker/note_list.html", {"page": "notes", "notes": notes})
+    """All the notes on one page, one tab each (`#73`).
+
+    The per-note pages at `/notes/<slug>/` stay. They are what `build_static` publishes,
+    what a link from outside the app can point at, and the right thing for reading one
+    note on its own — this page is for moving between them.
+    """
+    return render(request, "tracker/note_list.html",
+                  {"page": "notes", "notes": [_note(p) for p in _notes_files()]})
 
 
 def note_detail(request, slug):
     match = next((p for p in _notes_files() if p.stem == slug), None)
     if match is None:
         raise Http404("No such note")
-    return render(request, "tracker/note_detail.html", {
-        "page": "notes",
-        "title": slug.replace("-", " ").title(),
-        "body": match.read_text(),
-    })
+    return render(request, "tracker/note_detail.html",
+                  {"page": "notes", "note": _note(match)})
 
 
 def profile_view(request):

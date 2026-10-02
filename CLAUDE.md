@@ -45,7 +45,9 @@ are safe to run as-is. It is ad-hoc script runs that are not.
 | How do I do X? (log an application, tailor a CV, run a scan…) | `/jobstudio help`, then `.claude/skills/jobstudio/subcommands/<name>.md` |
 | How does a piece work internally? | `docs/README.md` — start at `docs/workflow.md`, then its linked deep-dives |
 | Repo layout, setup | `README.md` |
-| What's planned but not built? | `backlog/TODO.md` — numbered, permanent IDs; plan docs alongside it in `backlog/` |
+| What's planned but not built? | `backlog/TODO.md` — open items only, numbered with permanent IDs |
+| What was built, and what it turned up | `backlog/DONE.md` — the same entries once ticked, kept in full |
+| The longer discussion behind an item | `backlog/plans/<id>-<slug>.md`, named for the item that owns it — only the items that needed one have a plan |
 | Why was a past decision made? | `log/*.md` — dated, append-only session records, richer than a changelog |
 | What shipped, and when? | `CHANGELOG.md` — dated entries, newest first |
 

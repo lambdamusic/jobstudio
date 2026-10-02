@@ -1,4 +1,4 @@
-/* Charts on /stats/ — see backlog/dashboard-charts-plan.md.
+/* Charts on /stats/ — see backlog/plans/042-dashboard-charts.md.
  *
  * This file draws; it never aggregates (R2). Every number arrives finished in the
  * #chart-data payload the view rendered, which is what keeps the terminal mirror possible

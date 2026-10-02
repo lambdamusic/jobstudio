@@ -1,11 +1,26 @@
 # Turn the job-search repo into a shareable toolkit
 
-Date: 2026-09-17, substantially revised 2026-09-20
-Status: design agreed on the four open decisions (§2); sequencing and milestones
-drafted (§6). **Implementation started 2026-09-20**: §5.3 step 1 is done and on the
-real repo; step 2 is built and verified **in the sandbox only**. Work now continues
-**in the sandbox** and the real repo is not migrated until the layout has been lived
-with — see §5.5 for the trial and its data-truth rule. See also §9.
+Date: 2026-09-17, substantially revised 2026-09-20.
+
+> **This is a record, not a live plan.** `#2` shipped and is closed — M1 completed
+> 2026-09-29 (§9). What remains open went to its own item and, where there was a design
+> worth keeping, its own file: `#57` (M2, pip package — the brief lives in its `TODO.md`
+> entry, it never had a longer design), `#58` (M3 →
+> [`058-drive-claude-code-from-django.md`](058-drive-claude-code-from-django.md)), `#59`
+> (M4 → [`059-claude-desktop-cowork.md`](059-claude-desktop-cowork.md)).
+>
+> Everything else below is history: what the repo looked like before the split (§1), the
+> decisions taken (§2), the design as drawn (§3–§4), how the migration actually went
+> (§5), the milestones (§6) and the running status log (§9). **How any of it works
+> *today* is in `docs/` — `under-the-hood.md` for the data root and setup,
+> `getting-started.md` for configuration.** Where this document and `docs/` disagree,
+> `docs/` is right and this is what was intended on the day.
+
+Status at the time of writing: design agreed on the four open decisions (§2); sequencing
+and milestones drafted (§6). **Implementation started 2026-09-20**: §5.3 step 1 is done
+and on the real repo; step 2 is built and verified **in the sandbox only**. Work now
+continues **in the sandbox** and the real repo is not migrated until the layout has been
+lived with — see §5.5 for the trial and its data-truth rule. See also §9.
 
 ## 0. What changed on 2026-09-20
 
@@ -1119,7 +1134,7 @@ and the guard exists to stop job-search *content* leaking, not to hide who wrote
 toolkit, whose name is on the `LICENSE` and every commit.
 
 Running it after the change **caught two real things** and is why the tool is worth
-keeping: the citation check fired on `m1.1-inventory.md` and a log entry that quote the
+keeping: the citation check fired on `002-m1.1-inventory.md` and a log entry that quote the
 `Manual pp.` strings *while recording their removal*, and then fired on its own new
 comment. Both are now path-scoped.
 
@@ -1138,10 +1153,10 @@ exemption, so the two lists are now separate: `ALLOW_NAME` still covers them (th
 is deliberate and unavoidable), `ALLOW_PATH` does not. A future plan document pasting a
 real home path is now caught instead of inherited-permission'd through. Verified by
 planting one and watching the build refuse. The one bare home-path literal left — in
-`m1.1-inventory.md`, *describing* a path it had removed — was rephrased rather than
+`002-m1.1-inventory.md`, *describing* a path it had removed — was rephrased rather than
 exempted, so the check needs no special cases at all.
 
-**One rescue.** `backlog/m1.1-inventory.md` existed only in the retired sandbox — written
+**One rescue.** `backlog/plans/002-m1.1-inventory.md` existed only in the retired sandbox — written
 during M1.1, never copied to the Dropbox repo, and referenced by `make-public-tree`. It
 would have been destroyed by TODO `#26`. It is now in `jobstudio/backlog/`.
 
@@ -1447,178 +1462,17 @@ better version of the same goal. The research stands if it's ever revisited.
 
 ## 7. Stretch goal A — Claude Desktop / Cowork *(parked)*
 
-> **Status: parked 2026-09-20.** Researched properly (below) and it's more viable than
-> the first draft claimed — but three things argue against spending effort here now:
-> the egress bugs that break `scan` (§7.1 #4), the direct conflict with the Dropbox
-> data root (§7.3), and the fact that Cowork was folded into Claude four days before
-> this was written, so the target is moving. **§8 is the better route to the same
-> goal.** Keeping this section because the findings are solid and would be tedious to
-> re-derive.
-
-Michele's question: what would it take to run this from Claude Desktop or Cowork
-instead of Claude Code?
-
-**Researched against current documentation 2026-09-20** (the first draft of this
-section was guesswork and got the hardest problem wrong — see 7.2). Sources at the end
-of the section. Two things to know before anything else:
-
-- **Cowork stopped being a separate product four days ago.** Anthropic folded it into
-  the main Claude interface on 2026-09-16, alongside Claude Docs and Claude Slides;
-  requests now route automatically rather than the user picking a tab. The
-  *capability* is unchanged and the Cowork docs still stand — but "build for Cowork"
-  is now "build for Claude", and the surface is moving. Don't design against details
-  that might be a month old.
-- **Cowork runs the same agentic architecture as Claude Code**, in Claude Desktop,
-  without a terminal. So this is much less of a port than the first draft assumed.
-
-### 7.1 The five requirements, re-checked
-
-| # | Requirement | Verdict |
-|---|---|---|
-| 1 | **Durable filesystem** | ✅ **Solved — this is a product feature.** The user attaches **workspace folders**; the agent "can then read, create, and modify files anywhere inside those folders, **and run code against them inside the sandbox VM**". Files stay in place on disk — "no uploading or re-downloading, and edits land directly in the folder." So the data root can be an ordinary local folder and the Python scripts can work on it directly. |
-| 2 | **Dependencies** | ✅ Workable. `pip` works and PyPI is reachable when egress is configured; network egress exists specifically so Claude "can access the internet to install packages and libraries". Cost is cold-start install time per session, since the sandbox is provisioned per session. Django is heavy but installable. |
-| 3 | **The Django web app** | ⚠️ Still the real limitation. No `runserver` + `localhost:8000` browsing. Half-solved already, and this survives now that the site export is being **kept** (§1): `tools/site-build` renders every page to static HTML **in-process, no server, ~2s**, and that output can be handed back as files. So the *viewer* survives; the *Django admin* — editing rows by hand — does not. Worth noting the feature earns part of its keep here. |
-| 4 | **Network egress** | ⚠️ Configurable but currently flaky. There's an account-level "Allow network egress → All domains" setting, enforced by a proxy. But there are multiple open bugs (Sept 2026) where cloud containers come up enforcing a **~5-host allowlist regardless of the setting**, and a macOS regression where the sandbox VM starts with no network route at all. `scan` hits 8 ATS platforms, so it's exactly the feature this breaks. Treat as "should work, verify empirically, don't build on it yet". |
-| 5 | **Skill packaging & cwd** | ⚠️ Needs work, and M2 does most of it. Custom skills are uploaded as a **ZIP** via Settings → Features / **Customize**, need a paid plan with code execution, and — importantly — **Cowork does not read `~/.claude`**. So `.claude/skills/jobs-search/` can't just be pointed at; it has to become a self-contained, cwd-independent skill bundle. The ~104 repo-root-relative path references in `subcommands/` are the work. |
-
-### 7.2 The fork in the road has moved
-
-The first draft argued that requirements 1 and 3 together meant
-sqlite-as-source-of-truth was the wrong shape, forcing a choice between a reduced
-desktop mode and reversing the Phase 6 decision (`log/2026-09-07-django-frontend-plan.md`).
-
-**That was wrong, and the reason is requirement 1.** The data root doesn't need to
-live in an ephemeral sandbox — it lives on local disk as an attached workspace folder,
-and sandboxed code runs against it. sqlite stays exactly where it is. **Option β
-(files as truth, DB as index) is not required and should be dropped from
-consideration** — it would reverse a decision that solved a real drift problem, to buy
-something that's now free.
-
-So this collapses into a much smaller thing:
-
-**Option α, and only α.** Keep sqlite-as-truth. Package the skill as an uploadable
-ZIP, make it cwd-independent, point it at the attached data root.
-`stocktake`, `cv`, `cover-letter`, `interview`, `application`, `company` and `status`
-all work — they're markdown-and-sqlite in, markdown out, and already agent-native
-since `#1`. `scan` works if egress cooperates. The web app degrades to
-`tools/site-build`'s static output; Django admin editing stays Claude Code–only.
-
-That's a genuinely modest amount of work on top of M2, and most of it is M2's
-packaging pass being reused.
-
-### 7.3 Three caveats worth writing down now
-
-1. **⚠️ Cowork and Dropbox conflict — this hits §5.2 directly.** Anthropic's own
-   guidance: if your work folder is inside iCloud, Dropbox or Google Drive, Cowork
-   "can sometimes get confused about file versions, pending syncs, or sync conflicts…
-   a real source of weird bugs." Michele's data root is planned for Dropbox precisely
-   because it's synced and shareable. For Claude Code that's fine. For the Cowork
-   path it's the discouraged configuration. See the note added to §5.2 — this doesn't
-   block M1, but it means M3 may want the data root on local disk with Dropbox used
-   for backups/exports only.
-2. **sqlite over a sandbox-mounted folder is untested here.** File locking across a VM
-   mount is the classic place this goes wrong. Cheap to test early, ugly to discover
-   late — make it the first thing M3 tries.
-3. **Scheduled tasks can't see local files.** Cowork scheduled tasks run "even when
-   your computer is off", and "if the desktop app is offline, the session can't reach
-   your computer." So a nightly automated `scan` — the obvious thing to want — can't
-   use a local data root. That's an argument for keeping the existing headless
-   `scan-portals.py` → `score-candidates.py --api` path (the one remaining use for an
-   Anthropic API key) rather than retiring it.
-
-**Sources:**
-[Cowork overview](https://claude.com/docs/cowork/overview) ·
-[Desktop and filesystem access](https://claude.com/docs/third-party/claude-desktop/local-access) ·
-[Get started with Cowork](https://support.claude.com/en/articles/13345190-get-started-with-claude-cowork) ·
-[Use Cowork safely](https://support.claude.com/en/articles/13364135-use-claude-cowork-safely) ·
-[Use skills in Claude](https://support.claude.com/en/articles/12512180-use-skills-in-claude) ·
-[Anthropic merges chat and Cowork (TechCrunch, 2026-09-16)](https://techcrunch.com/2026/09/16/anthropic-merges-claude-chat-and-cowork-in-one-interface/) ·
-egress bugs: [#93525](https://github.com/anthropics/claude-code/issues/93525),
-[#93512](https://github.com/anthropics/claude-code/issues/93512),
-[#93507](https://github.com/anthropics/claude-code/issues/93507)
+**Moved 2026-10-02 to [`059-claude-desktop-cowork.md`](059-claude-desktop-cowork.md)**,
+which owns `#59`. Section numbering is unchanged there, so a reference to §7 or any
+of its subsections still resolves — only the file changed.
 
 ---
 
 ## 8. Stretch goal B — drive Claude Code from the Django app *(recommended)*
 
-Michele's question, 2026-09-20: *is there a way to control Claude Code from a local
-Django app?* Yes — two officially supported routes, and this is a much better fit for
-this project than §7, because **the web app already exists**.
-
-The idea: buttons in the tracker that run `/jobs-search` subcommands. "Tailor CV" on
-the application detail page. "Run scan" on the scans page. "Log application" from a
-pasted job description. Claude Code becomes the engine behind the UI Michele already
-uses daily, rather than a separate terminal he has to switch to.
-
-### 8.1 The two routes
-
-| | **`claude -p` subprocess** | **Python Agent SDK** |
-|---|---|---|
-| How | Django shells out to `claude -p "/jobs-search cv #18" --output-format stream-json --verbose` | `claude-agent-sdk` embeds the same agent loop in-process |
-| Skill discovery | **Automatic** — cwd at repo root picks up `.claude/skills/jobs-search/` and `CLAUDE.md` exactly as an interactive session does | **Must be explicit** — the SDK loads *no* filesystem settings by default; pass `setting_sources=["user", "project"]` or the skill is invisible |
-| Output | Newline-delimited JSON events (needs `--verbose`; `--include-partial-messages` for token deltas) | Structured message objects |
-| Effort | ~a day | More, but better error handling and permission control |
-
-**Recommendation: `claude -p` first.** It runs the existing skill completely unchanged
-— no repackaging, no cwd-independence work, none of M2 as a prerequisite. That makes
-it the cheapest possible test of whether this is actually nice to use. Move to the SDK
-only if structured streaming or finer permission control turns out to matter.
-
-### 8.2 Cost — this does not undo `#1`
-
-No pay-per-token API key is needed. Claude subscriptions carry a **monthly Agent SDK
-credit** (Pro $20, Max 5x $100, Max 20x $200; Team/Enterprise equivalents), claimed
-once and refreshed each billing cycle, covering both the Agent SDK and `claude -p`.
-Michele's own local app is squarely within permitted use — the ban on subscription
-OAuth for third-party products doesn't apply to your own projects.
-
-**But be clear-eyed about the nuance**, because it's genuinely different from how the
-toolkit is used today: the credit is a **dollar allowance, separate from the
-subscription's session limits**. It doesn't roll over. When it's exhausted, requests
-either bill at API rates or stop outright if usage credits aren't enabled. So driving
-the toolkit from Django is *metered differently* from typing `/jobs-search` in a
-terminal — not more expensive in any simple sense, but not the same pool. Worth
-watching for a month before leaning on it.
-
-### 8.3 Design notes specific to this codebase
-
-1. **The view pattern already exists.** `#24` added a local-only action view plus a
-   button on the application detail page, generalised by `#28` into
-   `/actions/set-status/<num>/<status>/` behind a status menu.
-   An agent-run button is the same shape — `/actions/run/<subcommand>/<num>/` — with
-   the same local-only guard.
-2. **Runs are slow and there's no Celery here.** CV tailoring takes a minute or more,
-   so it can't block a request/response cycle. Lightest thing that fits the existing
-   sqlite-as-truth design: `subprocess.Popen` detached, plus a small `AgentRun` model
-   (subcommand, target, status, started/finished, log path) that the detail page
-   polls. No new infrastructure, and the run history becomes visible in the app — which
-   is arguably a feature, since today there's no record of which subcommand produced
-   which file.
-3. **Permissions must be pre-approved.** Non-interactive means no human to approve
-   tool calls: `--permission-mode acceptEdits`, or an explicit `--allowedTools`. A web
-   button that runs a file-writing agent deserves deliberate thought even on a
-   local-only app — worth deciding per subcommand rather than granting blanket edit
-   rights.
-4. **cwd must be the repo root**, or skill discovery silently fails. With the §3.1
-   data-root split this means: code repo as cwd, data root resolved from
-   `.jobsearch-data` — which the refactor gives for free.
-5. **Ordering:** M3 does *not* depend on M1 or M2. It could be prototyped this week
-   against the repo as it stands today. That's a point in its favour.
-
-### 8.4 The honest limitation
-
-This only works where Claude Code is installed and authenticated. It makes the toolkit
-substantially better **for Michele and for anyone technical** — but unlike the Cowork
-route, it doesn't widen the audience. It's a depth play, not a reach play. Worth being
-explicit about that, because "share it with someone else" (`#2`'s actual goal) is
-still served by M1 and M2, not by this.
-
-**Sources:**
-[Agent SDK overview](https://code.claude.com/docs/en/sdk/sdk-overview) ·
-[Use Claude Code features in the SDK](https://code.claude.com/docs/en/agent-sdk/claude-code-features) ·
-[Agent Skills in the SDK](https://platform.claude.com/docs/en/agent-sdk/skills) ·
-[Use the Agent SDK with your Claude plan](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan) ·
-[claude-agent-sdk-python](https://github.com/anthropics/claude-agent-sdk-python)
+**Moved 2026-10-02 to [`058-drive-claude-code-from-django.md`](058-drive-claude-code-from-django.md)**,
+which owns `#58`. Section numbering is unchanged there, so a reference to §8.1–§8.4
+still resolves — only the file changed.
 
 ---
 
@@ -1660,7 +1514,7 @@ both green — the clean room found nothing wrong with the install or the README
 stale exemptions in `make-public-tree` that were letting real company names ship in
 `tests.py`. **Only the second real person remains**, and nothing in the toolkit blocks
 it: it needs someone else's machine and someone else's time. TODO `#26` is closed — the
-retired sandbox is deleted, its one unique file (`backlog/m1.1-inventory.md`) rescued
+retired sandbox is deleted, its one unique file (`backlog/plans/002-m1.1-inventory.md`) rescued
 first.
 
 ---

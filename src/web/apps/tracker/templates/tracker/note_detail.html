@@ -1,7 +1,15 @@
 {% extends "base.html" %}{% load jobs_extras %}
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ note.title }}{% endblock %}
 {% block content %}
-<div class="crumb"><a href="/notes/">Notes</a> / {{ title }}</div>
-<div class="page-head"><h1>{{ title }}</h1></div>
-<div class="panel prose">{{ body|strip_h1|markdown|blank_links }}</div>
+<div class="crumb"><a href="/notes/">Notes</a> / {{ note.short }}</div>
+<div class="page-head"><h1>{{ note.title }}</h1></div>
+{% comment %}
+One note on its own page, with the same index as the tabbed view (`#73`) so the two
+readings of a note cannot drift. Anchors are still slug-prefixed: a link copied from
+`/notes/` must land in the same place here.
+{% endcomment %}
+<div class="panel prose">
+  {% include "tracker/_doc_sections.html" with sections=note.doc.sections %}
+  {% include "tracker/_doc_body.html" with doc=note.doc qa=False open=True %}
+</div>
 {% endblock %}

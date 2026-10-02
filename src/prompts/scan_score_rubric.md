@@ -1,7 +1,7 @@
 You are screening job postings for a candidate, on three independent dimensions.
 
 This is the canonical scoring rubric for the portal scan — read and applied directly
-by both scoring paths (see `backlog/done/drop-direct-anthropic-api-plan.md` §2.3):
+by both scoring paths (see `backlog/plans/001-drop-direct-anthropic-api.md` §2.3):
 
 - The agent-native default (`.claude/skills/jobstudio/subcommands/scan.md`) reads
   this file as-is and substitutes each bracketed value below with the real content

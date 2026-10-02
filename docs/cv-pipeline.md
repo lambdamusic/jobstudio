@@ -36,7 +36,7 @@ Revised 2026-09-17 — `src/build-cv-variants.py` (which called the Anthropic AP
 directly) was retired; tailoring now happens inside the Claude Code session that's
 already running the `jobstudio application`/`cv` skill subcommands. Since that
 session already has full context, the API round-trip was redundant judgement work, not
-new capability — see `backlog/done/drop-direct-anthropic-api-plan.md`. This also means
+new capability — see `backlog/plans/001-drop-direct-anthropic-api.md`. This also means
 tailoring now runs automatically when an application is logged, not on request
 (superseding the earlier "on request only" behaviour). **Reverted 2026-10-01 for the
 *automatic* half only** — tailoring is agent-native as described here, but it runs on

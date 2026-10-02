@@ -762,6 +762,74 @@ class ViewTests(TestCase):
             with self.subTest(slug=slug):
                 self.assertEqual(self.client.get(f"/notes/{slug}/").status_code, 200)
 
+    # ---- /notes/ as tabs, with the shared section index (`#73`) ----
+
+    def test_notes_page_has_one_tab_per_note_named_by_its_slug(self):
+        """The slug is the tab name *and* the prefix on that note's section anchors, which
+        is what keeps the two kinds of hash apart: `#<slug>` opens a note, `#<slug>--<sec>`
+        opens the note and jumps inside it."""
+        from tracker.views import _notes_files
+
+        html = self.client.get("/notes/").content.decode()
+        slugs = [p.stem for p in _notes_files()]
+        self.assertTrue(slugs, "no notes in the example data")
+        for slug in slugs:
+            with self.subTest(slug=slug):
+                self.assertIn(f'data-tab="{slug}"', html)
+                self.assertIn(f'data-panel="{slug}"', html)
+
+    def test_note_titles_come_from_the_file_not_the_filename(self):
+        """`ai-safety-pivot`.title() is "Ai Safety Pivot". The file says what it is called;
+        the slug is only the fallback."""
+        self.assertEqual(P.first_heading("# AI safety pivot\n\nbody"), "AI safety pivot")
+        self.assertEqual(P.first_heading("no heading here"), "")
+        # A title's trailing description is cut for the tab, kept for the heading.
+        self.assertEqual(P.short_title("Product Discovery — technique and evidence"),
+                         "Product Discovery")
+        self.assertEqual(P.short_title("Recruiter Leads"), "Recruiter Leads")
+
+    def test_section_label_strips_emphasis_and_code_spans(self):
+        """A note whose subheadings are written `### **Trend 1 — ...**` showed its
+        asterisks in every pill. Paired delimiters only — a lone `*` stays a literal."""
+        self.assertEqual(P.section_label("**Trend 1 — delivery mode**"),
+                         "Trend 1 — delivery mode")
+        self.assertEqual(P.section_label("4. *Performance* and `latency`"),
+                         "Performance and latency")
+        self.assertEqual(P.section_label("A 5 * 3 grid"), "A 5 * 3 grid")
+
+    def test_every_id_on_the_notes_page_is_unique(self):
+        """Every note is on this page at once, so two sharing a `## Reading list` would
+        mint the same id — and `tabs.js` resolves an inbound anchor by finding the panel
+        holding it, so a collision opens the wrong note."""
+        html = self.client.get("/notes/").content.decode()
+        ids = re.findall(r'id="([^"]+)"', html)
+        dupes = {i for i in ids if ids.count(i) > 1}
+        self.assertEqual(dupes, set(), f"duplicate ids: {sorted(dupes)}")
+
+    def test_a_note_has_the_same_anchors_on_both_of_its_pages(self):
+        """The tabbed view and `/notes/<slug>/` render the same note, so a link copied
+        from one has to land in the same place on the other."""
+        from tracker.views import _notes_files
+
+        for path in _notes_files():
+            listed = self.client.get("/notes/").content.decode()
+            single = self.client.get(f"/notes/{path.stem}/").content.decode()
+            with self.subTest(slug=path.stem):
+                for anchor in re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single):
+                    self.assertIn(f'id="{anchor}"', listed)
+
+    def test_the_per_note_pages_survive(self):
+        """`build_static` publishes one page per note and they are the honest target for a
+        link from outside the app, so the tabbed view is an addition, not a replacement."""
+        from tracker.management.commands.build_static import site_urls
+        from tracker.views import _notes_files
+
+        urls = site_urls()
+        for path in _notes_files():
+            with self.subTest(slug=path.stem):
+                self.assertIn(f"/notes/{path.stem}/", urls)
+                self.assertEqual(self.client.get(f"/notes/{path.stem}/").status_code, 200)
+
     def test_profile_renders(self):
         r = self.client.get("/profile/")
         self.assertEqual(r.status_code, 200)
@@ -809,8 +877,22 @@ class ViewTests(TestCase):
         self.assertIn("<h2", html)
 
     def test_templates_have_no_leaked_comment_markup(self):
-        for url in ["/", "/applications/", "/applications/all/", "/companies/", "/areas/",
-                    "/stats/", "/cvs/", "/scans/", "/scans/all/"]:
+        """Django's `{# #}` is single-line only, so a multi-line one renders verbatim into
+        the page. `#66` hit it in `base.html` and added this test; `#73` hit it again in
+        `note_list.html` and this test did not fire, because it walked a hand-written list
+        of nine URLs that never gained `/notes/`, `/profile/`, `/help/`, an application
+        page or a round focus view.
+
+        It now walks `build_static.site_urls()` — the enumeration the published site is
+        built from, so a page that ships is a page this checks. Same reasoning as `#51`'s
+        help page reading its command list from `SKILL.md`: a second copy of a list drifts,
+        and the copy that drifts is the one nobody is looking at.
+        """
+        from tracker.management.commands.build_static import site_urls
+
+        urls = site_urls()
+        self.assertGreater(len(urls), 20, "site_urls() returned implausibly few pages")
+        for url in urls:
             html = self.client.get(url).content.decode()
             with self.subTest(url=url):
                 self.assertNotIn("{#", html)
@@ -851,7 +933,7 @@ class ViewTests(TestCase):
 
 
 class StatsPageTests(TestCase):
-    """`/stats/` — the charts page (backlog/dashboard-charts-plan.md §2a).
+    """`/stats/` — the charts page (backlog/plans/042-dashboard-charts.md §2a).
 
     What these pin is the frame every chart lands into rather than any one chart: the
     volume readout the charts get checked against, and R3's three data tiers — what a
@@ -2627,6 +2709,28 @@ class TabsTests(TestCase):
             call_command("build_static", output=tmp, clean=True, stdout=StringIO())
 
 
+class SidebarTests(TestCase):
+    """The Applications sub-nav."""
+
+    fixtures = FIXTURE
+
+    def test_interviewing_is_listed_first_under_applications(self):
+        """The sub-nav runs down the funnel, and Interviewing is the status where
+        something is already in motion and needs preparing for."""
+        html = self.client.get("/").content.decode()
+        order = ["/applications/status/interviewing/",
+                 "/applications/status/reviewing/",
+                 "/applications/status/saved/",
+                 "/applications/all/"]
+        positions = [html.index(f'href="{h}"') for h in order]
+        self.assertEqual(positions, sorted(positions), "sub-nav is out of funnel order")
+
+    def test_the_interviewing_page_marks_its_own_sidebar_entry(self):
+        html = self.client.get("/applications/status/interviewing/").content.decode()
+        self.assertIn('href="/applications/status/interviewing/" class="nav-sub active"',
+                      html.replace("  ", " "))
+
+
 class FitSummaryTests(TestCase):
     """The pros/cons/unknowns boxes on the Record tab, driven by the Application fields."""
 
@@ -3298,20 +3402,181 @@ class InterviewRoundTests(TestCase):
         self.assertIn('data-panel="interviews"', html)
         self.assertIn("HR screen", html)
 
-    def test_interviews_tab_sits_between_job_description_and_notes(self):
-        """Once a process is live the rounds are what gets reread, and the JD is what
-        they're read against — so Interviews follows Job description, ahead of My notes.
-        Asserted on the panel order too: with JS off the panels are the reading order."""
+    # The tab strip runs in the order the process does — what the role is, what you
+    # wrote about it, what you sent, then who you spoke to — with History closing it
+    # (`#67`). Interviews sat third until 2026-10-01, on the argument that live rounds
+    # are what gets reread; that is served by linking to a round, not by tab position.
+    TAB_ORDER = ("record", "job", "notes", "cv", "letters", "files",
+                 "interviews", "history", "siblings")
+
+    def test_interviews_tab_sits_last_before_history(self):
+        """Interviews comes after everything you produced for the application and
+        immediately before History. Asserted on the panel order too: with JS off the
+        panels are the reading order."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         for attr in ("data-tab", "data-panel"):
             with self.subTest(attr=attr):
-                order = [t for t in ("record", "job", "interviews", "notes", "cv",
-                                     "letters", "files", "history")
-                         if f'{attr}="{t}"' in html]
-                positions = {t: html.index(f'{attr}="{t}"') for t in order}
-                self.assertLess(positions["job"], positions["interviews"])
-                self.assertLess(positions["interviews"], positions["notes"])
+                positions = {t: html.index(f'{attr}="{t}"')
+                             for t in self.TAB_ORDER if f'{attr}="{t}"' in html}
+                self.assertIn("interviews", positions)
+                self.assertLess(positions["files"], positions["interviews"])
+                self.assertLess(positions["interviews"], positions["history"])
+
+    def test_tab_order_and_panel_order_agree(self):
+        """The one invariant that makes moving a tab a two-part edit: tabs.js hides
+        panels, so with JS off (or failing to load) the panels ARE the page, in source
+        order. A button moved without its panel reads correctly only while the script
+        works. Checked across every application, since which tabs exist varies."""
+        for app in Application.objects.all():
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            seq = {attr: sorted((t for t in self.TAB_ORDER if f'{attr}="{t}"' in html),
+                                key=lambda t: html.index(f'{attr}="{t}"'))
+                   for attr in ("data-tab", "data-panel")}
+            with self.subTest(num=app.num):
+                self.assertEqual(seq["data-tab"], seq["data-panel"])
+
+    # ---- the in-round jump index and the focus view (`#66`) ----
+
+    def test_sections_are_indexed_in_document_order_and_numbered(self):
+        """Not against a canonical list. Rounds come in two shapes — a prep round and a
+        post-interview record — and the example data carries both, so indexing against
+        one vocabulary would leave the other almost entirely unmatched.
+
+        The numbering is what makes nesting visible: the index is a flat row of pills,
+        where "Follow-ups" otherwise reads as a sibling of the section it sits inside.
+        """
+        body = ("preamble\n\n## Questions and answers\n\ntext\n\n"
+                "### Follow-ups\n\ntext\n\n### Tangents\n\ntext\n\n"
+                "## What to do differently\n\ntext\n")
+        split = P.split_sections(body)
+        self.assertEqual(split["preamble"], "preamble")
+
+    def test_the_preamble_drops_the_title_and_is_empty_when_that_is_all_there_is(self):
+        """Every round file opens with `# Title`, which the page renders itself. Left in
+        the preamble it is shown twice; filtered in the template instead, the preamble
+        is empty-but-truthy and renders an empty styled box on most rounds."""
+        self.assertEqual(
+            P.split_sections("# HR screen — Dana\n\n## Details\n\nx\n")["preamble"],
+            "")
+        self.assertEqual(
+            P.split_sections("# T\n\nkept\n\n## Details\n\nx\n")["preamble"],
+            "kept")
+
+    def test_strip_h1_handles_a_title_with_nothing_after_it(self):
+        """Latent before `#66`: the regex required a trailing newline, so a document
+        that is only a title kept it."""
+        from .templatetags.jobs_extras import strip_h1
+        self.assertEqual(strip_h1("# Title only"), "")
+        self.assertEqual(strip_h1("# Title\nbody"), "body")
+
+    def test_section_numbers_follow_the_document(self):
+        body = ("preamble\n\n## Questions and answers\n\ntext\n\n"
+                "### Follow-ups\n\ntext\n\n### Tangents\n\ntext\n\n"
+                "## What to do differently\n\ntext\n")
+        split = P.split_sections(body)
+        got = [(s["number"], s["level"], s["label"])
+               for s in P.section_index(split["blocks"])]
+        self.assertEqual(got, [("1", 2, "Questions and answers"),
+                               ("1.1", 3, "Follow-ups"),
+                               ("1.2", 3, "Tangents"),
+                               ("2", 2, "What to do differently")])
+
+    def test_a_subsection_stays_inside_its_own_block(self):
+        """`1.1` has to belong to `1`, not to whichever block renders next — the pill
+        opens its parent, so a subsection filed under the wrong one opens the wrong
+        section and scrolls nowhere."""
+        body = "## One\n\n### Inner\n\ntext\n\n## Two\n\ntext\n"
+        blocks = P.split_sections(body)["blocks"]
+        self.assertEqual([b["label"] for b in blocks], ["One", "Two"])
+        self.assertEqual([s["label"] for s in blocks[0]["subsections"]], ["Inner"])
+        self.assertEqual(blocks[1]["subsections"], [])
+
+    def test_sections_ignore_headings_inside_fenced_code(self):
+        body = "## Real\n\n```\n## Not a heading\n```\n\n## Also real\n"
+        blocks = P.split_sections(body)["blocks"]
+        self.assertEqual([b["label"] for b in blocks], ["Real", "Also real"])
+
+    def test_section_anchors_are_unique_across_rounds_on_one_page(self):
+        """Two rounds of one application both carry "## Questions and answers". The tab
+        stacks them into a single page, so unscoped ids would collide and every link
+        would land on whichever round rendered first."""
+        app = Application.objects.get(num=4)
+        rounds = app.interview_files
+        self.assertGreater(len(rounds), 1, "fixture app #4 needs two rounds")
+        anchors = [s["anchor"] for r in rounds for s in r["sections"]]
+        self.assertEqual(len(anchors), len(set(anchors)), f"collision: {anchors}")
+
+    def test_every_nav_href_has_a_heading_to_land_on(self):
+        """The nav's hrefs and the rendered heading ids come from one slug function;
+        this is the assertion that they actually meet in the HTML."""
+        for app in Application.objects.exclude(folder=""):
+            for round_ in app.interview_files:
+                html = self.client.get(f"/applications/{app.num}/").content.decode()
+                for sec in round_["sections"]:
+                    with self.subTest(num=app.num, anchor=sec["anchor"]):
+                        self.assertIn(f'id="{sec["anchor"]}"', html)
+
+    def test_focus_view_renders_one_round(self):
+        app = Application.objects.get(num=4)
+        round_ = app.interview_files[0]
+        r = self.client.get(f"/applications/{app.num}/rounds/{round_['anchor']}/")
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn(round_["label"], html)
+        # The point of the page: none of the application chrome.
+        self.assertNotIn('class="sidebar"', html)
+        self.assertNotIn('data-tabs', html)
+
+    def test_focus_view_404s_on_an_unknown_round(self):
+        self.assertEqual(
+            self.client.get("/applications/4/rounds/round-nope-2026-01-01/").status_code,
+            404)
+
+    def test_focus_view_removes_a_private_section_from_the_page_source(self):
+        """Removed, not hidden. A page open during a call can be visible to someone
+        else, and a CSS-hidden section is still in the source, still findable with
+        find-in-page, and still there if the stylesheet fails to load."""
+        app = Application.objects.exclude(folder="").first()
+        round_ = app.interview_files[0]
+        secret = "DO-NOT-SAY-THIS-OUT-LOUD"
+        body = (round_["body_md"]
+                + f"\n\n## Private — not for the call\n\n{secret}\n")
+        prefix = round_["anchor"]
+        split = P.split_sections(body)
+        blocks = [{**b, "anchor": f"{prefix}--{b['anchor']}",
+                   "subsections": [{**s, "anchor": f"{prefix}--{s['anchor']}"}
+                                   for s in b["subsections"]]}
+                  for b in split["blocks"]]
+        self.assertTrue(any(b["private"] for b in blocks),
+                        "the planted section should be recognised as private")
+        with mock.patch.object(Application, "interview_files",
+                               new_callable=mock.PropertyMock) as files:
+            files.return_value = [{**round_, "body_md": body,
+                                   "preamble_md": split["preamble"],
+                                   "blocks": blocks,
+                                   "sections": P.section_index(blocks)}]
+            html = self.client.get(
+                f"/applications/{app.num}/rounds/{prefix}/").content.decode()
+        self.assertNotIn(secret, html)
+        # Absent from the index too — a pill pointing at a section that is not on the
+        # page is its own bug, and it would also name the section in the nav.
+        self.assertNotIn("not-for-the-call", html)
+        # ...but the page says it dropped something, rather than silently shortening.
+        self.assertIn("full round", html)
+
+    def test_a_pill_can_open_the_block_its_target_sits_in(self):
+        """Every pill names the block to open (`data-parent`) as well as the id to
+        scroll to. A `###` target is inside a closed `<details>`, so without the parent
+        the browser's own jump lands nowhere."""
+        app = Application.objects.get(num=1)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for round_ in app.interview_files:
+            blocks = {b["anchor"] for b in round_["blocks"]}
+            for sec in round_["sections"]:
+                with self.subTest(anchor=sec["anchor"]):
+                    self.assertIn(sec["parent"], blocks)
+                    self.assertIn(f'data-parent="{sec["parent"]}"', html)
 
     def test_every_round_has_a_unique_anchor(self):
         for app in Application.objects.exclude(folder=""):
@@ -3345,7 +3610,6 @@ class InterviewRoundTests(TestCase):
         self.assertEqual(len(app.interview_files), 1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         self.assertNotIn("round-index", html)
-
         folder = app.folder_path
         second = folder / "001-grafana-labs-alex-rivera-interview-technical-2026-09-25.md"
         second.write_text("# Technical round\n\nBody.\n")
@@ -3357,6 +3621,92 @@ class InterviewRoundTests(TestCase):
         for r in Application.objects.get(num=1).interview_files:
             self.assertIn(f'href="#{r["anchor"]}"', html)
             self.assertIn(f'id="{r["anchor"]}"', html)
+
+    # ---- the same index on My notes and Other files (`#72`) ----
+
+    def test_section_label_drops_link_markup_and_the_authors_own_number(self):
+        """Both found the moment the index stopped being interview-only. Interview rounds
+        write plain headings; notes and study files written elsewhere do neither.
+
+        A linked heading put the whole URL in the pill *and* in the anchor. A heading that
+        numbers itself collided with the generated number and rendered as "4 4. ...".
+        """
+        self.assertEqual(
+            P.section_label("[Multi-tenant](https://example.org/wiki/X) isolation"),
+            "Multi-tenant isolation")
+        self.assertEqual(P.section_label("4. Performance"), "Performance")
+        self.assertEqual(P.section_label("2) Authorisation"), "Authorisation")
+        # A plain heading is untouched, and a number that is not an enumerator stays.
+        self.assertEqual(P.section_label("Outcome"), "Outcome")
+        self.assertEqual(P.section_label("2026 in review"), "2026 in review")
+
+    def test_sectioned_scopes_every_anchor_under_its_prefix(self):
+        """The guarantee the whole page rests on. Two documents sharing a heading is
+        ordinary — two files in one folder both carrying `## Notes` — and unprefixed they
+        would mint the same id, sending every link to whichever rendered first.
+        """
+        body = "## Notes\n\ntext\n\n### Detail\n\ntext\n"
+        a = P.sectioned(body, "file-one")
+        b = P.sectioned(body, "file-two")
+        self.assertEqual([s["anchor"] for s in a["sections"]],
+                         ["file-one--notes", "file-one--detail"])
+        self.assertFalse(set(s["anchor"] for s in a["sections"]) &
+                         set(s["anchor"] for s in b["sections"]))
+
+    def test_every_id_on_an_application_page_is_unique(self):
+        """Across the whole page, not within one document. The notes tab, each extra file
+        and every interview round now mint section ids into the same page, so this is the
+        check that the prefixes actually hold — a duplicate id is silent in HTML and sends
+        the pill to the wrong section.
+        """
+        for app in Application.objects.exclude(folder=""):
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            ids = re.findall(r'id="([^"]+)"', html)
+            dupes = {i for i in ids if ids.count(i) > 1}
+            with self.subTest(num=app.num):
+                self.assertEqual(dupes, set(), f"duplicate ids: {sorted(dupes)}")
+
+    def test_my_notes_renders_through_the_shared_index(self):
+        app = next((a for a in Application.objects.exclude(folder="")
+                    if a.notes_doc and len(a.notes_doc["sections"]) > 1), None)
+        self.assertIsNotNone(app, "no example application has a sectioned notes.md")
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for s in app.notes_doc["sections"]:
+            self.assertTrue(s["anchor"].startswith("notes--"), s["anchor"])
+            self.assertIn(f'id="{s["anchor"]}"', html)
+
+    def test_my_notes_opens_expanded_and_other_files_collapsed(self):
+        """A judgement per tab, not a global default, and the reason is in each include:
+        notes.md is one document read with no clock running, while Other files stacks
+        whole files and is the Interviews tab's problem instead.
+        """
+        app = next((a for a in Application.objects.exclude(folder="")
+                    if a.notes_doc and len(a.notes_doc["sections"]) > 1), None)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for s in app.notes_doc["sections"]:
+            if s["level"] != 2:
+                continue
+            m = re.search(r'<details class="doc-section" data-section="%s"([^>]*)>'
+                          % re.escape(s["anchor"]), html)
+            self.assertIsNotNone(m, s["anchor"])
+            self.assertIn("open", m.group(1))
+        for app in Application.objects.exclude(folder=""):
+            for f in app.extra_files:
+                for s in (f.get("doc") or {}).get("sections", []):
+                    m = re.search(r'<details class="doc-section" data-section="%s"([^>]*)>'
+                                  % re.escape(s["anchor"]), html or "")
+                    if m:
+                        self.assertNotIn("open", m.group(1))
+
+    def test_mark_qa_is_off_outside_interview_rounds(self):
+        """`**Q:**` is the interview files' convention, not the site's — a note that
+        happens to use it is somebody's prose. The flag exists so `_doc_body.html` stays
+        one template with one filter chain; two chains are how the two copies drift.
+        """
+        from tracker.templatetags.jobs_extras import mark_qa
+        text = "- **Q:** what is it?"
+        self.assertIn("qa-q", mark_qa(text, True))
+        self.assertEqual(mark_qa(text, False), text)
 
     def test_extra_files_carry_unique_anchors_rendered_as_ids(self):
         """Prose in a folder needs a target for a specific file. Without an id the only

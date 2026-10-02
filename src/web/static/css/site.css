@@ -478,6 +478,119 @@ tr.is-stale td { background: #fffdf5; }
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 
+/* ---------- the notes page (#73) ---------- */
+
+/* Each note's own title plus the link to its standalone page. The title is here rather
+   than in a `.panel-heading` because that is hidden once tabs are live. */
+.note-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.note-head h2 { margin: 0; font-size: 17px; }
+.note-head a { font-size: 12.5px; }
+
+/* ---------- section index — interview rounds, My notes, Other files (#66, #72) ---------- */
+
+/* Sticky, because the whole point is reaching it without scrolling back up: a round is
+   long, and the moment you need it is the moment you have least time. */
+/* Grey tray, white pills — the same device as `.company-jump` on a scan report, adopted
+   here 2026-10-02 because it reads far better: what makes a pill row scannable is the
+   contrast between pill and tray, not the pill borders. Outlined pills directly on the
+   page background read as a line of loose text.
+
+   Not shared with `.company-jump` as one rule, because that one is a static box in the
+   flow and this one is sticky — which is the whole difference in the padding, the radius
+   and the z-index below. */
+.section-index {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  margin: 0 0 18px; padding: 10px 12px;
+  background: var(--bg-sunk);
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+
+.section-chip {
+  font-size: 12.5px; line-height: 1; white-space: nowrap;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+  text-decoration: none; background: var(--bg);
+}
+a.section-chip:hover { border-color: var(--navy); color: var(--navy); }
+
+/* The section number — `1`, `1.1`. Tabular so the pills do not jitter in width between
+   rounds, and dimmer than the label because it is an index, not a name. */
+.sec-n { font-variant-numeric: tabular-nums; color: var(--faint); font-weight: 600; }
+a.section-chip:hover .sec-n, .section-chip.here .sec-n { color: inherit; }
+
+/* A `###`. Indented rather than put on a second row: the bar is scanned left to right
+   mid-call, and the number already carries the depth. */
+.section-chip.sub { font-size: 12px; padding-left: 14px; }
+
+/* Set by section-nav.js on the section currently being read.
+   `a.section-chip.here` and an explicit `:hover`, not a bare `.here`: the plain hover
+   rule above is (0,2,1) and would otherwise outrank a (0,2,0) `.here`, painting navy
+   text on the navy pill. The cursor is on the pill you just clicked, so that is the
+   normal case rather than an edge one. */
+a.section-chip.here,
+a.section-chip.here:hover {
+  background: var(--navy); border-color: var(--navy); color: #fff;
+}
+
+.section-toggle-all {
+  margin-left: auto; cursor: pointer; color: var(--link); border-style: dashed;
+}
+.section-toggle-all:hover { border-color: var(--navy); color: var(--navy); }
+
+/* ---------- collapsible document sections (#66, generalised #72) ---------- */
+
+/* Closed by default (no `open` attribute in the template), so a round opens as a short
+   menu of its sections rather than a wall of prose. */
+.doc-section { border-bottom: 1px solid var(--line); }
+.doc-section:last-of-type { border-bottom: 0; }
+
+.doc-section > summary {
+  cursor: pointer; padding: 10px 2px; font-weight: 600; font-size: 14.5px;
+  list-style: none; display: flex; gap: 8px; align-items: baseline;
+  /* Clears the sticky index when a pill scrolls this into view. section-nav.js measures
+     against the same number — if one changes the other has to. */
+  scroll-margin-top: 56px;
+}
+.doc-section > summary::-webkit-details-marker { display: none; }
+.doc-section > summary::before {
+  content: "▸"; color: var(--faint); font-size: 11px; width: 10px;
+}
+.doc-section[open] > summary::before { content: "▾"; }
+.doc-section > summary:hover { color: var(--navy); }
+
+.doc-section-body { padding: 0 0 14px 18px; }
+.doc-section-body h3 { scroll-margin-top: 56px; }
+
+/* The Date / With / Format line above the first section. Short, always wanted, never
+   collapsed. */
+.doc-preamble { margin-bottom: 4px; color: var(--muted); font-size: 13.5px; }
+
+/* ---------- interview focus view (#66) ---------- */
+
+/* No sidebar on this page (base.html blanks the block), so the grid is one column. */
+.layout-bare { grid-template-columns: 1fr; }
+
+.round-focus { max-width: 760px; margin: 0 auto; }
+.round-focus-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.round-focus-head h1 { margin: 6px 0 0; }
+.round-focus-back { font-size: 13px; color: var(--muted); text-decoration: none; }
+.round-focus-back:hover { color: var(--navy); }
+.round-focus-date { color: var(--faint); font-weight: 400; }
+
+/* Larger than the app's body text and looser between lines: this is read at arm's
+   length while listening to somebody, not studied. */
+.round-focus-body { font-size: 15.5px; line-height: 1.65; }
+
+.round-focus-foot { margin-top: 20px; }
+.round-focus-note { font-size: 13px; color: var(--muted); margin: 6px 0; }
+
 /* The questions in a round's prep, coloured so they can be picked out without reading the
    answers between them. `mark_qa` puts the span in — round a `**Q:** …` line (the current
    convention), or round the text of a heading that asks a question (the rounds written

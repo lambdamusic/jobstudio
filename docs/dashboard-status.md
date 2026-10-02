@@ -40,7 +40,7 @@ backfill (exactly local midnight) are counted and the all-time pace says it is a
 
 ## The charts page (`/stats/`)
 
-`/stats/` is where the charts from `backlog/dashboard-charts-plan.md` live. It is
+`/stats/` is where the charts from `backlog/plans/042-dashboard-charts.md` live. It is
 deliberately not the dashboard: `/` is the page used daily and should not churn while the
 designs are being judged, and `/stats/` can carry the numbers each chart was computed from
 beside it. Promotion to the dashboard is a separate decision, chart by chart.

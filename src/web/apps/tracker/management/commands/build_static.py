@@ -45,6 +45,13 @@ def site_urls() -> list[str]:
     urls += [f"/applications/status/{s}/" for s in STATUS_SORT_ORDER]
     urls += [f"/applications/area/{a}/" for a in Area.objects.values_list("slug", flat=True)]
     urls += [f"/applications/{n}/" for n in Application.objects.values_list("num", flat=True)]
+    # The per-round focus pages (`#66`). Enumerated from the folder scan rather than a
+    # query, because a round is a file on disk with no database row — and they have to
+    # be built: every application page links its rounds, so leaving them out fails this
+    # command's own link check rather than quietly publishing a dead link.
+    urls += [f"/applications/{app.num}/rounds/{r['anchor']}/"
+             for app in Application.objects.exclude(folder="")
+             for r in app.interview_files]
     urls += [f"/companies/{s}/" for s in Company.objects.values_list("slug", flat=True)]
     urls += [f"/cvs/base/{s}/" for s in BaseCv.objects.values_list("slug", flat=True)]
     urls += [f"/scans/{label}/" for label in Scan.objects.values_list("label", flat=True)]

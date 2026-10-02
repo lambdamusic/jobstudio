@@ -1,0 +1,22 @@
+{% comment %}
+The jump index for one sectioned document — shared by the Interviews tab, the round
+focus view, My notes and Other files, so they cannot drift apart in wording, numbering
+or order.
+
+Numbered `1 / 1.1 / 1.2 / 2`, which is the only way a flat row of pills can show that
+one section sits inside another: without it "What they asked" reads as a sibling of
+"Outcome" rather than part of it.
+
+The document's own headings in page order, not a canonical list — see the note on
+`split_sections`. Shown from two sections up: a one-item index is noise.
+{% endcomment %}
+{% if sections|length > 1 %}
+  <nav class="section-index" aria-label="Sections in this document" data-section-index>
+    {% for s in sections %}
+      <a class="section-chip{% if s.level == 3 %} sub{% endif %}"
+         href="#{{ s.anchor }}" data-target="{{ s.anchor }}" data-parent="{{ s.parent }}"
+        ><span class="sec-n">{{ s.number }}</span> {{ s.label }}</a>
+    {% endfor %}
+    <button type="button" class="section-chip section-toggle-all" data-toggle-all>Expand all</button>
+  </nav>
+{% endif %}

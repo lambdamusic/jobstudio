@@ -428,7 +428,7 @@ class Application(models.Model):
         folder = self.folder_path
         if folder is None:
             return []
-        from .parsers import find_interviews
+        from .parsers import find_interviews, sectioned
 
         out = []
         for round_ in find_interviews(folder):
@@ -456,7 +456,29 @@ class Application(models.Model):
                 base = f"{base}-{round_['date'].isoformat()}"
             seen[base] = seen.get(base, 0) + 1
             round_["anchor"] = base if seen[base] == 1 else f"{base}-{seen[base]}"
+
+        # The collapsible blocks and the jump index within each round (`#66`). Anchors are
+        # scoped by the round's own anchor because the Interviews tab stacks every round
+        # into one page — two rounds both carrying "## Outcome" would otherwise collide,
+        # and the browser would send every "Outcome" link to whichever came first.
+        for round_ in out:
+            round_.update(sectioned(round_["body_md"], round_["anchor"]))
         return out
+
+    @cached_property
+    def notes_doc(self) -> dict | None:
+        """`notes.md` as a sectioned document, for the My notes tab (`#72`).
+
+        The prefix is the constant `notes` rather than a generated one: there is only ever
+        one of these per application, so nothing can collide with it.
+
+        Cached because the template reads it twice — once for the pill index, once for the
+        body — and each read would otherwise re-parse the file.
+        """
+        from .parsers import sectioned
+
+        body = self.notes_md
+        return sectioned(body, "notes") if body and body.strip() else None
 
     @property
     def extra_files(self) -> list[dict]:
@@ -512,6 +534,16 @@ class Application(models.Model):
         # files.
         for f in out:
             f["anchor"] = "file-" + re.sub(r"[^a-z0-9]+", "-", f["rel"].lower()).strip("-")
+
+        # Each markdown file gets its own pill index and collapsible sections (`#72`),
+        # prefixed by the per-file anchor just assigned. This tab is the worst case for
+        # collisions in the whole app: two files in one folder sharing a `## Notes`
+        # heading is ordinary, not exotic.
+        from .parsers import sectioned
+
+        for f in out:
+            if f["is_md"] and f["body_md"].strip():
+                f["doc"] = sectioned(f["body_md"], f["anchor"])
         return out
 
 

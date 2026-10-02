@@ -28,7 +28,7 @@ letter automatically). The thin draft is structure §3 — see "The thin draft" 
 
 One structure family — **standard** — with two variants (revised 2026-09-17; the
 earlier mirror and advanced structures were retired, see
-`backlog/done/drop-direct-anthropic-api-plan.md` §1.2), plus the thin draft added
+`backlog/plans/001-drop-direct-anthropic-api.md` §1.2), plus the thin draft added
 2026-10-01:
 
 | Structure | Chosen when |

@@ -12,7 +12,7 @@ The distinction this module exists to enforce:
 Today they are the same directory, and `data_root()` returns `REPO_ROOT` when nothing
 says otherwise, so behaviour is unchanged. The point is that every *data* path now
 goes through one function, so pointing them elsewhere is a one-line change rather than
-an archaeology exercise. See `backlog/share-as-toolkit-plan.md` §3.1.
+an archaeology exercise. See `backlog/plans/002-share-as-toolkit.md` §3.1.
 
 Resolution order:
 

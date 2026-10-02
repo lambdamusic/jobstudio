@@ -201,6 +201,211 @@ def find_interviews(folder: Path) -> list[dict]:
     return out
 
 
+# A round is split into collapsible `##` blocks, numbered, and indexed in the order the
+# headings appear rather than against a canonical list.
+#
+# `#66` was planned against the canonical vocabulary from `subcommands/interview.md`
+# step 4, with absent sections dimmed in place. The data killed it: rounds come in at
+# least two shapes. One written *before* the call uses the prep vocabulary (Details /
+# Prep / Questions to ask them / Study before / Outcome); one written *after* records
+# what happened (Questions and answers / What to do differently). Indexed against one
+# list, a post-interview round renders ten dimmed chips and two live ones.
+#
+# Document order also keeps the index agreeing with the page, which a highlight tracking
+# scroll position depends on.
+PRIVATE_SECTION_PREFIX = "private"
+
+
+def first_heading(body_md: str) -> str:
+    """The document's own `# Title`, or "" if it has none (`#73`).
+
+    Notes are titled by their first line, and deriving a title from the filename instead
+    mangles it — `ai-safety-pivot` title-cases to "Ai Safety Pivot". The file knows what
+    it is called; ask it, and keep the slug only as a fallback.
+    """
+    for line in body_md.splitlines():
+        if line.startswith("# ") and not line.startswith("## "):
+            return line[2:].strip().rstrip("#").strip()
+        if line.strip():
+            break  # a title is the first thing or it is not the title
+    return ""
+
+
+# A full title is often "Short name — the longer description of what is in here". A tab
+# can only show the first half, so this is where it is cut.
+_TITLE_TAIL_RE = re.compile(r"\s+[—:–]\s+.*$")
+
+
+def short_title(title: str) -> str:
+    """The part of a title a tab label can hold."""
+    return _TITLE_TAIL_RE.sub("", title).strip() or title
+
+
+def section_slug(label: str) -> str:
+    """Slug for one section heading. Shared by the parser, the nav's hrefs and the
+    `number_sections` filter that stamps ids onto the rendered headings, so the three
+    cannot drift. Always fed a label that `section_label()` has already cleaned."""
+    return _slugify(label)
+
+
+# A heading that numbers itself — "## 4. Multi-tenant isolation". Interview rounds never
+# do; notes and study files written outside this app often do (`#72`).
+_SELF_NUMBERED_RE = re.compile(r"^\d+[.)]\s+")
+
+# Inline emphasis and code spans inside a heading. A pill is plain text, so `**Trend 1**`
+# would otherwise show its asterisks (`#73`). Paired delimiters only — a lone `*` in a
+# heading is a literal asterisk and stays one.
+_EMPHASIS_RE = [
+    (re.compile(r"\*\*(.+?)\*\*", re.S), r"\1"),
+    (re.compile(r"__(.+?)__", re.S), r"\1"),
+    (re.compile(r"(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?![*\w])", re.S), r"\1"),
+    (re.compile(r"`(.+?)`", re.S), r"\1"),
+]
+
+
+def section_label(raw: str) -> str:
+    """The text of a `##`/`###` heading, as a pill can show it.
+
+    Two things to take off, both found the moment this stopped being interview-only
+    (`#72`) and got pointed at notes and study files:
+
+    **Link markup.** A heading written ``## [Multi-tenant](https://en.wikipedia.org/…)
+    isolation`` put the whole URL in the pill *and* in the slug, giving an anchor 90
+    characters long. The pills render as plain text, so the label has to be plain text.
+
+    **The author's own number.** The pill already carries a generated `1 / 1.1 / 2`, so a
+    self-numbered heading rendered as "4 4. Multi-tenant…" — in the summary line as well
+    as the pill. Ours is positional and matches the body, so it is the one to keep.
+
+    **Emphasis and code spans** (`#73`), for the same reason as the link markup: a note
+    whose subheadings are written `### **Trend 1 — ...**` showed its asterisks in every
+    pill. Paired delimiters only, so a lone asterisk in a heading survives as itself.
+    """
+    out = _SELF_NUMBERED_RE.sub("", strip_links(raw).strip())
+    for pattern, repl in _EMPHASIS_RE:
+        out = pattern.sub(repl, out)
+    return out.strip()
+
+
+def _is_fence(line: str) -> bool:
+    return line.startswith("```") or line.startswith("~~~")
+
+
+def split_sections(body_md: str) -> dict:
+    """One markdown document, split for the collapsible reading view.
+
+    Written for interview rounds (`#66`) and generalised for My notes and Other files
+    (`#72`) — it only ever knew about `##` and `###`, so the generalisation was a rename.
+    Use `sectioned()` rather than calling this directly unless you need the raw split.
+
+    Returns `preamble` (anything before the first `##` — the Date/With/Format line in
+    most interview rounds, short and always wanted, so it is never collapsed), and
+    `blocks`: one per `##`, each carrying its own markdown and its `###` subsections.
+
+    **Sections are numbered** — `1`, `1.1`, `1.2`, `2` — because the index is a flat row
+    of pills, where nesting is otherwise invisible: "What they asked" sitting under
+    "Outcome" reads as a sibling of it. The number is the only thing in a one-line pill
+    that can carry depth. Numbers are positional, so they renumber if a round is edited;
+    the slug, not the number, is what anchors a link.
+
+    Anchors are unprefixed here; `sectioned()` scopes them. Every page that uses this
+    stacks more than one document — the Interviews tab its rounds, Other files its
+    files — so ids have to stay unique across the page, not just within a document.
+    """
+    lines = body_md.splitlines()
+    preamble: list[str] = []
+    blocks: list[dict] = []
+    in_fence = False
+
+    for raw in lines:
+        line = raw.strip()
+        if _is_fence(line):
+            in_fence = not in_fence
+        is_h2 = not in_fence and line.startswith("## ") and not line.startswith("### ")
+        is_h3 = not in_fence and line.startswith("### ") and not line.startswith("#### ")
+
+        if is_h2:
+            label = section_label(line[3:].rstrip("#"))
+            slug = section_slug(label)
+            blocks.append({
+                "number": str(len(blocks) + 1),
+                "label": label,
+                "anchor": slug,
+                "private": slug.startswith(PRIVATE_SECTION_PREFIX),
+                "lines": [],
+                "subsections": [],
+            })
+            continue
+
+        if not blocks:
+            preamble.append(raw)
+            continue
+
+        block = blocks[-1]
+        if is_h3:
+            label = section_label(line[4:].rstrip("#"))
+            slug = section_slug(label)
+            # A repeated subheading inside one block is indexed once — a second pill
+            # would be an anchor pointing at the first, which is worse than no pill.
+            if slug not in {s["anchor"] for s in block["subsections"]}:
+                block["subsections"].append({
+                    "number": f"{block['number']}.{len(block['subsections']) + 1}",
+                    "label": label,
+                    "anchor": slug,
+                })
+        block["lines"].append(raw)
+
+    for block in blocks:
+        block["body_md"] = "\n".join(block.pop("lines")).strip("\n")
+
+    # The leading `# Title` is dropped here rather than by `strip_h1` in the template:
+    # every round file opens with one, the page renders the title itself, and leaving it
+    # in means a preamble that is empty after filtering but still truthy — an empty
+    # styled box on most rounds.
+    text = "\n".join(preamble).strip("\n")
+    text = re.sub(r"\A\s*#\s+.*?(?:\n|\Z)", "", text, count=1).strip("\n")
+    return {"preamble": text, "blocks": blocks}
+
+
+def section_index(blocks: list[dict]) -> list[dict]:
+    """The flat pill row: every block and subsection, in page order, with its number."""
+    out = []
+    for block in blocks:
+        out.append({"number": block["number"], "label": block["label"],
+                    "anchor": block["anchor"], "level": 2,
+                    "private": block["private"], "parent": block["anchor"]})
+        for sub in block["subsections"]:
+            out.append({"number": sub["number"], "label": sub["label"],
+                        "anchor": sub["anchor"], "level": 3,
+                        "private": block["private"], "parent": block["anchor"]})
+    return out
+
+
+def sectioned(body_md: str, prefix: str) -> dict:
+    """A markdown document ready for `_doc_sections.html` + `_doc_body.html`.
+
+    Splits it, scopes every anchor under `prefix`, and builds the pill index — the three
+    steps every caller needs, in the one order that works. `prefix` must be unique on the
+    page: two documents both carrying `## Notes` would otherwise mint the same id and the
+    browser would send every link to whichever rendered first. An interview round uses its
+    own `round-<stage>-<date>` anchor, Other files the per-file anchor `extra_files`
+    already builds, My notes the constant `notes` (there is only ever one).
+
+    Returns the template's three keys directly, so a caller is one line and no view has to
+    remember that prefixing comes before indexing.
+    """
+    split = split_sections(body_md)
+    blocks = [
+        {**b,
+         "anchor": f"{prefix}--{b['anchor']}",
+         "subsections": [{**sub, "anchor": f"{prefix}--{sub['anchor']}"}
+                         for sub in b["subsections"]]}
+        for b in split["blocks"]
+    ]
+    return {"preamble_md": split["preamble"], "blocks": blocks,
+            "sections": section_index(blocks), "body_md": body_md}
+
+
 def find_scans(scans_dir: Path) -> list[dict]:
     out: list[dict] = []
     if not scans_dir.is_dir():

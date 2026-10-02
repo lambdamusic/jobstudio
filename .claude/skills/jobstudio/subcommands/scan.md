@@ -17,7 +17,7 @@ surfaces candidates. Use the existing `company` / `application` subcommands to
 promote anything worth pursuing.
 
 > Revised 2026-09-17: scoring is split into two independent paths — see
-> `backlog/done/drop-direct-anthropic-api-plan.md` §2. **Default: agent-native, no API
+> `backlog/plans/001-drop-direct-anthropic-api.md` §2. **Default: agent-native, no API
 > call** — you (the agent) score live, since you already have full context. **Opt-in:
 > `--api`** — runs the old API-based scoring as a separate script, for when scoring
 > volume is high or session budget is tight (agent-native scoring spends Claude Code

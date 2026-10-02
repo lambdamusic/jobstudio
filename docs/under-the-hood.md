@@ -146,6 +146,40 @@ of example data, but it does it by repointing the checkout — so it replaces wh
 data root you were using. `run-demo` passes `$JOBSTUDIO_DATA` for one process and leaves
 the pointer file alone, which is why it is safe to run mid-session on a real setup.
 
+### The interview focus view
+
+`/applications/<n>/rounds/<anchor>/` renders one interview round on its own page, with
+no sidebar, no tab strip and no metadata — the reading view for during a call (`#66`).
+Every round links to it from the Interviews tab, and `build_static` publishes one page
+per round, so the link survives into the static mirror.
+
+Two details are deliberate. **"Private — not for the call" is removed from the markdown
+before rendering**, not hidden with CSS: a page open during a call may be visible to
+someone other than its owner, and a hidden section is still in the source, still
+findable with find-in-page, and still there if the stylesheet fails. The page says what
+it dropped and links the full round.
+
+Each round renders as **numbered, collapsible sections, closed by default** — one
+`<details>` per `##`, so a round opens as a short menu rather than a wall of prose. The
+**jump index** above it (both here and in the Interviews tab) lists those sections and
+their `###` subsections in document order, numbered `1 / 1.1 / 1.2 / 2`.
+
+Two things about that are easy to get wrong:
+
+- **Document order, not a canonical list.** Rounds come in two shapes — written before
+  the call (Details / Prep / Questions to ask them / Study before / Outcome) and written
+  after it (Questions and answers / What to do differently) — so a fixed vocabulary
+  matches one and misses the other.
+- **The numbers are the only thing carrying depth.** The index is a flat row of pills,
+  where "What they asked" sitting under "Outcome" otherwise reads as its sibling.
+  Numbers are positional and renumber if a round is edited; the slug, not the number,
+  is what a link anchors to.
+
+`round-nav.js` opens the block a link points *into* (a `###` target sits inside a closed
+`<details>`, so the browser's own jump would land nowhere), drives expand/collapse all,
+and highlights the section being read — computed from scroll position against the sticky
+bar's lower edge, paired with `scroll-margin-top` in the CSS.
+
 Django management commands, run as `tools/py src/web/manage.py <name>`:
 
 | Command | What it does |
