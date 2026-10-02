@@ -189,7 +189,7 @@ def _wrap_questions(text: str) -> str:
 
 
 @register.filter(name="mark_qa")
-def mark_qa(text):
+def mark_qa(text, enabled=True):
     """Mark up the questions in an interview round so the Interviews tab can colour them
     — the eye needs to find the questions without reading the answers between them.
 
@@ -197,9 +197,14 @@ def mark_qa(text):
     file's convention, not the site's. A question hard-wrapped over several source lines
     stays inside one span — wrapped prose is the norm in these files, and a colour that
     stopped at the first line would read as a rendering bug.
+
+    `enabled` exists so `_doc_body.html` can stay one template with one filter chain
+    (`#72`). My notes and Other files pass false: a `**Q:**` in a note is somebody's
+    prose, not this convention. Branching in the template instead would mean writing the
+    whole chain out twice, which is how the two copies drift.
     """
-    if not text:
-        return ""
+    if not text or not enabled:
+        return text or ""
     chunks = re.split(r"(```.*?```)", text, flags=re.S)
     for i, chunk in enumerate(chunks):
         if not chunk.startswith("```"):

@@ -3367,7 +3367,7 @@ class InterviewRoundTests(TestCase):
         body = ("preamble\n\n## Questions and answers\n\ntext\n\n"
                 "### Follow-ups\n\ntext\n\n### Tangents\n\ntext\n\n"
                 "## What to do differently\n\ntext\n")
-        split = P.split_interview_round(body)
+        split = P.split_sections(body)
         self.assertEqual(split["preamble"], "preamble")
 
     def test_the_preamble_drops_the_title_and_is_empty_when_that_is_all_there_is(self):
@@ -3375,10 +3375,10 @@ class InterviewRoundTests(TestCase):
         the preamble it is shown twice; filtered in the template instead, the preamble
         is empty-but-truthy and renders an empty styled box on most rounds."""
         self.assertEqual(
-            P.split_interview_round("# HR screen — Dana\n\n## Details\n\nx\n")["preamble"],
+            P.split_sections("# HR screen — Dana\n\n## Details\n\nx\n")["preamble"],
             "")
         self.assertEqual(
-            P.split_interview_round("# T\n\nkept\n\n## Details\n\nx\n")["preamble"],
+            P.split_sections("# T\n\nkept\n\n## Details\n\nx\n")["preamble"],
             "kept")
 
     def test_strip_h1_handles_a_title_with_nothing_after_it(self):
@@ -3392,9 +3392,9 @@ class InterviewRoundTests(TestCase):
         body = ("preamble\n\n## Questions and answers\n\ntext\n\n"
                 "### Follow-ups\n\ntext\n\n### Tangents\n\ntext\n\n"
                 "## What to do differently\n\ntext\n")
-        split = P.split_interview_round(body)
+        split = P.split_sections(body)
         got = [(s["number"], s["level"], s["label"])
-               for s in P.interview_section_index(split["blocks"])]
+               for s in P.section_index(split["blocks"])]
         self.assertEqual(got, [("1", 2, "Questions and answers"),
                                ("1.1", 3, "Follow-ups"),
                                ("1.2", 3, "Tangents"),
@@ -3405,14 +3405,14 @@ class InterviewRoundTests(TestCase):
         opens its parent, so a subsection filed under the wrong one opens the wrong
         section and scrolls nowhere."""
         body = "## One\n\n### Inner\n\ntext\n\n## Two\n\ntext\n"
-        blocks = P.split_interview_round(body)["blocks"]
+        blocks = P.split_sections(body)["blocks"]
         self.assertEqual([b["label"] for b in blocks], ["One", "Two"])
         self.assertEqual([s["label"] for s in blocks[0]["subsections"]], ["Inner"])
         self.assertEqual(blocks[1]["subsections"], [])
 
     def test_sections_ignore_headings_inside_fenced_code(self):
         body = "## Real\n\n```\n## Not a heading\n```\n\n## Also real\n"
-        blocks = P.split_interview_round(body)["blocks"]
+        blocks = P.split_sections(body)["blocks"]
         self.assertEqual([b["label"] for b in blocks], ["Real", "Also real"])
 
     def test_section_anchors_are_unique_across_rounds_on_one_page(self):
@@ -3461,7 +3461,7 @@ class InterviewRoundTests(TestCase):
         body = (round_["body_md"]
                 + f"\n\n## Private — not for the call\n\n{secret}\n")
         prefix = round_["anchor"]
-        split = P.split_interview_round(body)
+        split = P.split_sections(body)
         blocks = [{**b, "anchor": f"{prefix}--{b['anchor']}",
                    "subsections": [{**s, "anchor": f"{prefix}--{s['anchor']}"}
                                    for s in b["subsections"]]}
@@ -3473,7 +3473,7 @@ class InterviewRoundTests(TestCase):
             files.return_value = [{**round_, "body_md": body,
                                    "preamble_md": split["preamble"],
                                    "blocks": blocks,
-                                   "sections": P.interview_section_index(blocks)}]
+                                   "sections": P.section_index(blocks)}]
             html = self.client.get(
                 f"/applications/{app.num}/rounds/{prefix}/").content.decode()
         self.assertNotIn(secret, html)
@@ -3528,7 +3528,6 @@ class InterviewRoundTests(TestCase):
         self.assertEqual(len(app.interview_files), 1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         self.assertNotIn("round-index", html)
-
         folder = app.folder_path
         second = folder / "001-grafana-labs-alex-rivera-interview-technical-2026-09-25.md"
         second.write_text("# Technical round\n\nBody.\n")
@@ -3540,6 +3539,92 @@ class InterviewRoundTests(TestCase):
         for r in Application.objects.get(num=1).interview_files:
             self.assertIn(f'href="#{r["anchor"]}"', html)
             self.assertIn(f'id="{r["anchor"]}"', html)
+
+    # ---- the same index on My notes and Other files (`#72`) ----
+
+    def test_section_label_drops_link_markup_and_the_authors_own_number(self):
+        """Both found the moment the index stopped being interview-only. Interview rounds
+        write plain headings; notes and study files written elsewhere do neither.
+
+        A linked heading put the whole URL in the pill *and* in the anchor. A heading that
+        numbers itself collided with the generated number and rendered as "4 4. ...".
+        """
+        self.assertEqual(
+            P.section_label("[Multi-tenant](https://example.org/wiki/X) isolation"),
+            "Multi-tenant isolation")
+        self.assertEqual(P.section_label("4. Performance"), "Performance")
+        self.assertEqual(P.section_label("2) Authorisation"), "Authorisation")
+        # A plain heading is untouched, and a number that is not an enumerator stays.
+        self.assertEqual(P.section_label("Outcome"), "Outcome")
+        self.assertEqual(P.section_label("2026 in review"), "2026 in review")
+
+    def test_sectioned_scopes_every_anchor_under_its_prefix(self):
+        """The guarantee the whole page rests on. Two documents sharing a heading is
+        ordinary — two files in one folder both carrying `## Notes` — and unprefixed they
+        would mint the same id, sending every link to whichever rendered first.
+        """
+        body = "## Notes\n\ntext\n\n### Detail\n\ntext\n"
+        a = P.sectioned(body, "file-one")
+        b = P.sectioned(body, "file-two")
+        self.assertEqual([s["anchor"] for s in a["sections"]],
+                         ["file-one--notes", "file-one--detail"])
+        self.assertFalse(set(s["anchor"] for s in a["sections"]) &
+                         set(s["anchor"] for s in b["sections"]))
+
+    def test_every_id_on_an_application_page_is_unique(self):
+        """Across the whole page, not within one document. The notes tab, each extra file
+        and every interview round now mint section ids into the same page, so this is the
+        check that the prefixes actually hold — a duplicate id is silent in HTML and sends
+        the pill to the wrong section.
+        """
+        for app in Application.objects.exclude(folder=""):
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            ids = re.findall(r'id="([^"]+)"', html)
+            dupes = {i for i in ids if ids.count(i) > 1}
+            with self.subTest(num=app.num):
+                self.assertEqual(dupes, set(), f"duplicate ids: {sorted(dupes)}")
+
+    def test_my_notes_renders_through_the_shared_index(self):
+        app = next((a for a in Application.objects.exclude(folder="")
+                    if a.notes_doc and len(a.notes_doc["sections"]) > 1), None)
+        self.assertIsNotNone(app, "no example application has a sectioned notes.md")
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for s in app.notes_doc["sections"]:
+            self.assertTrue(s["anchor"].startswith("notes--"), s["anchor"])
+            self.assertIn(f'id="{s["anchor"]}"', html)
+
+    def test_my_notes_opens_expanded_and_other_files_collapsed(self):
+        """A judgement per tab, not a global default, and the reason is in each include:
+        notes.md is one document read with no clock running, while Other files stacks
+        whole files and is the Interviews tab's problem instead.
+        """
+        app = next((a for a in Application.objects.exclude(folder="")
+                    if a.notes_doc and len(a.notes_doc["sections"]) > 1), None)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        for s in app.notes_doc["sections"]:
+            if s["level"] != 2:
+                continue
+            m = re.search(r'<details class="doc-section" data-section="%s"([^>]*)>'
+                          % re.escape(s["anchor"]), html)
+            self.assertIsNotNone(m, s["anchor"])
+            self.assertIn("open", m.group(1))
+        for app in Application.objects.exclude(folder=""):
+            for f in app.extra_files:
+                for s in (f.get("doc") or {}).get("sections", []):
+                    m = re.search(r'<details class="doc-section" data-section="%s"([^>]*)>'
+                                  % re.escape(s["anchor"]), html or "")
+                    if m:
+                        self.assertNotIn("open", m.group(1))
+
+    def test_mark_qa_is_off_outside_interview_rounds(self):
+        """`**Q:**` is the interview files' convention, not the site's — a note that
+        happens to use it is somebody's prose. The flag exists so `_doc_body.html` stays
+        one template with one filter chain; two chains are how the two copies drift.
+        """
+        from tracker.templatetags.jobs_extras import mark_qa
+        text = "- **Q:** what is it?"
+        self.assertIn("qa-q", mark_qa(text, True))
+        self.assertEqual(mark_qa(text, False), text)
 
     def test_extra_files_carry_unique_anchors_rendered_as_ids(self):
         """Prose in a folder needs a target for a specific file. Without an id the only

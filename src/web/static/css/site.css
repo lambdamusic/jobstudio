@@ -478,7 +478,7 @@ tr.is-stale td { background: #fffdf5; }
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 
-/* ---------- in-round section index (#66) ---------- */
+/* ---------- section index — interview rounds, My notes, Other files (#66, #72) ---------- */
 
 /* Sticky, because the whole point is reaching it without scrolling back up: a round is
    long, and the moment you need it is the moment you have least time. */
@@ -515,7 +515,7 @@ a.section-chip:hover .sec-n, .section-chip.here .sec-n { color: inherit; }
    mid-call, and the number already carries the depth. */
 .section-chip.sub { font-size: 12px; padding-left: 14px; }
 
-/* Set by round-nav.js on the section currently being read.
+/* Set by section-nav.js on the section currently being read.
    `a.section-chip.here` and an explicit `:hover`, not a bare `.here`: the plain hover
    rule above is (0,2,1) and would otherwise outrank a (0,2,0) `.here`, painting navy
    text on the navy pill. The cursor is on the pill you just clicked, so that is the
@@ -530,33 +530,33 @@ a.section-chip.here:hover {
 }
 .section-toggle-all:hover { border-color: var(--navy); color: var(--navy); }
 
-/* ---------- collapsible round sections (#66) ---------- */
+/* ---------- collapsible document sections (#66, generalised #72) ---------- */
 
 /* Closed by default (no `open` attribute in the template), so a round opens as a short
    menu of its sections rather than a wall of prose. */
-.round-section { border-bottom: 1px solid var(--line); }
-.round-section:last-of-type { border-bottom: 0; }
+.doc-section { border-bottom: 1px solid var(--line); }
+.doc-section:last-of-type { border-bottom: 0; }
 
-.round-section > summary {
+.doc-section > summary {
   cursor: pointer; padding: 10px 2px; font-weight: 600; font-size: 14.5px;
   list-style: none; display: flex; gap: 8px; align-items: baseline;
-  /* Clears the sticky index when a pill scrolls this into view. round-nav.js measures
+  /* Clears the sticky index when a pill scrolls this into view. section-nav.js measures
      against the same number — if one changes the other has to. */
   scroll-margin-top: 56px;
 }
-.round-section > summary::-webkit-details-marker { display: none; }
-.round-section > summary::before {
+.doc-section > summary::-webkit-details-marker { display: none; }
+.doc-section > summary::before {
   content: "▸"; color: var(--faint); font-size: 11px; width: 10px;
 }
-.round-section[open] > summary::before { content: "▾"; }
-.round-section > summary:hover { color: var(--navy); }
+.doc-section[open] > summary::before { content: "▾"; }
+.doc-section > summary:hover { color: var(--navy); }
 
-.round-section-body { padding: 0 0 14px 18px; }
-.round-section-body h3 { scroll-margin-top: 56px; }
+.doc-section-body { padding: 0 0 14px 18px; }
+.doc-section-body h3 { scroll-margin-top: 56px; }
 
 /* The Date / With / Format line above the first section. Short, always wanted, never
    collapsed. */
-.round-preamble { margin-bottom: 4px; color: var(--muted); font-size: 13.5px; }
+.doc-preamble { margin-bottom: 4px; color: var(--muted); font-size: 13.5px; }
 
 /* ---------- interview focus view (#66) ---------- */
 

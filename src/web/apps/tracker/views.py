@@ -884,7 +884,7 @@ def interview_round(request, num, anchor):
     hidden = [b for b in round_["blocks"] if b["private"]]
     shown = [b for b in round_["blocks"] if not b["private"]]
     focus_round = {**round_, "blocks": shown,
-                   "sections": P.interview_section_index(shown)}
+                   "sections": P.section_index(shown)}
 
     return render(request, "tracker/interview_round.html", {
         "page": "applications",

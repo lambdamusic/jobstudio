@@ -4,6 +4,31 @@ Dated entries, newest first.
 
 ## 2026-10-02
 
+- **The same jump index on My notes and Other files** (`#72`) — the pill row and the
+  collapsible sections built for interview rounds now serve all three tabs, from one set
+  of partials (`_doc_sections.html`, `_doc_body.html`), one parser entry point
+  (`parsers.sectioned()`) and one script (`section-nav.js`). Nothing was reimplemented;
+  the pieces were already generic and wore interview-shaped names.
+
+  **The collapse default is an include argument, because it genuinely differs per tab.**
+  My notes opens expanded — every one of the 45 real `notes.md` files has only two or
+  three `##` sections, so collapsing would hide the file behind three clicks while the
+  pills already answer "where is X", and it is read with no clock running. Other files
+  opens collapsed: it stacks whole files with nothing but a path between them, which is
+  the Interviews tab's problem rather than My notes'.
+
+  **Two bugs surfaced the moment the index left interview rounds**, neither visible
+  there. Rounds write plain headings; notes and study files written elsewhere do not. A
+  heading carrying a markdown link put the whole URL in the pill *and* in the anchor — a
+  90-character id — and a heading that numbers itself rendered as "4 4. Multi-tenant
+  isolation", the author's number colliding with the generated one. Both are fixed in a
+  single new `parsers.section_label()`, applied before the slug is taken. No existing
+  round heading contains either, checked first, so no anchor changed.
+
+  Anchors are scoped per document — the Other files tab is the worst case in the app,
+  since two files in one folder sharing a `## Notes` heading is ordinary. A test now
+  walks every application page and asserts no duplicate `id` anywhere on it.
+
 - **An interview round can be navigated during the call** (`#66`) — a sticky jump index
   over each round's sections, and a focus view at `/applications/<n>/rounds/<anchor>/`
   that drops the sidebar, the tab strip and the metadata and renders one round at

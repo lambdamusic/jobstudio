@@ -28,10 +28,10 @@ would undo.
     {% endif %}
   </div>
 
-  {% include "tracker/_round_sections.html" with sections=sections %}
+  {% include "tracker/_doc_sections.html" with sections=sections %}
 
   <article class="panel prose round-focus-body">
-    {% include "tracker/_round_body.html" with round=focus_round %}
+    {% include "tracker/_doc_body.html" with doc=focus_round qa=True %}
   </article>
 
   <footer class="round-focus-foot">

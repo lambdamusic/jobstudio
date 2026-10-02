@@ -216,22 +216,48 @@ def find_interviews(folder: Path) -> list[dict]:
 PRIVATE_SECTION_PREFIX = "private"
 
 
-def interview_section_slug(label: str) -> str:
-    """Slug for one round-section heading. Shared by the parser, the nav's hrefs and the
+def section_slug(label: str) -> str:
+    """Slug for one section heading. Shared by the parser, the nav's hrefs and the
     `number_sections` filter that stamps ids onto the rendered headings, so the three
-    cannot drift."""
+    cannot drift. Always fed a label that `section_label()` has already cleaned."""
     return _slugify(label)
+
+
+# A heading that numbers itself — "## 4. Multi-tenant isolation". Interview rounds never
+# do; notes and study files written outside this app often do (`#72`).
+_SELF_NUMBERED_RE = re.compile(r"^\d+[.)]\s+")
+
+
+def section_label(raw: str) -> str:
+    """The text of a `##`/`###` heading, as a pill can show it.
+
+    Two things to take off, both found the moment this stopped being interview-only
+    (`#72`) and got pointed at notes and study files:
+
+    **Link markup.** A heading written ``## [Multi-tenant](https://en.wikipedia.org/…)
+    isolation`` put the whole URL in the pill *and* in the slug, giving an anchor 90
+    characters long. The pills render as plain text, so the label has to be plain text.
+
+    **The author's own number.** The pill already carries a generated `1 / 1.1 / 2`, so a
+    self-numbered heading rendered as "4 4. Multi-tenant…" — in the summary line as well
+    as the pill. Ours is positional and matches the body, so it is the one to keep.
+    """
+    return _SELF_NUMBERED_RE.sub("", strip_links(raw).strip()).strip()
 
 
 def _is_fence(line: str) -> bool:
     return line.startswith("```") or line.startswith("~~~")
 
 
-def split_interview_round(body_md: str) -> dict:
-    """One interview round, split for the collapsible reading view (`#66`).
+def split_sections(body_md: str) -> dict:
+    """One markdown document, split for the collapsible reading view.
+
+    Written for interview rounds (`#66`) and generalised for My notes and Other files
+    (`#72`) — it only ever knew about `##` and `###`, so the generalisation was a rename.
+    Use `sectioned()` rather than calling this directly unless you need the raw split.
 
     Returns `preamble` (anything before the first `##` — the Date/With/Format line in
-    most rounds, which is short and always wanted, so it is never collapsed), and
+    most interview rounds, short and always wanted, so it is never collapsed), and
     `blocks`: one per `##`, each carrying its own markdown and its `###` subsections.
 
     **Sections are numbered** — `1`, `1.1`, `1.2`, `2` — because the index is a flat row
@@ -240,8 +266,9 @@ def split_interview_round(body_md: str) -> dict:
     that can carry depth. Numbers are positional, so they renumber if a round is edited;
     the slug, not the number, is what anchors a link.
 
-    Anchors are unprefixed here. The caller scopes them per round, because the Interviews
-    tab stacks every round on one page and ids have to stay unique across them.
+    Anchors are unprefixed here; `sectioned()` scopes them. Every page that uses this
+    stacks more than one document — the Interviews tab its rounds, Other files its
+    files — so ids have to stay unique across the page, not just within a document.
     """
     lines = body_md.splitlines()
     preamble: list[str] = []
@@ -256,8 +283,8 @@ def split_interview_round(body_md: str) -> dict:
         is_h3 = not in_fence and line.startswith("### ") and not line.startswith("#### ")
 
         if is_h2:
-            label = line[3:].strip().rstrip("#").strip()
-            slug = interview_section_slug(label)
+            label = section_label(line[3:].rstrip("#"))
+            slug = section_slug(label)
             blocks.append({
                 "number": str(len(blocks) + 1),
                 "label": label,
@@ -274,8 +301,8 @@ def split_interview_round(body_md: str) -> dict:
 
         block = blocks[-1]
         if is_h3:
-            label = line[4:].strip().rstrip("#").strip()
-            slug = interview_section_slug(label)
+            label = section_label(line[4:].rstrip("#"))
+            slug = section_slug(label)
             # A repeated subheading inside one block is indexed once — a second pill
             # would be an anchor pointing at the first, which is worse than no pill.
             if slug not in {s["anchor"] for s in block["subsections"]}:
@@ -298,7 +325,7 @@ def split_interview_round(body_md: str) -> dict:
     return {"preamble": text, "blocks": blocks}
 
 
-def interview_section_index(blocks: list[dict]) -> list[dict]:
+def section_index(blocks: list[dict]) -> list[dict]:
     """The flat pill row: every block and subsection, in page order, with its number."""
     out = []
     for block in blocks:
@@ -310,6 +337,31 @@ def interview_section_index(blocks: list[dict]) -> list[dict]:
                         "anchor": sub["anchor"], "level": 3,
                         "private": block["private"], "parent": block["anchor"]})
     return out
+
+
+def sectioned(body_md: str, prefix: str) -> dict:
+    """A markdown document ready for `_doc_sections.html` + `_doc_body.html`.
+
+    Splits it, scopes every anchor under `prefix`, and builds the pill index — the three
+    steps every caller needs, in the one order that works. `prefix` must be unique on the
+    page: two documents both carrying `## Notes` would otherwise mint the same id and the
+    browser would send every link to whichever rendered first. An interview round uses its
+    own `round-<stage>-<date>` anchor, Other files the per-file anchor `extra_files`
+    already builds, My notes the constant `notes` (there is only ever one).
+
+    Returns the template's three keys directly, so a caller is one line and no view has to
+    remember that prefixing comes before indexing.
+    """
+    split = split_sections(body_md)
+    blocks = [
+        {**b,
+         "anchor": f"{prefix}--{b['anchor']}",
+         "subsections": [{**sub, "anchor": f"{prefix}--{sub['anchor']}"}
+                         for sub in b["subsections"]]}
+        for b in split["blocks"]
+    ]
+    return {"preamble_md": split["preamble"], "blocks": blocks,
+            "sections": section_index(blocks), "body_md": body_md}
 
 
 def find_scans(scans_dir: Path) -> list[dict]:

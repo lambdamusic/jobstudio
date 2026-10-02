@@ -1,4 +1,6 @@
-/* Interview round navigation (`#66`): open the right section, highlight the right pill.
+/* Section navigation for a collapsible document: open the right section, highlight
+ * the right pill. Built for interview rounds (`#66`), reused unchanged by My notes and
+ * Other files (`#72`) — it was already scoped per index rather than per page.
  *
  * The sections are `<details>`, closed by default and collapsible without any script.
  * This file adds the three things `<details>` alone cannot do:
@@ -26,7 +28,7 @@
 (function () {
   "use strict";
 
-  // Keep in step with `scroll-margin-top` on `.round-section summary` in site.css.
+  // Keep in step with `scroll-margin-top` on `.doc-section summary` in site.css.
   var STICKY_CLEARANCE = 56;
 
   function setup(nav) {
@@ -40,7 +42,7 @@
 
     function blockFor(id) {
       var el = scope.querySelector('[id="' + CSS.escape(id) + '"]');
-      return el ? el.closest("details.round-section") : null;
+      return el ? el.closest("details.doc-section") : null;
     }
 
     // (1) Opening the block a link points into.
@@ -68,7 +70,7 @@
     // (2) Expand all / collapse all.
     var toggle = nav.querySelector("[data-toggle-all]");
     var blocks = Array.prototype.slice.call(
-      scope.querySelectorAll("details.round-section"));
+      scope.querySelectorAll("details.doc-section"));
     if (toggle && blocks.length) {
       toggle.addEventListener("click", function () {
         var opening = blocks.some(function (d) { return !d.open; });

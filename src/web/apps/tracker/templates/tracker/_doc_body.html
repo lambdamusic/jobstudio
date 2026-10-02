@@ -1,0 +1,40 @@
+{% load jobs_extras %}
+{% comment %}
+One sectioned markdown document: a short always-visible preamble, then one collapsible
+block per `##` section.
+
+Built for interview rounds (`#66`) and reused unchanged by My notes and Other files
+(`#72`) — the only interview-shaped things in it were the two arguments below.
+
+`<details>` rather than a div plus a click handler. It collapses with no JavaScript, it
+is keyboard-operable and screen-reader-announced for free, and the browser's own
+find-in-page can open it — none of which a hand-rolled toggle gets without work.
+
+`section-nav.js` adds two things on top: opening the right block when a pill or an
+inbound `#...` link targets something inside it, and highlighting the pill you are
+reading.
+
+Arguments:
+  doc   `parsers.sectioned()` output — preamble_md, blocks, body_md.
+  qa    colour `**Q:**` lines. Interview rounds only: that marker is those files'
+        convention, not the site's (see `mark_qa`).
+  open  render the sections expanded. A judgement per tab, not a global default — see
+        the note where each include passes it.
+{% endcomment %}
+{% if doc.preamble_md %}
+  <div class="doc-preamble">{{ doc.preamble_md|mark_qa:qa|markdown|blank_links }}</div>
+{% endif %}
+
+{% for block in doc.blocks %}
+  <details class="doc-section" data-section="{{ block.anchor }}"{% if open %} open{% endif %}>
+    <summary id="{{ block.anchor }}">
+      <span class="sec-n">{{ block.number }}</span> {{ block.label }}
+    </summary>
+    <div class="doc-section-body">
+      {{ block.body_md|mark_qa:qa|markdown|blank_links|number_sections:block }}
+    </div>
+  </details>
+{% empty %}
+  {# No `##` headings at all — render the document as written rather than as nothing. #}
+  <div class="prose">{{ doc.body_md|strip_h1|mark_qa:qa|markdown|blank_links }}</div>
+{% endfor %}

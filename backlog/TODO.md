@@ -8,7 +8,7 @@
      Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #74 -->
+     Next available: #75 -->
 
 ## Architecture
 - [ ] `#52` **Drop `scan --api` entirely; get headless scans from `claude setup-token` instead** — raised 2026-09-30. `#1` kept the API path mainly because it was the only fully headless/cron-able scan. `claude setup-token` removes that reason: it prints a one-year OAuth token (Pro/Max/Team/Enterprise plan) meant for scripts and CI; exported as `CLAUDE_CODE_OAUTH_TOKEN`, a non-interactive `claude -p` run can do the default agent-native scan on the user's own subscription — no API key anywhere in the toolkit. [Auth docs](https://code.claude.com/docs/en/authentication#generate-a-long-lived-token).
@@ -54,6 +54,18 @@
 
 - [ ] `#22` Create custom parsers for selected companies in the long tail (bespoke career pages with no public jobs API — see `## Not scanned` in any portal scan report for the current list)
 
+- [ ] `#74` **Extract jobs from a tracked company whose careers page no ATS recognises — and decide where a per-company extractor is allowed to live** — raised 2026-10-02 by Michele. One company in the tracker runs its careers site at `careers.<company>.com/search-results?from=N&s=1`, which is not on any ATS the scanner recognises, so it is currently invisible to it. (The company is named in the tracker, not here: this file is published on every push.) The posting data is the small half of this; the structural question is the item.
+
+  **Michele's framing:** *"These extractors, if they're really custom, they should be part of the private data side of the application, not the public one. The other option is that we develop some kind of a plugin architecture where there are plugins for specific sites or companies and so those could be reusable in theory."*
+
+  **The repo has already drawn this line, and it answers the question.** `scan_sources.py`'s module docstring states the rule: URL shapes for Greenhouse and Lever are *"toolkit knowledge, true for everyone"*, which is why they are not in `scan_config.py` — that module is *"explicitly the settings belonging to one person's job search"*. So the test is not "is this extractor custom?" but **"is what it knows true for everyone, or true only for this search?"** A fetcher for a hosted ATS is toolkit knowledge however few companies use it; a selector set for one company's hand-built page is private data. Neither answer needs a new concept.
+
+  - [ ] **Identify the platform before writing anything custom — this may dissolve the dilemma.** `careers.<company>.com/search-results?from=N&s=1` is the URL shape of **Phenom People**, a hosted career-site platform, not a bespoke page. If that is what it is, this is a `#10`-shaped job (platform identified, no fetcher yet) rather than a `#22`-shaped one, it belongs in `_ATS_PATTERNS` + `fetch_jobs` like every other platform, and it brings every other Phenom-hosted company in the tracker with it. Check for a JSON endpoint behind the search page before assuming scraping is needed.
+  - [ ] **If it really is bespoke**, decide where that lives, and note that the `param` mechanism in `_ATS_PATTERNS` (each entry is `(platform, pattern, param)` because Teamtailor's fetcher wants a host in `domain`, not a `token`) already shows the extension point is per-source config, not per-company code.
+  - [ ] **The plugin architecture is worth wanting for its own reasons, not for one company.** `fetch_jobs` (`src/scan-portals.py:193`) is a ten-branch `if platform == ...` chain running to ~260 lines; a registry of per-platform fetchers would replace that dispatch and make a new source an addition rather than an edit. Doing it *because of* this one company would be building the general mechanism from a sample of one — the usual way to get the abstraction wrong. Raise it separately if the dispatch chain becomes the thing that hurts.
+
+  Related: `#22` (custom parsers for long-tail bespoke pages — this would be its first concrete instance if the Phenom guess is wrong), `#10` (platforms identified but unbuilt — where it belongs if the guess is right), and `#2`/M1's public-vs-private split, which is the constraint the whole question sits inside.
+
 ## CV rendering & import
 - [ ] `#70` **Remove PDF and HTML export; `.docx` is the only output, and say why in `/help/`** — raised 2026-10-01 by Michele. `--format` goes from CV and cover-letter rendering entirely; `.docx` is written either way today, so this removes a branch rather than a capability people rely on.
 
@@ -75,15 +87,6 @@
   Pairs with `#43` and `#50`, which were the same complaint one layer down: the docs answered "how do I drive it" before "why would I want this".
 
 ## Web app / admin site
-- [ ] `#72` **Pills navigation on the My notes and Other files tabs** — raised 2026-10-02 by Michele: *"I'd like to have pills navigation like the one in the 'interview' section also on the 'My notes' and 'Other files' pages"* (e.g. `/applications/<n>/#files`). Same argument as `#66`, one tab over: `notes.md` is long prose rendered as one block, so finding a section means scrolling, and the Other files tab stacks several whole markdown files with nothing but a `<code>` path between them.
-
-  **The machinery from `#66` is already generic enough to reuse — the work is mostly renaming.** `_round_sections.html` (the pill row) and `_round_body.html` (the collapsible blocks) take a plain `{preamble, blocks}` dict and know nothing about interviews; `round-nav.js` scopes itself to `nav.parentElement` and sets up every `[data-section-index]` on the page, so multiple instances on one page already work. What is interview-shaped is only the naming in `parsers.py` — `split_interview_round`, `interview_section_slug`, `interview_section_index` — and the `.round-section` / `.round-preamble` class names. So:
-
-  - [ ] Generalise those three parser functions out of the interview namespace rather than adding a second copy. Two implementations of the numbering would drift, and `#66` records how much thinking is baked into the first one.
-  - [ ] **Anchors must stay unique across the whole page, not just within one file.** `split_interview_round` returns unprefixed anchors on purpose and leaves scoping to the caller, because the Interviews tab stacks rounds. Other files has exactly the same problem, worse: two files in a folder can easily share a `## Notes` heading, and `extra_files` already builds an `f.anchor` per file that could serve as the prefix.
-  - [ ] **Decide whether My notes collapses by default.** `#66` reversed itself on this for rounds and concluded collapsed-is-better, but that was argued from a live call. `notes.md` is read while deciding whether to apply, with no clock running, so the answer may genuinely differ per tab — and if it does, the collapsed/expanded default belongs in the include's arguments, not forked templates.
-  - [ ] Check the two-sections-up rule still earns its place here (`_round_sections.html` hides a one-item index as noise) — many `notes.md` files have few headings, so most applications may show no pills at all. Worth confirming against real data before building.
-
 - [ ] `#73` **Browse `/notes/` as tabs, with pills inside each note** — raised 2026-10-02 by Michele: *"I want to be able to browse the files in `/notes/` as tabs, and for each one having pills navigation like in the 'interview' section"*. Today `/notes/` is a bare list of links (`note_list.html` — one `<div>` per note, no lede beyond the source directory) and each note is its own page at `/notes/<slug>/`, rendered as a single undivided block of prose. So reading two strategy notes side by side means two page loads and a back button, and finding a section inside one means scrolling.
 
   Sibling of `#72` — the in-note pills are the same reuse, so build whichever of the two comes first in a way the other can take. The tab strip is the part that is new here, and it is the part with a decision in it:

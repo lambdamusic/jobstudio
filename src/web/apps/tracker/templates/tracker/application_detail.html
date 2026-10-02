@@ -135,7 +135,20 @@
   {% if app.notes_md %}
     <section class="tabpanel" data-panel="notes" role="tabpanel">
       <h2 class="panel-heading">My notes</h2>
-      <div class="panel prose">{{ app.notes_md|strip_h1|markdown|blank_links }}</div>
+      {% comment %}
+      Jump index and sections (`#72`), the same partials the Interviews tab uses.
+
+      `open=True`, unlike a round. A round is a menu you navigate mid-call, so it opens
+      collapsed; `notes.md` is one document you read while deciding whether to apply,
+      with no clock running. On real data every one of these has two or three `##`
+      sections, so collapsing would hide the whole file behind three clicks and buy
+      nothing — the pills already answer "where is X". `qa` is off: `**Q:**` here is
+      somebody's prose, not the interview files' convention.
+      {% endcomment %}
+      <div class="panel prose">
+        {% include "tracker/_doc_sections.html" with sections=app.notes_doc.sections %}
+        {% include "tracker/_doc_body.html" with doc=app.notes_doc qa=False open=True %}
+      </div>
     </section>
   {% endif %}
 
@@ -207,7 +220,18 @@
               <code id="{{ f.anchor }}" style="font-size:12.5px">{{ f.rel }}</code>
               {% if IS_LOCAL %}<a href="{{ EDITOR_URL_SCHEME }}{{ f.path }}">Open in VS Code</a>{% endif %}
             </div>
-            {{ f.body_md|strip_h1|markdown|blank_links }}
+            {% comment %}
+            Collapsed, unlike My notes (`#72`). This tab stacks whole files one after
+            another with nothing but a path between them, which is the Interviews tab's
+            problem rather than My notes' — the fastest thing it can do is open as a
+            short menu of what is in the folder.
+            {% endcomment %}
+            {% if f.doc %}
+              {% include "tracker/_doc_sections.html" with sections=f.doc.sections %}
+              {% include "tracker/_doc_body.html" with doc=f.doc qa=False %}
+            {% else %}
+              {{ f.body_md|strip_h1|markdown|blank_links }}
+            {% endif %}
           </div>
         {% else %}
           <div class="panel" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 16px">
@@ -278,8 +302,8 @@
           when there is least time — mid-call. Both partials are shared with the focus
           view so the two readings of a round cannot drift.
           {% endcomment %}
-          {% include "tracker/_round_sections.html" with sections=round.sections %}
-          {% include "tracker/_round_body.html" with round=round %}
+          {% include "tracker/_doc_sections.html" with sections=round.sections %}
+          {% include "tracker/_doc_body.html" with doc=round qa=True %}
         </div>
       {% endfor %}
     </section>

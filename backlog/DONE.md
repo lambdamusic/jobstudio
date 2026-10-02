@@ -298,6 +298,49 @@
 
   **One claim written into the template comment turned out to be wrong and was corrected before commit.** The first draft said live rounds being what gets reread is "handled by which tab opens, not by which comes first". `tabs.js` has no such notion: with no hash it calls `activate(tabs[0])`, so first *is* default. The accurate version is that the move costs nothing anyway — Interviews was third, never the default either way — and the case that matters for a live round is a direct `#round-<slug>` link, which `activateContaining()` resolves by finding the panel holding the id, at any position in the strip.
 
+- [x] `#72` **Pills navigation on the My notes and Other files tabs** — raised 2026-10-02 by Michele: *"I'd like to have pills navigation like the one in the 'interview' section also on the 'My notes' and 'Other files' pages"* (e.g. `/applications/<n>/#files`). Same argument as `#66`, one tab over: `notes.md` is long prose rendered as one block, so finding a section means scrolling, and the Other files tab stacks several whole markdown files with nothing but a `<code>` path between them.
+
+  **The machinery from `#66` is already generic enough to reuse — the work is mostly renaming.** `_round_sections.html` (the pill row) and `_round_body.html` (the collapsible blocks) take a plain `{preamble, blocks}` dict and know nothing about interviews; `round-nav.js` scopes itself to `nav.parentElement` and sets up every `[data-section-index]` on the page, so multiple instances on one page already work. What is interview-shaped is only the naming in `parsers.py` — `split_interview_round`, `interview_section_slug`, `interview_section_index` — and the `.round-section` / `.round-preamble` class names. So:
+
+  - [x] Generalise those three parser functions out of the interview namespace rather than adding a second copy. Two implementations of the numbering would drift, and `#66` records how much thinking is baked into the first one.
+  - [x] **Anchors must stay unique across the whole page, not just within one file.** `split_interview_round` returns unprefixed anchors on purpose and leaves scoping to the caller, because the Interviews tab stacks rounds. Other files has exactly the same problem, worse: two files in a folder can easily share a `## Notes` heading, and `extra_files` already builds an `f.anchor` per file that could serve as the prefix.
+  - [x] **Decide whether My notes collapses by default.** `#66` reversed itself on this for rounds and concluded collapsed-is-better, but that was argued from a live call. `notes.md` is read while deciding whether to apply, with no clock running, so the answer may genuinely differ per tab — and if it does, the collapsed/expanded default belongs in the include's arguments, not forked templates.
+  - [x] Check the two-sections-up rule still earns its place here (`_doc_sections.html` hides a one-item index as noise) — many `notes.md` files have few headings, so most applications may show no pills at all. Worth confirming against real data before building.
+
+  **Done 2026-10-02.** Both tabs carry the index, and it is the same partials, parser and
+  script the Interviews tab uses — `_doc_sections.html`, `_doc_body.html`, `section-nav.js`,
+  `parsers.sectioned()`. The entry's bet was right: the work was a rename, not a rebuild.
+
+  **The collapse default genuinely differs per tab, so it is an include argument.** My notes
+  opens **expanded**: on real data every one of the 45 `notes.md` files has only two or three
+  `##` sections, so collapsing would hide the whole file behind three clicks and buy nothing —
+  the pills already answer "where is X", and it is read with no clock running. Other files
+  opens **collapsed**, because it stacks whole files with nothing but a path between them,
+  which is the Interviews tab's problem rather than My notes'.
+
+  **The two-sections-up worry was unfounded** — 45 of 45 `notes.md` and 13 of 13 other-file
+  candidates have two or more `##` headings, so the one-item rule never fires here. Checked
+  before building, which is what the sub-item asked for.
+
+  **Two real bugs appeared the moment the index left interview rounds, and neither would have
+  shown up there.** Rounds write plain headings; notes and study files written elsewhere do
+  not. A heading carrying a markdown link put the entire URL in the pill *and* in the slug —
+  a 90-character anchor reading `…--4-multi-tenant-https-en-wikipedia-org-wiki-multitenancy-…`
+  — and a heading that numbers itself collided with the generated number, rendering "4 4.
+  Multi-tenant isolation" in the pill and in the summary line. Both are fixed in one new
+  `parsers.section_label()`, which strips link markup and a leading enumerator before the slug
+  is taken. Verified first that no existing interview heading contains either, so no round
+  anchor changed and no saved deep link broke.
+
+  `mark_qa` gained an `enabled` argument rather than the template branching: `**Q:**` is the
+  interview files' convention, not the site's, and writing the filter chain out twice is how
+  the two copies drift. `notes_doc` is a `cached_property` because the template reads it twice.
+
+  Seven tests, including one that walks **every** application page and asserts no duplicate
+  `id` anywhere on it — the prefix guarantee is what the whole page rests on, and a duplicate
+  id is silent in HTML, sending a pill to the wrong section. 326 tests green, static build 264
+  pages with the link check clean, leak check CLEAN.
+
 ## File naming
 - [x] `#35` **Put rendered exports in an `export/` subfolder inside the application folder** — done 2026-09-24. A `.docx` rendered from a tailored CV or a cover letter now lands in `applications/<num>-<slug>/export/`, leaving only authored markdown (`job.md`, `notes.md`, the CV, the cover letter, the interview rounds) at the top level. `<DATA>/exports/<fmt>/<date>/` — plural, at the data root — is untouched.
 
