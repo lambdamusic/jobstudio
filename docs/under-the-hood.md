@@ -146,6 +146,25 @@ of example data, but it does it by repointing the checkout — so it replaces wh
 data root you were using. `run-demo` passes `$JOBSTUDIO_DATA` for one process and leaves
 the pointer file alone, which is why it is safe to run mid-session on a real setup.
 
+### The interview focus view
+
+`/applications/<n>/rounds/<anchor>/` renders one interview round on its own page, with
+no sidebar, no tab strip and no metadata — the reading view for during a call (`#66`).
+Every round links to it from the Interviews tab, and `build_static` publishes one page
+per round, so the link survives into the static mirror.
+
+Two details are deliberate. **"Private — not for the call" is removed from the markdown
+before rendering**, not hidden with CSS: a page open during a call may be visible to
+someone other than its owner, and a hidden section is still in the source, still
+findable with find-in-page, and still there if the stylesheet fails. The page says what
+it dropped and links the full round.
+
+And the **jump index** above each round — in the focus view and in the Interviews tab —
+indexes the headings the file actually has, in document order. Not a canonical section
+list: rounds come in two shapes, one written before the call (Details / Prep / Questions
+to ask them / Study before / Outcome) and one after it (Questions and answers / What to
+do differently), so a fixed vocabulary matches one and misses the other.
+
 Django management commands, run as `tools/py src/web/manage.py <name>`:
 
 | Command | What it does |

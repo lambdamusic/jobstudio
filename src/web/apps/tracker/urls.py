@@ -14,6 +14,10 @@ urlpatterns = [
     path("applications/status/<str:status>/", views.application_list, name="application_by_status"),
     path("applications/area/<slug:area>/", views.application_list, name="application_by_area"),
     path("applications/<int:num>/", views.application_detail, name="application_detail"),
+    # One interview round on its own page (`#66`) — the reading view for during a call.
+    # Under the application rather than beside it, so the URL says what it belongs to.
+    path("applications/<int:num>/rounds/<slug:anchor>/",
+         views.interview_round, name="interview_round"),
     # The charts page. Not the dashboard on purpose — a staging ground while the
     # chart designs are judged (backlog/dashboard-charts-plan.md §2a).
     path("stats/", views.stats, name="stats"),

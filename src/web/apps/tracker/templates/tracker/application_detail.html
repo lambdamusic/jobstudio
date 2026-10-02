@@ -265,11 +265,22 @@
         <div class="panel prose">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
             <h3 id="{{ round.anchor }}" style="margin-top:0">{{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}</h3>
-            {% if IS_LOCAL %}
-              <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
-            {% endif %}
+            <span>
+              <a href="/applications/{{ app.num }}/rounds/{{ round.anchor }}/">Focus view ↗</a>
+              {% if IS_LOCAL %}
+                · <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
+              {% endif %}
+            </span>
           </div>
-          {{ round.body_md|strip_h1|mark_qa|markdown|blank_links }}
+          {% comment %}
+          The in-round jump index (`#66`). A round is long enough that finding a section
+          by scrolling is slow, which is a problem precisely when there is least time —
+          mid-call. Sections a round does not have stay in place, dimmed, so an item's
+          position is the same in every round and the bar can be glanced at rather than
+          read. `section_ids` puts the matching ids on the rendered headings.
+          {% endcomment %}
+          {% include "tracker/_round_sections.html" with sections=round.sections %}
+          {{ round.body_md|strip_h1|mark_qa|markdown|blank_links|section_ids:round.anchor }}
         </div>
       {% endfor %}
     </section>

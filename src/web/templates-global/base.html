@@ -10,6 +10,11 @@
   {# Search, filter and sort for the long tables; inert on pages without a toolbar. #}
   <script src="{% static 'js/tabletools.js' %}" defer></script>
   {% comment %}
+  Highlights the current section in an interview round's jump index (`#66`); inert on
+  every page without one. Pure enhancement — the index works without it.
+  {% endcomment %}
+  <script src="{% static 'js/round-nav.js' %}" defer></script>
+  {% comment %}
   The charts on /stats/ and the library they need. Both are deferred and both are
   enhancements: the page renders its numbers as tables first and charts.js swaps in the
   drawings, so no-JavaScript and the published mirror both stay readable. ECharts is
@@ -21,7 +26,13 @@
   {% endif %}
 </head>
 <body>
-<div class="layout">
+{% comment %}
+`layout_mod` and `sidebar` exist for one page: the interview focus view (`#66`), which
+is read during a call and wants nothing on screen but the round. Overriding a block is
+the cheap way to get that without a second base template that would then drift from this
+one — the head, the stylesheet and the title convention all stay shared.
+{% endcomment %}
+<div class="layout{% block layout_mod %}{% endblock %}">
 
   {% comment %}
   Icon sprite: every nav glyph defined once, drawn with <use>. Same-document symbols, so
@@ -77,6 +88,7 @@
   </svg>
 
 
+  {% block sidebar %}
   <nav class="sidebar">
     <div class="brand">
       {% comment %}
@@ -169,6 +181,7 @@
          target="_blank" rel="noopener">GitHub ↗</a>
     </div>
   </nav>
+  {% endblock %}
 
   <main class="content">
     <div class="content-inner">

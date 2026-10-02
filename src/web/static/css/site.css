@@ -478,6 +478,60 @@ tr.is-stale td { background: #fffdf5; }
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 
+/* ---------- in-round section index (#66) ---------- */
+
+/* Sticky, because the whole point is reaching it without scrolling back up: a round is
+   long, and the moment you need it is the moment you have least time. `top` clears
+   nothing — the app has no fixed header — so 0 is honest. */
+.section-index {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 0 0 18px; padding: 10px 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.section-chip {
+  font-size: 12.5px; line-height: 1; white-space: nowrap;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+  text-decoration: none;
+}
+a.section-chip:hover { border-color: var(--navy); color: var(--navy); }
+
+/* A `###` under Prep. Indented rather than nested in a sublist: the bar is scanned
+   left to right mid-call, and a second level of structure costs more than it pays. */
+.section-chip.sub { font-size: 12px; opacity: 0.92; }
+.section-chip.sub::before { content: "· "; color: var(--faint); }
+
+/* Set by round-nav.js on the section currently in view. Progressive enhancement — with
+   no JS the bar is still a working list of links, just without the highlight. */
+.section-chip.here {
+  background: var(--navy); border-color: var(--navy); color: #fff;
+}
+
+/* ---------- interview focus view (#66) ---------- */
+
+/* No sidebar on this page (base.html blanks the block), so the grid is one column. */
+.layout-bare { grid-template-columns: 1fr; }
+
+.round-focus { max-width: 760px; margin: 0 auto; }
+.round-focus-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.round-focus-head h1 { margin: 6px 0 0; }
+.round-focus-back { font-size: 13px; color: var(--muted); text-decoration: none; }
+.round-focus-back:hover { color: var(--navy); }
+.round-focus-date { color: var(--faint); font-weight: 400; }
+
+/* Larger than the app's body text and looser between lines: this is read at arm's
+   length while listening to somebody, not studied. */
+.round-focus-body { font-size: 15.5px; line-height: 1.65; }
+
+.round-focus-foot { margin-top: 20px; }
+.round-focus-note { font-size: 13px; color: var(--muted); margin: 6px 0; }
+
 /* The questions in a round's prep, coloured so they can be picked out without reading the
    answers between them. `mark_qa` puts the span in — round a `**Q:** …` line (the current
    convention), or round the text of a heading that asks a question (the rounds written

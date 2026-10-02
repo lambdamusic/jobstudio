@@ -428,7 +428,7 @@ class Application(models.Model):
         folder = self.folder_path
         if folder is None:
             return []
-        from .parsers import find_interviews
+        from .parsers import find_interviews, split_interview_sections
 
         out = []
         for round_ in find_interviews(folder):
@@ -456,6 +456,16 @@ class Application(models.Model):
                 base = f"{base}-{round_['date'].isoformat()}"
             seen[base] = seen.get(base, 0) + 1
             round_["anchor"] = base if seen[base] == 1 else f"{base}-{seen[base]}"
+
+        # The jump index within each round (`#66`). Section anchors are scoped by the
+        # round's own anchor because the Interviews tab stacks every round into one
+        # page — two rounds both carrying "## Outcome" would otherwise collide, and the
+        # browser would send every "Outcome" link to whichever came first.
+        for round_ in out:
+            round_["sections"] = [
+                {**sec, "anchor": f"{round_['anchor']}--{sec['anchor']}"}
+                for sec in split_interview_sections(round_["body_md"])
+            ]
         return out
 
     @property

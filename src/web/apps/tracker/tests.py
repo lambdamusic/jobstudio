@@ -3332,6 +3332,84 @@ class InterviewRoundTests(TestCase):
             with self.subTest(num=app.num):
                 self.assertEqual(seq["data-tab"], seq["data-panel"])
 
+    # ---- the in-round jump index and the focus view (`#66`) ----
+
+    def test_sections_are_indexed_in_document_order(self):
+        """Not against a canonical list. Rounds come in two shapes — a prep round and a
+        post-interview record — and the example data carries both, so indexing against
+        one vocabulary would leave the other almost entirely unmatched. Document order
+        is also what keeps the bar agreeing with the page as you scroll."""
+        from .parsers import split_interview_sections
+        body = ("## Questions and answers\n\ntext\n\n"
+                "### Follow-ups\n\ntext\n\n## What to do differently\n\ntext\n")
+        got = [(s["level"], s["label"]) for s in split_interview_sections(body)]
+        self.assertEqual(got, [(2, "Questions and answers"),
+                               (3, "Follow-ups"),
+                               (2, "What to do differently")])
+
+    def test_sections_ignore_headings_inside_fenced_code(self):
+        from .parsers import split_interview_sections
+        body = "## Real\n\n```\n## Not a heading\n```\n\n## Also real\n"
+        self.assertEqual([s["label"] for s in split_interview_sections(body)],
+                         ["Real", "Also real"])
+
+    def test_section_anchors_are_unique_across_rounds_on_one_page(self):
+        """Two rounds of one application both carry "## Questions and answers". The tab
+        stacks them into a single page, so unscoped ids would collide and every link
+        would land on whichever round rendered first."""
+        app = Application.objects.get(num=4)
+        rounds = app.interview_files
+        self.assertGreater(len(rounds), 1, "fixture app #4 needs two rounds")
+        anchors = [s["anchor"] for r in rounds for s in r["sections"]]
+        self.assertEqual(len(anchors), len(set(anchors)), f"collision: {anchors}")
+
+    def test_every_nav_href_has_a_heading_to_land_on(self):
+        """The nav's hrefs and the rendered heading ids come from one slug function;
+        this is the assertion that they actually meet in the HTML."""
+        for app in Application.objects.exclude(folder=""):
+            for round_ in app.interview_files:
+                html = self.client.get(f"/applications/{app.num}/").content.decode()
+                for sec in round_["sections"]:
+                    with self.subTest(num=app.num, anchor=sec["anchor"]):
+                        self.assertIn(f'id="{sec["anchor"]}"', html)
+
+    def test_focus_view_renders_one_round(self):
+        app = Application.objects.get(num=4)
+        round_ = app.interview_files[0]
+        r = self.client.get(f"/applications/{app.num}/rounds/{round_['anchor']}/")
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn(round_["label"], html)
+        # The point of the page: none of the application chrome.
+        self.assertNotIn('class="sidebar"', html)
+        self.assertNotIn('data-tabs', html)
+
+    def test_focus_view_404s_on_an_unknown_round(self):
+        self.assertEqual(
+            self.client.get("/applications/4/rounds/round-nope-2026-01-01/").status_code,
+            404)
+
+    def test_focus_view_removes_a_private_section_from_the_page_source(self):
+        """Removed, not hidden. A page open during a call can be visible to someone
+        else, and a CSS-hidden section is still in the source, still findable with
+        find-in-page, and still there if the stylesheet fails to load."""
+        app = Application.objects.exclude(folder="").first()
+        round_ = app.interview_files[0]
+        secret = "DO-NOT-SAY-THIS-OUT-LOUD"
+        body = (round_["body_md"]
+                + f"\n\n## Private — not for the call\n\n{secret}\n")
+        with mock.patch.object(Application, "interview_files",
+                               new_callable=mock.PropertyMock) as files:
+            sections = P.split_interview_sections(body)
+            files.return_value = [{**round_, "body_md": body,
+                                   "sections": [{**s, "anchor": f"{round_['anchor']}--{s['anchor']}"}
+                                                for s in sections]}]
+            html = self.client.get(
+                f"/applications/{app.num}/rounds/{round_['anchor']}/").content.decode()
+        self.assertNotIn(secret, html)
+        # ...but the page says it dropped something, rather than silently shortening.
+        self.assertIn("full round", html)
+
     def test_every_round_has_a_unique_anchor(self):
         for app in Application.objects.exclude(folder=""):
             rounds = app.interview_files

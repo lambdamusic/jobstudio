@@ -201,6 +201,36 @@ def mark_qa(text):
     return "".join(chunks)
 
 
+_H23_RE = re.compile(r"<(h[23])(?![^>]*\bid=)([^>]*)>(.*?)</\1>", re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+@register.filter(name="section_ids")
+def section_ids(html, prefix):
+    """Give every `<h2>`/`<h3>` an id, so the in-round jump index has somewhere to land.
+
+    The markdown renderer has no `toc` extension (see MD_EXTENSIONS) and adding one is
+    the wrong fix here: ids have to be scoped per round, since the Interviews tab stacks
+    several rounds into one page. The slug comes from `parsers.interview_section_slug`,
+    the same function that builds the nav's hrefs — one source, so the two cannot drift.
+
+    A heading that already carries an id is left alone, which keeps this safe to chain
+    after any filter that sets one.
+    """
+    if not html:
+        return ""
+    from ..parsers import interview_section_slug
+
+    def one(m):
+        tag, attrs, inner = m.group(1), m.group(2), m.group(3)
+        slug = interview_section_slug(_TAG_RE.sub("", inner).strip())
+        if not slug:
+            return m.group(0)
+        return f'<{tag}{attrs} id="{prefix}--{slug}">{inner}</{tag}>'
+
+    return mark_safe(_H23_RE.sub(one, str(html)))
+
+
 @register.filter
 def stars(value):
     try:

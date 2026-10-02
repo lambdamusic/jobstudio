@@ -2,6 +2,32 @@
 
 Dated entries, newest first.
 
+## 2026-10-02
+
+- **An interview round can be navigated during the call** (`#66`) — a sticky jump index
+  over each round's sections, and a focus view at `/applications/<n>/rounds/<anchor>/`
+  that drops the sidebar, the tab strip and the metadata and renders one round at
+  reading size.
+
+  **The planned design did not survive the data.** The index was going to run against
+  the canonical section vocabulary in `subcommands/interview.md`, with absent sections
+  dimmed so an item kept its position between rounds. Built and looked at, the example's
+  post-interview rounds came out as ten dimmed chips and two live ones: a round written
+  *before* the call uses one vocabulary (Details / Prep / Questions to ask them) and one
+  written *after* it uses another (Questions and answers / What to do differently). It
+  now indexes the headings each file actually has, in document order — which also avoids
+  a highlight that would have jumped around the bar while scrolling steadily down.
+
+  **`Private — not for the call` is removed from the focus view's markdown, not hidden.**
+  A page open during a call can be visible to someone other than its owner, and a
+  CSS-hidden section is still in the page source, still findable with find-in-page, and
+  still there if the stylesheet fails to load. The page says what it dropped and links
+  the full round.
+
+  The index is plain anchor links and works with JavaScript off; `round-nav.js` only adds
+  the highlight. `build_static` publishes one page per round — not optional, since every
+  application page links them and its own link check fails otherwise.
+
 ## 2026-10-01
 
 - **The Interviews tab moved to sit immediately before History** (`#67`), so the tab

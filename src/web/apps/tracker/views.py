@@ -860,6 +860,47 @@ def application_detail(request, num):
     })
 
 
+def interview_round(request, num, anchor):
+    """One interview round, on its own page, with nothing else on screen (`#66`).
+
+    The Interviews tab is the right shape for preparing and the wrong one for the twenty
+    minutes you are actually in the call: sidebar, tab strip, metadata block and every
+    other round of the process are all competing with the round being used. This drops
+    all of it.
+
+    **"Private — not for the call" is removed from the body**, not hidden — see
+    `parsers.strip_interview_section`. That section exists to hold what must not be said,
+    and a page opened during a call may well be visible to someone other than its owner,
+    whether over a shoulder or over a shared screen. The full round stays one link away,
+    so nothing is lost, only moved behind a deliberate click.
+    """
+    app = get_object_or_404(
+        Application.objects.select_related("company", "area"), num=num)
+    rounds = app.interview_files
+    round_ = next((r for r in rounds if r["anchor"] == anchor), None)
+    if round_ is None:
+        raise Http404(f"no interview round {anchor!r} on application {num}")
+
+    body = round_["body_md"]
+    hidden = [s for s in round_["sections"] if s["private"]]
+    for sec in hidden:
+        # The scoped anchor is "<round>--<slug>"; strip_interview_section wants the slug.
+        body = P.strip_interview_section(body, sec["anchor"].split("--", 1)[1])
+
+    return render(request, "tracker/interview_round.html", {
+        "page": "applications",
+        "nav_apps": "applications",
+        "app": app,
+        "round": round_,
+        "body_md": body,
+        "sections": [s for s in round_["sections"] if not s["private"]],
+        "hidden_sections": hidden,
+        # Previous/next by the same ordering the tab uses (newest first), so moving
+        # between rounds mid-process does not need a trip back to the application.
+        "others": [r for r in rounds if r["anchor"] != anchor],
+    })
+
+
 def company_list(request):
     """One table, not a tab per category (changed 2026-09-28).
 

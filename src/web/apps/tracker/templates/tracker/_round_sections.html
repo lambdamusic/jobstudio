@@ -1,0 +1,21 @@
+{% comment %}
+The jump index for one interview round — shared by the Interviews tab and the focus
+view, so the two cannot drift apart in wording or order.
+
+The round's own headings, in the order the page has them: see the note on
+`split_interview_sections` for why this is not indexed against a canonical section list.
+Shown from two sections up — a one-item index is noise, the same rule the round index
+above it uses.
+
+A `<nav>` of plain anchor links: it works with no JavaScript at all. `round-nav.js` only
+adds the `.here` highlight as you scroll, which is an enhancement and not the feature.
+Sticky, because the point is to reach it without scrolling back up.
+{% endcomment %}
+{% if sections|length > 1 %}
+  <nav class="section-index" aria-label="Sections in this round" data-section-index>
+    {% for s in sections %}
+      <a class="section-chip{% if s.level == 3 %} sub{% endif %}"
+         href="#{{ s.anchor }}">{{ s.label }}</a>
+    {% endfor %}
+  </nav>
+{% endif %}
