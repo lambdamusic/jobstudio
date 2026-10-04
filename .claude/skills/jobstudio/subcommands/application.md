@@ -129,6 +129,9 @@ tools/py src/jobsdb.py show-company "{Company}"
      read against `<DATA>/jobs/profile/stocktake.md`), `## Sources` (dated links). Match the depth
      of existing profiles (e.g. `<DATA>/jobs/companies/grafana-labs.md`) — this is real research,
      not a one-paragraph stub. Header line: `*Researched {today's date}.*`
+     **Company-level only:** anything about this particular role or its interviews (band,
+     office days, hiring manager, what to stress in a round) goes in the application's
+     `notes.md`, not here — the company file must stay true for every future application.
   3. **Link the application to the new company row:**
      ```
      tools/py src/jobsdb.py link-company <row-num>

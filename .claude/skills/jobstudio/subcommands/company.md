@@ -117,4 +117,6 @@ update those call sites too; doing it through this command would quietly break s
 coverage for that company.
 
 For substantial background research, add `<DATA>/jobs/companies/<slug>.md` following the template
-in `<DATA>/jobs/companies/README.md` — it renders on the company page.
+in `<DATA>/jobs/companies/README.md` — it renders on the company page. Keep it
+company-level: role- or interview-specific material belongs in the application's
+`notes.md` (see `docs/companies.md` §"The research file").

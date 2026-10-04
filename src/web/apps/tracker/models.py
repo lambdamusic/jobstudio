@@ -198,6 +198,16 @@ class Company(models.Model):
     def notes_md(self) -> str:
         return _read(self.notes_path)
 
+    @cached_property
+    def notes_doc(self) -> dict | None:
+        """The research file as a sectioned document — the same pill index and collapsible
+        sections as My notes and the Interviews tab. Prefix `company`: one file per page.
+        """
+        from .parsers import sectioned
+
+        body = self.notes_md
+        return sectioned(body, "company") if body and body.strip() else None
+
 
 class Application(models.Model):
     """A row in applications.md, plus its detail block and jobs/applications/NNN-*/ folder."""

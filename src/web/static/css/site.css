@@ -551,9 +551,10 @@ a.section-chip.here:hover {
 .doc-section > summary {
   cursor: pointer; padding: 10px 2px; font-weight: 600; font-size: 14.5px;
   list-style: none; display: flex; gap: 8px; align-items: baseline;
-  /* Clears the sticky index when a pill scrolls this into view. section-nav.js measures
-     against the same number — if one changes the other has to. */
-  scroll-margin-top: 56px;
+  /* Clears the sticky index when a pill scrolls this into view. section-nav.js sets the
+     variable from the index's measured height, so a bar wrapped onto three rows clears
+     as well as a one-row one; 56px is the no-script fallback. */
+  scroll-margin-top: var(--section-clearance, 56px);
 }
 .doc-section > summary::-webkit-details-marker { display: none; }
 .doc-section > summary::before {
@@ -563,7 +564,7 @@ a.section-chip.here:hover {
 .doc-section > summary:hover { color: var(--navy); }
 
 .doc-section-body { padding: 0 0 14px 18px; }
-.doc-section-body h3 { scroll-margin-top: 56px; }
+.doc-section-body h3 { scroll-margin-top: var(--section-clearance, 56px); }
 
 /* The Date / With / Format line above the first section. Short, always wanted, never
    collapsed. */

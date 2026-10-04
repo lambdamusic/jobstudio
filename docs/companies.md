@@ -93,11 +93,25 @@ default) — see [portal-scan-and-scoring.md](portal-scan-and-scoring.md) §2.
 # Company Name
 
 ## Mission
-## Technology
+## Technology          (or: Products — what each answers, and who pays for it)
+## Glossary            (optional — when the domain is unfamiliar)
+## Videos and demos    (optional — official demos, with lengths)
 ## Where they are now
 ## Fit with my mission
 ## Sources
 ```
+
+**Company-level material only.** The file describes the company as it would read to
+anyone considering *any* role there: what it sells, to whom, where it is heading, and
+how it fits the user's mission. Anything about one particular role or its interview
+process — the posting's band and office days, who the hiring manager is, what to say
+in a round, questions to ask, prep to do — belongs in that application's `notes.md`
+(or its round files), never here. A company can carry several applications over
+time; the research file must stay true for all of them.
+
+Explain the product in plain terms before analysing it: for each product, the question
+it answers, who pays for it, and the decision it unblocks — backed by the company's own
+case studies where they exist.
 
 `Fit with my mission` is an honest for/against read against
 `jobs/profile/stocktake.md`, not a sales pitch — this is what

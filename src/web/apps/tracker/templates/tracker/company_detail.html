@@ -56,7 +56,14 @@
 
 {% if company.notes_md %}
   <h2>Notes</h2>
-  <div class="panel prose">{{ company.notes_md|strip_h1|markdown|blank_links }}</div>
+  {% comment %}
+  Expanded, like My notes: research is read at leisure, and the pills already answer
+  "where is the glossary".
+  {% endcomment %}
+  <div class="panel prose">
+    {% include "tracker/_doc_sections.html" with sections=company.notes_doc.sections %}
+    {% include "tracker/_doc_body.html" with doc=company.notes_doc qa=False open=True %}
+  </div>
 {% endif %}
 
 <h2>Applications</h2>

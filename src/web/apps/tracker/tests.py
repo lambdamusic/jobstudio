@@ -3706,6 +3706,16 @@ class InterviewRoundTests(TestCase):
             self.assertTrue(s["anchor"].startswith("notes--"), s["anchor"])
             self.assertIn(f'id="{s["anchor"]}"', html)
 
+    def test_company_research_renders_through_the_shared_index(self):
+        co = next((c for c in Company.objects.all()
+                   if c.notes_doc and len(c.notes_doc["sections"]) > 1), None)
+        self.assertIsNotNone(co, "no example company has a sectioned research file")
+        html = self.client.get(f"/companies/{co.slug}/").content.decode()
+        self.assertIn("data-section-index", html)
+        for s in co.notes_doc["sections"]:
+            self.assertTrue(s["anchor"].startswith("company--"), s["anchor"])
+            self.assertIn(f'id="{s["anchor"]}"', html)
+
     def test_my_notes_opens_expanded_and_other_files_collapsed(self):
         """A judgement per tab, not a global default, and the reason is in each include:
         notes.md is one document read with no clock running, while Other files stacks

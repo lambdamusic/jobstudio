@@ -2,6 +2,25 @@
 
 Dated entries, newest first.
 
+## 2026-10-04
+
+- **Company pages get the jump index too.** `/companies/<slug>/` renders the research
+  file through the same pill index and collapsible sections as My notes and the
+  Interviews tab (`Company.notes_doc`, anchors prefixed `company--`).
+
+- **A pill jump no longer lands under a wrapped index.** The sticky index's clearance was a
+  fixed 56px, right for one row of pills and wrong for three: the heading you clicked sat
+  behind the bar. `section-nav.js` now measures the bar (on load, resize, and through a
+  `ResizeObserver`) and writes `--section-clearance`, which `scroll-margin-top` reads.
+
+- **Company research files are company-level only.** Anything about one particular role
+  or its interviews (band, office days, hiring manager, what to say in a round) belongs
+  in that application's `notes.md`. A company can carry several applications over time,
+  and the research file has to stay true for all of them. The template also gains
+  optional **Glossary** and **Videos and demos** sections, and asks for each product to be
+  explained by the question it answers and who pays for it. Stated in
+  `docs/companies.md`, `application.md` and `company.md`.
+
 ## 2026-10-02
 
 - **`jobsdb.py update-application`**: the application-side twin of `update-company`.
