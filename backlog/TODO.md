@@ -8,9 +8,22 @@
      Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #75 -->
+     Next available: #77 -->
 
 ## Architecture
+- [ ] `#75` **Simplify the config settings — or at least say plainly what each one is for** — raised 2026-10-02 by Michele, after setting the toolkit up on a second machine: *"Shall we consider simplifying the config settings? Unclear to me now what is needed."* Design in [`plans/075-config-layers.md`](plans/075-config-layers.md).
+
+  Three layers resolve the data root (`src/config.py:19-21`): `$JOBSTUDIO_DATA`, then the checkout's `.jobstudio-data`, then `~/.jobstudio.ini`. The layering itself is sound — the second machine has two data roots on it, and layer 2 beating layer 3 is exactly what stops a session acting on the wrong one. The problem is that nothing explains which of the three a given person actually needs.
+
+  **The finding that reframes it: the `.ini` does two unrelated jobs and only one is duplicated.** `data_root` is covered by the other two layers whenever a repo is in the picture; `chrome_path`, `editor_url_scheme` and `open_command` are read through `config.setting()` (`config.py:96`) by four call sites and have no other layer at all. "Do I need the `.ini`?" therefore has two different answers, and the file gives no hint it holds two kinds of thing.
+
+  **Second finding: the `.ini`'s data-root branch is close to unreachable as the skill is installed.** `SKILL.md:88` says to read it directly "only if no repo is reachable" — but the skill is a *project* skill under `.claude/skills/`, with no user-level copy, so a session outside the repo has no `/jobstudio` at all and never reaches that step. Live for a bare `tools/py src/...` run from elsewhere; not for the skill whose instructions describe it. A docs-versus-reality gap rather than a bug.
+
+  - [ ] Decide between the four options in the plan — they range from "change no code, fix what the files say" to "drop `data_root` from the `.ini`". The complaint was comprehension, so the cheapest option may be the right one.
+  - [ ] Whichever is chosen, `SKILL.md`, `docs/getting-started.md` and `subcommands/init.md` all describe the `.ini` and would need to agree.
+  - [ ] Do **not** fold this into skill installation (`#57`/`#2`) — a user-level install would make layer 3 genuinely reachable, but that is a bigger question and this item should not wait on it.
+
+
 - [ ] `#52` **Drop `scan --api` entirely; get headless scans from `claude setup-token` instead** — raised 2026-09-30. `#1` kept the API path mainly because it was the only fully headless/cron-able scan. `claude setup-token` removes that reason: it prints a one-year OAuth token (Pro/Max/Team/Enterprise plan) meant for scripts and CI; exported as `CLAUDE_CODE_OAUTH_TOKEN`, a non-interactive `claude -p` run can do the default agent-native scan on the user's own subscription — no API key anywhere in the toolkit. [Auth docs](https://code.claude.com/docs/en/authentication#generate-a-long-lived-token).
   - [ ] **Spike first, delete second.** Run the full scan headless via `claude -p` with only the token set (and `ANTHROPIC_API_KEY` unset): does it reach a written report without a permission prompt? Work out the permission setup it needs (allowed tools / settings for `tools/py` and the data-root writes). Note `--bare` ignores the token, so the run must not use it.
   - [ ] Add a documented cron recipe (token + `claude -p` invocation) to `docs/portal-scan-and-scoring.md`, with a warning that the token is a personal credential: kept in the user's env, never in the data root or repo.
@@ -87,6 +100,12 @@
   Pairs with `#43` and `#50`, which were the same complaint one layer down: the docs answered "how do I drive it" before "why would I want this".
 
 ## Web app / admin site
+- [ ] `#76` **A short list of inspiring reads, shown somewhere in the app** — raised 2026-10-04 by Michele. Collect links to pieces that are worth (re)reading while job hunting — the first one is Wait But Why's [*How to Pick a Career (That Actually Fits You)*](https://waitbutwhy.com/2018/04/picking-career.html) — and give them a home in the web app.
+
+  - [ ] **Decide where the list lives.** A curated list shipped with the repo is the same for everyone; a personal one belongs in the data root next to the user's notes. Probably both — a few shipped defaults the user can add to — but that is the question to settle first, since it decides whether this is a template change or a new file the app reads.
+  - [ ] **Decide where it shows.** Candidates: a section on the help page (`src/web/apps/tracker/templates/tracker/help.html`), a small panel on the dashboard (`tracker/home.html`), or a page of its own in the sidebar (`src/web/templates-global/base.html`). The dashboard is where it would actually get seen; the help page is where it fits without competing with the tracker.
+  - [ ] Links open in a new tab, as everywhere else since `#17`.
+
 ## File naming
 - [ ] `#27` **Re-order the application-folder naming convention to `{type}-{date-created}-{username}-{job-slug}`** — e.g. `cover-letter-2026-09-18-michele-pasin-046-bbc-studios.md`, replacing today's `{job-slug}-{username}-{type}-{date}` (`046-bbc-studios-michele-pasin-cover-letter-2026-09-18.md`, the 2026-09-08 convention in `src/appfolder.py`'s `app_filename()`). Putting the type first makes a folder listing sort by kind rather than by a company name every file in the folder already repeats. **Also covers interview-round files** (`<id>-<person>-interview-<stage>-<date>.md`, added 2026-09-24) — whose date is the interview's, not the file's, so the reorder must not assume a creation date. **Also apply it to `notes.md` and `job.md`**, which are currently bare names with no date or owner at all — so `notes-2026-09-18-michele-pasin-046-bbc-studios.md`, `job-2026-09-18-michele-pasin-046-bbc-studios.md`.
 
