@@ -208,6 +208,18 @@ class Company(models.Model):
         body = self.notes_md
         return sectioned(body, "company") if body and body.strip() else None
 
+    @cached_property
+    def glossary(self) -> list[dict]:
+        """The research file's `## Glossary` entries, linking to this page — what an
+        application's notes and interview rounds resolve their ***terms*** against, so a
+        definition written once on the company page shows wherever the prep happens."""
+        from .parsers import glossary_of
+
+        body = self.notes_md
+        if not body or "## Glossary" not in body:
+            return []
+        return glossary_of(body, "company", f"/companies/{self.slug}/")
+
 
 class Application(models.Model):
     """A row in applications.md, plus its detail block and jobs/applications/NNN-*/ folder."""
@@ -472,7 +484,7 @@ class Application(models.Model):
         # into one page — two rounds both carrying "## Outcome" would otherwise collide,
         # and the browser would send every "Outcome" link to whichever came first.
         for round_ in out:
-            round_.update(sectioned(round_["body_md"], round_["anchor"]))
+            round_.update(sectioned(round_["body_md"], round_["anchor"], self.glossary))
         return out
 
     @cached_property
@@ -488,7 +500,13 @@ class Application(models.Model):
         from .parsers import sectioned
 
         body = self.notes_md
-        return sectioned(body, "notes") if body and body.strip() else None
+        return sectioned(body, "notes", self.glossary) if body and body.strip() else None
+
+    @property
+    def glossary(self) -> list[dict]:
+        """The company page's glossary, which this application's documents link to when
+        they have no `## Glossary` of their own."""
+        return self.company.glossary if self.company_id else []
 
     @property
     def extra_files(self) -> list[dict]:
@@ -553,7 +571,7 @@ class Application(models.Model):
 
         for f in out:
             if f["is_md"] and f["body_md"].strip():
-                f["doc"] = sectioned(f["body_md"], f["anchor"])
+                f["doc"] = sectioned(f["body_md"], f["anchor"], self.glossary)
         return out
 
 

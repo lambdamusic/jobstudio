@@ -4,6 +4,16 @@ Dated entries, newest first.
 
 ## 2026-10-04
 
+- **Glossary terms link to their definitions.** In any sectioned document with a
+  `## Glossary`, a term marked ***in bold italic*** becomes an in-page link to its entry,
+  with a dotted underline to set it apart from outbound links (`parsers.link_glossary`).
+  Hovering shows the definition in place (CSS-only tooltip from a `data-def` attribute);
+  following one into a collapsed section opens it. An application's notes, rounds and
+  Other files resolve marked terms against their **company page's glossary**
+  (`Company.glossary`), so a definition written once shows wherever the prep happens.
+  The `company`, `application` and `interview` subcommands now keep a glossary for
+  unfamiliar sectors as standard practice.
+
 - **Company pages get the jump index too.** `/companies/<slug>/` renders the research
   file through the same pill index and collapsible sections as My notes and the
   Interviews tab (`Company.notes_doc`, anchors prefixed `company--`).

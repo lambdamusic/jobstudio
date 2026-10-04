@@ -143,6 +143,9 @@
     function fromHash() {
       var id = window.location.hash.replace("#", "");
       if (id && byTarget[id]) { reveal(id, true); mark(id); }
+      // Not a pill, but inside this document — a glossary term's entry, say, which may
+      // sit in a closed block.
+      else if (id && scope.querySelector('[id="' + CSS.escape(id) + '"]')) reveal(id, true);
       else update();
     }
     window.addEventListener("hashchange", fromHash);

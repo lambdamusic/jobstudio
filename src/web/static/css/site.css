@@ -566,6 +566,33 @@ a.section-chip.here:hover {
 .doc-section-body { padding: 0 0 14px 18px; }
 .doc-section-body h3 { scroll-margin-top: var(--section-clearance, 56px); }
 
+/* Glossary links (`parsers.link_glossary`): a term marked ***like this*** in a document
+   that has a `## Glossary`. In-page, so styled apart from outbound links — italic, the
+   body colour, a dotted underline — and it reads as "defined below" rather than "leaves". */
+a.gloss {
+  font-style: italic; color: inherit;
+  text-decoration: underline dotted var(--muted); text-underline-offset: 3px;
+}
+a.gloss:hover { color: var(--navy); text-decoration-style: solid; }
+
+/* The definition in place, from the link's `data-def`. CSS only, so it costs no script
+   and also shows on keyboard focus. `max-content` capped at 340px: an absolutely
+   positioned box inside an inline link would otherwise shrink to the link's own width. */
+a.gloss[data-def] { position: relative; }
+a.gloss[data-def]:hover::after,
+a.gloss[data-def]:focus-visible::after {
+  content: attr(data-def);
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 20;
+  width: max-content; max-width: 340px;
+  padding: 8px 10px; border-radius: var(--radius);
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+  font-style: normal; font-weight: 400; font-size: 12.5px; line-height: 1.45;
+  white-space: normal; text-decoration: none; pointer-events: none;
+}
+.gloss-term { scroll-margin-top: var(--section-clearance, 56px); }
+.gloss-term:target { background: var(--bg-sunk); box-shadow: 0 0 0 3px var(--bg-sunk); border-radius: 2px; }
+
 /* The Date / With / Format line above the first section. Short, always wanted, never
    collapsed. */
 .doc-preamble { margin-bottom: 4px; color: var(--muted); font-size: 13.5px; }

@@ -129,6 +129,12 @@ tools/py src/jobsdb.py show-company "{Company}"
      read against `<DATA>/jobs/profile/stocktake.md`), `## Sources` (dated links). Match the depth
      of existing profiles (e.g. `<DATA>/jobs/companies/grafana-labs.md`) — this is real research,
      not a one-paragraph stub. Header line: `*Researched {today's date}.*`
+     **Add a `## Glossary` whenever the sector is unfamiliar** (judge against
+     `stocktake.md`, not general knowledge — healthcare, finance, regulation, a lab domain).
+     One bullet per term, opening with a bold label (`- **EHR (Electronic Health Record).** …`),
+     defined plainly. Mark each term ***in bold italic*** where it first appears in a section;
+     the page then links it and shows the definition on hover. Skip terms the user already
+     knows well — the glossary is for the domain, not for their own field.
      **Company-level only:** anything about this particular role or its interviews (band,
      office days, hiring manager, what to stress in a round) goes in the application's
      `notes.md`, not here — the company file must stay true for every future application.

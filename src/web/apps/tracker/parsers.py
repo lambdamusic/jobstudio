@@ -9,6 +9,7 @@ Deliberately free of Django imports so it can be exercised standalone.
 
 from __future__ import annotations
 
+import html
 import re
 from datetime import date, datetime
 from pathlib import Path
@@ -381,7 +382,131 @@ def section_index(blocks: list[dict]) -> list[dict]:
     return out
 
 
-def sectioned(body_md: str, prefix: str) -> dict:
+# A glossary entry: a bullet opening with a bold label — `- **EHR (Electronic Health Record).**`.
+_GLOSS_ENTRY = re.compile(r"^(?P<lead>[ \t]*[-*+][ \t]+)\*\*(?P<label>[^*\n]+?)\*\*", re.M)
+# A term marked for linking: ***bold italic***, and nothing else, so ordinary bold or
+# italic prose is never touched. The lookarounds keep `****` and nested emphasis out.
+_GLOSS_MARK = re.compile(r"(?<!\*)\*\*\*(?!\*)(?P<term>[^*\n]+?)\*\*\*(?!\*)")
+
+
+def _gloss_keys(label: str) -> list[str]:
+    """The names an entry answers to. `Diversity Action Plan (DAP).` → the label, the
+    part before the bracket and the abbreviation inside it; `/` splits alternatives, so
+    `Medicaid / Medicare` answers to both."""
+    label = label.strip().rstrip(".").strip()
+    names = [label]
+    m = re.match(r"(.+?)\s*\((.+?)\)$", label)
+    if m:
+        names += [m.group(1), m.group(2)]
+    out = []
+    for n in names:
+        out += [n] + [part for part in re.split(r"\s*/\s*", n) if part]
+    return [_gloss_norm(n) for n in out if n.strip()]
+
+
+def _gloss_plain(md: str, limit: int = 280) -> str:
+    """An entry's definition as one line of plain text, for a tooltip: links reduced to
+    their label, emphasis and code markers dropped, cut at a word near `limit`."""
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", md)
+    text = re.sub(r"[*_`]+", "", text)
+    text = " ".join(text.split())
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    return text
+
+
+def _gloss_norm(text: str) -> str:
+    text = re.sub(r"[^a-z0-9 ]+", " ", text.lower())
+    return " ".join(w[:-1] if len(w) > 3 and w.endswith("s") else w for w in text.split())
+
+
+def tag_glossary(gloss_block: dict, prefix: str, href_base: str = "") -> list[dict]:
+    """Give each entry of a `## Glossary` block an id, and return the entries.
+
+    Each entry is `{keys, href, norm, definition}`: the names it answers to, where a link
+    to it should point (`href_base` + `#<prefix>--gloss-<slug>` — empty base for the same
+    page, `/companies/<slug>/` for another), its normalised text for the last-resort match,
+    and its definition as plain text for the tooltip. Mutates the block's `body_md`.
+    """
+    entries = []
+    def tag(m):
+        label = m.group("label")
+        anchor = f"{prefix}--gloss-{section_slug(label.rstrip('.'))}"
+        entries.append({"keys": _gloss_keys(label), "anchor": anchor,
+                        "href": f"{href_base}#{anchor}"})
+        return f'{m.group("lead")}<strong id="{anchor}" class="gloss-term">{label}</strong>'
+    gloss_block["body_md"] = _GLOSS_ENTRY.sub(tag, gloss_block["body_md"])
+
+    # Entry text — split on the ids just inserted; an entry runs to the next bullet.
+    parts = re.split(r'id="([^"]+)"', gloss_block["body_md"])
+    text_of = {}
+    for i in range(1, len(parts) - 1, 2):
+        text_of[parts[i]] = re.split(r"\n[ \t]*[-*+][ \t]", parts[i + 1])[0]
+    for entry in entries:
+        text = text_of.get(entry["anchor"], "")
+        entry["norm"] = _gloss_norm(text)
+        entry["definition"] = _gloss_plain(text.split("</strong>", 1)[-1])
+    return entries
+
+
+def glossary_of(body_md: str, prefix: str, href_base: str) -> list[dict]:
+    """The glossary entries of a whole document, for linking *other* documents to it —
+    an application's notes and interview rounds to its company page's glossary."""
+    split = split_sections(body_md)
+    gloss = next((b for b in split["blocks"] if b["anchor"] == "glossary"), None)
+    return tag_glossary(gloss, prefix, href_base) if gloss else []
+
+
+def link_glossary(blocks: list[dict], preamble: str, prefix: str,
+                  fallback: list[dict] | None = None) -> str:
+    """Link every ***term*** in a document to its glossary entry, with the definition as
+    a tooltip.
+
+    Done on the markdown, not the HTML, because only here are the glossary's entries
+    still recognisable as entries. The document's own `## Glossary` wins; without one,
+    `fallback` — the company page's glossary, for an application's notes and rounds —
+    is used, and the link leaves the page. Each marked term becomes a link with class
+    `gloss` and a `data-def` that site.css shows on hover; both are styled apart from
+    external links. Matching is forgiving — plurals, an abbreviation, or the first words
+    of a longer label all resolve — and falls back to the entry whose text mentions the
+    term (`feasibility` lives inside the `Site` entry). A term that matches nothing is
+    left as plain bold italic rather than linked somewhere wrong.
+
+    Mutates the blocks' `body_md` and returns the preamble.
+    """
+    gloss = next((b for b in blocks if b["anchor"].endswith("--glossary")), None)
+    entries = tag_glossary(gloss, prefix) if gloss else (fallback or [])
+    if not entries:
+        return preamble
+
+    def find(term):
+        t = _gloss_norm(term)
+        for test in (lambda k: k == t,
+                     lambda k: t.startswith(k + " ") or k.startswith(t + " "),
+                     lambda k: f" {t} " in f" {k} "):
+            for entry in entries:
+                if any(test(k) for k in entry["keys"]):
+                    return entry
+        for entry in entries:
+            if f" {t} " in f" {entry['norm']} ":
+                return entry
+        return None
+
+    def link(m):
+        term = m.group("term")
+        entry = find(term)
+        if not entry:
+            return m.group(0)
+        tip = html.escape(entry["definition"], quote=True)
+        return f'<a class="gloss" href="{entry["href"]}" data-def="{tip}">{term}</a>'
+
+    for b in blocks:
+        if b is not gloss:
+            b["body_md"] = _GLOSS_MARK.sub(link, b["body_md"])
+    return _GLOSS_MARK.sub(link, preamble)
+
+
+def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None) -> dict:
     """A markdown document ready for `_doc_sections.html` + `_doc_body.html`.
 
     Splits it, scopes every anchor under `prefix`, and builds the pill index — the three
@@ -402,7 +527,8 @@ def sectioned(body_md: str, prefix: str) -> dict:
                          for sub in b["subsections"]]}
         for b in split["blocks"]
     ]
-    return {"preamble_md": split["preamble"], "blocks": blocks,
+    preamble = link_glossary(blocks, split["preamble"], prefix, glossary)
+    return {"preamble_md": preamble, "blocks": blocks,
             "sections": section_index(blocks), "body_md": body_md}
 
 

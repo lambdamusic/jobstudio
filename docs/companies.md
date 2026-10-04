@@ -113,6 +113,22 @@ Explain the product in plain terms before analysing it: for each product, the qu
 it answers, who pays for it, and the decision it unblocks — backed by the company's own
 case studies where they exist.
 
+**Glossary terms link themselves.** In any document with a `## Glossary` section whose
+entries open with a bold label (`- **EHR (Electronic Health Record).** …`), a term
+written ***in bold italic*** elsewhere becomes an in-page link to its entry, styled with
+a dotted underline to set it apart from outbound links, and shows the definition as a
+tooltip on hover or focus (`parsers.link_glossary`). Plurals,
+abbreviations and the first words of a longer label all match; a term that matches
+nothing stays plain bold italic. Works on every page that renders through the shared
+section index, not only company pages.
+
+**An application's documents use their company's glossary.** Notes, interview rounds and
+Other files rarely carry a glossary of their own, so a marked term there resolves against
+the company page's `## Glossary` (`Company.glossary`) and links across to it, tooltip
+included. A document with its own `## Glossary` uses that instead. The `company`,
+`application` and `interview` subcommands all say to keep a glossary for unfamiliar
+sectors — definitions written once, on the company page.
+
 `Fit with my mission` is an honest for/against read against
 `jobs/profile/stocktake.md`, not a sales pitch — this is what
 [cover-letters.md](cover-letters.md) reads to feed the research/hook paragraph with a

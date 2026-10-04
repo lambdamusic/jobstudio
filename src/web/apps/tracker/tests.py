@@ -3706,6 +3706,49 @@ class InterviewRoundTests(TestCase):
             self.assertTrue(s["anchor"].startswith("notes--"), s["anchor"])
             self.assertIn(f'id="{s["anchor"]}"', html)
 
+    def test_glossary_terms_link_to_their_entries(self):
+        from tracker.parsers import sectioned
+        doc = sectioned(
+            "# Co\n\n## Products\n\nUses ***claims*** and ***EHR*** data, picks sites by "
+            "***feasibility***, and has ***nothing defined***. Plain **bold** and *italic*.\n\n"
+            "## Glossary\n\n- **EHR (Electronic Health Record).** The clinical record.\n"
+            "- **Claims data.** Billing records.\n"
+            "- **Site.** A clinic. **Site selection / feasibility** means choosing sites.\n",
+            "co")
+        body = doc["blocks"][0]["body_md"]
+        gloss = doc["blocks"][1]["body_md"]
+        self.assertIn('<a class="gloss" href="#co--gloss-claims-data"', body)
+        self.assertIn('href="#co--gloss-ehr-electronic-health-record" data-def="The clinical record.">EHR</a>', body)
+        self.assertIn('href="#co--gloss-site" data-def="A clinic. Site selection / feasibility '
+                      'means choosing sites.">feasibility</a>', body)
+        self.assertIn('data-def="Billing records."', body)
+        self.assertIn("***nothing defined***", body)      # unmatched: left alone
+        self.assertIn("**bold** and *italic*", body)     # ordinary emphasis untouched
+        for anchor in ("co--gloss-claims-data", "co--gloss-site"):
+            self.assertIn(f'id="{anchor}"', gloss)
+
+    def test_a_document_falls_back_to_a_supplied_glossary(self):
+        from tracker.parsers import glossary_of, sectioned
+        company = glossary_of("## Glossary\n\n- **SEC (Securities and Exchange Commission).** "
+                              "The US regulator.\n", "company", "/companies/acme/")
+        doc = sectioned("## Prep\n\nThe ***SEC*** runs exams.\n", "notes", company)
+        self.assertIn('<a class="gloss" href="/companies/acme/#company--gloss-sec-securities-'
+                      'and-exchange-commission" data-def="The US regulator.">SEC</a>',
+                      doc["blocks"][0]["body_md"])
+
+    def test_a_documents_own_glossary_beats_the_supplied_one(self):
+        from tracker.parsers import glossary_of, sectioned
+        company = glossary_of("## Glossary\n\n- **Panel.** Company meaning.\n",
+                              "company", "/companies/acme/")
+        doc = sectioned("## A\n\nA ***panel***.\n\n## Glossary\n\n- **Panel.** Local meaning.\n",
+                        "n", company)
+        self.assertIn('href="#n--gloss-panel" data-def="Local meaning."', doc["blocks"][0]["body_md"])
+
+    def test_a_document_without_a_glossary_is_unchanged(self):
+        from tracker.parsers import sectioned
+        doc = sectioned("## A\n\nSome ***term*** here.\n", "x")
+        self.assertIn("***term***", doc["blocks"][0]["body_md"])
+
     def test_company_research_renders_through_the_shared_index(self):
         co = next((c for c in Company.objects.all()
                    if c.notes_doc and len(c.notes_doc["sections"]) > 1), None)
