@@ -107,6 +107,23 @@ Science" slot in here unchanged.
 
 ---
 
+### The business at a glance — once per company, at the first interview
+
+**Only for companies with an application at interview stage**, and only once: if the
+company page already has `## The business at a glance`, leave it (update it if a round
+taught you something it gets wrong). Otherwise add it, together with a short
+`## In one paragraph` (what they sell, to whom, where the money comes from) if the page
+lacks one, both before `## Mission`.
+
+The diagram is a ```` ```mermaid ```` `flowchart TB` in three layers: *what goes in*
+(data, people, partners), *the company's products*, *who pays, for which decision*. Short
+labels; solid arrows for data flowing, dotted ones for people, advice or shared methods;
+then one sentence that reads the diagram in a line. Keep the arrows few — a box with an
+edge to every buyer is better said once in its label. Draw from the company's own product
+pages and what interviewers have said (cite it: "per the hiring manager"). **If the
+research is too thin to draw without guessing, research more or leave it out** — a box
+the sources don't support is worse than no diagram. Check it renders on the company page.
+
 ### Glossary — define the domain once, on the company page
 
 Prep is where unfamiliar terms pile up. Before drafting, read the company page's

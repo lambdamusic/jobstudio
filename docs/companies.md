@@ -93,7 +93,7 @@ default) — see [portal-scan-and-scoring.md](portal-scan-and-scoring.md) §2.
 # Company Name
 
 ## In one paragraph    (what it sells, to whom)
-## The business at a glance   (Mermaid diagram — when the research supports one)
+## The business at a glance   (Mermaid diagram — added at interview stage)
 ## Mission
 ## Technology          (or: Products — what each answers, and who pays for it)
 ## Glossary            (optional — when the domain is unfamiliar)
@@ -130,11 +130,13 @@ that have one (`static/vendor/README.md`). The same source renders on GitHub and
 previews. Prefer `flowchart TB`: a left-to-right chart of more than two columns gets
 shrunk to fit the text column and its labels become unreadable.
 
-**Every company page gets a business diagram when there is enough to draw.** The
-`## The business at a glance` section is a `flowchart TB` in three layers — what goes in,
-the company's products, who pays for which decision — followed by one sentence reading it.
-It is skipped, not improvised, when the research is too thin: a box the sources don't
-support is worse than no diagram.
+**Companies you are interviewing with get a business diagram.** When an application
+reaches interview stage, the `interview` subcommand adds a `## The business at a glance`
+section to the company page: a `flowchart TB` in three layers — what goes in, the
+company's products, who pays for which decision — followed by one sentence reading it.
+Not before: most tracked companies never get that far, and the diagram is prep, not
+screening. It is skipped, not improvised, when the research is too thin: a box the sources
+don't support is worse than no diagram.
 
 **An application's documents use their company's glossary.** Notes, interview rounds and
 Other files rarely carry a glossary of their own, so a marked term there resolves against
