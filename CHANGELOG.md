@@ -2,6 +2,13 @@
 
 Dated entries, newest first.
 
+## 2026-10-05
+
+- **Every application page ends with a way to its company.** A call-to-action panel below
+  the tabs names the company, gives its one-line summary, says what its page holds
+  (research, glossary size, other applications) and links there. An application not yet
+  linked to a company says so, with the `jobsdb.py link-company` command that fixes it.
+
 ## 2026-10-04
 
 - **Glossary terms link to their definitions.** In any sectioned document with a

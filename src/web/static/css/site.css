@@ -714,3 +714,20 @@ a.stat.is-active:hover { background: var(--bg); }
 .cmd-list dt { margin-top: 0.85em; }
 .cmd-list dt:first-child { margin-top: 0; }
 .cmd-list dd { margin: 0.15em 0 0 0; color: var(--muted, #555); }
+
+/* ---------- company call-to-action at the foot of an application ---------- */
+
+.company-cta {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  margin: 28px 0 8px; padding: 18px 20px;
+  background: var(--bg-sunk); border: 1px solid var(--line);
+  border-left: 4px solid var(--navy); border-radius: var(--radius);
+}
+.company-cta-text { flex: 1 1 320px; min-width: 0; }
+.company-cta-kicker {
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint);
+}
+.company-cta-name { font-size: 18px; font-weight: 600; margin: 2px 0 4px; }
+.company-cta-summary { margin: 0 0 4px; color: var(--muted); font-size: 13.5px; }
+.company-cta-what { margin: 0; color: var(--faint); font-size: 12.5px; }
+.company-cta-btn { white-space: nowrap; padding: 9px 16px; }

@@ -336,4 +336,30 @@
   {% endif %}
 </div>
 
+{% comment %}
+The way back to the company — always shown, below the tabs so it is there whichever tab
+is open. The header links the name too, but that is easy to miss; this is the explicit
+route to the research, the glossary and the company's other applications.
+{% endcomment %}
+<section class="company-cta" aria-label="Company page">
+  {% if app.company %}
+    <div class="company-cta-text">
+      <div class="company-cta-kicker">Company</div>
+      <div class="company-cta-name">{{ app.company.name }}</div>
+      {% if app.company.notes %}<p class="company-cta-summary">{{ app.company.notes }}</p>{% endif %}
+      <p class="company-cta-what">
+        {% if app.company.notes_path %}Research, fit read{% if app.glossary %} and a glossary of {{ app.glossary|length }} terms{% endif %}{% else %}Tracked fields only — no research file yet{% endif %}{% if siblings %} · {{ siblings|length }} other application{{ siblings|length|pluralize }}{% endif %}.
+      </p>
+    </div>
+    <a class="btn btn-primary company-cta-btn" href="/companies/{{ app.company.slug }}/">Open the {{ app.company.name }} page →</a>
+  {% else %}
+    <div class="company-cta-text">
+      <div class="company-cta-kicker">Company</div>
+      <div class="company-cta-name">{{ app.company_name }}</div>
+      <p class="company-cta-what">Not linked to a tracked company yet. Link it with
+        <code>tools/py src/jobsdb.py link-company {{ app.num }}</code>.</p>
+    </div>
+  {% endif %}
+</section>
+
 {% endblock %}

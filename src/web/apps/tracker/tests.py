@@ -3749,6 +3749,16 @@ class InterviewRoundTests(TestCase):
         doc = sectioned("## A\n\nSome ***term*** here.\n", "x")
         self.assertIn("***term***", doc["blocks"][0]["body_md"])
 
+    def test_every_application_page_links_out_to_its_company(self):
+        for app in Application.objects.all():
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            with self.subTest(num=app.num):
+                self.assertIn('class="company-cta"', html)
+                if app.company_id:
+                    self.assertIn(f'href="/companies/{app.company.slug}/">Open the', html)
+                else:
+                    self.assertIn("link-company", html)
+
     def test_company_research_renders_through_the_shared_index(self):
         co = next((c for c in Company.objects.all()
                    if c.notes_doc and len(c.notes_doc["sections"]) > 1), None)
