@@ -39,6 +39,7 @@ urlpatterns = [
     path("scans/<str:slug>/", views.scan_detail, name="scan_detail"),
     # Local-only; not reachable from the published mirror.
     path("actions/reveal/<int:num>/", views.reveal_folder, name="reveal_folder"),
+    path("actions/task/", views.toggle_task, name="toggle_task"),
     path("actions/create-folder/<int:num>/", views.create_folder, name="create_folder"),
     path("actions/set-status/<int:num>/<slug:status>/", views.set_status, name="set_status"),
     path("actions/reveal-company/<slug:slug>/", views.reveal_company_notes, name="reveal_company_notes"),

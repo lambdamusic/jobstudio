@@ -234,7 +234,7 @@ Structure:
 
 ## Study before
 
-- …
+- [ ] …
 
 ## Private — not for the call
 
@@ -244,6 +244,11 @@ Structure:
 
 _(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
+
+**`## Study before` is a checklist.** Every item is a `- [ ]` task, never a numbered or
+plain bullet: the page renders it as a checkbox, and ticking it on the local app writes
+`[x]` back into the file — so the user works through the list on the page and the file
+remembers. Keep one task per item; detail can follow on indented lines.
 
 **The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
 colours every question red so the eye can find them without reading the answers between

@@ -3754,6 +3754,49 @@ class InterviewRoundTests(TestCase):
         page = self.client.get("/").content.decode()
         self.assertIn('js/diagrams.js" data-mermaid="', page)
 
+    def test_task_markers_render_as_checkboxes_and_write_back(self):
+        from tracker.parsers import render_tasks, set_task, task_spans
+        text = ("## Study before\n\n- [ ] Watch the video\n- [x] Read the paper\n"
+                "```\n- [ ] not a task, in a fence\n```\n1. [ ] Numbered task\n")
+        self.assertEqual([c for _, _, c in task_spans(text)], [False, True, False])
+        live = render_tasks(text, "jobs/x.md")
+        self.assertIn('<input type="checkbox" class="task-box" data-task="0" '
+                      'data-source="jobs/x.md"> Watch', live)
+        self.assertIn('data-task="1" data-source="jobs/x.md" checked> Read', live)
+        self.assertIn("- [ ] not a task, in a fence", live)
+        self.assertIn('data-task="2"', live)
+        self.assertIn(" disabled", render_tasks(text, None))          # published: read-only
+        ticked = set_task(text, 2, True)
+        self.assertIn("1. [x] Numbered task", ticked)
+        self.assertIn("- [ ] not a task, in a fence", ticked)       # the fence is untouched
+        self.assertIn("- [ ] Read the paper", set_task(text, 1, False))
+        with self.assertRaises(IndexError):
+            set_task(text, 3, True)
+
+    def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
+        import tempfile
+        from pathlib import Path
+        from django.test import override_settings
+        with tempfile.TemporaryDirectory() as root:
+            f = Path(root) / "jobs" / "r.md"
+            f.parent.mkdir()
+            f.write_text("- [ ] one\n- [ ] two\n")
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="local"):
+                r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "1",
+                                                        "checked": "true"})
+                self.assertEqual(r.status_code, 200)
+                self.assertEqual(f.read_text(), "- [ ] one\n- [x] two\n")
+                r = self.client.post("/actions/task/", {"source": "../etc/passwd.md",
+                                                        "index": "0", "checked": "true"})
+                self.assertEqual(r.status_code, 404)
+                r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "9",
+                                                        "checked": "true"})
+                self.assertEqual(r.status_code, 409)
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="publish"):
+                r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "0",
+                                                        "checked": "true"})
+                self.assertEqual(r.status_code, 404)
+
     def test_a_document_without_a_glossary_is_unchanged(self):
         from tracker.parsers import sectioned
         doc = sectioned("## A\n\nSome ***term*** here.\n", "x")

@@ -506,7 +506,57 @@ def link_glossary(blocks: list[dict], preamble: str, prefix: str,
     return _GLOSS_MARK.sub(link, preamble)
 
 
-def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None) -> dict:
+# A task-list item: `- [ ] …` / `- [x] …` (or a numbered `1. [ ]`). Found line by line,
+# outside code fences, by `task_spans` — the one function both the renderer and the
+# write-back endpoint use, so "the third box on the page" and "the third marker in the
+# file" can never disagree.
+_TASK = re.compile(r"^(?P<lead>[ \t]*(?:[-*+]|\d+[.)])[ \t]+)\[(?P<mark>[ xX])\](?=[ \t])")
+
+
+def task_spans(text: str) -> list[tuple[int, int, bool]]:
+    """(start, end, checked) of each task marker's `[ ]`/`[x]`, in file order."""
+    spans, pos, in_fence = [], 0, False
+    for line in text.splitlines(keepends=True):
+        s = line.strip()
+        if s.startswith("```") or s.startswith("~~~"):
+            in_fence = not in_fence
+        elif not in_fence:
+            m = _TASK.match(line)
+            if m:
+                start = pos + m.start("mark") - 1
+                spans.append((start, start + 3, m.group("mark") != " "))
+        pos += len(line)
+    return spans
+
+
+def render_tasks(text: str, source: str | None) -> str:
+    """Swap each task marker for a checkbox. With `source` (the file's path under the
+    data root, local app only) the box is live and `js/tasks.js` writes a tick back to the
+    file; without it — the published site — it is shown but disabled."""
+    out, last = [], 0
+    for i, (start, end, checked) in enumerate(task_spans(text)):
+        attrs = f'type="checkbox" class="task-box" data-task="{i}"'
+        if source:
+            attrs += f' data-source="{html.escape(source, quote=True)}"'
+        else:
+            attrs += " disabled"
+        if checked:
+            attrs += " checked"
+        out += [text[last:start], f"<input {attrs}>"]
+        last = end
+    out.append(text[last:])
+    return "".join(out)
+
+
+def set_task(text: str, index: int, checked: bool) -> str:
+    """The file text with task `index` ticked or unticked. IndexError if there is no such
+    task — the page and the file have drifted, and guessing would tick the wrong line."""
+    start, end, _ = task_spans(text)[index]
+    return text[:start] + ("[x]" if checked else "[ ]") + text[end:]
+
+
+def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None,
+              source: str | None = None) -> dict:
     """A markdown document ready for `_doc_sections.html` + `_doc_body.html`.
 
     Splits it, scopes every anchor under `prefix`, and builds the pill index — the three
@@ -519,6 +569,7 @@ def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None) -> 
     Returns the template's three keys directly, so a caller is one line and no view has to
     remember that prefixing comes before indexing.
     """
+    body_md = render_tasks(body_md, source)
     split = split_sections(body_md)
     blocks = [
         {**b,

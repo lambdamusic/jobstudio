@@ -740,3 +740,14 @@ a.stat.is-active:hover { background: var(--bg); }
   background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
 }
 .mermaid.diagram svg { max-width: 100%; height: auto; }
+
+/* ---------- task lists (`- [ ]`, parsers.render_tasks + js/tasks.js) ---------- */
+
+li:has(> input.task-box), li:has(> p > input.task-box) { list-style: none; }
+input.task-box {
+  margin: 0 8px 0 -20px; vertical-align: -1px; accent-color: var(--navy); cursor: pointer;
+}
+input.task-box:disabled { cursor: default; }
+li:has(> input.task-box:checked), li:has(> p > input.task-box:checked) {
+  color: var(--faint); text-decoration: line-through; text-decoration-color: var(--line);
+}

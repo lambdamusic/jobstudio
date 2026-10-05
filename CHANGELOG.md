@@ -4,6 +4,12 @@ Dated entries, newest first.
 
 ## 2026-10-05
 
+- **Task lists are checkboxes you can tick.** `- [ ]` / `- [x]` items in any sectioned
+  document render as checkboxes; on the local app, ticking one POSTs to `/actions/task/`,
+  which rewrites that marker in the markdown file (CSRF-protected, `.md` under the data
+  root only, refused if the page and file have drifted). The published site shows them
+  read-only. Interview rounds' `## Study before` is now a checklist by convention.
+
 - **Mermaid diagrams render in the web app.** A ```` ```mermaid ```` fence in any rendered
   markdown is drawn by `js/diagrams.js`. Mermaid 12.1.0 is vendored next to ECharts and
   loaded on demand, only on pages that contain a diagram; one inside a collapsed section

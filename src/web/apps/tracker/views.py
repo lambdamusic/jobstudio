@@ -18,7 +18,7 @@ import config
 from django.conf import settings
 from django.db.models import Count, F, Max, Q
 from django.utils import timezone
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
@@ -1169,6 +1169,36 @@ def reveal_folder(request, num):
 
     _open_locally(folder)
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
+
+
+def toggle_task(request):
+    """Local-only: tick or untick one `- [ ]` task in a markdown file under the data root.
+
+    POST `source` (the path `_task_source` rendered into the checkbox), `index` (its order
+    in the file, as `parsers.task_spans` counts it) and `checked`. The write is the whole
+    point — the box is a view of a line in a file, so ticking it edits the file, and the
+    tick survives a reload, an editor, and a publish. CSRF-protected like any POST; the
+    path must resolve inside the data root and be a `.md` file that exists.
+    """
+    if settings.ENVIRONMENT != "local":
+        raise Http404("Local only")
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "POST only"}, status=405)
+    root = Path(settings.DATA_ROOT).resolve()
+    try:
+        path = (root / request.POST["source"]).resolve()
+        index = int(request.POST["index"])
+    except (KeyError, ValueError):
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    if root not in path.parents or path.suffix != ".md" or not path.is_file():
+        return JsonResponse({"ok": False, "error": "no such file"}, status=404)
+    checked = request.POST.get("checked") == "true"
+    text = path.read_text()
+    try:
+        path.write_text(P.set_task(text, index, checked))
+    except IndexError:
+        return JsonResponse({"ok": False, "error": "task not found — reload the page"}, status=409)
+    return JsonResponse({"ok": True, "checked": checked})
 
 
 def create_folder(request, num):

@@ -63,6 +63,17 @@ CV_BASE_CHOICES = [
 COMPANY_STATUS_CHOICES = [(s, s.title()) for s in COMPANY_STATUSES]
 
 
+def _task_source(path: Path | None) -> str | None:
+    """A markdown file's path under the data root, for live checkboxes — or None off the
+    local app, so the published mirror renders them read-only."""
+    if path is None or settings.ENVIRONMENT != "local":
+        return None
+    try:
+        return str(path.resolve().relative_to(Path(settings.DATA_ROOT).resolve()))
+    except ValueError:
+        return None
+
+
 def _read(path: Path | None) -> str:
     """Read a markdown file off disk, or return '' if it isn't there."""
     if path and path.is_file():
@@ -206,7 +217,8 @@ class Company(models.Model):
         from .parsers import sectioned
 
         body = self.notes_md
-        return sectioned(body, "company") if body and body.strip() else None
+        return (sectioned(body, "company", source=_task_source(self.notes_path))
+                if body and body.strip() else None)
 
     @cached_property
     def glossary(self) -> list[dict]:
@@ -484,7 +496,8 @@ class Application(models.Model):
         # into one page — two rounds both carrying "## Outcome" would otherwise collide,
         # and the browser would send every "Outcome" link to whichever came first.
         for round_ in out:
-            round_.update(sectioned(round_["body_md"], round_["anchor"], self.glossary))
+            round_.update(sectioned(round_["body_md"], round_["anchor"], self.glossary,
+                                    source=_task_source(round_["path"])))
         return out
 
     @cached_property
@@ -500,7 +513,9 @@ class Application(models.Model):
         from .parsers import sectioned
 
         body = self.notes_md
-        return sectioned(body, "notes", self.glossary) if body and body.strip() else None
+        return (sectioned(body, "notes", self.glossary,
+                          source=_task_source(self._folder_file("notes.md")))
+                if body and body.strip() else None)
 
     @property
     def glossary(self) -> list[dict]:
@@ -571,7 +586,8 @@ class Application(models.Model):
 
         for f in out:
             if f["is_md"] and f["body_md"].strip():
-                f["doc"] = sectioned(f["body_md"], f["anchor"], self.glossary)
+                f["doc"] = sectioned(f["body_md"], f["anchor"], self.glossary,
+                                     source=_task_source(f["path"]))
         return out
 
 
