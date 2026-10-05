@@ -4,6 +4,15 @@ Dated entries, newest first.
 
 ## 2026-10-05
 
+- **Mermaid diagrams render in the web app.** A ```` ```mermaid ```` fence in any rendered
+  markdown is drawn by `js/diagrams.js`. Mermaid 12.1.0 is vendored next to ECharts and
+  loaded on demand, only on pages that contain a diagram; one inside a collapsed section
+  is drawn when the section opens. The same source renders on GitHub and in editors.
+  Company pages now get a `## The business at a glance` diagram by default — inputs,
+  products, who pays for which decision — whenever the research is rich enough to draw it.
+  `make-public-tree` skips vendored `*.min.js` in its tracked-company check: 5MB of
+  minified Mermaid names a few companies by accident.
+
 - **Every application page ends with a way to its company.** A call-to-action panel below
   the tabs names the company, gives its one-line summary, says what its page holds
   (research, glossary size, other applications) and links there. An application not yet

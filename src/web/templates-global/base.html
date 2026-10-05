@@ -15,6 +15,11 @@
   {% endcomment %}
   <script src="{% static 'js/section-nav.js' %}" defer></script>
   {% comment %}
+  Draws ```mermaid blocks in rendered markdown. Inert on pages without one; on pages with
+  one it fetches the vendored Mermaid (static/vendor/README.md) on demand.
+  {% endcomment %}
+  <script src="{% static 'js/diagrams.js' %}" data-mermaid="{% static 'vendor/mermaid-12.1.0.min.js' %}" defer></script>
+  {% comment %}
   The charts on /stats/ and the library they need. Both are deferred and both are
   enhancements: the page renders its numbers as tables first and charts.js swaps in the
   drawings, so no-JavaScript and the published mirror both stay readable. ECharts is

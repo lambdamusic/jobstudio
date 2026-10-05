@@ -731,3 +731,12 @@ a.stat.is-active:hover { background: var(--bg); }
 .company-cta-summary { margin: 0 0 4px; color: var(--muted); font-size: 13.5px; }
 .company-cta-what { margin: 0; color: var(--faint); font-size: 12.5px; }
 .company-cta-btn { white-space: nowrap; padding: 9px 16px; }
+
+/* ---------- Mermaid diagrams (js/diagrams.js) ---------- */
+
+/* The drawn diagram: centred, scrolls sideways rather than squashing on a narrow window. */
+.mermaid.diagram {
+  margin: 14px 0 18px; padding: 14px; overflow-x: auto; text-align: center;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.mermaid.diagram svg { max-width: 100%; height: auto; }

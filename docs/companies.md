@@ -92,6 +92,8 @@ default) — see [portal-scan-and-scoring.md](portal-scan-and-scoring.md) §2.
 ```markdown
 # Company Name
 
+## In one paragraph    (what it sells, to whom)
+## The business at a glance   (Mermaid diagram — when the research supports one)
 ## Mission
 ## Technology          (or: Products — what each answers, and who pays for it)
 ## Glossary            (optional — when the domain is unfamiliar)
@@ -121,6 +123,18 @@ tooltip on hover or focus (`parsers.link_glossary`). Plurals,
 abbreviations and the first words of a longer label all match; a term that matches
 nothing stays plain bold italic. Works on every page that renders through the shared
 section index, not only company pages.
+
+**Diagrams are Mermaid.** A fenced ```` ```mermaid ```` block in any rendered markdown
+file is drawn by `static/js/diagrams.js`, which fetches the vendored Mermaid only on pages
+that have one (`static/vendor/README.md`). The same source renders on GitHub and in editor
+previews. Prefer `flowchart TB`: a left-to-right chart of more than two columns gets
+shrunk to fit the text column and its labels become unreadable.
+
+**Every company page gets a business diagram when there is enough to draw.** The
+`## The business at a glance` section is a `flowchart TB` in three layers — what goes in,
+the company's products, who pays for which decision — followed by one sentence reading it.
+It is skipped, not improvised, when the research is too thin: a box the sources don't
+support is worse than no diagram.
 
 **An application's documents use their company's glossary.** Notes, interview rounds and
 Other files rarely carry a glossary of their own, so a marked term there resolves against

@@ -135,6 +135,14 @@ tools/py src/jobsdb.py show-company "{Company}"
      defined plainly. Mark each term ***in bold italic*** where it first appears in a section;
      the page then links it and shows the definition on hover. Skip terms the user already
      knows well — the glossary is for the domain, not for their own field.
+     **Add a `## The business at a glance` diagram** right after the opening summary, as a
+     ```` ```mermaid ```` `flowchart TB` in three layers: *what goes in* (data, people,
+     partners), *the company's products*, *who pays, for which decision*. Short labels,
+     solid arrows for data flowing and dotted ones for links or shared methods, then one
+     sentence that reads the diagram in a line. **Only when the research supports it** —
+     named products, known buyers, some sense of the data. If the company is a services
+     firm or the public material is too thin to draw without guessing, leave the section
+     out rather than draw boxes the sources don't justify.
      **Company-level only:** anything about this particular role or its interviews (band,
      office days, hiring manager, what to stress in a round) goes in the application's
      `notes.md`, not here — the company file must stay true for every future application.

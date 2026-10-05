@@ -121,4 +121,5 @@ in `<DATA>/jobs/companies/README.md` — it renders on the company page. Keep it
 company-level: role- or interview-specific material belongs in the application's
 `notes.md` (see `docs/companies.md` §"The research file"). When the sector is unfamiliar,
 include a `## Glossary` and mark its terms ***in bold italic*** — see `application.md`
-step 2 for the format.
+step 2 for the format. The same step describes the `## The business at a glance` Mermaid
+diagram, a default section whenever the research is rich enough to draw it honestly.

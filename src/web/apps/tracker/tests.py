@@ -3744,6 +3744,16 @@ class InterviewRoundTests(TestCase):
                         "n", company)
         self.assertIn('href="#n--gloss-panel" data-def="Local meaning."', doc["blocks"][0]["body_md"])
 
+    def test_a_mermaid_fence_reaches_the_page_as_diagram_source(self):
+        """diagrams.js draws `pre > code.language-mermaid`, so the markdown filter has to
+        hand the fence over untouched — no autolinking, no <br /> from nl2br."""
+        from tracker.templatetags.jobs_extras import markdownify
+        html = markdownify("```mermaid\nflowchart LR\n  A[\"x<br/>y\"] --> B\n```\n")
+        self.assertIn('<code class="language-mermaid">flowchart LR\n', html)
+        self.assertIn("A[&quot;x&lt;br/&gt;y&quot;] --&gt; B", html)
+        page = self.client.get("/").content.decode()
+        self.assertIn('js/diagrams.js" data-mermaid="', page)
+
     def test_a_document_without_a_glossary_is_unchanged(self):
         from tracker.parsers import sectioned
         doc = sectioned("## A\n\nSome ***term*** here.\n", "x")
