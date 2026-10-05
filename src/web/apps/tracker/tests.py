@@ -3744,6 +3744,20 @@ class InterviewRoundTests(TestCase):
                         "n", company)
         self.assertIn('href="#n--gloss-panel" data-def="Local meaning."', doc["blocks"][0]["body_md"])
 
+    def test_a_long_paragraph_never_splits_inside_a_glossary_link(self):
+        """A one-line paragraph over 500 characters is broken at sentence boundaries, and
+        glossary links are already rendered by then. A definition of two sentences used to
+        be split inside its data-def attribute, printing half the tag on the page."""
+        from tracker.templatetags.jobs_extras import _paragraphize, markdownify
+        link = ('<a class="gloss" href="#c--gloss-rating" data-def="An opinion of credit '
+                'risk. Applies to an issuer or a bond.">rating</a>')
+        text = f"Grafana Labs sells software. It has a {link} too. Customers pay for it."
+        # target=1 breaks at every sentence boundary, so a boundary inside the tag would.
+        out = _paragraphize(text, target=1, minimum=0)
+        self.assertIn(link, out)
+        self.assertEqual(out.count("\n\n"), 2)
+        self.assertNotIn("&lt;a", markdownify(("Grafana Labs sells software. " * 20) + text))
+
     def test_a_mermaid_fence_reaches_the_page_as_diagram_source(self):
         """diagrams.js draws `pre > code.language-mermaid`, so the markdown filter has to
         hand the fence over untouched — no autolinking, no <br /> from nl2br."""

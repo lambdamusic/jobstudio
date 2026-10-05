@@ -66,6 +66,17 @@ def _paragraphize(text: str, target: int = 380, minimum: int = 500) -> str:
     if "\n\n" in text or "\n" in text.strip() or len(text) < minimum:
         return text
 
+    # Never split inside markup. Glossary links arrive here already rendered, and their
+    # data-def attribute is a definition that may run to several sentences — a break
+    # there leaves half an <a> tag printed on the page as text.
+    tags: list[str] = []
+
+    def hide(m):
+        tags.append(m.group(0))
+        return f"\x00{len(tags) - 1}\x00"
+
+    text = _MARKUP.sub(hide, text)
+
     pieces = _SENTENCE_END.split(text)
     sentences: list[str] = []
     for piece in pieces:
@@ -87,7 +98,7 @@ def _paragraphize(text: str, target: int = 380, minimum: int = 500) -> str:
             paragraphs[-1] = f"{paragraphs[-1]} {buf}"
         else:
             paragraphs.append(buf)
-    return "\n\n".join(paragraphs)
+    return re.sub(r"\x00(\d+)\x00", lambda m: tags[int(m.group(1))], "\n\n".join(paragraphs))
 
 
 def _autolink(html: str) -> str:

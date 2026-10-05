@@ -4,6 +4,11 @@ Dated entries, newest first.
 
 ## 2026-10-05
 
+- **Fix: long paragraphs no longer break glossary links.** A one-line paragraph over 500
+  characters is split into paragraphs at sentence boundaries, after glossary links are
+  rendered — so a definition of two sentences was split inside its `data-def` attribute
+  and half the tag printed on the page. `_paragraphize` now masks markup before splitting.
+
 - **Task lists are checkboxes you can tick.** `- [ ]` / `- [x]` items in any sectioned
   document render as checkboxes; on the local app, ticking one POSTs to `/actions/task/`,
   which rewrites that marker in the markdown file (CSRF-protected, `.md` under the data
