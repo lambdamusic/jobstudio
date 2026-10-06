@@ -8,7 +8,7 @@
      Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #77 -->
+     Next available: #81 -->
 
 ## Architecture
 - [ ] `#75` **Simplify the config settings — or at least say plainly what each one is for** — raised 2026-10-02 by Michele, after setting the toolkit up on a second machine: *"Shall we consider simplifying the config settings? Unclear to me now what is needed."* Design in [`plans/075-config-layers.md`](plans/075-config-layers.md).
@@ -90,6 +90,12 @@
 
   **The FAQ goes in the in-app help page**, which is where someone looking at an export is already standing: `HELP_STEPS` in `src/web/apps/tracker/views.py:959`, rendered by `tracker/help.html`. There is no FAQ anywhere in the repo yet, so this creates the first one and the shape it takes is a precedent. Two reasons to give, plus the escape hatch: **(a)** `.docx` is the format ATS and AI parsers read most reliably, which is the only moment the file's format matters; **(b)** every other format costs a dependency the toolkit would have to carry forever; **(c)** anyone who needs a PDF exports one from Word or Pages in a single step, better than Chrome would have.
 
+- [ ] `#80` **`/jobstudio cv` should render the tailored CV to `.docx`, as `cover-letter` already does** — raised 2026-10-06 by Michele, after tailoring a CV and finding nothing in `export/`: *"why is the CV not exported?"*
+
+  Tailoring (`subcommands/cv.md` §B, step 6) saves only the markdown. `cover-letter.md` step 7 renders the `.docx` on save, so the two halves of an application end up in different states, and the CV — the one that actually gets sent — is the one missing. Fix: after the step-6 save, run `tools/py src/render.py --functional|--chronological --file <saved path>`, so the CV lands in the application's `export/` next to the letter. (Reproduce on example data: tailoring `001-grafana-labs` leaves no CV in `export/`.)
+
+  **Related wrinkle — the dates drift apart.** The folder copy that `application` installs is dated the day the role was logged; the render is dated the day it runs. Tailor a day later and the `.md` and `.docx` carry different dates. Consider renaming the `.md` to the tailoring date on save — step 6 already deletes a superseded copy whose date differs, so a rename fits that rule rather than adding a new one. The thin cover-letter stub has the same issue when the full letter is written on a later day.
+
 ## Onboarding and docs
 - [ ] `#68` **Quick Start should be about using the toolkit, not installing it** — raised 2026-10-01 by Michele. The README's Quick Start is currently setup: virtualenv, `init`, start the web app. That answers "how do I get this running" and never "what do I do with it", which is the question somebody reading the README actually has.
 
@@ -105,6 +111,30 @@
   - [ ] **Decide where the list lives.** A curated list shipped with the repo is the same for everyone; a personal one belongs in the data root next to the user's notes. Probably both — a few shipped defaults the user can add to — but that is the question to settle first, since it decides whether this is a template change or a new file the app reads.
   - [ ] **Decide where it shows.** Candidates: a section on the help page (`src/web/apps/tracker/templates/tracker/help.html`), a small panel on the dashboard (`tracker/home.html`), or a page of its own in the sidebar (`src/web/templates-global/base.html`). The dashboard is where it would actually get seen; the help page is where it fits without competing with the tracker.
   - [ ] Links open in a new tab, as everywhere else since `#17`.
+
+- [ ] `#77` **Highlighter: mark lines worth remembering on a page, saved back into the markdown** — raised 2026-10-06 by Michele: *"When I study a company profile, notes or interview prep document — I'd like to highlight specific lines that I want to remember. Is there a way to provide such a functionality in the HTML page, and somehow render it in the markdown in some form?"*
+
+  **Yes, and most of the plumbing exists.** The task-list write-back (`141852a`) already does the hard part: on the local app, ticking a checkbox POSTs to `/actions/task/` (`views.toggle_task`, `views.py:1174`), which edits the source `.md` under the data root — CSRF-protected, refused if page and file have drifted. A highlighter is the same round trip with a different edit: select text on the page, POST it, wrap it in a marker in the file.
+
+  **The markdown form: `==text==`**, the de facto highlight syntax (Obsidian, Typora, iA Writer, pymdown's `mark` extension). It reads fine as plain text, survives in any editor, and renders as `<mark>`. Python-Markdown does not support it out of the box — `MD_EXTENSIONS` (`jobs_extras.py:13`) would need `pymdownx.mark` (a new dependency) or a small inline pattern of our own, which is a few lines and keeps the dependency list as is.
+
+  **What makes it awkward: mapping a browser selection back to the source.** Checkboxes are countable (`task_spans` numbers them); an arbitrary selection is not — the rendered text has lost the markdown (links, bold, the `_paragraphize` splits, glossary links). Options, cheapest first:
+  - Highlight **whole lines/paragraphs only** — click a block, toggle `==…==` around it. Maps cleanly if blocks carry a source index the way tasks do. Probably enough: "lines I want to remember" is the ask.
+  - Highlight an **arbitrary span** — send the selected text plus some surrounding context, find it in the source, refuse if it is not found exactly once or crosses markup. More useful, more edge cases.
+
+  - [ ] Decide block-level vs span-level (start block-level unless it feels too coarse in use).
+  - [ ] Render `==text==` as `<mark>` everywhere markdown is rendered, including the published site (read-only there, like tasks).
+  - [ ] Local app: a selection/click affordance plus an endpoint modelled on `toggle_task`, same safety rules (data root only, `.md` only, drift check). Un-highlighting should be the same gesture.
+  - [ ] Nice-to-have: a "highlights" view per company/application collecting the `==…==` lines — useful as a last-minute revision sheet before an interview.
+
+- [ ] `#78` **A reference to another markdown file should be a link to its page** — raised 2026-10-06 by Michele: *"When a different markdown file / page is referenced, always link to it."* Example: the HR-screen round on an application page (`/applications/<num>/#round-…`) cites `jobs/notes/interview-technique.md` as plain text, though that note has its own page at `/notes/interview-technique/`.
+
+  The renderer already does this for bare URLs — `_autolink` (`src/web/apps/tracker/templatetags/jobs_extras.py:104`) rewrites them in text between tags. Path references need the same pass with a resolver: match `jobs/…/*.md` (in backticks too, since that is how they are usually written), map it to the page that renders that file, and leave it as plain text when no page exists. The known mappings: `jobs/notes/<slug>.md` → `note_detail`; a company's notes → `company_detail`; an application's folder files → `application_detail` (with the round anchor for round files); profile files → `profile`.
+
+  - [ ] A single path → URL resolver, ideally one that the views share rather than a second copy of the folder layout in the template tag.
+  - [ ] Link `[text](relative/path.md)` markdown links as well, not only bare paths — today they would point at a raw file path the server does not serve.
+  - [ ] Unresolvable paths stay as text (no dead links); on the published site, link only to pages that are actually published.
+  - [ ] On the skill side: say in the subcommands that write cross-references (`interview.md`, company notes) that writing the `jobs/…` path is enough — the page turns it into a link.
 
 ## File naming
 - [ ] `#27` **Re-order the application-folder naming convention to `{type}-{date-created}-{username}-{job-slug}`** — e.g. `cover-letter-2026-09-18-michele-pasin-046-bbc-studios.md`, replacing today's `{job-slug}-{username}-{type}-{date}` (`046-bbc-studios-michele-pasin-cover-letter-2026-09-18.md`, the 2026-09-08 convention in `src/appfolder.py`'s `app_filename()`). Putting the type first makes a folder listing sort by kind rather than by a company name every file in the folder already repeats. **Also covers interview-round files** (`<id>-<person>-interview-<stage>-<date>.md`, added 2026-09-24) — whose date is the interview's, not the file's, so the reorder must not assume a creation date. **Also apply it to `notes.md` and `job.md`**, which are currently bare names with no date or owner at all — so `notes-2026-09-18-michele-pasin-046-bbc-studios.md`, `job-2026-09-18-michele-pasin-046-bbc-studios.md`.

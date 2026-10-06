@@ -386,6 +386,21 @@
   The page also got a real lede, as the last sub-item asked. Six tests; 332 green, static
   build 264 pages with the link check clean.
 
+- [x] `#79` **Every prep-steps list is a checklist, not just the interview round's "Study before"** — raised 2026-10-06 by Michele. On an application page, the round's **Study before** renders as checkboxes you can tick (`141852a`), but the **Preparation steps** section of the application's `notes.md` is a plain numbered list — same kind of content, no checkboxes.
+
+  The cause is the skill, not the renderer: any `- [ ]` already renders as a ticking checkbox in every sectioned document. `interview.md:248` says *"`## Study before` is a checklist"*; `application.md:237` (the gap-analysis template) says *"Ordered list prioritised for this specific role"*, so the agent writes `1.` items. The order still matters there, which is presumably why it was numbered — a `- [ ]` list keeps its order, it just isn't numbered.
+
+  - [x] Change `### Preparation steps` in `subcommands/application.md` to a `- [ ]` checklist, with the same "one task per item, detail on indented lines" rule as `interview.md`. Better still, state the rule once ("any list of things to do is a `- [ ]` checklist") somewhere both subcommands follow, so the next prep-shaped section does not repeat this.
+  - [x] Sweep the other subcommands for to-do-shaped sections written as plain lists (gap analysis CV improvements? company research follow-ups?) and decide case by case.
+  - [x] Update `example-data/` (`001-grafana-labs`, `004-monzo`, `005-honeycomb` `notes.md` all have the section).
+  - [ ] Existing `notes.md` files in the data root keep their numbered lists; offer a one-off conversion of `### Preparation steps` (`1.` → `- [ ]`) rather than doing it silently.
+
+  **Done 2026-10-06 (`daccb6a`)** — the rule is now stated once, in `SKILL.md` ("Lists of things to do are checklists"): any list of things for the user to *do* is written as `- [ ]` tasks; questions, pros/cons, gaps and drafted answers stay plain bullets. `application.md`'s `### Preparation steps` and `interview.md`'s `## Study before` both point at it. The three `example-data` notes are converted, and `test_preparation_steps_in_application_notes_are_checkboxes` checks the section reaches the application page as checkboxes (fails on the old data, passes on the new).
+
+  The sweep found no other to-do lists in the subcommands. `### CV improvements` was the only candidate, and it stays as it is: it is a What/Why/Suggested text block for the agent to apply when tailoring, not a list for the user to tick off.
+
+  What it turned up: `task_spans` already matches numbered tasks (`1. [ ]`), so an ordered checklist was possible all along. The skill still writes `- [ ]`, so prep steps look the same as Study before. The data root holds 50 existing `notes.md` files with numbered `### Preparation steps` (3–12 items each). They are not converted; a one-off rewrite of `1.` → `- [ ]` (or `1. [ ]`, which keeps the numbers) was offered rather than done.
+
 ## File naming
 - [x] `#35` **Put rendered exports in an `export/` subfolder inside the application folder** — done 2026-09-24. A `.docx` rendered from a tailored CV or a cover letter now lands in `applications/<num>-<slug>/export/`, leaving only authored markdown (`job.md`, `notes.md`, the CV, the cover letter, the interview rounds) at the top level. `<DATA>/exports/<fmt>/<date>/` — plural, at the data root — is untouched.
 
