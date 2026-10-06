@@ -453,6 +453,15 @@
 
   **Follow-up, same day:** Profile (`stocktake.md`) and the Job description tab now take highlights too. They render the file whole rather than through `sectioned()`, so a new `hl_marks` filter numbers the marks before `strip_h1`, keeping the index an index into the file. The toggle button became yellow with a gold border — Michele found the white one too easy to miss — and turns the full highlight yellow when on. The "highlights view" nice-to-have is still not built.
 
+- [x] `#81` **Remove the "Open in VS Code" links from every page** — raised 2026-10-06 by Michele: a `vscode://file/` link often lands in whatever VS Code window is already open and replaces its workspace, and active Claude Code sessions running in that window are lost. That cost is out of all proportion to what the link saves, and nothing on the page warns about it.
+
+  Eight links across four templates, all built from `{{ EDITOR_URL_SCHEME }}`: `application_detail.html` (folder button, base-CV, Other files ×2, interview round), `company_detail.html`, `interview_round.html`, `cvs/base_cv_detail.html`. Plus the admin column in `admin.py:42`. **Open folder** (`views.reveal_folder`, Finder) stays — it opens no editor, so it has no window to hijack. Then remove the setting that only these links read: the context processor key (`context_processors.py:26`), `editor_url_scheme` in the `.ini` template (`jobsinit.py:204`), the mentions in `docs/workflow.md`, `docs/getting-started.md` and `src/web/README.md`, and the `editor_url_scheme` line in `#75` and its plan. `build_static.py:151` skips `vscode:` links and can stay as is — harmless, and a hand-written one in a note would still be skipped.
+
+  - [x] Remove the links and the `EDITOR_URL_SCHEME` context key; tests asserting the link go.
+  - [x] Remove the `editor_url_scheme` setting from `jobsinit.py`, the docs, and `#75`'s list of `.ini` settings.
+
+  **Done 2026-10-06 (`921b2b5`).** Removed as listed. **What it turned up: the two "Open .docx" links (CV and Cover letters tabs) went through the same `vscode://file/` scheme** — so a Word file was being handed to VS Code, with the same risk to an open window. Dropping the setting would have broken them, so they now go to a new local-only `/actions/open-docx/?path=…` (`views.open_docx`), which opens the file in the default app through `_open_locally`, the opener behind Open folder: data root only, `.docx` only. `editor_url_scheme` is gone from the `.ini` template; `open_command` is now the only per-machine setting besides the data root, noted on `#75`. The `#75` plan's 2026-10 inventory was left as written, being a dated record.
+
 ## File naming
 - [x] `#35` **Put rendered exports in an `export/` subfolder inside the application folder** — done 2026-09-24. A `.docx` rendered from a tailored CV or a cover letter now lands in `applications/<num>-<slug>/export/`, leaving only authored markdown (`job.md`, `notes.md`, the CV, the cover letter, the interview rounds) at the top level. `<DATA>/exports/<fmt>/<date>/` — plural, at the data root — is untouched.
 
