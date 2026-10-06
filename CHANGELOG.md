@@ -4,6 +4,17 @@ Dated entries, newest first.
 
 ## 2026-10-06
 
+- **No more "Open in VS Code" links.** A `vscode://` link can land in a VS Code window
+  that is already open and replace its workspace, taking any Claude Code session running
+  there with it. All eight are gone, as is the admin's VS Code column and the
+  `editor_url_scheme` setting. **Open .docx** on the CV and Cover letters tabs, which went
+  through the same scheme, now opens the export in the default app (Word, Pages) the way
+  **Open folder** opens Finder.
+
+- **The Highlight button shows only where there is something to highlight** — on an
+  application, the Interviews, Job description and My notes tabs, not CV, Cover letters
+  or History.
+
 - **Highlighter.** On the local app, a **Highlight** button (or the `H` key) turns on
   highlight mode on any page with notes, company research, an interview round, a job
   description or the career stocktake profile: select

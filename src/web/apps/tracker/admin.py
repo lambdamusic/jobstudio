@@ -6,8 +6,6 @@ markdown. Edits stick. Back them up with `tools/db-dump`.
 
 from pathlib import Path
 
-import config
-
 from django.conf import settings
 from django.contrib import admin
 from django.db.models import Count
@@ -32,16 +30,15 @@ def _abs(rel_path: str) -> Path:
 
 
 def _file_links(rel_path: str, label: str = ""):
-    """Open-in-Finder and open-in-VSCode links for a path relative to the repo root."""
+    """An open-in-Finder link for a path relative to the data root. No editor link: a
+    `vscode://` URL can take over an open VS Code window (TODO `#81`)."""
     if not rel_path:
         return "—"
     target = _abs(rel_path)
     return format_html(
         '<code>{}</code><br>'
-        '<a href="file://{}">Finder</a> &middot; '
-        '<a href="{}{}">VS Code</a>',
+        '<a href="file://{}">Finder</a>',
         label or rel_path, target,
-        config.setting("editor_url_scheme", "vscode://file/"), target,
     )
 
 

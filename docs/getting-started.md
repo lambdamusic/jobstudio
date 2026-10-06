@@ -130,7 +130,7 @@ Five files, and each one lives next to what it configures rather than in a singl
 | `<data>/jobs/targets/<area>.yaml` | One **target area**: a CV positioning, with the emphasis bullets and key terms that tailor a CV and score a scan | Whenever you add or rethink a kind of role you're going after |
 | `<data>/jobs/profile/criteria.yaml` | What you'll accept — dealbreakers, salary floor, weighted motivators, sectors. Pairs with `stocktake.md` | After `/jobstudio stocktake`, or when your bar moves |
 | `<data>/jobs/scan-config.yaml` | Scanning: ATS overrides for companies whose careers URL hides the real board, category → area mapping, and why a company isn't scanned | When a tracked company shows up "not scanned" but does have an ATS |
-| `~/.jobstudio.ini` | Per-machine, not per-search: where the data root is, plus optional `open_command` (`open` / `xdg-open`) and `editor_url_scheme` (the "Open in VS Code" links) | Moving the data root |
+| `~/.jobstudio.ini` | Per-machine, not per-search: where the data root is, plus optional `open_command` (`open` / `xdg-open`) | Moving the data root |
 
 **None of them is strictly required, but your name has to come from somewhere.** If
 `config.yaml` is absent, identity falls back to the `# Name` heading of your base

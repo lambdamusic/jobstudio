@@ -149,6 +149,18 @@ def blank_links(html):
     return mark_safe(html)
 
 
+@register.filter(name="data_rel")
+def data_rel(path):
+    """An absolute path as a path relative to the data root, for an `actions/` URL."""
+    from pathlib import Path
+
+    from django.conf import settings
+    try:
+        return str(Path(path).resolve().relative_to(Path(settings.DATA_ROOT).resolve()))
+    except ValueError:
+        return ""
+
+
 @register.filter(name="hl_marks")
 def hl_marks(text, source):
     """`==text==` as numbered `<mark>`s the highlighter can remove (`#77`), for a whole

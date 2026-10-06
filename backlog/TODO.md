@@ -23,7 +23,7 @@
   - [ ] Whichever is chosen, `SKILL.md`, `docs/getting-started.md` and `subcommands/init.md` all describe the `.ini` and would need to agree.
   - [ ] Do **not** fold this into skill installation (`#57`/`#2`) — a user-level install would make layer 3 genuinely reachable, but that is a bigger question and this item should not wait on it.
 
-  **Update 2026-10-06:** `#70` removed PDF export, and `chrome_path` with it — the `.ini`'s non-data-root settings are now `editor_url_scheme` and `open_command`.
+  **Update 2026-10-06:** `#70` removed PDF export, and `chrome_path` with it — the `.ini`'s non-data-root settings are now `editor_url_scheme` and `open_command`. Then `#81` removed `editor_url_scheme`, leaving `open_command` as the only one.
 
 
 - [ ] `#52` **Drop `scan --api` entirely; get headless scans from `claude setup-token` instead** — raised 2026-09-30. `#1` kept the API path mainly because it was the only fully headless/cron-able scan. `claude setup-token` removes that reason: it prints a one-year OAuth token (Pro/Max/Team/Enterprise plan) meant for scripts and CI; exported as `CLAUDE_CODE_OAUTH_TOKEN`, a non-interactive `claude -p` run can do the default agent-native scan on the user's own subscription — no API key anywhere in the toolkit. [Auth docs](https://code.claude.com/docs/en/authentication#generate-a-long-lived-token).

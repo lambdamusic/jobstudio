@@ -1271,7 +1271,7 @@ def highlight(request):
 
 def create_folder(request, num):
     """Local-only: an application with no folder yet shows a "Create folder" action
-    instead of Open folder / Open in VS Code. Runs the same appfolder.ensure_folder()
+    instead of Open folder. Runs the same appfolder.ensure_folder()
     the jobstudio skill uses, then redirects back."""
     if settings.ENVIRONMENT != "local":
         raise Http404("Local only")
@@ -1307,6 +1307,22 @@ def set_status(request, num, status):
         app.status = status
         app.save(update_fields=["status"])
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
+
+
+def open_docx(request):
+    """Local-only: open an exported `.docx` in the desktop's default app (Word, Pages).
+
+    `?path=` is relative to the data root. Only `.docx` files: the links that call this
+    used to be `vscode://file/` URLs, which open in whatever VS Code window is already
+    up and can replace its workspace (TODO `#81`).
+    """
+    if settings.ENVIRONMENT != "local":
+        raise Http404("Local only")
+    path = Path(settings.DATA_ROOT) / request.GET.get("path", "")
+    if path.suffix != ".docx" or not path.is_file():
+        raise Http404("No such .docx")
+    _open_locally(path)  # refuses anything outside the data root
+    return HttpResponseRedirect(request.META.get("HTTP_REFERER", "/"))
 
 
 def reveal_company_notes(request, slug):

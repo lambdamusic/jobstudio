@@ -2974,6 +2974,26 @@ class ExportFolderTests(TestCase):
         self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
         self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
 
+    def test_an_export_opens_in_the_desktop_app_and_nothing_links_to_vs_code(self):
+        """#81: a `vscode://` link can take over an open VS Code window, so none are left;
+        an export opens through the same local opener as Open folder."""
+        import appfolder
+        from unittest import mock
+
+        app, cv_md = self._cv_markdown()
+        docx = self._place(appfolder.export_dir(app.folder_path) / cv_md.with_suffix(".docx").name)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertNotIn("vscode:", html)
+        self.assertIn("/actions/open-docx/?path=", html)
+
+        rel = docx.resolve().relative_to(Path(settings.DATA_ROOT).resolve())
+        with mock.patch("tracker.views._open_locally") as opened:
+            self.assertEqual(self.client.get("/actions/open-docx/", {"path": str(rel)}).status_code, 302)
+            opened.assert_called_once()
+            for bad in (str(cv_md.relative_to(Path(settings.DATA_ROOT).resolve())), "nope.docx"):
+                with self.subTest(path=bad):
+                    self.assertEqual(self.client.get("/actions/open-docx/", {"path": bad}).status_code, 404)
+
     def test_a_docx_beside_its_markdown_is_still_found(self):
         """Pre-2026-09-24 folders are not migrated; dropping the flat lookup would make
         every .docx already on disk vanish from the tab that links it."""

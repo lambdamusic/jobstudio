@@ -39,7 +39,6 @@
     {% if IS_LOCAL %}
       {% if company.notes_path %}
         <a class="btn local-only" href="/actions/reveal-company/{{ company.slug }}/">Open folder</a>
-        <a class="btn local-only" href="{{ EDITOR_URL_SCHEME }}{{ company.notes_path }}">Open in VS Code</a>
       {% endif %}
       <a class="btn local-only" href="/admin/tracker/company/{{ company.pk }}/change/"
          target="_blank" rel="noopener">Edit in admin</a>
