@@ -363,6 +363,11 @@ class Application(models.Model):
     def job_md(self) -> str:
         return _read(self._folder_file("job.md"))
 
+    @property
+    def job_source(self) -> str | None:
+        """`job.md`'s path for the highlighter (`#77`) — None off the local app."""
+        return _task_source(self._folder_file("job.md"))
+
     @cached_property
     def notes_md(self) -> str:
         return _read(self._folder_file("notes.md"))

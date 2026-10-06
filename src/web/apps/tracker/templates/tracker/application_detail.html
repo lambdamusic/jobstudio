@@ -127,7 +127,7 @@
   {% if app.job_md %}
     <section class="tabpanel" data-panel="job" role="tabpanel">
       <h2 class="panel-heading">Job description</h2>
-      <div class="panel prose panel-sunk">{{ app.job_md|strip_h1|markdown|blank_links }}</div>
+      <div class="panel prose panel-sunk hl-doc"{% if app.job_source %} data-hl-source="{{ app.job_source }}"{% endif %}>{{ app.job_md|hl_marks:app.job_source|strip_h1|markdown|blank_links }}</div>
     </section>
   {% endif %}
 

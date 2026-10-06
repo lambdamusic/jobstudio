@@ -3298,6 +3298,21 @@ class HighlightTests(TestCase):
                 r = self.client.post("/actions/highlight/", {"source": "jobs/r.md", "text": "One"})
                 self.assertEqual(r.status_code, 404)
 
+    def test_the_job_description_and_profile_take_highlights_locally(self):
+        from django.test import override_settings
+        from tracker.templatetags.jobs_extras import hl_marks
+        self.assertEqual(hl_marks("# T\n\n==a b==\n", "jobs/x.md"),
+                         '# T\n\n<mark class="hl" data-mark="0">a b</mark>\n')
+        self.assertEqual(hl_marks("==a b==", None), "==a b==")
+        pages = {"/applications/1/": 'data-hl-source="jobs/applications/001-grafana-labs/job.md"',
+                 "/profile/": 'data-hl-source="jobs/profile/stocktake.md"'}
+        for url, attr in pages.items():
+            with self.subTest(url=url):
+                with override_settings(ENVIRONMENT="local"):
+                    self.assertIn(attr, self.client.get(url).content.decode())
+                with override_settings(ENVIRONMENT="publish"):
+                    self.assertNotIn("data-hl-source", self.client.get(url).content.decode())
+
 
 class CoverLetterFormatTests(TestCase):
     """`.docx` is the version that gets sent, and since TODO `#70` the only one written.

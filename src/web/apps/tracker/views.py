@@ -1006,6 +1006,7 @@ def profile_view(request):
         "page": "profile",
         "title": "Career stocktake",
         "body": stocktake.read_text() if stocktake.is_file() else "",
+        "source": _task_source(stocktake) if stocktake.is_file() else None,
         "criteria": criteria.read_text() if criteria.is_file() else "",
     })
 

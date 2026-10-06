@@ -5,7 +5,8 @@ Dated entries, newest first.
 ## 2026-10-06
 
 - **Highlighter.** On the local app, a **Highlight** button (or the `H` key) turns on
-  highlight mode on any page with notes, company research or an interview round: select
+  highlight mode on any page with notes, company research, an interview round, a job
+  description or the career stocktake profile: select
   text and it is saved to the markdown as `==text==`; click a highlight to remove it.
   The selection is matched against the source with markup ignored, snapped to whole
   words, widened rather than split where it meets a link, code span or bold run, and

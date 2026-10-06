@@ -434,6 +434,25 @@
 
   What the data showed: no file in the real data root used a markdown link to a `.md` at all — every reference was a backticked path (`stocktake.md` alone 37 times). A crawl of 224 real pages found 31 new links, all resolving, anchors included.
 
+- [x] `#77` **Highlighter: mark lines worth remembering on a page, saved back into the markdown** — raised 2026-10-06 by Michele: *"When I study a company profile, notes or interview prep document — I'd like to highlight specific lines that I want to remember. Is there a way to provide such a functionality in the HTML page, and somehow render it in the markdown in some form?"*
+
+  **Yes, and most of the plumbing exists.** The task-list write-back (`141852a`) already does the hard part: on the local app, ticking a checkbox POSTs to `/actions/task/` (`views.toggle_task`, `views.py:1174`), which edits the source `.md` under the data root — CSRF-protected, refused if page and file have drifted. A highlighter is the same round trip with a different edit: select text on the page, POST it, wrap it in a marker in the file.
+
+  **The markdown form: `==text==`**, the de facto highlight syntax (Obsidian, Typora, iA Writer, pymdown's `mark` extension). It reads fine as plain text, survives in any editor, and renders as `<mark>`. Python-Markdown does not support it out of the box — `MD_EXTENSIONS` (`jobs_extras.py:13`) would need `pymdownx.mark` (a new dependency) or a small inline pattern of our own, which is a few lines and keeps the dependency list as is.
+
+  **What makes it awkward: mapping a browser selection back to the source.** Checkboxes are countable (`task_spans` numbers them); an arbitrary selection is not — the rendered text has lost the markdown (links, bold, the `_paragraphize` splits, glossary links). Options, cheapest first:
+  - Highlight **whole lines/paragraphs only** — click a block, toggle `==…==` around it. Maps cleanly if blocks carry a source index the way tasks do. Probably enough: "lines I want to remember" is the ask.
+  - Highlight an **arbitrary span** — send the selected text plus some surrounding context, find it in the source, refuse if it is not found exactly once or crosses markup. More useful, more edge cases.
+
+  - [x] Decide block-level vs span-level (start block-level unless it feels too coarse in use).
+  - [x] Render `==text==` as `<mark>` everywhere markdown is rendered, including the published site (read-only there, like tasks).
+  - [x] Local app: a selection/click affordance plus an endpoint modelled on `toggle_task`, same safety rules (data root only, `.md` only, drift check). Un-highlighting should be the same gesture.
+  - [ ] Nice-to-have: a "highlights" view per company/application collecting the `==…==` lines — useful as a last-minute revision sheet before an interview.
+
+  **Done 2026-10-06 — tried by Michele, merged to `dev`.** Decided: **span-level** (any selection, per Michele), with a **toggle button** (and `H`) so ordinary text selection is unaffected when it is off. `tracker/highlights.py` matches the rendered selection against a plain-text view of the source in which markup is invisible but keeps its position; snaps to whole words, widens rather than splits a link/code/bold run, splits per line and per table cell, places a repeated passage by its context or refuses. Headings and code are refused. Marks are counted file-wide (`mark_spans`, as `task_spans` is for tasks) so a click removes exactly that one. Covers My notes, company research, notes, interview rounds (and the focus view) and Other files; **not** Profile or the Job description tab, which render markdown directly — follow-up if wanted. The "highlights view" nice-to-have is not built.
+
+  **Follow-up, same day:** Profile (`stocktake.md`) and the Job description tab now take highlights too. They render the file whole rather than through `sectioned()`, so a new `hl_marks` filter numbers the marks before `strip_h1`, keeping the index an index into the file. The toggle button became yellow with a gold border — Michele found the white one too easy to miss — and turns the full highlight yellow when on. The "highlights view" nice-to-have is still not built.
+
 ## File naming
 - [x] `#35` **Put rendered exports in an `export/` subfolder inside the application folder** — done 2026-09-24. A `.docx` rendered from a tailored CV or a cover letter now lands in `applications/<num>-<slug>/export/`, leaving only authored markdown (`job.md`, `notes.md`, the CV, the cover letter, the interview rounds) at the top level. `<DATA>/exports/<fmt>/<date>/` — plural, at the data root — is untouched.
 

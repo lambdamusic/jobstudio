@@ -149,6 +149,14 @@ def blank_links(html):
     return mark_safe(html)
 
 
+@register.filter(name="hl_marks")
+def hl_marks(text, source):
+    """`==text==` as numbered `<mark>`s the highlighter can remove (`#77`), for a whole
+    file rendered without `sectioned()`. Before `strip_h1`, so the numbering counts the
+    file as it is on disk. With no `source` (published site) `markdown` does it unnumbered."""
+    return render_marks(text, source) if source else text
+
+
 @register.filter(name="strip_h1")
 def strip_h1(text):
     """Drop a leading '# Title' — the page already shows it as a heading.
