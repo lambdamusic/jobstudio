@@ -127,6 +127,13 @@ it just isn't numbered. One task per item; detail can follow on indented lines.
 Lists that are not to-dos — questions, pros and cons, gaps, drafted answers — stay plain
 bullets.
 
+## Highlights are the user's — keep them
+
+`==text==` in a notes, company or interview file is a highlight the user made on the page
+(TODO `#77`). When editing a file that has them, keep every `==…==` exactly where it is,
+including when rewriting the passage around it, and never add one yourself. If a
+rewrite genuinely removes a highlighted passage, say so.
+
 ## Referring to another file
 
 Write the path, in backticks: `` `jobs/notes/interview-technique.md` ``,

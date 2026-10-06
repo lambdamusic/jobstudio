@@ -4,6 +4,15 @@ Dated entries, newest first.
 
 ## 2026-10-06
 
+- **Highlighter.** On the local app, a **Highlight** button (or the `H` key) turns on
+  highlight mode on any page with notes, company research or an interview round: select
+  text and it is saved to the markdown as `==text==`; click a highlight to remove it.
+  The selection is matched against the source with markup ignored, snapped to whole
+  words, widened rather than split where it meets a link, code span or bold run, and
+  split per line or table cell where it crosses one; a passage that appears twice is
+  placed by the text around it, or refused. Highlights render as `<mark>` everywhere,
+  read-only on the published site.
+
 - **`.docx` is the only export; PDF and HTML are gone.** `render.py` loses `--format`
   (and the deprecated `--docx`), the HTML templates, and the headless-Chrome PDF path —
   an out-of-process dependency that also ruled out Windows. `chrome_path` is no longer a

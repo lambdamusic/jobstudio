@@ -751,3 +751,27 @@ input.task-box:disabled { cursor: default; }
 li:has(> input.task-box:checked), li:has(> p > input.task-box:checked) {
   color: var(--faint); text-decoration: line-through; text-decoration-color: var(--line);
 }
+
+/* ---------- highlights (#77) ----------
+   `==text==` in the markdown. A pale tint of the brand gold, so a highlight reads as the
+   reader's own mark rather than as a status or a link. */
+mark.hl { background: #f8e7b0; color: inherit; padding: 0 1px; border-radius: 2px; }
+
+/* The toggle: fixed, out of the content's way, only on the local app and only on pages
+   with a document that can be written back to (highlight.js adds it). */
+.hl-toggle {
+  position: fixed; right: 18px; bottom: 18px; z-index: 50;
+  font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08); cursor: pointer;
+}
+.hl-toggle:hover { border-color: var(--gold); }
+.hl-toggle[aria-pressed="true"] { background: #f8e7b0; border-color: var(--gold); }
+body.hl-on .hl-doc[data-hl-source] ::selection { background: #f3d77a; }
+body.hl-on mark.hl[data-mark] { cursor: pointer; }
+body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decoration-color: var(--muted); }
+.hl-note {
+  position: fixed; right: 18px; bottom: 60px; z-index: 50; max-width: 320px;
+  font-size: 13px; padding: 8px 12px; border-radius: var(--radius);
+  background: var(--navy); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}

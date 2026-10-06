@@ -3215,6 +3215,90 @@ class RenderDestinationTests(TestCase):
         self.assertNotIn("_maybe_copy_to_app_folder", source)
 
 
+class HighlightTests(TestCase):
+    """#77: select text on a page and it becomes `==text==` in the markdown. The page
+    shows rendered text, so the hard part is finding that text in the source without
+    ever splitting a construct; these pin the cases that would."""
+
+    fixtures = FIXTURE
+    DOC = ("# Title\n\nGrafana sells **observability** software. See [the docs](https://x.y/z)"
+           " for more.\n\n- [ ] Read three RFCs and have an opinion on one.\n- Keep the"
+           " story to `three` minutes.\n\n| A | B |\n|---|---|\n| alpha one | beta two |\n\n"
+           "Grafana sells software twice.\n\n```\nGrafana sells code\n```\n")
+
+    def _add(self, selected, before="", after=""):
+        from tracker.highlights import add
+        return add(self.DOC, selected, before, after)
+
+    def test_a_selection_never_splits_a_construct(self):
+        self.assertIn("Grafana ==sells **observability**== software", self._add("sells observability"))
+        self.assertIn("See ==[the docs](https://x.y/z) for== more", self._add("the docs for"))
+        self.assertIn("==to `three` minutes==", self._add("to three minutes"))
+
+    def test_a_selection_snaps_to_whole_words(self):
+        self.assertIn("==Read three RFCs== and", self._add("ead three RF", "- [ ] R", "Cs and"))
+
+    def test_line_markers_stay_outside_the_highlight(self):
+        self.assertIn("- [ ] ==Read three RFCs== and", self._add("Read three RFCs"))
+
+    def test_a_selection_across_lines_or_cells_is_one_highlight_each(self):
+        out = self._add("opinion on one.\nKeep the")
+        self.assertIn("have an ==opinion on one.==\n- ==Keep the== story", out)
+        self.assertIn("| ==alpha one== | ==beta two== |", self._add("alpha one\tbeta two"))
+
+    def test_repeated_text_is_placed_by_its_context_or_refused(self):
+        from tracker.highlights import HighlightError
+        with self.assertRaises(HighlightError):
+            self._add("Grafana sells")
+        self.assertIn("==Grafana sells== software twice", self._add("Grafana sells", "", " software twice"))
+
+    def test_headings_code_and_overlaps_are_refused(self):
+        from tracker.highlights import HighlightError, add
+        for sel in ("Title", "not in the file"):
+            with self.subTest(sel=sel), self.assertRaises(HighlightError):
+                self._add(sel)
+        with self.assertRaises(HighlightError):
+            add(self._add("Read three RFCs"), "three RFCs and")
+
+    def test_remove_undoes_add_and_marks_are_counted_outside_code(self):
+        from tracker.highlights import mark_spans, remove
+        out = self._add("Read three RFCs")
+        self.assertEqual(remove(out, 0), self.DOC)
+        self.assertEqual(mark_spans("`==code==` and ==real==\n```\n==fenced==\n```\n"), [(15, 23)])
+        self.assertEqual(mark_spans("Title\n=====\n"), [])
+
+    def test_marks_render_live_locally_and_read_only_when_published(self):
+        from tracker.parsers import sectioned
+        from tracker.templatetags.jobs_extras import markdownify
+        live = sectioned("## A\n\nSome ==key line== here.\n", "n", source="jobs/x.md")
+        self.assertIn('<mark class="hl" data-mark="0">key line</mark>', live["blocks"][0]["body_md"])
+        self.assertEqual(live["source"], "jobs/x.md")
+        self.assertIn('<mark class="hl">key line</mark>', markdownify("Some ==key line== here."))
+
+    def test_the_endpoint_writes_the_file_and_keeps_the_task_rules(self):
+        import tempfile
+        from django.test import override_settings
+        with tempfile.TemporaryDirectory() as root:
+            f = Path(root) / "jobs" / "r.md"
+            f.parent.mkdir()
+            f.write_text("One line to keep.\n")
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="local"):
+                post = lambda **d: self.client.post("/actions/highlight/", {"source": "jobs/r.md", **d})
+                self.assertEqual(post(text="line to keep", before="One ").status_code, 200)
+                self.assertEqual(f.read_text(), "One ==line to keep==.\n")
+                r = post(text="nowhere")
+                self.assertEqual(r.status_code, 409)
+                self.assertIn("Couldn't find", r.json()["error"])
+                self.assertEqual(post(remove="0").status_code, 200)
+                self.assertEqual(f.read_text(), "One line to keep.\n")
+                self.assertEqual(post(remove="0").status_code, 409)
+                r = self.client.post("/actions/highlight/", {"source": "../x.md", "text": "a"})
+                self.assertEqual(r.status_code, 404)
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="publish"):
+                r = self.client.post("/actions/highlight/", {"source": "jobs/r.md", "text": "One"})
+                self.assertEqual(r.status_code, 404)
+
+
 class CoverLetterFormatTests(TestCase):
     """`.docx` is the version that gets sent, and since TODO `#70` the only one written.
     HTML used to come out every time because the PDF path needed something for Chrome to

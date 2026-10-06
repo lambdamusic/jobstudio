@@ -26,6 +26,7 @@ from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
 from . import parsers as P
 from .derived import ensure_fresh
 from .models import (
+    _task_source,
     ACTIVE_STATUSES,
     Application,
     ApplicationStatusChange,
@@ -974,7 +975,7 @@ def _note(path):
     body = path.read_text()
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     return {"slug": path.stem, "title": title, "short": P.short_title(title),
-            "body": body, "doc": P.sectioned(body, path.stem)}
+            "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path))}
 
 
 def note_list(request):
@@ -1191,6 +1192,25 @@ def reveal_folder(request, num):
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
 
 
+def _local_md_file(request):
+    """The markdown file a local-only write endpoint was asked to edit, or the error
+    response to send instead. The rules every such endpoint shares: local app only, POST
+    only (CSRF-protected like any POST), and `source` must resolve to an existing `.md`
+    file inside the data root."""
+    if settings.ENVIRONMENT != "local":
+        raise Http404("Local only")
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "POST only"}, status=405)
+    root = Path(settings.DATA_ROOT).resolve()
+    try:
+        path = (root / request.POST["source"]).resolve()
+    except KeyError:
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    if root not in path.parents or path.suffix != ".md" or not path.is_file():
+        return JsonResponse({"ok": False, "error": "no such file"}, status=404)
+    return path
+
+
 def toggle_task(request):
     """Local-only: tick or untick one `- [ ]` task in a markdown file under the data root.
 
@@ -1200,18 +1220,13 @@ def toggle_task(request):
     tick survives a reload, an editor, and a publish. CSRF-protected like any POST; the
     path must resolve inside the data root and be a `.md` file that exists.
     """
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
-    if request.method != "POST":
-        return JsonResponse({"ok": False, "error": "POST only"}, status=405)
-    root = Path(settings.DATA_ROOT).resolve()
+    path = _local_md_file(request)
+    if isinstance(path, JsonResponse):
+        return path
     try:
-        path = (root / request.POST["source"]).resolve()
         index = int(request.POST["index"])
     except (KeyError, ValueError):
         return JsonResponse({"ok": False, "error": "bad request"}, status=400)
-    if root not in path.parents or path.suffix != ".md" or not path.is_file():
-        return JsonResponse({"ok": False, "error": "no such file"}, status=404)
     checked = request.POST.get("checked") == "true"
     text = path.read_text()
     try:
@@ -1219,6 +1234,38 @@ def toggle_task(request):
     except IndexError:
         return JsonResponse({"ok": False, "error": "task not found — reload the page"}, status=409)
     return JsonResponse({"ok": True, "checked": checked})
+
+
+def highlight(request):
+    """Local-only: add or remove a highlight (`==text==`) in a markdown file (TODO `#77`).
+
+    POST `source` plus either `text` (the selection as the page rendered it) with
+    `before` / `after` (the text either side, to tell repeated passages apart), or
+    `remove` (a highlight's index, as `highlights.mark_spans` counts it). Same rules as
+    the task endpoint; a selection that cannot be placed exactly says why (409) rather
+    than guessing.
+    """
+    from .highlights import HighlightError, add, remove
+
+    path = _local_md_file(request)
+    if isinstance(path, JsonResponse):
+        return path
+    text = path.read_text()
+    try:
+        if "remove" in request.POST:
+            new = remove(text, int(request.POST["remove"]))
+        else:
+            new = add(text, request.POST.get("text", ""), request.POST.get("before", ""),
+                      request.POST.get("after", ""))
+    except HighlightError as e:  # before ValueError, which it is a kind of
+        return JsonResponse({"ok": False, "error": str(e)}, status=409)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    except IndexError:
+        return JsonResponse({"ok": False, "error": "highlight not found — reload the page"},
+                            status=409)
+    path.write_text(new)
+    return JsonResponse({"ok": True})
 
 
 def create_folder(request, num):

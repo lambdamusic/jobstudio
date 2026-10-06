@@ -569,7 +569,11 @@ def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None,
     Returns the template's three keys directly, so a caller is one line and no view has to
     remember that prefixing comes before indexing.
     """
-    body_md = render_tasks(body_md, source)
+    from .highlights import render_marks
+
+    # Marks before tasks, and both before splitting: each is counted across the whole
+    # file, so an index on the page is an index into the file.
+    body_md = render_tasks(render_marks(body_md, source), source)
     split = split_sections(body_md)
     blocks = [
         {**b,
@@ -580,7 +584,7 @@ def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None,
     ]
     preamble = link_glossary(blocks, split["preamble"], prefix, glossary)
     return {"preamble_md": preamble, "blocks": blocks,
-            "sections": section_index(blocks), "body_md": body_md}
+            "sections": section_index(blocks), "body_md": body_md, "source": source}
 
 
 def find_scans(scans_dir: Path) -> list[dict]:
