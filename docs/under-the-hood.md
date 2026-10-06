@@ -89,9 +89,7 @@ tools/py src/render.py --functional --file <tailored.md> --label 001-acme
 tools/py src/render.py --cover-letter --file <letter.md> --label 001-acme
 ```
 
-`.docx` is the default and usually the only thing you want. `--format html` and
-`--format pdf` are opt-in extras; on a cover letter they are *additions*, since the
-`.docx` is written either way.
+`.docx` is the only output (TODO `#70`); a PDF is one export away in Word or Pages.
 
 ```bash
 tools/py src/render.py --functional --check              # parse only, writes nothing

@@ -3216,11 +3216,10 @@ class RenderDestinationTests(TestCase):
 
 
 class CoverLetterFormatTests(TestCase):
-    """`.docx` is the version that gets sent, so it is the only one written by default.
-    HTML used to come out every time because the PDF path needs something for Chrome to
-    print — harmless while renders went to `exports/`, but once they landed in the
-    application folder (2026-09-24) every cover letter left an `.html` beside its `.docx`
-    that nobody had asked for."""
+    """`.docx` is the version that gets sent, and since TODO `#70` the only one written.
+    HTML used to come out every time because the PDF path needed something for Chrome to
+    print — once renders landed in the application folder (2026-09-24) every cover letter
+    left an `.html` beside its `.docx` that nobody had asked for."""
 
     fixtures = FIXTURE
 
@@ -3242,34 +3241,12 @@ class CoverLetterFormatTests(TestCase):
             return []
         return sorted(p.name for p in self.export.glob(f"*.{ext}"))
 
-    def test_the_default_is_the_docx_alone(self):
+    def test_a_cover_letter_renders_to_the_docx_alone(self):
         self.render.export_cover_letter(self.letter)
 
         self.assertEqual(len(self._rendered("docx")), 1)
         self.assertEqual(self._rendered("html"), [])
         self.assertEqual(self._rendered("pdf"), [])
-
-    def test_html_is_written_only_when_it_is_asked_for(self):
-        self.render.export_cover_letter(self.letter, fmt="html")
-
-        self.assertEqual(len(self._rendered("html")), 1)
-        self.assertEqual(len(self._rendered("docx")), 1, "the .docx comes out either way")
-
-    def test_a_pdf_render_prints_from_a_temp_file_and_keeps_no_html(self):
-        seen = {}
-
-        def fake_print(html_path, pdf_path):
-            seen["readable"] = html_path.is_file()
-            seen["parent"] = html_path.parent
-            pdf_path.write_bytes(b"%PDF-1.4 not really")
-
-        with mock.patch.object(self.render, "_chrome_print_pdf", fake_print):
-            self.render.export_cover_letter(self.letter, fmt="pdf")
-
-        self.assertTrue(seen["readable"], "Chrome still needs real HTML to print")
-        self.assertNotEqual(seen["parent"].resolve(), self.export.resolve())
-        self.assertEqual(self._rendered("html"), [])
-        self.assertEqual(len(self._rendered("pdf")), 1)
 
 
 class PruneExportsCommandTests(TestCase):
@@ -4416,6 +4393,13 @@ class HelpPageTests(TestCase):
             for name in step["commands"]:
                 with self.subTest(step=step["heading"], command=name):
                     self.assertIn(name, known)
+
+    def test_the_faq_says_why_docx_is_the_only_export(self):
+        """#70: the help page is where someone looking at an export is standing."""
+        html = self.client.get("/help/").content.decode()
+        self.assertIn('id="faq"', html)
+        self.assertIn("Why only .docx", html)
+        self.assertIn("Word or Pages", html)
 
     def test_it_is_linked_from_the_sidebar_under_its_own_label(self):
         """Its own nav group, at the level of Tracker / Material / Local — not tucked

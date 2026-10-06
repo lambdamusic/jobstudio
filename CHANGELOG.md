@@ -4,6 +4,12 @@ Dated entries, newest first.
 
 ## 2026-10-06
 
+- **`.docx` is the only export; PDF and HTML are gone.** `render.py` loses `--format`
+  (and the deprecated `--docx`), the HTML templates, and the headless-Chrome PDF path —
+  an out-of-process dependency that also ruled out Windows. `chrome_path` is no longer a
+  setting. The help page gains its first FAQ, saying why: `.docx` is what ATS and AI
+  parsers read most reliably, and a PDF is one export away in Word or Pages.
+
 - **A reference to another file links to its page.** A path in prose —
   `jobs/notes/<slug>.md`, `jobs/companies/<slug>.md`, `stocktake.md`, a base CV, or a
   file in an application folder — renders as a link to the page that shows that file,

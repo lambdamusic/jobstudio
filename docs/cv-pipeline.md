@@ -104,47 +104,34 @@ get finished by hand, not by an agent.
 ## Rendering (no API call)
 
 `render.py` parses a CV markdown file — `parse_variant()` for the chronological format,
-`parse_functional()` for the functional one — into a data dict, then renders it. No
-network call is involved at this stage; it's pure templating.
+`parse_functional()` for the functional one — into a data dict, then builds a `.docx`
+from it. No network call is involved at this stage.
 
 ```bash
 python src/render.py --functional                                       # ATS-friendly .docx
 python src/render.py --chronological --file <path> --label 001-grafana-labs
 python src/render.py --functional --check                               # parse only, writes nothing
-
-# Opt-in extras, only when asked for by name:
-python src/render.py --chronological --file <path> --format pdf          # PDF (via Chrome headless)
-python src/render.py --functional --format html
 ```
 
-- **HTML** — `render_html()` / `render_functional()` fill a Python `string.Template`
-  file under `src/templates/` (`cv_navy.html` for the two-column chronological layout,
-  `cv_functional.html` for the single-column functional one).
-- **PDF** — HTML is rendered first, then printed by headless Chrome
-  (`--headless --print-to-pdf=...`, no header/footer). `_find_chrome()` looks for a
-  local Chrome install; there's no PDF path without it.
-- **.docx** — a separate code path (`cv_docx.build_functional()` /
-  `cv_docx.build_chronological()`, needs `python-docx`) builds a real single-column Word
-  document with actual heading styles and no pseudo-bullets, rather than converting the
-  HTML/PDF layout — that's what makes it reliably ATS-parseable.
+`cv_docx.build_functional()` / `cv_docx.build_chronological()` (needs `python-docx`)
+build a real single-column Word document with actual heading styles and no
+pseudo-bullets — that's what makes it reliably ATS-parseable.
 
 **A render is written once, where its source lives** — `render._home()`, keyed off
 `appfolder.app_folder_of()`. A tailored CV or cover letter renders into that
-application's `export/` subfolder (`appfolder.export_dir()`), under the application-folder
-naming convention; a base CV renders into `jobs/cv/export/`; anything else falls back to
+application's `export/` subfolder (`appfolder.export_dir()`), under the markdown's own name
+and date (TODO `#80`); a base CV renders into `jobs/cv/export/`; anything else falls back to
 `exports/`. Readers find an application's copy again via `appfolder.exported_file()`,
 which also accepts the flat layout folders used before 2026-09-24.
 
 ## Which export format, and why
 
-- **`.docx` is the default** — it's the ATS-safe version: upload it to applicant
-  tracking systems and online forms. Generate HTML only when it's headed for the
-  website (`site-build`/`publish` — see [publishing.md](publishing.md)); generate PDF
-  only when the *designed* version is specifically wanted (a human reader, or a
-  portfolio link).
-- The two-column `cv_navy.html` PDF is specifically unreliable for ATS parsing — column
-  linearisation, pseudo-element bullets, letter-spaced headings all confuse parsers. The
-  `.docx` sidesteps all of that by construction.
+- **`.docx` is the only format** (TODO `#70`, 2026-10-06). It is what ATS and AI
+  parsers read most reliably, which is the one moment a file's format matters.
+- **HTML and PDF were removed**, along with the headless-Chrome dependency PDF needed —
+  a version-sensitive binary outside Python that also ruled out Windows. The old
+  two-column PDF was the least ATS-safe thing the toolkit made. Anyone who needs a PDF
+  exports one from Word or Pages in a single step.
 
 `exports/<format>/<YYYY-MM-DD>/` (`_export_dir()`) is now the **fallback only** — what a
 render falls back to when its source belongs to no folder, such as an ad-hoc `--file`

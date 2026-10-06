@@ -108,11 +108,8 @@ Renders that application's tailored CV and cover letter to **`.docx`** — the f
 employers ask for and the one that gets sent. Files land in the application's
 `export/` subfolder.
 
-`.docx` is the only thing produced unless you ask otherwise. **HTML and PDF are
-opt-in**: say so explicitly ("render it as a PDF too") and they are added. Anything
-that opens a `.docx` can save a PDF, so treat one as a specific request rather than a
-courtesy — and the two-column chronological layout in particular parses badly in
-applicant tracking systems, which the `.docx` avoids entirely.
+`.docx` is the only thing produced — it is the format applicant tracking systems read
+most reliably. Need a PDF? Open the `.docx` in Word or Pages and export one.
 
 **Read the parse report.** Rendering prints a line like
 `Parsed cv_functional.md (functional): … employers: 3, roles: 4 …`. The CV parsers

@@ -1044,6 +1044,25 @@ HELP_STEPS = [
 ]
 
 
+# Questions someone looking at an export is likely to ask (TODO `#70`). The first FAQ in
+# the repo, so its shape is a precedent: a question, and an answer short enough to read
+# standing up. Prose, not commands — `HELP_STEPS` covers those.
+HELP_FAQ = [
+    {"question": "Why only .docx — where are the PDF and HTML exports?",
+     "answer": [
+         "A .docx is the format applicant tracking systems and AI screeners read most "
+         "reliably, and being read by one is the only moment a CV's file format really "
+         "matters.",
+         "Every other format costs a dependency the toolkit would carry for good. PDF "
+         "meant driving a headless Chrome — an installed browser, sensitive to its "
+         "version, and no use on Windows. HTML and PDF export were removed on "
+         "2026-10-06.",
+         "Need a PDF anyway? Open the .docx in Word or Pages and export one — a single "
+         "step, and a better PDF than the toolkit ever produced.",
+     ]},
+]
+
+
 def help_view(request):
     """How to drive this thing — the workflow, and the command for each step.
 
@@ -1066,6 +1085,7 @@ def help_view(request):
         "page": "help",
         "steps": steps,
         "commands": commands,
+        "faq": HELP_FAQ,
     })
 
 

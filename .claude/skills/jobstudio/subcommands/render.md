@@ -2,11 +2,9 @@
 
 Render one application's CV and cover letter to `.docx` — no API call.
 
-`.docx` is what employers ask for and what gets sent, so it is the whole job here.
-HTML and PDF are no longer produced (TODO `#46`, 2026-09-29): this subcommand used to
-emit both every time, which left files in the application folder nobody had asked for
-and nothing downstream read. **Only render them if the user asks for them by name** —
-see "If the user does want a PDF" below.
+`.docx` is what employers ask for and what gets sent, so it is the whole job here —
+and the only format there is. HTML and PDF export were removed (TODO `#70`, 2026-10-06);
+if the user wants a PDF, see "If the user does want a PDF" below.
 
 Argument can be:
 - A row number: `#21` or `21`
@@ -25,9 +23,9 @@ tools/py src/render.py --functional --file {path_to_cv_file} --label {folder_nam
 
 (swap `--functional` for `--chronological` if the CV file is the chronological base)
 
-No `--format` is needed — `.docx` is the default. The command prints a parse report
-first (`Parsed …: employers: 3, roles: 4, …`); **read it**. The parsers drop what they
-cannot match, so a CV can render a clean, well-formed, *empty* document. If the report
+The command prints a parse report first (`Parsed …: employers: 3, roles: 4, …`);
+**read it**. The parsers drop what they cannot match, so a CV can render a clean,
+well-formed, *empty* document. If the report
 carries a `WARNING`, the rendered file is wrong no matter how healthy it looks — fix the
 markdown against `references/cv-base-format.md` and render again.
 
@@ -43,20 +41,16 @@ The `.docx` lands in the application's `export/` subfolder. Nothing else is writ
 
 ---
 
-## If the user does want a PDF or HTML
+## If the user does want a PDF
 
-Add `--format pdf` or `--format html` to either command above. Both are opt-in, and
-`--format` on a cover letter is an *addition* — the `.docx` is written either way,
-because that is the copy that gets sent.
-
-The PDF path shells out to headless Chrome and builds its own HTML in a temp file, so
-`--format pdf` does not leave an `.html` behind. Most employers take a `.docx` happily,
-and anything that opens one can save a PDF — so treat a PDF as a specific request, not a
-courtesy.
+Render the `.docx` as usual and tell them to open it in Word or Pages and export a PDF —
+one step, and a better PDF than the toolkit's headless-Chrome route ever produced. The
+toolkit does not make PDFs itself (TODO `#70`): it would mean carrying a Chrome
+dependency for a format that ATS parsers read less reliably than the `.docx`.
 
 ## Notes
 
-- Output lands where its source lives (2026-09-24): a source inside `<DATA>/jobs/applications/NNN-*/` renders into that application's `export/` subfolder, named by the application-folder convention (`<folder>-<person-slug>-<filetype>-<date>.<ext>`); a base CV from `<DATA>/jobs/cv/base/` renders into `<DATA>/jobs/cv/export/`. One copy, not two — `<DATA>/exports/<format>/<YYYY-MM-DD>/` is now only the fallback for a source that belongs to no folder.
+- Output lands where its source lives (2026-09-24): a source inside `<DATA>/jobs/applications/NNN-*/` renders into that application's `export/` subfolder under the markdown's own name (`...-cv-functional-2026-10-01.md` → `export/...-cv-functional-2026-10-01.docx`, TODO `#80`); a base CV from `<DATA>/jobs/cv/base/` renders into `<DATA>/jobs/cv/export/`. One copy, not two — `<DATA>/exports/<format>/<YYYY-MM-DD>/` is now only the fallback for a source that belongs to no folder.
 - Does not call the API — use the **`cv` subcommand** (`subcommands/cv.md`) to tailor the CV first, if the role is worth it and nobody has yet.
 - Does not publish to the site — use `publish` after this if needed.
 - To check a base CV parses without rendering anything at all, use `tools/py src/render.py --functional --check` (see `cv.md` step 8).

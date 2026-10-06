@@ -136,8 +136,8 @@ recap progress in chat if they want to pause and resume within the same session)
    and exits non-zero if anything was lost. Fix the markdown against
    `references/cv-base-format.md` and re-run until it says `CHECK OK`.
 
-   Do not render HTML or PDF to eyeball the result instead: `--check` answers the same
-   question without producing files nobody wants (see TODO `#46`).
+   Do not render a `.docx` to eyeball the result instead: `--check` answers the same
+   question without producing a file nobody wants (see TODO `#46`).
 
 ### A.2 — Mode: import from an existing CV
 
