@@ -8,7 +8,7 @@
      Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #81 -->
+     Next available: #82 -->
 
 ## Architecture
 - [ ] `#75` **Simplify the config settings — or at least say plainly what each one is for** — raised 2026-10-02 by Michele, after setting the toolkit up on a second machine: *"Shall we consider simplifying the config settings? Unclear to me now what is needed."* Design in [`plans/075-config-layers.md`](plans/075-config-layers.md).
@@ -97,6 +97,13 @@
   - [ ] **Decide where the list lives.** A curated list shipped with the repo is the same for everyone; a personal one belongs in the data root next to the user's notes. Probably both — a few shipped defaults the user can add to — but that is the question to settle first, since it decides whether this is a template change or a new file the app reads.
   - [ ] **Decide where it shows.** Candidates: a section on the help page (`src/web/apps/tracker/templates/tracker/help.html`), a small panel on the dashboard (`tracker/home.html`), or a page of its own in the sidebar (`src/web/templates-global/base.html`). The dashboard is where it would actually get seen; the help page is where it fits without competing with the tracker.
   - [ ] Links open in a new tab, as everywhere else since `#17`.
+
+- [ ] `#81` **Remove the "Open in VS Code" links from every page** — raised 2026-10-06 by Michele: a `vscode://file/` link often lands in whatever VS Code window is already open and replaces its workspace, and active Claude Code sessions running in that window are lost. That cost is out of all proportion to what the link saves, and nothing on the page warns about it.
+
+  Eight links across four templates, all built from `{{ EDITOR_URL_SCHEME }}`: `application_detail.html` (folder button, base-CV, Other files ×2, interview round), `company_detail.html`, `interview_round.html`, `cvs/base_cv_detail.html`. Plus the admin column in `admin.py:42`. **Open folder** (`views.reveal_folder`, Finder) stays — it opens no editor, so it has no window to hijack. Then remove the setting that only these links read: the context processor key (`context_processors.py:26`), `editor_url_scheme` in the `.ini` template (`jobsinit.py:204`), the mentions in `docs/workflow.md`, `docs/getting-started.md` and `src/web/README.md`, and the `editor_url_scheme` line in `#75` and its plan. `build_static.py:151` skips `vscode:` links and can stay as is — harmless, and a hand-written one in a note would still be skipped.
+
+  - [ ] Remove the links and the `EDITOR_URL_SCHEME` context key; tests asserting the link go.
+  - [ ] Remove the `editor_url_scheme` setting from `jobsinit.py`, the docs, and `#75`'s list of `.ini` settings.
 
 ## File naming
 - [ ] `#27` **Re-order the application-folder naming convention to `{type}-{date-created}-{username}-{job-slug}`** — e.g. `cover-letter-2026-09-18-michele-pasin-046-bbc-studios.md`, replacing today's `{job-slug}-{username}-{type}-{date}` (`046-bbc-studios-michele-pasin-cover-letter-2026-09-18.md`, the 2026-09-08 convention in `src/appfolder.py`'s `app_filename()`). Putting the type first makes a folder listing sort by kind rather than by a company name every file in the folder already repeats. **Also covers interview-round files** (`<id>-<person>-interview-<stage>-<date>.md`, added 2026-09-24) — whose date is the interview's, not the file's, so the reorder must not assume a creation date. **Also apply it to `notes.md` and `job.md`**, which are currently bare names with no date or owner at all — so `notes-2026-09-18-michele-pasin-046-bbc-studios.md`, `job-2026-09-18-michele-pasin-046-bbc-studios.md`.

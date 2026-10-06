@@ -11,6 +11,9 @@
  * The page then reloads, because the file is the record and the server is what renders
  * it — the scroll position is put back afterwards. The mode is remembered per browser,
  * so it stays on across that reload and while you work through a page.
+ *
+ * On a tabbed page the button shows only while the open tab holds such a document — an
+ * application's CV, Cover letter and History tabs have nothing to highlight.
  */
 (function () {
   "use strict";
@@ -42,9 +45,24 @@
     remember(on);
   }
   button.addEventListener("click", function () { set(!document.body.classList.contains("hl-on")); });
+
+  // A document in a hidden tab panel does not count. tabs.js hides panels with the
+  // `hidden` attribute, so watching that attribute follows every way of switching tab.
+  function showing() {
+    return Array.prototype.some.call(document.querySelectorAll(".hl-doc[data-hl-source]"),
+      function (d) { return !d.closest("[hidden]"); });
+  }
+  function refresh() {
+    var hide = !showing();
+    if (button.hidden !== hide) button.hidden = hide;  // the button's own change re-fires this
+  }
+  new MutationObserver(refresh).observe(document.body,
+    { attributes: true, attributeFilter: ["hidden"], subtree: true });
+  refresh();
+
   document.addEventListener("keydown", function (e) {
     var t = e.target;
-    if (e.key !== "h" || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key !== "h" || e.metaKey || e.ctrlKey || e.altKey || button.hidden) return;
     if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
     set(!document.body.classList.contains("hl-on"));
   });
