@@ -1,8 +1,8 @@
 /* Job search front end.
    Structure follows a reference mockup: a light sidebar whose sections
    carry live counts, a wide airy content pane, one accent colour.
-   Palette is the navy/gold already used by the CV templates (src/templates/cv_navy.html)
-   so the site and the CVs read as the same family. */
+   Palette is the navy/gold of the old HTML CV templates (removed with HTML/PDF export,
+   #70), kept so the site reads as the same family it always has. */
 
 :root {
   --navy:      #1B2948;
