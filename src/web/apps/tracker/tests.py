@@ -3787,6 +3787,14 @@ class InterviewRoundTests(TestCase):
         with self.assertRaises(IndexError):
             set_task(text, 3, True)
 
+    def test_preparation_steps_in_application_notes_are_checkboxes(self):
+        """A gap analysis's `### Preparation steps` is a `- [ ]` list (SKILL.md, "Lists of
+        things to do are checklists"), so it reaches the page as checkboxes."""
+        html = self.client.get("/applications/1/").content.decode()
+        prep = html[html.index("Preparation steps"):]
+        self.assertIn('class="task-box" data-task="0"', prep)
+        self.assertIn('data-task="1"', prep)
+
     def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
         import tempfile
         from pathlib import Path

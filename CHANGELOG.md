@@ -2,6 +2,14 @@
 
 Dated entries, newest first.
 
+## 2026-10-06
+
+- **Preparation steps are a checklist too.** The gap analysis's `### Preparation steps`
+  in an application's `notes.md` is now written as `- [ ]` tasks, so it renders as
+  checkboxes like a round's `## Study before`. The rule is stated once in `SKILL.md`
+  ("Lists of things to do are checklists") for every to-do list the skill writes;
+  `example-data/` updated to match.
+
 ## 2026-10-05
 
 - **Fix: long paragraphs no longer break glossary links.** A one-line paragraph over 500

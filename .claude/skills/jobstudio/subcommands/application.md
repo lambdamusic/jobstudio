@@ -235,7 +235,8 @@ For each gap that is fixable now:
   §2 (achievements, USPs) and §6 (the positioning block for this area)
 
 ### Preparation steps
-Ordered list prioritised for this specific role:
+A `- [ ]` checklist (see "Lists of things to do are checklists" in `SKILL.md`), most
+important first, prioritised for this specific role:
 - Company/team/product research to do
 - Skills, tools, or concepts to brush up on
 - Talking points or stories to prepare — cross-reference `stocktake.md` §7 (team
