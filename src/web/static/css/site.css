@@ -762,11 +762,14 @@ mark.hl { background: #f8e7b0; color: inherit; padding: 0 1px; border-radius: 2p
 .hl-toggle {
   position: fixed; right: 18px; bottom: 18px; z-index: 50;
   font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--bg); color: var(--ink);
-  box-shadow: 0 2px 8px rgba(0,0,0,.08); cursor: pointer;
+  border: 2px solid var(--gold); background: #fdf6dc; color: var(--ink); font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12); cursor: pointer;
 }
-.hl-toggle:hover { border-color: var(--gold); }
-.hl-toggle[aria-pressed="true"] { background: #f8e7b0; border-color: var(--gold); }
+.hl-toggle:hover { background: #f8e7b0; }
+/* On: the full highlight yellow, so it is obvious the next selection will be saved. */
+.hl-toggle[aria-pressed="true"] {
+  background: #f3d77a; border-color: #a8831f; box-shadow: 0 0 0 3px rgba(196,155,46,.3);
+}
 body.hl-on .hl-doc[data-hl-source] ::selection { background: #f3d77a; }
 body.hl-on mark.hl[data-mark] { cursor: pointer; }
 body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decoration-color: var(--muted); }
