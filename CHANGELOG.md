@@ -4,6 +4,13 @@ Dated entries, newest first.
 
 ## 2026-10-06
 
+- **A reference to another file links to its page.** A path in prose —
+  `jobs/notes/<slug>.md`, `jobs/companies/<slug>.md`, `stocktake.md`, a base CV, or a
+  file in an application folder — renders as a link to the page that shows that file,
+  down to the round, CV or file anchor on an application page. A path with no page stays
+  text. Done in the shared `markdown` filter (`tracker/filelinks.py`), so it holds on
+  every page and on the published site.
+
 - **Tailoring a CV renders its `.docx`.** `/jobstudio cv` now saves the tailored
   markdown dated the day it was tailored and renders it straight into the application's
   `export/`, as `cover-letter` already did — the CV is the document that gets sent, and

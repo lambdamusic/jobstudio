@@ -127,6 +127,15 @@ it just isn't numbered. One task per item; detail can follow on indented lines.
 Lists that are not to-dos — questions, pros and cons, gaps, drafted answers — stay plain
 bullets.
 
+## Referring to another file
+
+Write the path, in backticks: `` `jobs/notes/interview-technique.md` ``,
+`` `jobs/companies/<slug>.md` ``, or a file in an application folder by its full name. The
+web app turns any reference to a file that has a page into a link to that page (TODO
+`#78`), so there is no need to write a markdown link or to work out a URL. Use the
+`jobs/...` form, not `<DATA>/...`, and not a bare `notes.md` or `job.md` — every
+application folder has one, so on its own it cannot be linked.
+
 ---
 
 ## Trigger patterns

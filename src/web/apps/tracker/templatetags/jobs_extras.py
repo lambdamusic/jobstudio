@@ -8,6 +8,8 @@ from django import template
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 
+from ..filelinks import link_file_refs
+
 register = template.Library()
 
 MD_EXTENSIONS = ["tables", "fenced_code", "sane_lists", "attr_list", "nl2br"]
@@ -123,7 +125,8 @@ def markdownify(text):
     # Strip HTML comments — the markdown files use them for editor-only notes.
     text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
     html = md_lib.markdown(_loosen_lists(_paragraphize(text)), extensions=MD_EXTENSIONS)
-    return mark_safe(_autolink(html))
+    # After _autolink, so a URL ending in .md is already a link and left alone.
+    return mark_safe(link_file_refs(_autolink(html)))
 
 
 _PLAIN_EXTERNAL_A_RE = re.compile(r'<a\s+href="(https?://[^"]*)"\s*>')

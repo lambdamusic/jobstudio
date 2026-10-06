@@ -3780,6 +3780,41 @@ class InterviewRoundTests(TestCase):
         page = self.client.get("/").content.decode()
         self.assertIn('js/diagrams.js" data-mermaid="', page)
 
+    def test_a_reference_to_a_markdown_file_links_to_its_page(self):
+        """#78: a path in prose, in backticks or not, links to the page that renders the
+        file; a path with no page stays text rather than becoming a dead link."""
+        from tracker.templatetags.jobs_extras import markdownify
+        a = "001-grafana-labs-alex-rivera"
+        cases = {
+            "`jobs/notes/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "see <DATA>/jobs/companies/grafana-labs.md now": 'href="/companies/grafana-labs/"',
+            "`stocktake.md` §7": '<a href="/profile/"><code>stocktake.md</code></a>',
+            "jobs/cv/base/cv_functional.md": 'href="/cvs/base/cv_functional/"',
+            "`jobs/applications/001-grafana-labs/notes.md`": 'href="/applications/1/#notes"',
+            f"`{a}-interview-hr-screen-2026-09-18.md`":
+                'href="/applications/1/#round-hr-screen-2026-09-18"',
+            f"`{a}-cv-developer-advocacy-2026-09-15.md`":
+                'href="/applications/1/#cv-developer-advocacy-2026-09-15"',
+            f"`{a}-study-plugin-architecture-2026-09-19.md`":
+                f'href="/applications/1/#file-{a}-study-plugin-architecture-2026-09-19-md"',
+            "[the note](jobs/notes/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
+        }
+        for md, expected in cases.items():
+            with self.subTest(md=md):
+                self.assertIn(expected, markdownify(md))
+        for md in ("`jobs/notes/no-such-note.md`", "`notes.md`", "README.md",
+                   "```\njobs/notes/ideal-job-notes.md\n```",
+                   "https://example.com/jobs/notes/ideal-job-notes.md"):
+            with self.subTest(md=md):
+                self.assertNotIn('href="/notes/', markdownify(md))
+
+    def test_a_linked_file_reference_lands_on_an_anchor_the_page_has(self):
+        html = self.client.get("/applications/1/").content.decode()
+        for anchor in ("round-hr-screen-2026-09-18", "cv-developer-advocacy-2026-09-15",
+                       "file-001-grafana-labs-alex-rivera-study-plugin-architecture-2026-09-19-md"):
+            with self.subTest(anchor=anchor):
+                self.assertIn(f'id="{anchor}"', html)
+
     def test_task_markers_render_as_checkboxes_and_write_back(self):
         from tracker.parsers import render_tasks, set_task, task_spans
         text = ("## Study before\n\n- [ ] Watch the video\n- [x] Read the paper\n"
