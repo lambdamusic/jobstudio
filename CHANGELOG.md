@@ -4,6 +4,14 @@ Dated entries, newest first.
 
 ## 2026-10-06
 
+- **Tailoring a CV renders its `.docx`.** `/jobstudio cv` now saves the tailored
+  markdown dated the day it was tailored and renders it straight into the application's
+  `export/`, as `cover-letter` already did — the CV is the document that gets sent, and
+  it was the one left without a `.docx`. A render inside an application folder is now
+  named after its source (`...-cv-functional-2026-10-01.md` →
+  `export/...-cv-functional-2026-10-01.docx`) rather than after the day it ran, so the
+  two never carry different dates.
+
 - **Preparation steps are a checklist too.** The gap analysis's `### Preparation steps`
   in an application's `notes.md` is now written as `- [ ]` tasks, so it renders as
   checkboxes like a round's `## Study before`. The rule is stated once in `SKILL.md`

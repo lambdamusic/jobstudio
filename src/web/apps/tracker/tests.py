@@ -3174,6 +3174,18 @@ class RenderDestinationTests(TestCase):
         self.assertTrue(dest.name.startswith(app.folder_path.name), dest.name)
         self.assertTrue(dest.name.endswith(".docx"))
 
+    def test_a_render_takes_its_sources_stem_and_date_not_todays(self):
+        """#80: a CV tailored on one day and rendered on the next used to carry two
+        dates. The .docx is named after the .md, so the two always pair exactly."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        src = app.folder_path / f"{app.folder_path.name}-alex-rivera-cv-functional-2020-01-02.md"
+        dest = self.render._home(src, "cv-functional", "docx", stem="unused")
+        self.addCleanup(shutil.rmtree, appfolder.export_dir(app.folder_path), ignore_errors=True)
+        self.assertEqual(dest.name, f"{src.stem}.docx")
+        self.assertEqual(appfolder.export_dir(app.folder_path) / dest.name, dest)
+
     def test_a_render_of_a_base_cv_goes_to_jobs_cv_export(self):
         """Named like jobs/cv/base/archive/, the other place a dated copy of a base CV
         lives, so the two read as one convention."""

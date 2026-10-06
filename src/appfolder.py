@@ -174,10 +174,11 @@ def exported_file(md_path: Path, ext: str = "docx") -> Path | None:
     """The rendered copy of `md_path` — in `export/`, or beside it for folders written
     before 2026-09-24 — or None when there isn't one.
 
-    Falls back to the newest export of the same kind when no name matches exactly. It
-    often won't: the copy is named with the date of the *render* (`app_filename()`), so
-    rendering a letter written last week produces a stem its source does not share, and
-    a quarter of the exports in one real job search were orphaned this way. The fallback
+    Falls back to the newest export of the same kind when no name matches exactly.
+    Renders since TODO `#80` take their source's stem and always match; before that the
+    copy was named with the date of the *render* (`app_filename()`), so rendering a letter
+    written last week produced a stem its source did not share, and a quarter of the
+    exports in one real job search were orphaned this way. The fallback is for those. It
     holds off when the folder has more than one markdown of that kind — then which
     export belongs to which source is a guess, and a wrong link is worse than none.
     """

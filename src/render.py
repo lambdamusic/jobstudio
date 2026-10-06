@@ -62,6 +62,13 @@ def _home(src_path: Path | None, filetype: str, ext: str, *, stem: str) -> Path:
     22 of those renders to any application at all. So the home is chosen up front and
     written once; `exports/` stays for documents that genuinely belong to no folder —
     a career stocktake, an ad-hoc `--file` from outside the data root.
+
+    Inside an application folder the render takes its source's own stem (TODO `#80`):
+    `...-cv-functional-2026-10-01.md` renders to `export/...-cv-functional-2026-10-01.docx`
+    whatever day the render runs. Named for the render's date instead, a CV tailored on
+    one day and rendered on the next carried two dates, and `exported_file()` had to
+    guess which export belonged to which source. A source not named by the convention
+    still gets a convention name.
     """
     if src_path is not None:
         src_path = Path(src_path)
@@ -69,6 +76,8 @@ def _home(src_path: Path | None, filetype: str, ext: str, *, stem: str) -> Path:
         if folder is not None:
             dest_dir = appfolder.export_dir(folder)
             dest_dir.mkdir(parents=True, exist_ok=True)
+            if src_path.suffix == ".md" and src_path.name.startswith(f"{folder.name}-"):
+                return dest_dir / f"{src_path.stem}.{ext}"
             return dest_dir / appfolder.app_filename(folder, filetype, ext)
         if src_path.resolve().parent == BASE_CV_DIR.resolve():
             CV_EXPORT_DIR.mkdir(parents=True, exist_ok=True)
