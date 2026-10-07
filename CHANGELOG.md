@@ -2,6 +2,20 @@
 
 Dated entries, newest first.
 
+## 2026-10-07
+
+- **Hard-wrapped prose reads as paragraphs.** Markdown files written by an agent are
+  wrapped at about 90 columns, and the app turns every newline into a line break, so
+  sentences broke mid-line all over the site, on application, company, note and profile
+  pages, including inside quotes. A line that is plainly the rest of the sentence above it
+  is now joined at render time: it starts lowercase, it is indented under the line above,
+  or the line above is long and does not end a sentence. Line breaks that are layout stay:
+  stacked `**Field:**` lines, Q/A pairs, addresses, lists, tables, code. The files are
+  unchanged. On application 58 the page went from 278 line breaks to 23.
+
+- **Highlighting keeps sections open or closed as they were** across the reload that
+  saves it, so a highlight in an interview round no longer closes the round.
+
 ## 2026-10-06
 
 - **No more "Open in VS Code" links.** A `vscode://` link can land in a VS Code window
@@ -13,9 +27,7 @@ Dated entries, newest first.
 
 - **The Highlight button shows only where there is something to highlight** — on an
   application, the Interviews, Job description and My notes tabs, not CV, Cover letters
-  or History. And adding or removing a highlight no longer closes the section you were
-  reading: the page reloads to show the change, and now puts every section back as it
-  was, open or closed, before restoring the scroll position.
+  or History.
 
 - **Highlighter.** On the local app, a **Highlight** button (or the `H` key) turns on
   highlight mode on any page with notes, company research, an interview round, a job

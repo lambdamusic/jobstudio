@@ -30,6 +30,58 @@ _TIGHT_LIST = re.compile(
     re.VERBOSE,
 )
 
+# A line that starts a block of its own, so is never joined onto the line above: a list
+# item, table row, heading, quote, fence, block-level HTML (an inline tag — a highlight's
+# `<mark>`, which is already rendered by now — continues the line), or a `**Field:**` line (stacked
+# metadata — `**Area:**`, `**Location:**` — where the line break is the layout).
+_BLOCK_START = re.compile(r"^[ \t]*(?:[-*+][ \t]|\d+[.)][ \t]|#{1,6}[ \t]|[|>]|```|~~~|\*\*|<(?!/?(?:mark|a|span|strong|em|b|i|code)\b))")
+# The end of a sentence, allowing a closing quote, bracket or emphasis after it.
+_ENDS_SENTENCE = re.compile(r"""[.:!?]["'”’)\]*_]*$""")
+# A blockquote's `>` markers, to compare the text inside a quote line by line.
+_QUOTE = re.compile(r"^(?:[ \t]*>[ \t]?)*")
+# A line that can only be the rest of the sentence above it — or an indented line under
+# a non-blank one, which markdown already reads as the same paragraph (a list item's
+# continuation), so a break there is only ever the wrap.
+_CONTINUES = re.compile(r"^(?:[ \t]*[a-z(—–]|[ \t]+\S)")
+
+
+def _unwrap(text: str) -> str:
+    """Join hard-wrapped prose back into one line per paragraph, outside code fences.
+
+    `nl2br` stays on, because a single line break is often the layout — stacked
+    `**Field:**` lines, an address. But files written by an agent (and some by hand)
+    are hard-wrapped at ~90 columns, and with `nl2br` every wrap is a visible break
+    mid-sentence. A line is joined onto the one above when it can only be a
+    continuation: it starts lowercase (or with a bracket or dash), it is indented under
+    the line above, or the line above is wrap-length (60+) and does not end a sentence.
+    Inside a blockquote the same rules apply to the text after the `>`. Anything else
+    keeps its break.
+    """
+    out: list[str] = []
+    fence = False
+    for line in text.split("\n"):
+        if re.match(r"^[ \t]*(```|~~~)", line):
+            fence = not fence
+            out.append(line)
+            continue
+        prev = out[-1] if out else ""
+        quote, prev_quote = _QUOTE.match(line).group(), _QUOTE.match(prev).group()
+        if quote.replace(" ", "") != prev_quote.replace(" ", ""):
+            out.append(line)  # into or out of a quote, or a different depth
+            continue
+        body, prev_body = line[len(quote):], prev[len(prev_quote):]
+        join = (not fence and body.strip() and prev_body.strip() and not prev.endswith("  ")
+                and not _BLOCK_START.match(body)
+                and not re.match(r"^[ \t]*(```|~~~|#{1,6}[ \t]|\|)", prev_body)
+                and (_CONTINUES.match(body)
+                     or (len(prev.rstrip()) >= 60 and not _ENDS_SENTENCE.search(prev.rstrip()))))
+        if join:
+            out[-1] = prev.rstrip() + " " + body.strip()
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
 # Bare URLs in prose — job descriptions are full of them and markdown leaves them as text.
 _BARE_URL = re.compile(r"""(?<![\w"'=/>])(https?://[^\s<>"'\)\]]+)""")
 # Split on complete anchors and any tag, so URLs already inside markup are left alone.
@@ -128,7 +180,7 @@ def markdownify(text):
     # `==text==` as <mark>, for markdown that did not come through `sectioned()` (which
     # has already turned its own into numbered marks the page can remove).
     text = render_marks(text, None)
-    html = md_lib.markdown(_loosen_lists(_paragraphize(text)), extensions=MD_EXTENSIONS)
+    html = md_lib.markdown(_loosen_lists(_paragraphize(_unwrap(text))), extensions=MD_EXTENSIONS)
     # After _autolink, so a URL ending in .md is already a link and left alone.
     return mark_safe(link_file_refs(_autolink(html)))
 
@@ -171,7 +223,7 @@ def hl_marks(text, source):
 
 @register.filter(name="strip_h1")
 def strip_h1(text):
-    """Drop a leading '# Title' — the page already shows it as a heading.
+    r"""Drop a leading '# Title' — the page already shows it as a heading.
 
     `(?:\n|\Z)` rather than `\n`: the title may be the whole string, with nothing after
     it. That happens for a round's preamble (`#66`), which is everything before the

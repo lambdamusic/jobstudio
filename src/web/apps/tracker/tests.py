@@ -3334,6 +3334,36 @@ class HighlightTests(TestCase):
                     self.assertNotIn("data-hl-source", self.client.get(url).content.decode())
 
 
+class UnwrapTests(TestCase):
+    """Hard-wrapped prose renders as one paragraph, not a `<br />` at every wrap (`nl2br`
+    stays on for the line breaks that are layout)."""
+
+    def test_wrapped_prose_joins_and_layout_breaks_stay(self):
+        from tracker.templatetags.jobs_extras import markdownify
+        html = markdownify(
+            "If one comes, use the author-disambiguation turnaround — failure\n"
+            "modes, how it was measured.\n\n"
+            "Grafana Labs runs an open observability stack used by thousands of\n"
+            "Teams across every industry.\n\n"
+            "**Area:** data\n**Location:** London\n\n"
+            "- a bullet long enough to wrap past the column edge in the source file\n"
+            "  and carry on here.\n- next\n\n"
+            "a highlight across a wrap, which is one mark per line in the\n"
+            '  <mark class="hl">file</mark> and still one line on the page.\n\n'
+            "> a quoted answer that was wrapped at the usual column, so the quote\n"
+            "> carries on here.\n\n"
+            "```\ncode that is long enough to look like a wrapped line of prose, yes\n"
+            "continued\n```\n\nOne sentence.\nAnother.")
+        self.assertIn("turnaround — failure modes", html)
+        self.assertIn("thousands of Teams", html)
+        self.assertIn("<strong>Area:</strong> data<br />", html)
+        self.assertIn("column edge in the source file and carry on", html)
+        self.assertIn('in the <mark class="hl">file</mark>', html)
+        self.assertIn("so the quote carries on", html)
+        self.assertIn("yes\ncontinued", html)
+        self.assertIn("One sentence.<br />", html)
+
+
 class CoverLetterFormatTests(TestCase):
     """`.docx` is the version that gets sent, and since TODO `#70` the only one written.
     HTML used to come out every time because the PDF path needed something for Chrome to
