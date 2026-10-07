@@ -15,11 +15,6 @@
   </p>
 </div>
 
-{% if IS_LOCAL %}
-  <div class="actions">
-    <a class="btn local-only" href="{{ EDITOR_URL_SCHEME }}{{ cv.full_path }}">Open in VS Code</a>
-  </div>
-{% endif %}
 
 <div class="panel prose">{{ cv.body_md|markdown }}</div>
 

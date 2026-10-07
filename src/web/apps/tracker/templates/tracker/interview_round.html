@@ -23,9 +23,6 @@ would undo.
       <a class="round-focus-back" href="/applications/{{ app.num }}/#{{ round.anchor }}">← {{ app.company_name }} · {{ app.role }}</a>
       <h1>{{ round.label }}{% if round.date %} <span class="round-focus-date">{{ round.date|date:"j M Y" }}</span>{% endif %}</h1>
     </div>
-    {% if IS_LOCAL %}
-      <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
-    {% endif %}
   </div>
 
   {% include "tracker/_doc_sections.html" with sections=sections %}

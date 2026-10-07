@@ -2,7 +2,135 @@
 
 Dated entries, newest first.
 
+## 2026-10-07
+
+- **Hard-wrapped prose reads as paragraphs.** Markdown files written by an agent are
+  wrapped at about 90 columns, and the app turns every newline into a line break, so
+  sentences broke mid-line all over the site, on application, company, note and profile
+  pages, including inside quotes. A line that is plainly the rest of the sentence above it
+  is now joined at render time: it starts lowercase, it is indented under the line above,
+  or the line above is long and does not end a sentence. Line breaks that are layout stay:
+  stacked `**Field:**` lines, Q/A pairs, addresses, lists, tables, code. The files are
+  unchanged. On application 58 the page went from 278 line breaks to 23.
+
+- **Highlighting keeps sections open or closed as they were** across the reload that
+  saves it, so a highlight in an interview round no longer closes the round.
+
+## 2026-10-06
+
+- **No more "Open in VS Code" links.** A `vscode://` link can land in a VS Code window
+  that is already open and replace its workspace, taking any Claude Code session running
+  there with it. All eight are gone, as is the admin's VS Code column and the
+  `editor_url_scheme` setting. **Open .docx** on the CV and Cover letters tabs, which went
+  through the same scheme, now opens the export in the default app (Word, Pages) the way
+  **Open folder** opens Finder.
+
+- **The Highlight button shows only where there is something to highlight** — on an
+  application, the Interviews, Job description and My notes tabs, not CV, Cover letters
+  or History.
+
+- **Highlighter.** On the local app, a **Highlight** button (or the `H` key) turns on
+  highlight mode on any page with notes, company research, an interview round, a job
+  description or the career stocktake profile: select
+  text and it is saved to the markdown as `==text==`; click a highlight to remove it.
+  The selection is matched against the source with markup ignored, snapped to whole
+  words, widened rather than split where it meets a link, code span or bold run, and
+  split per line or table cell where it crosses one; a passage that appears twice is
+  placed by the text around it, or refused. Highlights render as `<mark>` everywhere,
+  read-only on the published site.
+
+- **`.docx` is the only export; PDF and HTML are gone.** `render.py` loses `--format`
+  (and the deprecated `--docx`), the HTML templates, and the headless-Chrome PDF path —
+  an out-of-process dependency that also ruled out Windows. `chrome_path` is no longer a
+  setting. The help page gains its first FAQ, saying why: `.docx` is what ATS and AI
+  parsers read most reliably, and a PDF is one export away in Word or Pages.
+
+- **A reference to another file links to its page.** A path in prose —
+  `jobs/notes/<slug>.md`, `jobs/companies/<slug>.md`, `stocktake.md`, a base CV, or a
+  file in an application folder — renders as a link to the page that shows that file,
+  down to the round, CV or file anchor on an application page. A path with no page stays
+  text. Done in the shared `markdown` filter (`tracker/filelinks.py`), so it holds on
+  every page and on the published site.
+
+- **Tailoring a CV renders its `.docx`.** `/jobstudio cv` now saves the tailored
+  markdown dated the day it was tailored and renders it straight into the application's
+  `export/`, as `cover-letter` already did — the CV is the document that gets sent, and
+  it was the one left without a `.docx`. A render inside an application folder is now
+  named after its source (`...-cv-functional-2026-10-01.md` →
+  `export/...-cv-functional-2026-10-01.docx`) rather than after the day it ran, so the
+  two never carry different dates.
+
+- **Preparation steps are a checklist too.** The gap analysis's `### Preparation steps`
+  in an application's `notes.md` is now written as `- [ ]` tasks, so it renders as
+  checkboxes like a round's `## Study before`. The rule is stated once in `SKILL.md`
+  ("Lists of things to do are checklists") for every to-do list the skill writes;
+  `example-data/` updated to match.
+
+## 2026-10-05
+
+- **Fix: long paragraphs no longer break glossary links.** A one-line paragraph over 500
+  characters is split into paragraphs at sentence boundaries, after glossary links are
+  rendered — so a definition of two sentences was split inside its `data-def` attribute
+  and half the tag printed on the page. `_paragraphize` now masks markup before splitting.
+
+- **Task lists are checkboxes you can tick.** `- [ ]` / `- [x]` items in any sectioned
+  document render as checkboxes; on the local app, ticking one POSTs to `/actions/task/`,
+  which rewrites that marker in the markdown file (CSRF-protected, `.md` under the data
+  root only, refused if the page and file have drifted). The published site shows them
+  read-only. Interview rounds' `## Study before` is now a checklist by convention.
+
+- **Mermaid diagrams render in the web app.** A ```` ```mermaid ```` fence in any rendered
+  markdown is drawn by `js/diagrams.js`. Mermaid 12.1.0 is vendored next to ECharts and
+  loaded on demand, only on pages that contain a diagram; one inside a collapsed section
+  is drawn when the section opens. The same source renders on GitHub and in editors.
+  Companies with an application at interview stage get a `## The business at a glance`
+  diagram on their page — inputs, products, who pays for which decision — added by the
+  `interview` subcommand, and only when the research is rich enough to draw it.
+  `make-public-tree` skips vendored `*.min.js` in its tracked-company check: 5MB of
+  minified Mermaid names a few companies by accident.
+
+- **Every application page ends with a way to its company.** A call-to-action panel below
+  the tabs names the company, gives its one-line summary, says what its page holds
+  (research, glossary size, other applications) and links there. An application not yet
+  linked to a company says so, with the `jobsdb.py link-company` command that fixes it.
+
+## 2026-10-04
+
+- **Glossary terms link to their definitions.** In any sectioned document with a
+  `## Glossary`, a term marked ***in bold italic*** becomes an in-page link to its entry,
+  with a dotted underline to set it apart from outbound links (`parsers.link_glossary`).
+  Hovering shows the definition in place (CSS-only tooltip from a `data-def` attribute);
+  following one into a collapsed section opens it. An application's notes, rounds and
+  Other files resolve marked terms against their **company page's glossary**
+  (`Company.glossary`), so a definition written once shows wherever the prep happens.
+  The `company`, `application` and `interview` subcommands now keep a glossary for
+  unfamiliar sectors as standard practice.
+
+- **Company pages get the jump index too.** `/companies/<slug>/` renders the research
+  file through the same pill index and collapsible sections as My notes and the
+  Interviews tab (`Company.notes_doc`, anchors prefixed `company--`).
+
+- **A pill jump no longer lands under a wrapped index.** The sticky index's clearance was a
+  fixed 56px, right for one row of pills and wrong for three: the heading you clicked sat
+  behind the bar. `section-nav.js` now measures the bar (on load, resize, and through a
+  `ResizeObserver`) and writes `--section-clearance`, which `scroll-margin-top` reads.
+
+- **Company research files are company-level only.** Anything about one particular role
+  or its interviews (band, office days, hiring manager, what to say in a round) belongs
+  in that application's `notes.md`. A company can carry several applications over time,
+  and the research file has to stay true for all of them. The template also gains
+  optional **Glossary** and **Videos and demos** sections, and asks for each product to be
+  explained by the question it answers and who pays for it. Stated in
+  `docs/companies.md`, `application.md` and `company.md`.
+
 ## 2026-10-02
+
+- **`jobsdb.py update-application`**: the application-side twin of `update-company`.
+  It changes `status`, `next_action`, `summary`, `notes`, `contact` or `job_url`, and
+  touches only the flags passed (`""` clears a field). The reason for building it:
+  discarding a role with `set-status` left its next action saying "Review CV and apply",
+  and nothing on the agent path could change that. Both commands now refuse an unknown
+  status, as the web app's status menu already did.
 
 - **`/notes/` is one tab per note, each with its own jump index** (`#73`) — reading two
   strategy notes no longer means two page loads and a back button. **The per-note pages

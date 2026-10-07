@@ -25,7 +25,7 @@ this scale is a better story than the current one even if I leave in two years.
 
 ### Preparation steps
 
-- Have a view on their event schema — they have written publicly about it.
-- Be ready for "why are you leaving a platform role for a platform role".
-- Ask what the DX bullet actually means, and who owns it today. If the answer is
+- [ ] Have a view on their event schema — they have written publicly about it.
+- [ ] Be ready for "why are you leaving a platform role for a platform role".
+- [ ] Ask what the DX bullet actually means, and who owns it today. If the answer is
   nobody, that is the answer.

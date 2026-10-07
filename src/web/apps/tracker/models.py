@@ -63,12 +63,49 @@ CV_BASE_CHOICES = [
 COMPANY_STATUS_CHOICES = [(s, s.title()) for s in COMPANY_STATUSES]
 
 
+def _task_source(path: Path | None) -> str | None:
+    """A markdown file's path under the data root, for live checkboxes — or None off the
+    local app, so the published mirror renders them read-only."""
+    if path is None or settings.ENVIRONMENT != "local":
+        return None
+    try:
+        return str(path.resolve().relative_to(Path(settings.DATA_ROOT).resolve()))
+    except ValueError:
+        return None
+
+
 def _read(path: Path | None) -> str:
     """Read a markdown file off disk, or return '' if it isn't there."""
     if path and path.is_file():
         return path.read_text()
     return ""
 
+
+
+# Anchor ids on the application page, one function per kind so that `filelinks` — which
+# links a reference to a file in prose to the place that file is shown (TODO `#78`) —
+# mints exactly the ids the page does. The page adds a counter when two files share a
+# base, which a link cannot know about; it lands on the first, which is the right guess.
+
+def cv_anchor(name: str) -> str:
+    """`cv-<variant>-<date>`: the variant plus the date, not the filename — filenames
+    carry the company and person slugs, which every CV in the folder repeats."""
+    from .parsers import parse_date
+
+    base = "cv-" + re.sub(r"[^a-z0-9]+", "-", (cv_variant(name) or "cv").lower()).strip("-")
+    date = parse_date(name)
+    return f"{base}-{date.isoformat()}" if date else base
+
+
+def round_anchor(stage: str | None, date) -> str:
+    """`round-<stage>-<date>` — reads as a URL where the filename stem would not."""
+    base = f"round-{stage or 'interview'}"
+    return f"{base}-{date.isoformat()}" if date else base
+
+
+def file_anchor(rel: str) -> str:
+    """`file-<slug>` for a file on the Other files tab, from its path in the folder."""
+    return "file-" + re.sub(r"[^a-z0-9]+", "-", rel.lower()).strip("-")
 
 class Area(models.Model):
     """A target area — one jobs/targets/<slug>.yaml, optionally described in jobs/areas.md."""
@@ -198,6 +235,29 @@ class Company(models.Model):
     def notes_md(self) -> str:
         return _read(self.notes_path)
 
+    @cached_property
+    def notes_doc(self) -> dict | None:
+        """The research file as a sectioned document — the same pill index and collapsible
+        sections as My notes and the Interviews tab. Prefix `company`: one file per page.
+        """
+        from .parsers import sectioned
+
+        body = self.notes_md
+        return (sectioned(body, "company", source=_task_source(self.notes_path))
+                if body and body.strip() else None)
+
+    @cached_property
+    def glossary(self) -> list[dict]:
+        """The research file's `## Glossary` entries, linking to this page — what an
+        application's notes and interview rounds resolve their ***terms*** against, so a
+        definition written once on the company page shows wherever the prep happens."""
+        from .parsers import glossary_of
+
+        body = self.notes_md
+        if not body or "## Glossary" not in body:
+            return []
+        return glossary_of(body, "company", f"/companies/{self.slug}/")
+
 
 class Application(models.Model):
     """A row in applications.md, plus its detail block and jobs/applications/NNN-*/ folder."""
@@ -303,6 +363,11 @@ class Application(models.Model):
     def job_md(self) -> str:
         return _read(self._folder_file("job.md"))
 
+    @property
+    def job_source(self) -> str | None:
+        """`job.md`'s path for the highlighter (`#77`) — None off the local app."""
+        return _task_source(self._folder_file("job.md"))
+
     @cached_property
     def notes_md(self) -> str:
         return _read(self._folder_file("notes.md"))
@@ -336,12 +401,8 @@ class Application(models.Model):
         seen: dict[str, int] = {}
         for path in reversed(self.cv_snapshots):
             variant = cv_variant(path.name)
-            # The anchor is the variant plus the date, not the filename: filenames carry
-            # the company and person slugs, which every CV in the folder repeats.
-            base = "cv-" + re.sub(r"[^a-z0-9]+", "-", (variant or "cv").lower()).strip("-")
             date = parse_date(path.name)
-            if date:
-                base = f"{base}-{date.isoformat()}"
+            base = cv_anchor(path.name)
             seen[base] = seen.get(base, 0) + 1
             out.append({
                 "name": path.name,
@@ -451,9 +512,7 @@ class Application(models.Model):
         # counter keeps it unique if a stage ever repeats on one day.
         seen: dict[str, int] = {}
         for round_ in out:
-            base = f"round-{round_['stage'] or 'interview'}"
-            if round_["date"]:
-                base = f"{base}-{round_['date'].isoformat()}"
+            base = round_anchor(round_["stage"], round_["date"])
             seen[base] = seen.get(base, 0) + 1
             round_["anchor"] = base if seen[base] == 1 else f"{base}-{seen[base]}"
 
@@ -462,7 +521,8 @@ class Application(models.Model):
         # into one page — two rounds both carrying "## Outcome" would otherwise collide,
         # and the browser would send every "Outcome" link to whichever came first.
         for round_ in out:
-            round_.update(sectioned(round_["body_md"], round_["anchor"]))
+            round_.update(sectioned(round_["body_md"], round_["anchor"], self.glossary,
+                                    source=_task_source(round_["path"])))
         return out
 
     @cached_property
@@ -478,7 +538,15 @@ class Application(models.Model):
         from .parsers import sectioned
 
         body = self.notes_md
-        return sectioned(body, "notes") if body and body.strip() else None
+        return (sectioned(body, "notes", self.glossary,
+                          source=_task_source(self._folder_file("notes.md")))
+                if body and body.strip() else None)
+
+    @property
+    def glossary(self) -> list[dict]:
+        """The company page's glossary, which this application's documents link to when
+        they have no `## Glossary` of their own."""
+        return self.company.glossary if self.company_id else []
 
     @property
     def extra_files(self) -> list[dict]:
@@ -533,7 +601,7 @@ class Application(models.Model):
         # on the published site, where these render into the page rather than ship as
         # files.
         for f in out:
-            f["anchor"] = "file-" + re.sub(r"[^a-z0-9]+", "-", f["rel"].lower()).strip("-")
+            f["anchor"] = file_anchor(f["rel"])
 
         # Each markdown file gets its own pill index and collapsible sections (`#72`),
         # prefixed by the per-file anchor just assigned. This tab is the worst case for
@@ -543,7 +611,8 @@ class Application(models.Model):
 
         for f in out:
             if f["is_md"] and f["body_md"].strip():
-                f["doc"] = sectioned(f["body_md"], f["anchor"])
+                f["doc"] = sectioned(f["body_md"], f["anchor"], self.glossary,
+                                     source=_task_source(f["path"]))
         return out
 
 

@@ -1,6 +1,5 @@
 """Template context shared by every page."""
 
-import config
 import identity
 from django.conf import settings
 
@@ -20,10 +19,6 @@ def site_context(request):
     who = identity.load()
     return {
         "owner_name": who.full_name if who else "",
-        # One definition for the whole UI. Was ten `vscode://file/` literals across
-        # eight templates and admin.py, which hardcoded one editor for every user
-        # (§1 blocker 10). `editor_url_scheme` in ~/.jobstudio.ini overrides it.
-        "EDITOR_URL_SCHEME": config.setting("editor_url_scheme", "vscode://file/"),
         "APP_NAME": settings.APP_NAME,
         "ENVIRONMENT": settings.ENVIRONMENT,
         "IS_LOCAL": settings.ENVIRONMENT == "local",

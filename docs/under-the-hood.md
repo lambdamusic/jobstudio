@@ -60,6 +60,8 @@ tools/py src/jobsdb.py update-company <num|name|prefix> [--role-target ...] [--f
                                       [--category ...] [--url ...] [--notes ...]
 tools/py src/jobsdb.py add-category --name ... --order N
 tools/py src/jobsdb.py set-status <num> <status>
+tools/py src/jobsdb.py update-application <num> [--status ...] [--next-action ...] [--summary ...] \
+                                          [--notes ...] [--contact ...] [--url ...]
 tools/py src/jobsdb.py set-fit <num> --level {strong,moderate,stretch,weak} [--pros ...] [--cons ...]
 tools/py src/jobsdb.py add-application ...        # what /jobstudio application calls
 tools/py src/jobsdb.py link-company <num>
@@ -73,9 +75,10 @@ from the name, and the company page URL plus the `company_overrides`, `company_a
 `known_unsupported` keys in `scan-config.yaml` are keyed on it — renaming is a separate
 job. See [companies.md](companies.md).
 
-There is still no CLI for changing a company's **name**, or for an application's free-text
-fields (`summary`, `notes`, `contact`, `next_action`) — those remain the Django admin or a
-`manage.py shell -c` one-liner.
+`update-application` follows the same rules for an application's status and free-text
+fields (`next_action`, `summary`, `notes`, `contact`, `job_url`). It and `set-status` both
+refuse a status outside `STATUS_SORT_ORDER`. There is still no CLI for changing a
+company's **name**. That remains the Django admin or a `manage.py shell -c` one-liner.
 
 ## CVs and cover letters
 
@@ -86,9 +89,7 @@ tools/py src/render.py --functional --file <tailored.md> --label 001-acme
 tools/py src/render.py --cover-letter --file <letter.md> --label 001-acme
 ```
 
-`.docx` is the default and usually the only thing you want. `--format html` and
-`--format pdf` are opt-in extras; on a cover letter they are *additions*, since the
-`.docx` is written either way.
+`.docx` is the only output (TODO `#70`); a PDF is one export away in Word or Pages.
 
 ```bash
 tools/py src/render.py --functional --check              # parse only, writes nothing

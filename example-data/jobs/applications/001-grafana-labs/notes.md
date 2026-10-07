@@ -18,8 +18,8 @@
 
 ### Preparation steps
 
-- Read three of their RFCs and have an opinion on one.
-- Have the six-hours-to-35-minutes story ready in three minutes, not ten.
+- [ ] Read three of their RFCs and have an opinion on one.
+- [ ] Have the six-hours-to-35-minutes story ready in three minutes, not ten.
 
 ## Contacts
 

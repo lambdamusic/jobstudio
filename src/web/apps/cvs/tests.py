@@ -119,15 +119,32 @@ class BaseCvParseTests(TestCase):
                 _, _, warnings = render.parse_check(self._base(name), mode)
                 self.assertEqual(warnings, [])
 
-    def test_rendered_html_carries_the_job_titles(self):
+    def test_the_rendered_docx_carries_the_job_titles(self):
         """A rendered file existing is not evidence it has content in it."""
         import render
-        html = render.render_functional(render.parse_functional(self._base("cv_functional.md")))
-        self.assertIn("Senior Data Platform Engineer", html)
-        self.assertIn("Kestrel Financial", html)
-        html = render.render_html(render.parse_variant(self._base("cv_chronological.md")))
-        self.assertIn("Senior Data Platform Engineer", html)
-        self.assertIn("Meridian Retail Group", html)
+        self.assertIn("Senior Data Platform Engineer", _docx_text(
+            "build_functional", render.parse_functional(self._base("cv_functional.md"))))
+        self.assertIn("Kestrel Financial", _docx_text(
+            "build_functional", render.parse_functional(self._base("cv_functional.md"))))
+        text = _docx_text("build_chronological",
+                          render.parse_variant(self._base("cv_chronological.md")))
+        self.assertIn("Senior Data Platform Engineer", text)
+        self.assertIn("Meridian Retail Group", text)
+
+
+def _docx_text(builder: str, data: dict) -> str:
+    """Every paragraph and table cell of a .docx built from `data`, as one string."""
+    import tempfile
+    from pathlib import Path
+
+    import cv_docx
+    import docx
+
+    with tempfile.TemporaryDirectory() as tmp:
+        out = getattr(cv_docx, builder)(data, Path(tmp) / "cv.docx")
+        d = docx.Document(str(out))
+        cells = [c.text for t in d.tables for row in t.rows for c in row.cells]
+        return "\n".join([para.text for para in d.paragraphs] + cells)
 
 
 class ParseCheckTests(TestCase):
@@ -328,8 +345,8 @@ class HeaderLinkTests(TestCase):
     def test_a_link_free_cv_renders_without_a_dangling_separator(self):
         import render
         p = self._write("- **Location:** Bristol, UK  \n- **Email:** t@example.com  ")
-        html = render._r_contact_inline(render.parse_functional(p)["contact"])
-        self.assertIn("Bristol, UK", html)
-        self.assertIn("t@example.com", html)
-        self.assertFalse(html.strip().endswith("·"), f"trailing separator: {html!r}")
-        self.assertFalse(html.strip().startswith("·"), f"leading separator: {html!r}")
+        line = next(l for l in _docx_text("build_functional", render.parse_functional(p))
+                    .splitlines() if "Bristol" in l)
+        self.assertIn("t@example.com", line)
+        self.assertFalse(line.strip().endswith("·"), f"trailing separator: {line!r}")
+        self.assertFalse(line.strip().startswith("·"), f"leading separator: {line!r}")

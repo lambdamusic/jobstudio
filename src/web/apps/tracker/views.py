@@ -18,7 +18,7 @@ import config
 from django.conf import settings
 from django.db.models import Count, F, Max, Q
 from django.utils import timezone
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
@@ -26,6 +26,7 @@ from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
 from . import parsers as P
 from .derived import ensure_fresh
 from .models import (
+    _task_source,
     ACTIVE_STATUSES,
     Application,
     ApplicationStatusChange,
@@ -974,7 +975,7 @@ def _note(path):
     body = path.read_text()
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     return {"slug": path.stem, "title": title, "short": P.short_title(title),
-            "body": body, "doc": P.sectioned(body, path.stem)}
+            "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path))}
 
 
 def note_list(request):
@@ -1005,6 +1006,7 @@ def profile_view(request):
         "page": "profile",
         "title": "Career stocktake",
         "body": stocktake.read_text() if stocktake.is_file() else "",
+        "source": _task_source(stocktake) if stocktake.is_file() else None,
         "criteria": criteria.read_text() if criteria.is_file() else "",
     })
 
@@ -1044,6 +1046,25 @@ HELP_STEPS = [
 ]
 
 
+# Questions someone looking at an export is likely to ask (TODO `#70`). The first FAQ in
+# the repo, so its shape is a precedent: a question, and an answer short enough to read
+# standing up. Prose, not commands — `HELP_STEPS` covers those.
+HELP_FAQ = [
+    {"question": "Why only .docx — where are the PDF and HTML exports?",
+     "answer": [
+         "A .docx is the format applicant tracking systems and AI screeners read most "
+         "reliably, and being read by one is the only moment a CV's file format really "
+         "matters.",
+         "Every other format costs a dependency the toolkit would carry for good. PDF "
+         "meant driving a headless Chrome — an installed browser, sensitive to its "
+         "version, and no use on Windows. HTML and PDF export were removed on "
+         "2026-10-06.",
+         "Need a PDF anyway? Open the .docx in Word or Pages and export one — a single "
+         "step, and a better PDF than the toolkit ever produced.",
+     ]},
+]
+
+
 def help_view(request):
     """How to drive this thing — the workflow, and the command for each step.
 
@@ -1066,6 +1087,7 @@ def help_view(request):
         "page": "help",
         "steps": steps,
         "commands": commands,
+        "faq": HELP_FAQ,
     })
 
 
@@ -1171,9 +1193,85 @@ def reveal_folder(request, num):
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
 
 
+def _local_md_file(request):
+    """The markdown file a local-only write endpoint was asked to edit, or the error
+    response to send instead. The rules every such endpoint shares: local app only, POST
+    only (CSRF-protected like any POST), and `source` must resolve to an existing `.md`
+    file inside the data root."""
+    if settings.ENVIRONMENT != "local":
+        raise Http404("Local only")
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "POST only"}, status=405)
+    root = Path(settings.DATA_ROOT).resolve()
+    try:
+        path = (root / request.POST["source"]).resolve()
+    except KeyError:
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    if root not in path.parents or path.suffix != ".md" or not path.is_file():
+        return JsonResponse({"ok": False, "error": "no such file"}, status=404)
+    return path
+
+
+def toggle_task(request):
+    """Local-only: tick or untick one `- [ ]` task in a markdown file under the data root.
+
+    POST `source` (the path `_task_source` rendered into the checkbox), `index` (its order
+    in the file, as `parsers.task_spans` counts it) and `checked`. The write is the whole
+    point — the box is a view of a line in a file, so ticking it edits the file, and the
+    tick survives a reload, an editor, and a publish. CSRF-protected like any POST; the
+    path must resolve inside the data root and be a `.md` file that exists.
+    """
+    path = _local_md_file(request)
+    if isinstance(path, JsonResponse):
+        return path
+    try:
+        index = int(request.POST["index"])
+    except (KeyError, ValueError):
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    checked = request.POST.get("checked") == "true"
+    text = path.read_text()
+    try:
+        path.write_text(P.set_task(text, index, checked))
+    except IndexError:
+        return JsonResponse({"ok": False, "error": "task not found — reload the page"}, status=409)
+    return JsonResponse({"ok": True, "checked": checked})
+
+
+def highlight(request):
+    """Local-only: add or remove a highlight (`==text==`) in a markdown file (TODO `#77`).
+
+    POST `source` plus either `text` (the selection as the page rendered it) with
+    `before` / `after` (the text either side, to tell repeated passages apart), or
+    `remove` (a highlight's index, as `highlights.mark_spans` counts it). Same rules as
+    the task endpoint; a selection that cannot be placed exactly says why (409) rather
+    than guessing.
+    """
+    from .highlights import HighlightError, add, remove
+
+    path = _local_md_file(request)
+    if isinstance(path, JsonResponse):
+        return path
+    text = path.read_text()
+    try:
+        if "remove" in request.POST:
+            new = remove(text, int(request.POST["remove"]))
+        else:
+            new = add(text, request.POST.get("text", ""), request.POST.get("before", ""),
+                      request.POST.get("after", ""))
+    except HighlightError as e:  # before ValueError, which it is a kind of
+        return JsonResponse({"ok": False, "error": str(e)}, status=409)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "bad request"}, status=400)
+    except IndexError:
+        return JsonResponse({"ok": False, "error": "highlight not found — reload the page"},
+                            status=409)
+    path.write_text(new)
+    return JsonResponse({"ok": True})
+
+
 def create_folder(request, num):
     """Local-only: an application with no folder yet shows a "Create folder" action
-    instead of Open folder / Open in VS Code. Runs the same appfolder.ensure_folder()
+    instead of Open folder. Runs the same appfolder.ensure_folder()
     the jobstudio skill uses, then redirects back."""
     if settings.ENVIRONMENT != "local":
         raise Http404("Local only")
@@ -1209,6 +1307,22 @@ def set_status(request, num, status):
         app.status = status
         app.save(update_fields=["status"])
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
+
+
+def open_docx(request):
+    """Local-only: open an exported `.docx` in the desktop's default app (Word, Pages).
+
+    `?path=` is relative to the data root. Only `.docx` files: the links that call this
+    used to be `vscode://file/` URLs, which open in whatever VS Code window is already
+    up and can replace its workspace (TODO `#81`).
+    """
+    if settings.ENVIRONMENT != "local":
+        raise Http404("Local only")
+    path = Path(settings.DATA_ROOT) / request.GET.get("path", "")
+    if path.suffix != ".docx" or not path.is_file():
+        raise Http404("No such .docx")
+    _open_locally(path)  # refuses anything outside the data root
+    return HttpResponseRedirect(request.META.get("HTTP_REFERER", "/"))
 
 
 def reveal_company_notes(request, slug):

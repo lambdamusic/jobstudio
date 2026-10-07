@@ -3,7 +3,7 @@
 `<DATA>/jobs/cv/base/cv_functional.md` and `cv_chronological.md` are **not** rendered by a
 general markdown engine. `src/render.py` parses them with hand-written regexes
 (`parse_functional()` / `parse_variant()` and their section helpers) into a data
-dict, which then fills the HTML/PDF/DOCX templates. Follow this file precisely when
+dict, from which the `.docx` is built (`cv_docx.py`). Follow this file precisely when
 writing or rewriting either base CV — a bootstrap interview, an import from an
 existing CV, or a per-application tailoring edit.
 

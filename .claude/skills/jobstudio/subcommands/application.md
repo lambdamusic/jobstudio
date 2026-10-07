@@ -129,6 +129,18 @@ tools/py src/jobsdb.py show-company "{Company}"
      read against `<DATA>/jobs/profile/stocktake.md`), `## Sources` (dated links). Match the depth
      of existing profiles (e.g. `<DATA>/jobs/companies/grafana-labs.md`) — this is real research,
      not a one-paragraph stub. Header line: `*Researched {today's date}.*`
+     **Add a `## Glossary` whenever the sector is unfamiliar** (judge against
+     `stocktake.md`, not general knowledge — healthcare, finance, regulation, a lab domain).
+     One bullet per term, opening with a bold label (`- **EHR (Electronic Health Record).** …`),
+     defined plainly. Mark each term ***in bold italic*** where it first appears in a section;
+     the page then links it and shows the definition on hover. Skip terms the user already
+     knows well — the glossary is for the domain, not for their own field.
+     **No business diagram at this stage.** The `## The business at a glance` diagram is
+     added when an application reaches interview — see `interview.md` — not when a role is
+     first logged.
+     **Company-level only:** anything about this particular role or its interviews (band,
+     office days, hiring manager, what to stress in a round) goes in the application's
+     `notes.md`, not here — the company file must stay true for every future application.
   3. **Link the application to the new company row:**
      ```
      tools/py src/jobsdb.py link-company <row-num>
@@ -223,7 +235,8 @@ For each gap that is fixable now:
   §2 (achievements, USPs) and §6 (the positioning block for this area)
 
 ### Preparation steps
-Ordered list prioritised for this specific role:
+A `- [ ]` checklist (see "Lists of things to do are checklists" in `SKILL.md`), most
+important first, prioritised for this specific role:
 - Company/team/product research to do
 - Skills, tools, or concepts to brush up on
 - Talking points or stories to prepare — cross-reference `stocktake.md` §7 (team
@@ -306,3 +319,27 @@ Done: {Company} — {Role}
 Then one line on what is *not* done, since this used to do it: the CV is a mechanical
 copy and the letter is a thin draft — `/jobstudio cv {N}` and
 `/jobstudio cover-letter {N}` write tailored versions if this role is worth it.
+
+## Changing an existing application — status, next action, the rest
+
+"Mark #N as discarded", "#N: rejected", "change the next action on #N" are updates, not
+a new log. Use `update-application`, not the Django admin:
+
+```
+tools/py src/jobsdb.py update-application {N} \
+  [--status {status}] [--next-action "..."] [--summary "..."] [--notes "..."] \
+  [--contact "..."] [--url "..."]
+```
+
+Only the flags given are touched; `""` clears a field. An unknown status is refused.
+**When a status change ends the plan** (discarded, rejected, closed), set the next action
+in the same call, e.g. `--next-action "None — discarded YYYY-MM-DD ({short reason})"`.
+`set-status` alone leaves the old "Review CV and apply" showing on the list views.
+
+Record the reason as a dated line under `## Timeline` in
+`<DATA>/jobs/applications/{folder}/notes.md`:
+
+```
+- **YYYY-MM-DD** — Discarded. {The user's reason, in their terms.}
+```
+

@@ -92,12 +92,58 @@ default) — see [portal-scan-and-scoring.md](portal-scan-and-scoring.md) §2.
 ```markdown
 # Company Name
 
+## In one paragraph    (what it sells, to whom)
+## The business at a glance   (Mermaid diagram — added at interview stage)
 ## Mission
-## Technology
+## Technology          (or: Products — what each answers, and who pays for it)
+## Glossary            (optional — when the domain is unfamiliar)
+## Videos and demos    (optional — official demos, with lengths)
 ## Where they are now
 ## Fit with my mission
 ## Sources
 ```
+
+**Company-level material only.** The file describes the company as it would read to
+anyone considering *any* role there: what it sells, to whom, where it is heading, and
+how it fits the user's mission. Anything about one particular role or its interview
+process — the posting's band and office days, who the hiring manager is, what to say
+in a round, questions to ask, prep to do — belongs in that application's `notes.md`
+(or its round files), never here. A company can carry several applications over
+time; the research file must stay true for all of them.
+
+Explain the product in plain terms before analysing it: for each product, the question
+it answers, who pays for it, and the decision it unblocks — backed by the company's own
+case studies where they exist.
+
+**Glossary terms link themselves.** In any document with a `## Glossary` section whose
+entries open with a bold label (`- **EHR (Electronic Health Record).** …`), a term
+written ***in bold italic*** elsewhere becomes an in-page link to its entry, styled with
+a dotted underline to set it apart from outbound links, and shows the definition as a
+tooltip on hover or focus (`parsers.link_glossary`). Plurals,
+abbreviations and the first words of a longer label all match; a term that matches
+nothing stays plain bold italic. Works on every page that renders through the shared
+section index, not only company pages.
+
+**Diagrams are Mermaid.** A fenced ```` ```mermaid ```` block in any rendered markdown
+file is drawn by `static/js/diagrams.js`, which fetches the vendored Mermaid only on pages
+that have one (`static/vendor/README.md`). The same source renders on GitHub and in editor
+previews. Prefer `flowchart TB`: a left-to-right chart of more than two columns gets
+shrunk to fit the text column and its labels become unreadable.
+
+**Companies you are interviewing with get a business diagram.** When an application
+reaches interview stage, the `interview` subcommand adds a `## The business at a glance`
+section to the company page: a `flowchart TB` in three layers — what goes in, the
+company's products, who pays for which decision — followed by one sentence reading it.
+Not before: most tracked companies never get that far, and the diagram is prep, not
+screening. It is skipped, not improvised, when the research is too thin: a box the sources
+don't support is worse than no diagram.
+
+**An application's documents use their company's glossary.** Notes, interview rounds and
+Other files rarely carry a glossary of their own, so a marked term there resolves against
+the company page's `## Glossary` (`Company.glossary`) and links across to it, tooltip
+included. A document with its own `## Glossary` uses that instead. The `company`,
+`application` and `interview` subcommands all say to keep a glossary for unfamiliar
+sectors — definitions written once, on the company page.
 
 `Fit with my mission` is an honest for/against read against
 `jobs/profile/stocktake.md`, not a sales pitch — this is what

@@ -21,6 +21,11 @@ Arguments:
   open  render the sections expanded. A judgement per tab, not a global default — see
         the note where each include passes it.
 {% endcomment %}
+{% comment %}
+`data-hl-source` is what highlight.js keys on: a document it can write a highlight back
+to. Set on the local app only, like the task checkboxes' `data-source`.
+{% endcomment %}
+<div class="hl-doc"{% if doc.source %} data-hl-source="{{ doc.source }}"{% endif %}>
 {% if doc.preamble_md %}
   <div class="doc-preamble">{{ doc.preamble_md|mark_qa:qa|markdown|blank_links }}</div>
 {% endif %}
@@ -38,3 +43,4 @@ Arguments:
   {# No `##` headings at all — render the document as written rather than as nothing. #}
   <div class="prose">{{ doc.body_md|strip_h1|mark_qa:qa|markdown|blank_links }}</div>
 {% endfor %}
+</div>

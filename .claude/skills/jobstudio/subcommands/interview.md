@@ -107,6 +107,37 @@ Science" slot in here unchanged.
 
 ---
 
+### The business at a glance — once per company, at the first interview
+
+**Only for companies with an application at interview stage**, and only once: if the
+company page already has `## The business at a glance`, leave it (update it if a round
+taught you something it gets wrong). Otherwise add it, together with a short
+`## In one paragraph` (what they sell, to whom, where the money comes from) if the page
+lacks one, both before `## Mission`.
+
+The diagram is a ```` ```mermaid ```` `flowchart TB` in three layers: *what goes in*
+(data, people, partners), *the company's products*, *who pays, for which decision*. Short
+labels; solid arrows for data flowing, dotted ones for people, advice or shared methods;
+then one sentence that reads the diagram in a line. Keep the arrows few — a box with an
+edge to every buyer is better said once in its label. Draw from the company's own product
+pages and what interviewers have said (cite it: "per the hiring manager"). **If the
+research is too thin to draw without guessing, research more or leave it out** — a box
+the sources don't support is worse than no diagram. Check it renders on the company page.
+
+### Glossary — define the domain once, on the company page
+
+Prep is where unfamiliar terms pile up. Before drafting, read the company page's
+`## Glossary` (create one if the sector is unfamiliar and there is none — format in
+`application.md` step 2). **Add any term the pack relies on that it lacks**: a
+regulation, a buyer type, an acronym from the JD. Definitions live on the company page
+only, never in the round file.
+
+Then, in the round file, mark each glossary term ***in bold italic*** the first time it
+appears in a section. An application's notes and round files have no glossary of their
+own, so their marked terms resolve against the company page's: they link there and show
+the definition on hover. Never mark inside a heading, a link, code, or text that is
+already bold or italic — the markers would collide.
+
 ## Step 3 — Draft and show
 
 Draft the full pack in one pass (this is prep under time pressure, not a reflective
@@ -148,13 +179,12 @@ a markdown link. `## Who I'm meeting` is where this pays off most — a name you
 through to beats a paragraph describing who they are.
 
 **Add the link inside the existing line; never re-wrap the paragraph to fit it.** The
-app renders these files with markdown's `nl2br`, so **every newline in the source is a
-visible line break on the page**. Source lines look like ordinary wrapped prose only
-because they are all about the same width — break one in a new place and the reader gets
-a short ragged line mid-sentence. `[Derin](https://…)` makes a line long in the file and
-changes nothing on the page; moving the words onto a new line changes the page. The same
-goes for link text: a `[…](…)` whose label spans two lines renders with a `<br />` inside
-the anchor.
+app renders these files with markdown's `nl2br`, so a newline can be a visible line break
+on the page. Since 2026-10-07 the renderer joins a line that is plainly a continuation
+(lowercase start, indented, or after a long line that does not end a sentence), but a
+re-wrap that puts a sentence break or a capitalised name at the start of a line still
+shows. `[Derin](https://…)` makes a line long in the file and changes nothing on the page.
+Keep a `[…](…)` label on one line too.
 
 **Do not go looking for one.** A searched-for profile cannot be confirmed to be the
 right person: names repeat, and the cost of being wrong lands on a named individual and
@@ -203,7 +233,7 @@ Structure:
 
 ## Study before
 
-- …
+- [ ] …
 
 ## Private — not for the call
 
@@ -213,6 +243,12 @@ Structure:
 
 _(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
+
+**`## Study before` is a checklist.** Every item is a `- [ ]` task, never a numbered or
+plain bullet — the rule for every to-do list the skill writes ("Lists of things to do
+are checklists" in `SKILL.md`). The page renders it as a checkbox, and ticking it on the
+local app writes `[x]` back into the file. Keep one task per item; detail can follow on
+indented lines.
 
 **The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
 colours every question red so the eye can find them without reading the answers between

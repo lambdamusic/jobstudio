@@ -42,4 +42,12 @@
        this page can't drift from what the commands actually are.</p>
   </div>
 {% endif %}
+
+<div class="page-head"><h2 id="faq">Questions</h2></div>
+{% for item in faq %}
+  <div class="panel">
+    <h3 style="margin-top:0">{{ item.question }}</h3>
+    {% for para in item.answer %}<p{% if forloop.last %} style="margin-bottom:0"{% endif %}>{{ para }}</p>{% endfor %}
+  </div>
+{% endfor %}
 {% endblock %}

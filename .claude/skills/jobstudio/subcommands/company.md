@@ -117,4 +117,9 @@ update those call sites too; doing it through this command would quietly break s
 coverage for that company.
 
 For substantial background research, add `<DATA>/jobs/companies/<slug>.md` following the template
-in `<DATA>/jobs/companies/README.md` — it renders on the company page.
+in `<DATA>/jobs/companies/README.md` — it renders on the company page. Keep it
+company-level: role- or interview-specific material belongs in the application's
+`notes.md` (see `docs/companies.md` §"The research file"). When the sector is unfamiliar,
+include a `## Glossary` and mark its terms ***in bold italic*** — see `application.md`
+step 2 for the format. The `## The business at a glance` Mermaid diagram is *not* added
+here: it belongs to companies with an application at interview stage (`interview.md`).

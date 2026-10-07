@@ -115,6 +115,34 @@ working directory, so if the session started in the code repo, a write lands **i
 toolkit's own git repo** instead of in the user's data — silently, and in a repo that
 may be public. That is the failure this convention exists to prevent.
 
+## Lists of things to do are checklists
+
+Whenever a subcommand writes a list of things for the user to *do* — prep steps, study
+items, research to chase — write every item as a `- [ ]` task, never a numbered or plain
+bullet. The web app renders `- [ ]` as a checkbox, and ticking it on the local app writes
+`[x]` back into the file, so the user works through the list on the page and the file
+remembers. Order still matters where the subcommand says so: a task list keeps its order,
+it just isn't numbered. One task per item; detail can follow on indented lines.
+
+Lists that are not to-dos — questions, pros and cons, gaps, drafted answers — stay plain
+bullets.
+
+## Highlights are the user's — keep them
+
+`==text==` in a notes, company or interview file is a highlight the user made on the page
+(TODO `#77`). When editing a file that has them, keep every `==…==` exactly where it is,
+including when rewriting the passage around it, and never add one yourself. If a
+rewrite genuinely removes a highlighted passage, say so.
+
+## Referring to another file
+
+Write the path, in backticks: `` `jobs/notes/interview-technique.md` ``,
+`` `jobs/companies/<slug>.md` ``, or a file in an application folder by its full name. The
+web app turns any reference to a file that has a page into a link to that page (TODO
+`#78`), so there is no need to write a markdown link or to work out a URL. Use the
+`jobs/...` form, not `<DATA>/...`, and not a bare `notes.md` or `job.md` — every
+application folder has one, so on its own it cannot be linked.
+
 ---
 
 ## Trigger patterns

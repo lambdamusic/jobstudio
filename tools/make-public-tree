@@ -249,7 +249,13 @@ if [ -n "$COMPANY_NAMES" ]; then
     n_names=$(printf '%s\n' "$COMPANY_NAMES" | grep -c . || true)
     n_exc=$(printf '%s' "$EXCEPTIONS" | grep -c . || true)
     if [ -n "$PATTERN" ]; then
-        hits=$(cd "$DEST" && grep -rEiwnH "$PATTERN" . 2>/dev/null | sed 's|^\./||' || true)
+        # Vendored minified libraries (static/vendor/*.min.js) are skipped: they are
+        # third-party code, fetched byte-for-byte and hash-recorded in the vendor README,
+        # and 5MB of minified JavaScript names plenty of companies by accident (Mermaid
+        # carries icon-set and font names). Exempting those names instead would blind
+        # the check for every first-party file too. The README itself is still checked.
+        hits=$(cd "$DEST" && grep -rEiwnH "$PATTERN" . 2>/dev/null | sed 's|^\./||' \
+               | grep -Ev '^src/web/static/vendor/[^/:]+\.min\.js:' || true)
         if [ -n "$hits" ]; then
             echo "REFUSING TO SHIP: a company from your tracker is named in the public tree:" >&2
             echo "$hits" | sed 's/^/  /' >&2

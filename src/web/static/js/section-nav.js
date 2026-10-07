@@ -28,14 +28,29 @@
 (function () {
   "use strict";
 
-  // Keep in step with `scroll-margin-top` on `.doc-section summary` in site.css.
-  var STICKY_CLEARANCE = 56;
+  // The sticky index wraps onto two or three rows on a long document or a narrow window,
+  // so its height is measured rather than assumed. The measured value is written to
+  // `--section-clearance` on the scope, which is what `scroll-margin-top` in site.css
+  // reads — so the scroll target and the highlight arithmetic always use the same number.
+  // 56 is the fallback for a bar that has no box yet (its tab is hidden).
+  var FALLBACK_CLEARANCE = 56;
+  var GAP_BELOW_INDEX = 8;
 
   function setup(nav) {
     var scope = nav.parentElement;
     if (!scope) return;
     var links = Array.prototype.slice.call(nav.querySelectorAll("a.section-chip"));
     if (!links.length) return;
+
+    var clearance = FALLBACK_CLEARANCE;
+    function measure() {
+      var h = nav.getBoundingClientRect().height;
+      if (!h) return;
+      var next = Math.ceil(h) + GAP_BELOW_INDEX;
+      if (next === clearance) return;
+      clearance = next;
+      scope.style.setProperty("--section-clearance", clearance + "px");
+    }
 
     var byTarget = {};
     links.forEach(function (a) { byTarget[a.getAttribute("data-target")] = a; });
@@ -50,6 +65,7 @@
       var block = blockFor(id);
       if (block && !block.open) block.open = true;
       if (!scrollTo) return;
+      measure();
       var el = scope.querySelector('[id="' + CSS.escape(id) + '"]');
       // After `open` the layout has changed, so let it settle before scrolling.
       if (el) window.requestAnimationFrame(function () { el.scrollIntoView(); });
@@ -103,7 +119,7 @@
         // A heading inside a closed block has no box worth measuring, and is not
         // something the reader can be looking at.
         if (!el || !el.getClientRects().length) return;
-        if (el.getBoundingClientRect().top <= STICKY_CLEARANCE + 4) best = id;
+        if (el.getBoundingClientRect().top <= clearance + 4) best = id;
       });
       if (best) mark(best);
     }
@@ -114,14 +130,22 @@
       queued = true;
       window.requestAnimationFrame(function () { queued = false; update(); });
     }
+    function onResize() { measure(); onScroll(); }
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
+    window.addEventListener("resize", onResize, { passive: true });
+    // The bar's height also changes without a window resize: a hidden tab being shown,
+    // or the toggle's label changing length.
+    if (window.ResizeObserver) new ResizeObserver(onResize).observe(nav);
+    measure();
 
     // A deep link arriving from outside — the focus view's "other rounds" links, or a
     // URL someone saved mid-process.
     function fromHash() {
       var id = window.location.hash.replace("#", "");
       if (id && byTarget[id]) { reveal(id, true); mark(id); }
+      // Not a pill, but inside this document — a glossary term's entry, say, which may
+      // sit in a closed block.
+      else if (id && scope.querySelector('[id="' + CSS.escape(id) + '"]')) reveal(id, true);
       else update();
     }
     window.addEventListener("hashchange", fromHash);

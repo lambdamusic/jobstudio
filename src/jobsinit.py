@@ -200,9 +200,7 @@ def write_global_settings(root: Path, force: bool) -> None:
 # Optional, all per-machine. Supported platforms are macOS and Linux; setting these
 # is also how a platform the toolkit does not know about is made to work.
 #
-# chrome_path       = /usr/bin/google-chrome     # PDF export; found automatically otherwise
-# open_command      = xdg-open                   # "Open folder"; `open` on macOS, `xdg-open` elsewhere
-# editor_url_scheme = vscode://file/             # the "Open in VS Code" links
+# open_command = xdg-open    # "Open folder", "Open .docx"; `open` on macOS, `xdg-open` elsewhere
 """, force)
 
 

@@ -19,7 +19,6 @@
   {% if IS_LOCAL %}
     {% if app.folder %}
       <a class="btn local-only" href="/actions/reveal/{{ app.num }}/">Open folder</a>
-      <a class="btn local-only" href="{{ EDITOR_URL_SCHEME }}{{ app.folder_path }}">Open in VS Code</a>
     {% else %}
       <a class="btn local-only" href="/actions/create-folder/{{ app.num }}/">Create folder</a>
     {% endif %}
@@ -127,7 +126,7 @@
   {% if app.job_md %}
     <section class="tabpanel" data-panel="job" role="tabpanel">
       <h2 class="panel-heading">Job description</h2>
-      <div class="panel prose panel-sunk">{{ app.job_md|strip_h1|markdown|blank_links }}</div>
+      <div class="panel prose panel-sunk hl-doc"{% if app.job_source %} data-hl-source="{{ app.job_source }}"{% endif %}>{{ app.job_md|hl_marks:app.job_source|strip_h1|markdown|blank_links }}</div>
     </section>
   {% endif %}
 
@@ -181,10 +180,7 @@
             <span><code id="{{ cv.anchor }}" style="font-size:12.5px">{{ cv.name }}</code>{% if cv.untouched %}
               <span class="pill" title="A mechanical copy of the base CV — the roles in brackets stripped from the competencies, nothing else changed">unedited copy</span>{% endif %}</span>
             {% if IS_LOCAL %}
-              <span>
-                <a href="{{ EDITOR_URL_SCHEME }}{{ cv.path }}">Open in VS Code</a>
-                {% if cv.docx %} · <a href="{{ EDITOR_URL_SCHEME }}{{ cv.docx }}">Open .docx</a>{% endif %}
-              </span>
+              {% if cv.docx %}<a href="/actions/open-docx/?path={{ cv.docx|data_rel|urlencode }}">Open .docx</a>{% endif %}
             {% endif %}
           </div>
           {{ cv.body_md|strip_h1|markdown|blank_links }}
@@ -201,7 +197,7 @@
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
             <h3 style="margin-top:0">{{ letter.label }}{% if letter.date %} · {{ letter.date|date:"j M Y" }}{% endif %}</h3>
             {% if IS_LOCAL and letter.docx_path %}
-              <a href="{{ EDITOR_URL_SCHEME }}{{ letter.docx_path }}">Open .docx</a>
+              <a href="/actions/open-docx/?path={{ letter.docx_path|data_rel|urlencode }}">Open .docx</a>
             {% endif %}
           </div>
           {{ letter.body_md|strip_h1|markdown|blank_links }}
@@ -218,7 +214,6 @@
           <div class="panel prose panel-sunk" style="margin-bottom:16px">
             <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
               <code id="{{ f.anchor }}" style="font-size:12.5px">{{ f.rel }}</code>
-              {% if IS_LOCAL %}<a href="{{ EDITOR_URL_SCHEME }}{{ f.path }}">Open in VS Code</a>{% endif %}
             </div>
             {% comment %}
             Collapsed, unlike My notes (`#72`). This tab stacks whole files one after
@@ -238,7 +233,6 @@
             <code id="{{ f.anchor }}" style="font-size:12.5px">{{ f.rel }}</code>
             <span>
               <span style="color:var(--faint)">{{ f.size_kb }} KB</span>
-              {% if IS_LOCAL %} · <a href="{{ EDITOR_URL_SCHEME }}{{ f.path }}">Open in VS Code</a>{% endif %}
             </span>
           </div>
         {% endif %}
@@ -291,9 +285,6 @@
             <h3 id="{{ round.anchor }}" style="margin-top:0">{{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}</h3>
             <span>
               <a href="/applications/{{ app.num }}/rounds/{{ round.anchor }}/">Focus view ↗</a>
-              {% if IS_LOCAL %}
-                · <a href="{{ EDITOR_URL_SCHEME }}{{ round.path }}">Open in VS Code</a>
-              {% endif %}
             </span>
           </div>
           {% comment %}
@@ -335,5 +326,31 @@
     </section>
   {% endif %}
 </div>
+
+{% comment %}
+The way back to the company — always shown, below the tabs so it is there whichever tab
+is open. The header links the name too, but that is easy to miss; this is the explicit
+route to the research, the glossary and the company's other applications.
+{% endcomment %}
+<section class="company-cta" aria-label="Company page">
+  {% if app.company %}
+    <div class="company-cta-text">
+      <div class="company-cta-kicker">Company</div>
+      <div class="company-cta-name">{{ app.company.name }}</div>
+      {% if app.company.notes %}<p class="company-cta-summary">{{ app.company.notes }}</p>{% endif %}
+      <p class="company-cta-what">
+        {% if app.company.notes_path %}Research, fit read{% if app.glossary %} and a glossary of {{ app.glossary|length }} terms{% endif %}{% else %}Tracked fields only — no research file yet{% endif %}{% if siblings %} · {{ siblings|length }} other application{{ siblings|length|pluralize }}{% endif %}.
+      </p>
+    </div>
+    <a class="btn btn-primary company-cta-btn" href="/companies/{{ app.company.slug }}/">Open the {{ app.company.name }} page →</a>
+  {% else %}
+    <div class="company-cta-text">
+      <div class="company-cta-kicker">Company</div>
+      <div class="company-cta-name">{{ app.company_name }}</div>
+      <p class="company-cta-what">Not linked to a tracked company yet. Link it with
+        <code>tools/py src/jobsdb.py link-company {{ app.num }}</code>.</p>
+    </div>
+  {% endif %}
+</section>
 
 {% endblock %}

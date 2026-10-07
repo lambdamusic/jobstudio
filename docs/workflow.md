@@ -108,11 +108,8 @@ Renders that application's tailored CV and cover letter to **`.docx`** — the f
 employers ask for and the one that gets sent. Files land in the application's
 `export/` subfolder.
 
-`.docx` is the only thing produced unless you ask otherwise. **HTML and PDF are
-opt-in**: say so explicitly ("render it as a PDF too") and they are added. Anything
-that opens a `.docx` can save a PDF, so treat one as a specific request rather than a
-courtesy — and the two-column chronological layout in particular parses badly in
-applicant tracking systems, which the `.docx` avoids entirely.
+`.docx` is the only thing produced — it is the format applicant tracking systems read
+most reliably. Need a PDF? Open the `.docx` in Word or Pages and export one.
 
 **Read the parse report.** Rendering prints a line like
 `Parsed cv_functional.md (functional): … employers: 3, roles: 4 …`. The CV parsers
@@ -287,9 +284,10 @@ Every application page has a **History** tab, tracking status changes only (adde
 2026-09-08) — one entry per transition, written automatically whenever `status` changes,
 so there's nothing to maintain by hand.
 
-Application and company pages both have local-only quick-edit links — **Open folder** /
-**Open in VS Code** next to the page title (added 2026-09-09) — for jumping straight to
-the underlying files. A company page shows them once `jobs/companies/<slug>.md` exists; an
+Application and company pages both have a local-only **Open folder** link next to the
+page title (added 2026-09-09) for jumping straight to the underlying files. (An **Open in
+VS Code** link sat beside it until `#81` removed it: a `vscode://` URL can replace the
+workspace of a VS Code window that is already open, and the Claude sessions in it.) A company page shows them once `jobs/companies/<slug>.md` exists; an
 application without a folder yet shows **Create folder** instead, which scaffolds one on
 demand with the same defaults as logging a new application.
 

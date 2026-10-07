@@ -1998,6 +1998,37 @@ class JobsDbTests(TestCase):
         self.assertEqual(jobsdb.update_company(name, fit=3)["num"], "1")
         self.assertEqual(jobsdb.update_company(name[:6], fit=2)["num"], "1")
 
+    def test_update_application_touches_only_the_fields_passed(self):
+        """Discarding a role used to leave its next action saying "Review CV and apply" —
+        `set-status` could change the status and nothing could change the rest. Status and
+        next action in one call is the case it was built for."""
+        import jobsdb
+        from tracker.models import Application
+
+        before = Application.objects.get(num=1)
+        original = (before.role, before.summary, before.notes, before.contact, before.job_url)
+        row = jobsdb.update_application(1, status="discarded", next_action="")
+
+        after = Application.objects.get(num=1)
+        self.assertEqual(after.status, "discarded")
+        self.assertEqual(after.next_action, "", "an empty string must clear the field")
+        self.assertEqual((after.role, after.summary, after.notes, after.contact, after.job_url),
+                         original, "a field that was not passed must not be touched")
+        self.assertEqual(row["status"], "discarded")
+
+    def test_status_writes_refuse_an_unknown_status(self):
+        """Same check as the web app's status menu: an unknown value would save, then sort
+        last and match no status filter."""
+        import jobsdb
+        from tracker.models import Application
+
+        before = Application.objects.get(num=1).status
+        with self.assertRaises(ValueError):
+            jobsdb.update_application(1, status="binned")
+        with self.assertRaises(ValueError):
+            jobsdb.set_status(1, "binned")
+        self.assertEqual(Application.objects.get(num=1).status, before)
+
     def test_set_cv_base_changes_the_stored_base(self):
         """`#60` — a `cv --base` override deliberately leaves the stored value alone, so
         making a switch permanent needs its own command. Nothing on the agent-native path
@@ -2943,6 +2974,26 @@ class ExportFolderTests(TestCase):
         self.assertEqual([p.resolve() for p in linked if p], [docx.resolve()])
         self.assertNotIn(docx.name, [f["name"] for f in app.extra_files])
 
+    def test_an_export_opens_in_the_desktop_app_and_nothing_links_to_vs_code(self):
+        """#81: a `vscode://` link can take over an open VS Code window, so none are left;
+        an export opens through the same local opener as Open folder."""
+        import appfolder
+        from unittest import mock
+
+        app, cv_md = self._cv_markdown()
+        docx = self._place(appfolder.export_dir(app.folder_path) / cv_md.with_suffix(".docx").name)
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertNotIn("vscode:", html)
+        self.assertIn("/actions/open-docx/?path=", html)
+
+        rel = docx.resolve().relative_to(Path(settings.DATA_ROOT).resolve())
+        with mock.patch("tracker.views._open_locally") as opened:
+            self.assertEqual(self.client.get("/actions/open-docx/", {"path": str(rel)}).status_code, 302)
+            opened.assert_called_once()
+            for bad in (str(cv_md.relative_to(Path(settings.DATA_ROOT).resolve())), "nope.docx"):
+                with self.subTest(path=bad):
+                    self.assertEqual(self.client.get("/actions/open-docx/", {"path": bad}).status_code, 404)
+
     def test_a_docx_beside_its_markdown_is_still_found(self):
         """Pre-2026-09-24 folders are not migrated; dropping the flat lookup would make
         every .docx already on disk vanish from the tab that links it."""
@@ -3143,6 +3194,18 @@ class RenderDestinationTests(TestCase):
         self.assertTrue(dest.name.startswith(app.folder_path.name), dest.name)
         self.assertTrue(dest.name.endswith(".docx"))
 
+    def test_a_render_takes_its_sources_stem_and_date_not_todays(self):
+        """#80: a CV tailored on one day and rendered on the next used to carry two
+        dates. The .docx is named after the .md, so the two always pair exactly."""
+        import appfolder
+
+        app = Application.objects.get(num=1)
+        src = app.folder_path / f"{app.folder_path.name}-alex-rivera-cv-functional-2020-01-02.md"
+        dest = self.render._home(src, "cv-functional", "docx", stem="unused")
+        self.addCleanup(shutil.rmtree, appfolder.export_dir(app.folder_path), ignore_errors=True)
+        self.assertEqual(dest.name, f"{src.stem}.docx")
+        self.assertEqual(appfolder.export_dir(app.folder_path) / dest.name, dest)
+
     def test_a_render_of_a_base_cv_goes_to_jobs_cv_export(self):
         """Named like jobs/cv/base/archive/, the other place a dated copy of a base CV
         lives, so the two read as one convention."""
@@ -3172,12 +3235,140 @@ class RenderDestinationTests(TestCase):
         self.assertNotIn("_maybe_copy_to_app_folder", source)
 
 
+class HighlightTests(TestCase):
+    """#77: select text on a page and it becomes `==text==` in the markdown. The page
+    shows rendered text, so the hard part is finding that text in the source without
+    ever splitting a construct; these pin the cases that would."""
+
+    fixtures = FIXTURE
+    DOC = ("# Title\n\nGrafana sells **observability** software. See [the docs](https://x.y/z)"
+           " for more.\n\n- [ ] Read three RFCs and have an opinion on one.\n- Keep the"
+           " story to `three` minutes.\n\n| A | B |\n|---|---|\n| alpha one | beta two |\n\n"
+           "Grafana sells software twice.\n\n```\nGrafana sells code\n```\n")
+
+    def _add(self, selected, before="", after=""):
+        from tracker.highlights import add
+        return add(self.DOC, selected, before, after)
+
+    def test_a_selection_never_splits_a_construct(self):
+        self.assertIn("Grafana ==sells **observability**== software", self._add("sells observability"))
+        self.assertIn("See ==[the docs](https://x.y/z) for== more", self._add("the docs for"))
+        self.assertIn("==to `three` minutes==", self._add("to three minutes"))
+
+    def test_a_selection_snaps_to_whole_words(self):
+        self.assertIn("==Read three RFCs== and", self._add("ead three RF", "- [ ] R", "Cs and"))
+
+    def test_line_markers_stay_outside_the_highlight(self):
+        self.assertIn("- [ ] ==Read three RFCs== and", self._add("Read three RFCs"))
+
+    def test_a_selection_across_lines_or_cells_is_one_highlight_each(self):
+        out = self._add("opinion on one.\nKeep the")
+        self.assertIn("have an ==opinion on one.==\n- ==Keep the== story", out)
+        self.assertIn("| ==alpha one== | ==beta two== |", self._add("alpha one\tbeta two"))
+
+    def test_repeated_text_is_placed_by_its_context_or_refused(self):
+        from tracker.highlights import HighlightError
+        with self.assertRaises(HighlightError):
+            self._add("Grafana sells")
+        self.assertIn("==Grafana sells== software twice", self._add("Grafana sells", "", " software twice"))
+
+    def test_headings_code_and_overlaps_are_refused(self):
+        from tracker.highlights import HighlightError, add
+        for sel in ("Title", "not in the file"):
+            with self.subTest(sel=sel), self.assertRaises(HighlightError):
+                self._add(sel)
+        with self.assertRaises(HighlightError):
+            add(self._add("Read three RFCs"), "three RFCs and")
+
+    def test_remove_undoes_add_and_marks_are_counted_outside_code(self):
+        from tracker.highlights import mark_spans, remove
+        out = self._add("Read three RFCs")
+        self.assertEqual(remove(out, 0), self.DOC)
+        self.assertEqual(mark_spans("`==code==` and ==real==\n```\n==fenced==\n```\n"), [(15, 23)])
+        self.assertEqual(mark_spans("Title\n=====\n"), [])
+
+    def test_marks_render_live_locally_and_read_only_when_published(self):
+        from tracker.parsers import sectioned
+        from tracker.templatetags.jobs_extras import markdownify
+        live = sectioned("## A\n\nSome ==key line== here.\n", "n", source="jobs/x.md")
+        self.assertIn('<mark class="hl" data-mark="0">key line</mark>', live["blocks"][0]["body_md"])
+        self.assertEqual(live["source"], "jobs/x.md")
+        self.assertIn('<mark class="hl">key line</mark>', markdownify("Some ==key line== here."))
+
+    def test_the_endpoint_writes_the_file_and_keeps_the_task_rules(self):
+        import tempfile
+        from django.test import override_settings
+        with tempfile.TemporaryDirectory() as root:
+            f = Path(root) / "jobs" / "r.md"
+            f.parent.mkdir()
+            f.write_text("One line to keep.\n")
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="local"):
+                post = lambda **d: self.client.post("/actions/highlight/", {"source": "jobs/r.md", **d})
+                self.assertEqual(post(text="line to keep", before="One ").status_code, 200)
+                self.assertEqual(f.read_text(), "One ==line to keep==.\n")
+                r = post(text="nowhere")
+                self.assertEqual(r.status_code, 409)
+                self.assertIn("Couldn't find", r.json()["error"])
+                self.assertEqual(post(remove="0").status_code, 200)
+                self.assertEqual(f.read_text(), "One line to keep.\n")
+                self.assertEqual(post(remove="0").status_code, 409)
+                r = self.client.post("/actions/highlight/", {"source": "../x.md", "text": "a"})
+                self.assertEqual(r.status_code, 404)
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="publish"):
+                r = self.client.post("/actions/highlight/", {"source": "jobs/r.md", "text": "One"})
+                self.assertEqual(r.status_code, 404)
+
+    def test_the_job_description_and_profile_take_highlights_locally(self):
+        from django.test import override_settings
+        from tracker.templatetags.jobs_extras import hl_marks
+        self.assertEqual(hl_marks("# T\n\n==a b==\n", "jobs/x.md"),
+                         '# T\n\n<mark class="hl" data-mark="0">a b</mark>\n')
+        self.assertEqual(hl_marks("==a b==", None), "==a b==")
+        pages = {"/applications/1/": 'data-hl-source="jobs/applications/001-grafana-labs/job.md"',
+                 "/profile/": 'data-hl-source="jobs/profile/stocktake.md"'}
+        for url, attr in pages.items():
+            with self.subTest(url=url):
+                with override_settings(ENVIRONMENT="local"):
+                    self.assertIn(attr, self.client.get(url).content.decode())
+                with override_settings(ENVIRONMENT="publish"):
+                    self.assertNotIn("data-hl-source", self.client.get(url).content.decode())
+
+
+class UnwrapTests(TestCase):
+    """Hard-wrapped prose renders as one paragraph, not a `<br />` at every wrap (`nl2br`
+    stays on for the line breaks that are layout)."""
+
+    def test_wrapped_prose_joins_and_layout_breaks_stay(self):
+        from tracker.templatetags.jobs_extras import markdownify
+        html = markdownify(
+            "If one comes, use the author-disambiguation turnaround — failure\n"
+            "modes, how it was measured.\n\n"
+            "Grafana Labs runs an open observability stack used by thousands of\n"
+            "Teams across every industry.\n\n"
+            "**Area:** data\n**Location:** London\n\n"
+            "- a bullet long enough to wrap past the column edge in the source file\n"
+            "  and carry on here.\n- next\n\n"
+            "a highlight across a wrap, which is one mark per line in the\n"
+            '  <mark class="hl">file</mark> and still one line on the page.\n\n'
+            "> a quoted answer that was wrapped at the usual column, so the quote\n"
+            "> carries on here.\n\n"
+            "```\ncode that is long enough to look like a wrapped line of prose, yes\n"
+            "continued\n```\n\nOne sentence.\nAnother.")
+        self.assertIn("turnaround — failure modes", html)
+        self.assertIn("thousands of Teams", html)
+        self.assertIn("<strong>Area:</strong> data<br />", html)
+        self.assertIn("column edge in the source file and carry on", html)
+        self.assertIn('in the <mark class="hl">file</mark>', html)
+        self.assertIn("so the quote carries on", html)
+        self.assertIn("yes\ncontinued", html)
+        self.assertIn("One sentence.<br />", html)
+
+
 class CoverLetterFormatTests(TestCase):
-    """`.docx` is the version that gets sent, so it is the only one written by default.
-    HTML used to come out every time because the PDF path needs something for Chrome to
-    print — harmless while renders went to `exports/`, but once they landed in the
-    application folder (2026-09-24) every cover letter left an `.html` beside its `.docx`
-    that nobody had asked for."""
+    """`.docx` is the version that gets sent, and since TODO `#70` the only one written.
+    HTML used to come out every time because the PDF path needed something for Chrome to
+    print — once renders landed in the application folder (2026-09-24) every cover letter
+    left an `.html` beside its `.docx` that nobody had asked for."""
 
     fixtures = FIXTURE
 
@@ -3199,34 +3390,12 @@ class CoverLetterFormatTests(TestCase):
             return []
         return sorted(p.name for p in self.export.glob(f"*.{ext}"))
 
-    def test_the_default_is_the_docx_alone(self):
+    def test_a_cover_letter_renders_to_the_docx_alone(self):
         self.render.export_cover_letter(self.letter)
 
         self.assertEqual(len(self._rendered("docx")), 1)
         self.assertEqual(self._rendered("html"), [])
         self.assertEqual(self._rendered("pdf"), [])
-
-    def test_html_is_written_only_when_it_is_asked_for(self):
-        self.render.export_cover_letter(self.letter, fmt="html")
-
-        self.assertEqual(len(self._rendered("html")), 1)
-        self.assertEqual(len(self._rendered("docx")), 1, "the .docx comes out either way")
-
-    def test_a_pdf_render_prints_from_a_temp_file_and_keeps_no_html(self):
-        seen = {}
-
-        def fake_print(html_path, pdf_path):
-            seen["readable"] = html_path.is_file()
-            seen["parent"] = html_path.parent
-            pdf_path.write_bytes(b"%PDF-1.4 not really")
-
-        with mock.patch.object(self.render, "_chrome_print_pdf", fake_print):
-            self.render.export_cover_letter(self.letter, fmt="pdf")
-
-        self.assertTrue(seen["readable"], "Chrome still needs real HTML to print")
-        self.assertNotEqual(seen["parent"].resolve(), self.export.resolve())
-        self.assertEqual(self._rendered("html"), [])
-        self.assertEqual(len(self._rendered("pdf")), 1)
 
 
 class PruneExportsCommandTests(TestCase):
@@ -3673,6 +3842,179 @@ class InterviewRoundTests(TestCase):
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         for s in app.notes_doc["sections"]:
             self.assertTrue(s["anchor"].startswith("notes--"), s["anchor"])
+            self.assertIn(f'id="{s["anchor"]}"', html)
+
+    def test_glossary_terms_link_to_their_entries(self):
+        from tracker.parsers import sectioned
+        doc = sectioned(
+            "# Co\n\n## Products\n\nUses ***claims*** and ***EHR*** data, picks sites by "
+            "***feasibility***, and has ***nothing defined***. Plain **bold** and *italic*.\n\n"
+            "## Glossary\n\n- **EHR (Electronic Health Record).** The clinical record.\n"
+            "- **Claims data.** Billing records.\n"
+            "- **Site.** A clinic. **Site selection / feasibility** means choosing sites.\n",
+            "co")
+        body = doc["blocks"][0]["body_md"]
+        gloss = doc["blocks"][1]["body_md"]
+        self.assertIn('<a class="gloss" href="#co--gloss-claims-data"', body)
+        self.assertIn('href="#co--gloss-ehr-electronic-health-record" data-def="The clinical record.">EHR</a>', body)
+        self.assertIn('href="#co--gloss-site" data-def="A clinic. Site selection / feasibility '
+                      'means choosing sites.">feasibility</a>', body)
+        self.assertIn('data-def="Billing records."', body)
+        self.assertIn("***nothing defined***", body)      # unmatched: left alone
+        self.assertIn("**bold** and *italic*", body)     # ordinary emphasis untouched
+        for anchor in ("co--gloss-claims-data", "co--gloss-site"):
+            self.assertIn(f'id="{anchor}"', gloss)
+
+    def test_a_document_falls_back_to_a_supplied_glossary(self):
+        from tracker.parsers import glossary_of, sectioned
+        company = glossary_of("## Glossary\n\n- **SEC (Securities and Exchange Commission).** "
+                              "The US regulator.\n", "company", "/companies/acme/")
+        doc = sectioned("## Prep\n\nThe ***SEC*** runs exams.\n", "notes", company)
+        self.assertIn('<a class="gloss" href="/companies/acme/#company--gloss-sec-securities-'
+                      'and-exchange-commission" data-def="The US regulator.">SEC</a>',
+                      doc["blocks"][0]["body_md"])
+
+    def test_a_documents_own_glossary_beats_the_supplied_one(self):
+        from tracker.parsers import glossary_of, sectioned
+        company = glossary_of("## Glossary\n\n- **Panel.** Company meaning.\n",
+                              "company", "/companies/acme/")
+        doc = sectioned("## A\n\nA ***panel***.\n\n## Glossary\n\n- **Panel.** Local meaning.\n",
+                        "n", company)
+        self.assertIn('href="#n--gloss-panel" data-def="Local meaning."', doc["blocks"][0]["body_md"])
+
+    def test_a_long_paragraph_never_splits_inside_a_glossary_link(self):
+        """A one-line paragraph over 500 characters is broken at sentence boundaries, and
+        glossary links are already rendered by then. A definition of two sentences used to
+        be split inside its data-def attribute, printing half the tag on the page."""
+        from tracker.templatetags.jobs_extras import _paragraphize, markdownify
+        link = ('<a class="gloss" href="#c--gloss-rating" data-def="An opinion of credit '
+                'risk. Applies to an issuer or a bond.">rating</a>')
+        text = f"Grafana Labs sells software. It has a {link} too. Customers pay for it."
+        # target=1 breaks at every sentence boundary, so a boundary inside the tag would.
+        out = _paragraphize(text, target=1, minimum=0)
+        self.assertIn(link, out)
+        self.assertEqual(out.count("\n\n"), 2)
+        self.assertNotIn("&lt;a", markdownify(("Grafana Labs sells software. " * 20) + text))
+
+    def test_a_mermaid_fence_reaches_the_page_as_diagram_source(self):
+        """diagrams.js draws `pre > code.language-mermaid`, so the markdown filter has to
+        hand the fence over untouched — no autolinking, no <br /> from nl2br."""
+        from tracker.templatetags.jobs_extras import markdownify
+        html = markdownify("```mermaid\nflowchart LR\n  A[\"x<br/>y\"] --> B\n```\n")
+        self.assertIn('<code class="language-mermaid">flowchart LR\n', html)
+        self.assertIn("A[&quot;x&lt;br/&gt;y&quot;] --&gt; B", html)
+        page = self.client.get("/").content.decode()
+        self.assertIn('js/diagrams.js" data-mermaid="', page)
+
+    def test_a_reference_to_a_markdown_file_links_to_its_page(self):
+        """#78: a path in prose, in backticks or not, links to the page that renders the
+        file; a path with no page stays text rather than becoming a dead link."""
+        from tracker.templatetags.jobs_extras import markdownify
+        a = "001-grafana-labs-alex-rivera"
+        cases = {
+            "`jobs/notes/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "see <DATA>/jobs/companies/grafana-labs.md now": 'href="/companies/grafana-labs/"',
+            "`stocktake.md` §7": '<a href="/profile/"><code>stocktake.md</code></a>',
+            "jobs/cv/base/cv_functional.md": 'href="/cvs/base/cv_functional/"',
+            "`jobs/applications/001-grafana-labs/notes.md`": 'href="/applications/1/#notes"',
+            f"`{a}-interview-hr-screen-2026-09-18.md`":
+                'href="/applications/1/#round-hr-screen-2026-09-18"',
+            f"`{a}-cv-developer-advocacy-2026-09-15.md`":
+                'href="/applications/1/#cv-developer-advocacy-2026-09-15"',
+            f"`{a}-study-plugin-architecture-2026-09-19.md`":
+                f'href="/applications/1/#file-{a}-study-plugin-architecture-2026-09-19-md"',
+            "[the note](jobs/notes/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
+        }
+        for md, expected in cases.items():
+            with self.subTest(md=md):
+                self.assertIn(expected, markdownify(md))
+        for md in ("`jobs/notes/no-such-note.md`", "`notes.md`", "README.md",
+                   "```\njobs/notes/ideal-job-notes.md\n```",
+                   "https://example.com/jobs/notes/ideal-job-notes.md"):
+            with self.subTest(md=md):
+                self.assertNotIn('href="/notes/', markdownify(md))
+
+    def test_a_linked_file_reference_lands_on_an_anchor_the_page_has(self):
+        html = self.client.get("/applications/1/").content.decode()
+        for anchor in ("round-hr-screen-2026-09-18", "cv-developer-advocacy-2026-09-15",
+                       "file-001-grafana-labs-alex-rivera-study-plugin-architecture-2026-09-19-md"):
+            with self.subTest(anchor=anchor):
+                self.assertIn(f'id="{anchor}"', html)
+
+    def test_task_markers_render_as_checkboxes_and_write_back(self):
+        from tracker.parsers import render_tasks, set_task, task_spans
+        text = ("## Study before\n\n- [ ] Watch the video\n- [x] Read the paper\n"
+                "```\n- [ ] not a task, in a fence\n```\n1. [ ] Numbered task\n")
+        self.assertEqual([c for _, _, c in task_spans(text)], [False, True, False])
+        live = render_tasks(text, "jobs/x.md")
+        self.assertIn('<input type="checkbox" class="task-box" data-task="0" '
+                      'data-source="jobs/x.md"> Watch', live)
+        self.assertIn('data-task="1" data-source="jobs/x.md" checked> Read', live)
+        self.assertIn("- [ ] not a task, in a fence", live)
+        self.assertIn('data-task="2"', live)
+        self.assertIn(" disabled", render_tasks(text, None))          # published: read-only
+        ticked = set_task(text, 2, True)
+        self.assertIn("1. [x] Numbered task", ticked)
+        self.assertIn("- [ ] not a task, in a fence", ticked)       # the fence is untouched
+        self.assertIn("- [ ] Read the paper", set_task(text, 1, False))
+        with self.assertRaises(IndexError):
+            set_task(text, 3, True)
+
+    def test_preparation_steps_in_application_notes_are_checkboxes(self):
+        """A gap analysis's `### Preparation steps` is a `- [ ]` list (SKILL.md, "Lists of
+        things to do are checklists"), so it reaches the page as checkboxes."""
+        html = self.client.get("/applications/1/").content.decode()
+        prep = html[html.index("Preparation steps"):]
+        self.assertIn('class="task-box" data-task="0"', prep)
+        self.assertIn('data-task="1"', prep)
+
+    def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
+        import tempfile
+        from pathlib import Path
+        from django.test import override_settings
+        with tempfile.TemporaryDirectory() as root:
+            f = Path(root) / "jobs" / "r.md"
+            f.parent.mkdir()
+            f.write_text("- [ ] one\n- [ ] two\n")
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="local"):
+                r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "1",
+                                                        "checked": "true"})
+                self.assertEqual(r.status_code, 200)
+                self.assertEqual(f.read_text(), "- [ ] one\n- [x] two\n")
+                r = self.client.post("/actions/task/", {"source": "../etc/passwd.md",
+                                                        "index": "0", "checked": "true"})
+                self.assertEqual(r.status_code, 404)
+                r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "9",
+                                                        "checked": "true"})
+                self.assertEqual(r.status_code, 409)
+            with override_settings(DATA_ROOT=root, ENVIRONMENT="publish"):
+                r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "0",
+                                                        "checked": "true"})
+                self.assertEqual(r.status_code, 404)
+
+    def test_a_document_without_a_glossary_is_unchanged(self):
+        from tracker.parsers import sectioned
+        doc = sectioned("## A\n\nSome ***term*** here.\n", "x")
+        self.assertIn("***term***", doc["blocks"][0]["body_md"])
+
+    def test_every_application_page_links_out_to_its_company(self):
+        for app in Application.objects.all():
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            with self.subTest(num=app.num):
+                self.assertIn('class="company-cta"', html)
+                if app.company_id:
+                    self.assertIn(f'href="/companies/{app.company.slug}/">Open the', html)
+                else:
+                    self.assertIn("link-company", html)
+
+    def test_company_research_renders_through_the_shared_index(self):
+        co = next((c for c in Company.objects.all()
+                   if c.notes_doc and len(c.notes_doc["sections"]) > 1), None)
+        self.assertIsNotNone(co, "no example company has a sectioned research file")
+        html = self.client.get(f"/companies/{co.slug}/").content.decode()
+        self.assertIn("data-section-index", html)
+        for s in co.notes_doc["sections"]:
+            self.assertTrue(s["anchor"].startswith("company--"), s["anchor"])
             self.assertIn(f'id="{s["anchor"]}"', html)
 
     def test_my_notes_opens_expanded_and_other_files_collapsed(self):
@@ -4200,6 +4542,13 @@ class HelpPageTests(TestCase):
             for name in step["commands"]:
                 with self.subTest(step=step["heading"], command=name):
                     self.assertIn(name, known)
+
+    def test_the_faq_says_why_docx_is_the_only_export(self):
+        """#70: the help page is where someone looking at an export is standing."""
+        html = self.client.get("/help/").content.decode()
+        self.assertIn('id="faq"', html)
+        self.assertIn("Why only .docx", html)
+        self.assertIn("Word or Pages", html)
 
     def test_it_is_linked_from_the_sidebar_under_its_own_label(self):
         """Its own nav group, at the level of Tracker / Material / Local — not tucked

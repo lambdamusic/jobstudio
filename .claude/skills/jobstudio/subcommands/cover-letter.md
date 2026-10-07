@@ -55,9 +55,8 @@ subcommand over it is how it gets replaced with a real letter.
    tools/py src/render.py --cover-letter --file "<saved path>"
    ```
    The `.docx` is written straight into the application's `export/` subfolder — the
-   markdown stays at the top level. `.docx` is all this produces, deliberately: add
-   `--format pdf` only if the user asked for a PDF, and `--format html` only if they
-   asked for HTML.
+   markdown stays at the top level. `.docx` is the only format (TODO `#70`); a user who
+   wants a PDF exports one from Word or Pages.
 
    The cover letter appears on the application page automatically — no `import_jobs` step
    (letters are scanned from the folder by naming convention).

@@ -6,7 +6,7 @@
   <p class="lede">Step 1 of the career-transition process, structured — from <code>jobs/profile/</code>. Built via <code>/jobstudio stocktake</code>.</p>
 </div>
 {% if body %}
-  <div class="panel prose">{{ body|strip_h1|markdown|blank_links }}</div>
+  <div class="panel prose hl-doc"{% if source %} data-hl-source="{{ source }}"{% endif %}>{{ body|hl_marks:source|strip_h1|markdown|blank_links }}</div>
 {% else %}
   <p class="empty">No <code>stocktake.md</code> yet.</p>
 {% endif %}

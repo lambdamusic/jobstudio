@@ -117,7 +117,9 @@ Rendered only when `ENVIRONMENT=local`, and never present in the published mirro
 - **Open folder** → `/actions/reveal/<num>/`, which runs `open` on the server. Chrome
   blocks `file://` navigation from an `http://` page, so a plain link cannot work; the
   endpoint refuses any path outside the repo.
-- **Open in VS Code** → a `vscode://file/...` link, which the browser hands to the app
+- **Open .docx** (CV and Cover letters tabs) → `/actions/open-docx/?path=…`, which opens
+  the export in the default app the same way. No "Open in VS Code" link anywhere: a
+  `vscode://` URL can take over an open VS Code window and its Claude sessions (`#81`)
 - **Set status** → a `<details>` menu on the application detail page listing every status
   except the current one, each linking to `/actions/set-status/<num>/<status>/`. The
   status is validated against `STATUS_SORT_ORDER` rather than trusted, since it arrives

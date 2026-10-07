@@ -15,6 +15,21 @@
   {% endcomment %}
   <script src="{% static 'js/section-nav.js' %}" defer></script>
   {% comment %}
+  Draws ```mermaid blocks in rendered markdown. Inert on pages without one; on pages with
+  one it fetches the vendored Mermaid (static/vendor/README.md) on demand.
+  {% endcomment %}
+  {% comment %}
+  Live `- [ ]` checkboxes in rendered markdown write their tick back to the file, and the
+  highlighter (#77) writes `==…==` the same way. Local only: the token is what the POST
+  carries, and the published site has no endpoint.
+  {% endcomment %}
+  {% if IS_LOCAL %}
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script src="{% static 'js/tasks.js' %}" defer></script>
+    <script src="{% static 'js/highlight.js' %}" defer></script>
+  {% endif %}
+  <script src="{% static 'js/diagrams.js' %}" data-mermaid="{% static 'vendor/mermaid-12.1.0.min.js' %}" defer></script>
+  {% comment %}
   The charts on /stats/ and the library they need. Both are deferred and both are
   enhancements: the page renders its numbers as tables first and charts.js swaps in the
   drawings, so no-JavaScript and the published mirror both stay readable. ECharts is

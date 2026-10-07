@@ -136,8 +136,8 @@ recap progress in chat if they want to pause and resume within the same session)
    and exits non-zero if anything was lost. Fix the markdown against
    `references/cv-base-format.md` and re-run until it says `CHECK OK`.
 
-   Do not render HTML or PDF to eyeball the result instead: `--check` answers the same
-   question without producing files nobody wants (see TODO `#46`).
+   Do not render a `.docx` to eyeball the result instead: `--check` answers the same
+   question without producing a file nobody wants (see TODO `#46`).
 
 ### A.2 — Mode: import from an existing CV
 
@@ -268,7 +268,8 @@ place.
 5. **Show the draft for review** before saving, naming which base was used, unless the
    user has said not to.
 
-6. **On confirmation, save** following the application-folder naming convention:
+6. **On confirmation, save** following the application-folder naming convention, dated
+   today — the day it was tailored, not the day the role was logged:
    - Functional: `{folder}/{folder-name}-<person-slug>-cv-functional-YYYY-MM-DD.md` —
      splice the new Summary and Core Competencies sections into the **copy already in
      the folder** (everything else stays as-is), and **delete the copy you tailored
@@ -279,7 +280,17 @@ place.
    - Chronological: `{folder}/{folder-name}-<person-slug>-cv-chronological-YYYY-MM-DD.md`
      — the full rewritten document.
 
-   Print the saved path.
+   Print the saved path. Then render the `.docx` — the CV is the document that actually
+   gets sent, so it is not finished until there is one (TODO `#80`):
+
+   ```bash
+   tools/py src/render.py --functional --file "<saved path>"      # or --chronological
+   ```
+
+   It is written to the application's `export/` subfolder under the markdown's own name
+   and date, so the `.md` and the `.docx` always pair — re-rendering later overwrites it
+   rather than adding a second copy. If the render's parse report shows a problem, fix
+   the markdown and render again before saying it is done.
 
    **A `--base` override adds a CV; it does not replace one** (TODO `#60`, decided
    2026-10-01 after trying the other way). Running `--base chronological` on an

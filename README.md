@@ -52,9 +52,8 @@ brings up this same thing in one command, without touching a data root of your o
 | **git** | To clone it |
 | **macOS or Linux** | Windows is out of scope: the `tools/` scripts are bash. It may work under WSL; nothing is built or tested for it |
 
-Optional, and only where you'd expect: **Chrome** for the opt-in PDF export, and
-**surge** for publishing a private copy of the site. Neither is needed for a normal
-install.
+Optional, and only where you'd expect: **surge** for publishing a private copy of the
+site. It is not needed for a normal install.
 
 ## Quick start
 
