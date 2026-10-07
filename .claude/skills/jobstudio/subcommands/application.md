@@ -132,7 +132,11 @@ tools/py src/jobsdb.py show-company "{Company}"
      **Add a `## Glossary` whenever the sector is unfamiliar** (judge against
      `stocktake.md`, not general knowledge — healthcare, finance, regulation, a lab domain).
      One bullet per term, opening with a bold label (`- **EHR (Electronic Health Record).** …`),
-     defined plainly. Mark each term ***in bold italic*** where it first appears in a section;
+     defined plainly, and **ending on one link out** to a page for following it up:
+     `… defined plainly. [Wikipedia](https://en.wikipedia.org/wiki/Electronic_health_record)`.
+     Prefer the Wikipedia article on that exact term, else the regulator's or standard's own
+     page, else a reputable explainer; name the site as the link text. Only a page you have
+     actually found and checked: no link beats a guessed URL. Mark each term ***in bold italic*** where it first appears in a section;
      the page then links it and shows the definition on hover. Skip terms the user already
      knows well — the glossary is for the domain, not for their own field.
      **No business diagram at this stage.** The `## The business at a glance` diagram is

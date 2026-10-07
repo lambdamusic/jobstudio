@@ -128,8 +128,8 @@ the sources don't support is worse than no diagram. Check it renders on the comp
 
 Prep is where unfamiliar terms pile up. Before drafting, read the company page's
 `## Glossary` (create one if the sector is unfamiliar and there is none — format in
-`application.md` step 2). **Add any term the pack relies on that it lacks**: a
-regulation, a buyer type, an acronym from the JD. Definitions live on the company page
+`application.md` step 2, including the link out each entry ends on). **Add any term the
+pack relies on that it lacks**: a regulation, a buyer type, an acronym from the JD. Definitions live on the company page
 only, never in the round file.
 
 Then, in the round file, mark each glossary term ***in bold italic*** the first time it

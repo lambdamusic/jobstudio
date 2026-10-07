@@ -404,10 +404,18 @@ def _gloss_keys(label: str) -> list[str]:
     return [_gloss_norm(n) for n in out if n.strip()]
 
 
+# The external reference an entry ends on — `… definition. [Wikipedia](url)` (`#83`).
+# A URL may hold one level of balanced brackets: `wiki/Default_(finance)`.
+_GLOSS_REF = re.compile(r"\s*\[[^\]]+\]\((?:[^()\s]|\([^()\s]*\))+\)\s*$")
+
+
 def _gloss_plain(md: str, limit: int = 280) -> str:
-    """An entry's definition as one line of plain text, for a tooltip: links reduced to
-    their label, emphasis and code markers dropped, cut at a word near `limit`."""
-    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", md)
+    """An entry's definition as one line of plain text, for a tooltip: the trailing
+    reference link dropped (a tooltip ending "… Wikipedia" reads as part of the
+    definition, and cannot be clicked anyway), other links reduced to their label,
+    emphasis and code markers dropped, cut at a word near `limit`."""
+    text = _GLOSS_REF.sub("", md.strip())
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"[*_`]+", "", text)
     text = " ".join(text.split())
     if len(text) > limit:

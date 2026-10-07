@@ -4,6 +4,12 @@ Dated entries, newest first.
 
 ## 2026-10-07
 
+- **Glossary entries link out.** Each entry in a `## Glossary` now ends on one link to
+  a page for following the term up, usually its Wikipedia article, else the regulator
+  or standard body (`- **Form ADV.** … [Investor.gov](…)`). The skill writes them for
+  new glossaries, and the existing ones were backfilled. The hover tooltip leaves the
+  link out. (`#83`)
+
 - **Career coach tab on Notes.** Everything in `<DATA>/extras/career-coach/` now shows
   on `/notes/` in a tab of its own. Markdown, meaning the notes dictated after each
   session, renders in full, newest session first, with an index at the top. Everything

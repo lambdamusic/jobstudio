@@ -3865,6 +3865,23 @@ class InterviewRoundTests(TestCase):
         for anchor in ("co--gloss-claims-data", "co--gloss-site"):
             self.assertIn(f'id="{anchor}"', gloss)
 
+    def test_a_glossary_entrys_reference_link_stays_out_of_the_tooltip(self):
+        """`#83`: an entry ends on a link out (`[Wikipedia](…)`). It renders in the
+        glossary, but in a tooltip it would read as the last word of the definition."""
+        from tracker.parsers import glossary_of, sectioned
+        doc_md = (
+            "# Co\n\n## Products\n\nRuns ***attestations*** and ***KYC***.\n\n## Glossary\n\n"
+            "- **Attestation.** A signed confirmation. [Wikipedia](https://en.wikipedia.org/wiki/Attestation)\n"
+            "- **KYC.** Checks on [customers](https://example.org/c) before onboarding. "
+            "[FCA](https://www.fca.org.uk/)\n"
+            "- **Default.** Failing to pay. [Wikipedia](https://en.wikipedia.org/wiki/Default_(finance))\n")
+        doc = sectioned(doc_md, "co")
+        body, gloss = doc["blocks"][0]["body_md"], doc["blocks"][1]["body_md"]
+        self.assertIn('data-def="A signed confirmation."', body)
+        self.assertIn('data-def="Checks on customers before onboarding."', body)
+        self.assertIn("[Wikipedia](https://en.wikipedia.org/wiki/Attestation)", gloss)
+        self.assertEqual(glossary_of(doc_md, "co", "")[2]["definition"], "Failing to pay.")
+
     def test_a_document_falls_back_to_a_supplied_glossary(self):
         from tracker.parsers import glossary_of, sectioned
         company = glossary_of("## Glossary\n\n- **SEC (Securities and Exchange Commission).** "
