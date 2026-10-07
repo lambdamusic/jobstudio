@@ -8,7 +8,7 @@
      Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #82 -->
+     Next available: #84 -->
 
 ## Architecture
 - [ ] `#75` **Simplify the config settings — or at least say plainly what each one is for** — raised 2026-10-02 by Michele, after setting the toolkit up on a second machine: *"Shall we consider simplifying the config settings? Unclear to me now what is needed."* Design in [`plans/075-config-layers.md`](plans/075-config-layers.md).
@@ -103,7 +103,18 @@
 
   Touches more than `app_filename()`: the recognisers next to it (`is_cv_filename`, `is_cover_letter_filename`, `is_tailored_cv`) and the web parsers in `src/web/apps/tracker/parsers.py` must keep matching **both** old and new names — real application folders already on disk are not renamed — and `notes.md`/`job.md` are currently looked up by exact filename in the parsers, the skill (`subcommands/application.md`), `appfolder.py`'s scaffolding and `src/web/README.md`'s file-map table. Decide up front whether existing folders get a migration pass or are simply left alone; check `src/web/apps/tracker/tests.py` fixtures either way.
 
+- [ ] `#82` **A file whose name merely contains `-interview-` or `cover-letter` is taken for a round or a letter** — raised 2026-10-07 by Michele, after a study note named `058-…-research-interview-themes-2026-10-07.md` disappeared from the Other files tab. The recognisers are substring tests: `is_interview_filename()` (`src/appfolder.py:290`) is `"-interview-" in name or name.startswith("interview-")`, and `is_cover_letter_filename()` (`src/appfolder.py:250`) is just `"cover-letter" in name`. Any file that matches is claimed away from Other files (`models.py:580`), and `find_interviews()` (`parsers.py:182`) then treats it as a round, with `interview_stage()` reading whatever sits between `interview-` and the date as the stage (here, a round called "themes"). So the file does not vanish; it is misfiled under the wrong tab, which is harder to notice.
+
+  Neither match is anchored to the naming convention it is meant to recognise: `<application-id>-<person-slug>-interview-<stage>-<date>.md` and `<application-id>-<person-slug>-cover-letter-<date>.<ext>`. Natural names for supporting material trip it: `...-research-interview-themes-...`, `...-interview-questions-bank...`, `...-cover-letter-notes...`.
+
+  Options: (a) anchor both recognisers on the convention, e.g. require the `-interview-` / `-cover-letter-` token to follow the person slug, with the bare hand-written `interview-<stage>-<date>.md` / `cover-letter-<date>.md` forms kept; or (b) keep the substring tests and document `interview` and `cover-letter` as reserved words in folder filenames. (a) is the real fix but must keep every real folder already on disk matching (see `#27`, which reworks the same recognisers), so check `tracker/tests.py` fixtures and the live data before tightening. A test for each misfire above belongs with it either way.
+
 ## Company tracking
+- [ ] `#83` **Glossary terms link out to an external reference page** — raised 2026-10-07. When a company page gets a `## Glossary` (`/companies/<slug>/#company--gloss-<term>`), each term should also carry a hyperlink to a relevant external page — Wikipedia, the regulator, the standard's own site — so a definition can be followed up beyond the one-line gloss. Today an entry is only `- **Term (ABBR).** definition`, written by the rules in `subcommands/application.md:132` and `subcommands/interview.md:127`.
+  - [ ] Skill: add the link to the entry format in both places (e.g. a trailing `[Wikipedia](…)` or `[source](…)`), only when a confident match is found — never a guessed URL.
+  - [ ] App: check it renders well. `_gloss_plain` (`parsers.py:407`) already reduces links to their label for the hover tooltip, so the tooltip should be unaffected; consider showing it as a small ↗ next to the term rather than inline in the definition.
+  - [ ] Optionally backfill the glossaries already written.
+
 - [ ] `#20` Write long-form research files (`jobs/companies/<slug>.md`) for the 64 companies added 2026-09-16 by that extraction — deferred as a separate step at Michele's request; do on demand as each one is actually worth considering, following the template in `jobs/companies/README.md`
 
 - [ ] `#21` **Idea:** "find similar companies" — pick a company already in the tracker and surface other companies (same space/positioning/stage) worth shortlisting, as a discovery mechanism. Manually prototyped 2026-09-14: given a tracked company in robotics/physical-AI data with no UK presence, asked for similar UK-based alternatives and found one with the same "data layer for physical AI" positioning and a London HQ, via a plain web search — worth automating as a repeatable step (`jobstudio` subcommand or an option on `company`) rather than redoing this research by hand each time
