@@ -9,7 +9,9 @@
  *   - clicking a highlight removes it.
  *
  * The page then reloads, because the file is the record and the server is what renders
- * it — the scroll position is put back afterwards. The mode is remembered per browser,
+ * it — which sections were open or closed, and the scroll position, are put back
+ * afterwards, since the server renders sections in their default state (an interview
+ * round's start closed, a note's open). The mode is remembered per browser,
  * so it stays on across that reload and while you work through a page.
  *
  * On a tabbed page the button shows only while the open tab holds such a document — an
@@ -68,8 +70,19 @@
   });
   set(remembered());
 
-  // Put the reader back where they were after the reload a change causes.
+  // Put the reader back where they were after the reload a change causes: the sections
+  // first, since opening or closing one moves everything below it.
+  var SECTIONS = "details.doc-section[data-section]";
   try {
+    var state = sessionStorage.getItem(KEY + ".sections");
+    if (state !== null) {
+      sessionStorage.removeItem(KEY + ".sections");
+      state = JSON.parse(state);
+      document.querySelectorAll(SECTIONS).forEach(function (d) {
+        var id = d.getAttribute("data-section");
+        if (id in state) d.open = state[id];
+      });
+    }
     var y = sessionStorage.getItem(KEY + ".scroll");
     if (y !== null) {
       sessionStorage.removeItem(KEY + ".scroll");
@@ -101,7 +114,14 @@
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok && j.ok, j: j }; }); })
       .then(function (res) {
         if (!res.ok) throw new Error(res.j.error || "not saved");
-        try { sessionStorage.setItem(KEY + ".scroll", String(window.scrollY)); } catch (e) { /* fine */ }
+        try {
+          var state = {};
+          document.querySelectorAll(SECTIONS).forEach(function (d) {
+            state[d.getAttribute("data-section")] = d.open;
+          });
+          sessionStorage.setItem(KEY + ".sections", JSON.stringify(state));
+          sessionStorage.setItem(KEY + ".scroll", String(window.scrollY));
+        } catch (e) { /* fine */ }
         location.reload();
       })
       .catch(function (err) { say("Not saved: " + err.message); });

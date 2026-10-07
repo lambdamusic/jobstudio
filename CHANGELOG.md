@@ -13,7 +13,9 @@ Dated entries, newest first.
 
 - **The Highlight button shows only where there is something to highlight** — on an
   application, the Interviews, Job description and My notes tabs, not CV, Cover letters
-  or History.
+  or History. And adding or removing a highlight no longer closes the section you were
+  reading: the page reloads to show the change, and now puts every section back as it
+  was, open or closed, before restoring the scroll position.
 
 - **Highlighter.** On the local app, a **Highlight** button (or the `H` key) turns on
   highlight mode on any page with notes, company research, an interview round, a job
