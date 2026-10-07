@@ -43,6 +43,6 @@ urlpatterns = [
     path("actions/highlight/", views.highlight, name="highlight"),
     path("actions/create-folder/<int:num>/", views.create_folder, name="create_folder"),
     path("actions/set-status/<int:num>/<slug:status>/", views.set_status, name="set_status"),
-    path("actions/open-docx/", views.open_docx, name="open_docx"),
+    path("actions/open-file/", views.open_file, name="open_file"),
     path("actions/reveal-company/<slug:slug>/", views.reveal_company_notes, name="reveal_company_notes"),
 ]

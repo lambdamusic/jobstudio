@@ -104,6 +104,7 @@ definition, used by the skills and the web app alike.
 | `jobs/targets/*.yaml` + `jobs/areas.md` | `/areas/` |
 | `jobs/cv/base/*.md` | `/cvs/` |
 | `jobs/notes/*.md`, `jobs/scans/*.md` | `/notes/`, `/scans/` |
+| `extras/career-coach/**` | Career coach tab on `/notes/` — markdown rendered, other files indexed |
 
 Long-form prose is never copied into the database — only its path is stored, and it is
 rendered from disk at request time (plan §2.2).
@@ -117,8 +118,9 @@ Rendered only when `ENVIRONMENT=local`, and never present in the published mirro
 - **Open folder** → `/actions/reveal/<num>/`, which runs `open` on the server. Chrome
   blocks `file://` navigation from an `http://` page, so a plain link cannot work; the
   endpoint refuses any path outside the repo.
-- **Open .docx** (CV and Cover letters tabs) → `/actions/open-docx/?path=…`, which opens
-  the export in the default app the same way. No "Open in VS Code" link anywhere: a
+- **Open .docx** (CV and Cover letters tabs) and **Open** (Career coach tab) →
+  `/actions/open-file/?path=…`, which opens the document in the default app the same
+  way. Documents only — a fixed list of suffixes, never anything executable. No "Open in VS Code" link anywhere: a
   `vscode://` URL can take over an open VS Code window and its Claude sessions (`#81`)
 - **Set status** → a `<details>` menu on the application detail page listing every status
   except the current one, each linking to `/actions/set-status/<num>/<status>/`. The

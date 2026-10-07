@@ -180,7 +180,7 @@
             <span><code id="{{ cv.anchor }}" style="font-size:12.5px">{{ cv.name }}</code>{% if cv.untouched %}
               <span class="pill" title="A mechanical copy of the base CV — the roles in brackets stripped from the competencies, nothing else changed">unedited copy</span>{% endif %}</span>
             {% if IS_LOCAL %}
-              {% if cv.docx %}<a href="/actions/open-docx/?path={{ cv.docx|data_rel|urlencode }}">Open .docx</a>{% endif %}
+              {% if cv.docx %}<a href="/actions/open-file/?path={{ cv.docx|data_rel|urlencode }}">Open .docx</a>{% endif %}
             {% endif %}
           </div>
           {{ cv.body_md|strip_h1|markdown|blank_links }}
@@ -197,7 +197,7 @@
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
             <h3 style="margin-top:0">{{ letter.label }}{% if letter.date %} · {{ letter.date|date:"j M Y" }}{% endif %}</h3>
             {% if IS_LOCAL and letter.docx_path %}
-              <a href="/actions/open-docx/?path={{ letter.docx_path|data_rel|urlencode }}">Open .docx</a>
+              <a href="/actions/open-file/?path={{ letter.docx_path|data_rel|urlencode }}">Open .docx</a>
             {% endif %}
           </div>
           {{ letter.body_md|strip_h1|markdown|blank_links }}

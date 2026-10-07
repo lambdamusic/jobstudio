@@ -4,6 +4,13 @@ Dated entries, newest first.
 
 ## 2026-10-07
 
+- **Career coach tab on Notes.** Everything in `<DATA>/extras/career-coach/` now shows
+  on `/notes/` in a tab of its own. Markdown, meaning the notes dictated after each
+  session, renders in full, newest session first, with an index at the top. Everything
+  else (PDFs, spreadsheets, Pages files) is listed by folder, with an **Open** link on
+  the local app. That link goes through `/actions/open-file/`, which used to be
+  `/actions/open-docx/` and now opens any document type, still nothing executable.
+
 - **Hard-wrapped prose reads as paragraphs.** Markdown files written by an agent are
   wrapped at about 90 columns, and the app turns every newline into a line break, so
   sentences broke mid-line all over the site, on application, company, note and profile

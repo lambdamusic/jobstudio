@@ -7,6 +7,7 @@ default (unfiltered) view is the one that gets mirrored. See plan §4.
 
 import datetime as dt
 import json
+import re
 import shlex
 import subprocess
 import sys
@@ -978,15 +979,65 @@ def _note(path):
             "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path))}
 
 
+# The Career coach tab's name on /notes/, and the prefix on everything it anchors. Not a
+# note slug, so it cannot collide with one: no file in jobs/notes/ is called this.
+COACH_TAB = "career-coach"
+PACKAGE_SUFFIXES = {".pages", ".numbers", ".key"}
+
+
+def _size(path: Path) -> int:
+    if path.is_dir():
+        return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
+    return path.stat().st_size
+
+
+def _coach():
+    """The career-coach folder, ready for its tab on /notes/ — or None when there is none.
+
+    Markdown renders in full, because that is what gets dictated after a session; the
+    rest (PDFs, spreadsheets, whatever the coach hands over) is only listed, grouped by
+    folder, since a page cannot show it anyway. Session notes at the top level come
+    newest first — they are dated by filename — and markdown in a subfolder (reference
+    material, not a session) follows in name order.
+    """
+    root = Path(settings.COACH_DIR)
+    if not root.is_dir():
+        return None
+    top, nested, folders = [], [], {}
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        # An iWork document can be a folder on disk; it is one file to the person.
+        if any(Path(part).suffix in PACKAGE_SUFFIXES for part in rel.parts[:-1]):
+            continue
+        if path.is_dir() and path.suffix not in PACKAGE_SUFFIXES:
+            continue
+        anchor = f"{COACH_TAB}--" + re.sub(r"[^a-z0-9]+", "-", rel.with_suffix("").as_posix().lower()).strip("-")
+        if path.suffix == ".md":
+            body = path.read_text()
+            title = P.first_heading(body) or path.stem.replace("-", " ").title()
+            (nested if len(rel.parts) > 1 else top).append(
+                {"rel": rel.as_posix(), "title": title, "anchor": anchor,
+                 "doc": P.sectioned(body, anchor, source=_task_source(path))})
+        else:
+            folders.setdefault(rel.parent.as_posix() if len(rel.parts) > 1 else "", []).append(
+                {"rel": rel.as_posix(), "name": path.name, "path": path,
+                 "size_kb": max(1, _size(path) // 1024)})
+    return {"slug": COACH_TAB, "docs": top[::-1] + nested,
+            "folders": [{"name": k, "files": folders[k]} for k in sorted(folders)]}
+
+
 def note_list(request):
-    """All the notes on one page, one tab each (`#73`).
+    """All the notes on one page, one tab each (`#73`), plus the career-coach folder.
 
     The per-note pages at `/notes/<slug>/` stay. They are what `build_static` publishes,
     what a link from outside the app can point at, and the right thing for reading one
     note on its own — this page is for moving between them.
     """
     return render(request, "tracker/note_list.html",
-                  {"page": "notes", "notes": [_note(p) for p in _notes_files()]})
+                  {"page": "notes", "notes": [_note(p) for p in _notes_files()],
+                   "coach": _coach()})
 
 
 def note_detail(request, slug):
@@ -1309,18 +1360,26 @@ def set_status(request, num, status):
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
 
 
-def open_docx(request):
-    """Local-only: open an exported `.docx` in the desktop's default app (Word, Pages).
+# What `open_file` will hand to the desktop: documents, never anything it would run.
+OPENABLE_SUFFIXES = {".docx", ".doc", ".pdf", ".xlsx", ".xls", ".csv", ".pptx",
+                     ".pages", ".numbers", ".key", ".txt", ".rtf", ".png", ".jpg", ".jpeg"}
 
-    `?path=` is relative to the data root. Only `.docx` files: the links that call this
-    used to be `vscode://file/` URLs, which open in whatever VS Code window is already
-    up and can replace its workspace (TODO `#81`).
+
+def open_file(request):
+    """Local-only: open a document in the desktop's default app (Word, Preview, Pages).
+
+    `?path=` is relative to the data root. Documents only — an exported `.docx`, or a PDF
+    a career coach handed over — never a script or an app, since this is a GET that
+    launches whatever the desktop associates with the file. The `.docx` links that call
+    this used to be `vscode://file/` URLs, which open in whatever VS Code window is
+    already up and can replace its workspace (TODO `#81`).
     """
     if settings.ENVIRONMENT != "local":
         raise Http404("Local only")
     path = Path(settings.DATA_ROOT) / request.GET.get("path", "")
-    if path.suffix != ".docx" or not path.is_file():
-        raise Http404("No such .docx")
+    exists = path.is_file() or (path.suffix in PACKAGE_SUFFIXES and path.is_dir())
+    if path.suffix.lower() not in OPENABLE_SUFFIXES or not exists:
+        raise Http404("No such document")
     _open_locally(path)  # refuses anything outside the data root
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", "/"))
 

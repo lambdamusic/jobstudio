@@ -127,4 +127,7 @@ APPLICATIONS_DIR = os.path.join(JOBS_DIR, "applications")
 CV_DIR = os.path.join(JOBS_DIR, "cv")
 SCANS_DIR = os.path.join(JOBS_DIR, "scans")
 NOTES_DIR = os.path.join(JOBS_DIR, "notes")
+# Sessions with a career coach, and whatever material they hand over. Outside `jobs/`
+# because it is not the skill's to write — notes are dictated, files are dropped in.
+COACH_DIR = os.path.join(DATA_ROOT, "extras", "career-coach")
 PROFILE_DIR = os.path.join(JOBS_DIR, "profile")

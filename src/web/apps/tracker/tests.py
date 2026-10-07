@@ -2984,15 +2984,15 @@ class ExportFolderTests(TestCase):
         docx = self._place(appfolder.export_dir(app.folder_path) / cv_md.with_suffix(".docx").name)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         self.assertNotIn("vscode:", html)
-        self.assertIn("/actions/open-docx/?path=", html)
+        self.assertIn("/actions/open-file/?path=", html)
 
         rel = docx.resolve().relative_to(Path(settings.DATA_ROOT).resolve())
         with mock.patch("tracker.views._open_locally") as opened:
-            self.assertEqual(self.client.get("/actions/open-docx/", {"path": str(rel)}).status_code, 302)
+            self.assertEqual(self.client.get("/actions/open-file/", {"path": str(rel)}).status_code, 302)
             opened.assert_called_once()
             for bad in (str(cv_md.relative_to(Path(settings.DATA_ROOT).resolve())), "nope.docx"):
                 with self.subTest(path=bad):
-                    self.assertEqual(self.client.get("/actions/open-docx/", {"path": bad}).status_code, 404)
+                    self.assertEqual(self.client.get("/actions/open-file/", {"path": bad}).status_code, 404)
 
     def test_a_docx_beside_its_markdown_is_still_found(self):
         """Pre-2026-09-24 folders are not migrated; dropping the flat lookup would make
@@ -4570,3 +4570,67 @@ class HelpPageTests(TestCase):
             r = self.client.get("/help/")
             self.assertEqual(r.status_code, 200)
             self.assertContains(r, "/jobstudio help")
+
+
+class CareerCoachTabTests(TestCase):
+    """The career-coach folder as a tab on /notes/: dictated session notes render, the
+    material the coach hands over is listed, and opening it is local-only and limited to
+    documents."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        # Inside the data root, because that is the only place `open_file` will open from.
+        tmp = tempfile.TemporaryDirectory(dir=settings.DATA_ROOT)
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        (self.root / "2026-01-10_session-1.md").write_text("# Session one\n\n## Actions\n\n- first\n")
+        (self.root / "2026-02-14_session-2.md").write_text("# Session two\n\n## Actions\n\n- second\n")
+        (self.root / "materials").mkdir()
+        (self.root / "materials" / "reading.md").write_text("# Reading\n\nA handout.\n")
+        (self.root / "materials" / "STAR template.pdf").write_bytes(b"%PDF-1.4")
+        (self.root / "materials" / ".DS_Store").write_bytes(b"x")
+        (self.root / "run-me.sh").write_text("echo no\n")
+        override = self.settings(COACH_DIR=str(self.root))
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def _tab(self) -> str:
+        html = self.client.get("/notes/").content.decode()
+        self.assertIn('data-tab="career-coach"', html)
+        return html[html.index('data-panel="career-coach"'):]
+
+    def test_markdown_renders_newest_session_first_then_subfolders(self):
+        tab = self._tab()
+        order = [tab.index(t) for t in ("Session two", "Session one", "Reading")]
+        self.assertEqual(order, sorted(order))
+        self.assertIn("second", tab)
+        self.assertIn('href="#career-coach--2026-02-14-session-2"', tab)
+
+    def test_other_files_are_listed_by_folder_and_hidden_files_skipped(self):
+        tab = self._tab()
+        self.assertIn("STAR template.pdf", tab)
+        self.assertIn("materials/", tab)
+        self.assertNotIn(".DS_Store", tab)
+        self.assertIn("/actions/open-file/?path=", tab)
+
+    def test_open_file_opens_documents_only(self):
+        rel = lambda p: str(p.relative_to(Path(settings.DATA_ROOT).resolve()))
+        root = self.root.resolve()
+        with mock.patch("tracker.views._open_locally") as opened:
+            r = self.client.get("/actions/open-file/", {"path": rel(root / "materials" / "STAR template.pdf")})
+            self.assertEqual(r.status_code, 302)
+            opened.assert_called_once()
+            for bad in (rel(root / "run-me.sh"), rel(root / "missing.pdf")):
+                with self.subTest(path=bad):
+                    self.assertEqual(self.client.get("/actions/open-file/", {"path": bad}).status_code, 404)
+
+    def test_no_folder_no_tab(self):
+        with self.settings(COACH_DIR=str(self.root / "nope")):
+            html = self.client.get("/notes/").content.decode()
+        self.assertNotIn('data-tab="career-coach"', html)
+
+    def test_every_id_is_still_unique(self):
+        html = self.client.get("/notes/").content.decode()
+        ids = re.findall(r'id="([^"]+)"', html)
+        self.assertEqual({i for i in ids if ids.count(i) > 1}, set())
