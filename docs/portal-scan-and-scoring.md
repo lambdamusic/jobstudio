@@ -38,6 +38,11 @@ Companies with no recognized ATS (a bespoke career page, or a platform not yet
 integrated) land in the report's **Not scanned** section with a reason, not silently
 dropped.
 
+A company you have decided against goes in `excluded_companies` (name → reason) in the
+same file. It is listed under Not scanned as "excluded from scans", its postings are
+dropped from the job-board results too, and its tracker record and applications are
+untouched — so it stays in your history without coming back in every scan.
+
 ### Job boards — discovery beyond the tracker
 
 Everything above rereads companies you already track. With a free key for **Adzuna**

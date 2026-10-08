@@ -60,6 +60,7 @@ _ATS_PATTERNS = [
 
 BESPOKE = "bespoke career page — no public jobs API"
 NO_URL = "no URL on record"
+EXCLUDED = "excluded from scans"
 
 
 def resolve_source(company_name: str, url: str | None) -> dict | None:
@@ -86,6 +87,12 @@ def coverage(company_name: str, url: str | None) -> dict:
     the bespoke fallback means nobody has found an API yet. Collapsing them into one
     "not scanned" would hide the only actionable one.
     """
+    excluded = scan_config.excluded_companies()
+    if company_name in excluded:
+        why = excluded[company_name]
+        return {"scanned": False, "platform": "", "source": None,
+                "reason": f"{EXCLUDED} — {why}" if why else EXCLUDED}
+
     if not url and company_name not in scan_config.company_overrides():
         return {"scanned": False, "platform": "", "reason": NO_URL, "source": None}
 

@@ -596,6 +596,17 @@ class ScanCoverageTests(TestCase):
         self.assertFalse(cov["scanned"])
         self.assertIn("Oleeo", cov["reason"])
 
+    def test_an_excluded_company_is_not_scanned_even_with_an_override(self):
+        """`excluded_companies` is a decision, not a capability gap: it wins over a
+        working override, and says so in its own words."""
+        import scan_config
+        import scan_sources
+        with mock.patch.object(scan_config, "excluded_companies",
+                               return_value={"Grafana Labs": "not interested"}):
+            cov = scan_sources.coverage("Grafana Labs", "https://grafana.com/about/careers/")
+        self.assertFalse(cov["scanned"])
+        self.assertEqual(cov["reason"], "excluded from scans — not interested")
+
     def test_no_url_is_its_own_reason_not_the_bespoke_fallback(self):
         import scan_sources
         cov = scan_sources.coverage("Nobody Ltd", "")
@@ -5007,6 +5018,15 @@ class JobBoardTests(TestCase):
         self.assertEqual([p["company"] for p in postings], ["Globex"])
         self.assertEqual(len(stats["errors"]), 2)
         self.assertIn("HTTP 401", stats["errors"][0])
+
+    def test_an_excluded_company_is_dropped_tracked_or_not(self):
+        settings = {"adzuna": {"app_id": "i", "app_key": "k"}, **self.QUERIES}
+        client = self._client(adzuna=[self._adzuna("Data Platform Lead", "Initech Ltd", "https://a.example/1"),
+                                      self._adzuna("Data Platform Lead", "Globex", "https://a.example/2")])
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, settings, excluded_company_keys={"initech"})
+        self.assertEqual([p["company"] for p in postings], ["Globex"])
+        self.assertEqual(stats["excluded"], 1, "once — the second phrase's title filter drops the rest")
 
     def test_agency_and_company_matching(self):
         import job_boards

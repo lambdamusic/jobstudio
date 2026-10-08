@@ -823,7 +823,9 @@ def main() -> None:
                 client, board_settings, profiles,
                 [args.area] if args.area else sorted(profiles, key=lambda a: a != default_area),
                 args.area or default_area,
-                skip_company_keys=skip, known=known_urls, normalize=_normalize)
+                skip_company_keys=skip, known=known_urls, normalize=_normalize,
+                excluded_company_keys={k for name in scan_config.excluded_companies()
+                                        for k in job_boards.company_keys(name)})
             for p in postings:
                 co = tracked.get(job_boards.company_key(p["company"]))
                 plausible.append(Candidate(
@@ -849,7 +851,8 @@ def main() -> None:
                   f"{discovery['found']} postings found, {found} new candidates "
                   f"({sum(1 for c in plausible if c.source and c.agency)} via agencies); dropped: "
                   f"{discovery['title_filtered']} loose title, {discovery['covered_by_company_scan']} "
-                  f"covered by company scan, {discovery['already_tracked']} already tracked, "
+                  f"covered by company scan, {discovery['excluded']} excluded, "
+                  f"{discovery['already_tracked']} already tracked, "
                   f"{discovery['duplicates']} duplicates")
             for err in discovery["errors"]:
                 print(f"  JOB BOARD ERROR: {err}")

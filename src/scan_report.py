@@ -384,6 +384,7 @@ def write_report(
             f"- Dropped — title only loosely matched the query: {discovery.get('title_filtered', 0)}",
             f"- Dropped — company already covered by the company scan: "
             f"{discovery.get('covered_by_company_scan', 0)}",
+            f"- Dropped — company excluded from scans: {discovery.get('excluded', 0)}",
             f"- Dropped — already tracked as an application: {discovery.get('already_tracked', 0)}",
             f"- Dropped — the same job found twice: {discovery.get('duplicates', 0)}",
             f"- Discovered matches: {len(discovered)} ({strong_discovered} strong)",

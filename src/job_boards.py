@@ -230,7 +230,8 @@ _SEARCH = {"adzuna": search_adzuna, "reed": search_reed}
 
 
 def discover(client, settings: dict, profiles: dict[str, dict], areas: list[str], default_area: str, *,
-             skip_company_keys: set[str], known: set[str], normalize) -> tuple[list[dict], dict]:
+             skip_company_keys: set[str], known: set[str], normalize,
+             excluded_company_keys: set[str] = frozenset()) -> tuple[list[dict], dict]:
     """Search every configured board for every query. Returns (postings, stats).
 
     Each returned posting carries `area` — the one of `areas` its title fits best, by
@@ -241,6 +242,7 @@ def discover(client, settings: dict, profiles: dict[str, dict], areas: list[str]
       same `normalize` the company scan dedups with);
     - a posting from a company the company scan already covered this run
       (`covered_by_company_scan`) — it has been seen there, with its vetting;
+    - a posting from a company in `excluded_companies` (`excluded`), tracked or not;
     - the same job found twice — by two queries, or on both boards (`duplicates`), keyed
       on company + title, since Adzuna also indexes Reed's listings.
     A board that errors is recorded in `stats["errors"]` and the rest carry on.
@@ -250,7 +252,8 @@ def discover(client, settings: dict, profiles: dict[str, dict], areas: list[str]
     per_query = int(settings.get("results_per_query") or DEFAULT_RESULTS_PER_QUERY)
     extra_agencies = settings.get("agencies") or []
     stats = {"boards": sorted(boards), "queries": 0, "found": 0, "title_filtered": 0,
-             "already_tracked": 0, "covered_by_company_scan": 0, "duplicates": 0, "errors": []}
+             "already_tracked": 0, "covered_by_company_scan": 0, "excluded": 0, "duplicates": 0,
+             "errors": []}
     seen: set[tuple[str, str]] = set()
     out: list[dict] = []
     phrases = queries(settings) if boards else []
@@ -272,6 +275,9 @@ def discover(client, settings: dict, profiles: dict[str, dict], areas: list[str]
                     continue
                 if normalize(p["url"]) in known:
                     stats["already_tracked"] += 1
+                    continue
+                if company_key(p["company"]) in excluded_company_keys:
+                    stats["excluded"] += 1
                     continue
                 if company_key(p["company"]) in skip_company_keys:
                     stats["covered_by_company_scan"] += 1

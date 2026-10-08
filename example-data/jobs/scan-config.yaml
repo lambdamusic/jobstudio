@@ -43,6 +43,11 @@ company_overrides:
   Supabase: {platform: ashby, token: supabase}
   Railway: {platform: ashby, token: railway}
 
+# Companies you have decided against: never scanned, and dropped from the job-board
+# results too. The tracker record and its applications are left alone.
+# excluded_companies:
+#   Example Corp: not interested — culture
+
 # Searching general job boards for roles at companies you don't track (`#8`). Off until
 # a board has a key — both are free: developer.adzuna.com, reed.co.uk/developers/jobseeker.
 # Put the keys in ~/.jobstudio.ini (adzuna_app_id, adzuna_app_key, reed_api_key) rather
