@@ -21,9 +21,15 @@ category_to_area:
 # company name exactly as recorded in the tracker, because the URL is what's wrong.
 #
 # Shape per platform:
-#   greenhouse / lever / workable / ashby / smartrecruiters / bamboohr: {platform, token}
+#   greenhouse / lever / workable / ashby / smartrecruiters / bamboohr / pinpoint: {platform, token}
 #   workday:     {platform, tenant, wd, site}
 #   teamtailor:  {platform, domain}
+#   ukg:         {platform, tenant, board}
+#   hireserve:   {platform, domain, site_id}
+#   successfactors: {platform, domain, filter (optional), locale (optional)}
+#   radancy:     {platform, domain, locale (optional)}
+#   sitemap:     {platform, sitemap, path}
+# The full list, with where to find each value: .claude/skills/jobstudio/subcommands/scan.md
 company_overrides:
   Grafana Labs: {platform: greenhouse, token: grafanalabs}
   dbt Labs: {platform: greenhouse, token: dbtlabsinc}

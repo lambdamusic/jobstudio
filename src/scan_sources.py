@@ -31,7 +31,10 @@ import scan_config
 # including ones whose tracked URL already spelled the token out.
 #
 # Workday genuinely still needs an override (tenant + site + host all vary), and so does
-# Rippling (the token is not in the URL at all).
+# Rippling (the token is not in the URL at all). So do the platforms added 2026-10-08
+# other than Pinpoint: UKG needs two path segments, and SuccessFactors, Hireserve,
+# Radancy and the sitemap fallback all run on the company's own domain, where the URL
+# says nothing about what is underneath.
 # Each entry is (platform, pattern, param) — `param` is the key the fetcher in
 # scan-portals.py reads the captured group back out of. It is not always "token":
 # Teamtailor's fetcher wants a whole host in `domain`, and emitting `token` for it would
@@ -51,6 +54,8 @@ _ATS_PATTERNS = [
     # The whole host, because that is what the fetcher requests `/jobs.json` from.
     # Excludes Teamtailor's own sites so a link to the vendor is not read as a board.
     ("teamtailor", re.compile(r"//((?!www\.|blog\.)[a-z0-9][a-z0-9-]*\.teamtailor\.com)"), "domain"),
+    # Tenant is the subdomain, as with BambooHR, and the same `//` anchor applies.
+    ("pinpoint", re.compile(r"//(?!www\.|help\.|developers\.)([a-z0-9][a-z0-9-]*)\.pinpointhq\.com"), "token"),
 ]
 
 BESPOKE = "bespoke career page — no public jobs API"

@@ -4,7 +4,8 @@ scan-portals.py
 
 Rescan tracked companies (from the tracker database) for new open roles via public
 ATS APIs (Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor,
-Rippling ATS, BambooHR) plus a generic first-party-JSON fetcher. Purely mechanical — fetch,
+Rippling ATS, BambooHR, Pinpoint, UKG, Hireserve), the feeds behind SuccessFactors and
+Radancy career sites, a sitemap + JSON-LD fallback, and a generic first-party-JSON fetcher. Purely mechanical — fetch,
 dedup, keyword + location pre-filter, classify not-scanned companies. Never imports
 `anthropic` and never calls any model.
 
@@ -29,12 +30,14 @@ Usage:
 
 import argparse
 import dataclasses
+import html
 import json
 import re
 import sys
+import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 import jobsdb
 
@@ -90,9 +93,18 @@ def _normalize(url: str) -> str:
     application was tracked (e.g. Workable's API returns /j/<code> while a tracked URL
     might be /<company>/j/<code>/apply) — the trailing ID segment is the stable part.
     """
-    path = urlsplit(url.strip()).path.rstrip("/")
-    segments = [s for s in path.split("/") if s]
+    parts = urlsplit(url.strip())
+    # UKG puts the posting id in the query (`.../OpportunityDetail?opportunityId=<id>`),
+    # so the last path segment is the same for every posting on the board — keyed on
+    # it, one tracked UKG application would mark the whole board as already known.
+    for key, value in parse_qsl(parts.query):
+        if key.lower() in _ID_QUERY_PARAMS and value:
+            return value.lower()
+    segments = [s for s in parts.path.rstrip("/").split("/") if s]
     return segments[-1].lower() if segments else ""
+
+
+_ID_QUERY_PARAMS = {"opportunityid"}
 
 
 def collect_known_urls() -> set[str]:
@@ -188,6 +200,45 @@ class _Postings:
                   f"or link — skipped, {len(self.jobs)} usable", file=sys.stderr)
         truncated = total if isinstance(total, int) and total > len(self.jobs) else None
         return self.jobs, truncated
+
+
+MAX_SITEMAP_POSTINGS = 50  # the sitemap fetcher spends one request per posting
+
+
+def _jsonld_job_posting(page: str) -> dict:
+    """The first schema.org JobPosting in a page's JSON-LD, or {} — found at the top
+    level, in a list, or under `@graph`, which are the three shapes sites emit."""
+    for block in re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', page, re.S | re.I):
+        try:
+            data = json.loads(block, strict=False)
+        except json.JSONDecodeError:
+            continue
+        nodes = data if isinstance(data, list) else [data]
+        nodes += [n for d in list(nodes) if isinstance(d, dict) for n in d.get("@graph") or []]
+        for node in nodes:
+            if isinstance(node, dict) and node.get("@type") == "JobPosting":
+                return node
+    return {}
+
+
+def _jsonld_location(posting: dict) -> str | None:
+    """A JobPosting's places as one string; `remote` when it says it is telecommuting."""
+    locs = posting.get("jobLocation") or []
+    places = []
+    for loc in locs if isinstance(locs, list) else [locs]:
+        addr = loc.get("address") if isinstance(loc, dict) else None
+        if not isinstance(addr, dict):
+            continue
+        country = addr.get("addressCountry")
+        if isinstance(country, dict):
+            country = country.get("name")
+        place = ", ".join(p for p in (addr.get("addressLocality"), country) if isinstance(p, str) and p)
+        if place:
+            places.append(place)
+    loc = "; ".join(dict.fromkeys(places)) or None
+    if posting.get("jobLocationType") == "TELECOMMUTE":
+        loc = f"{loc} (remote)" if loc else "remote"
+    return loc
 
 
 def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[list[dict], int | None]:
@@ -395,6 +446,198 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 out.add(it.get("name"), it.get("url"), loc)
             return out.done()
 
+        if platform == "pinpoint":
+            # Public JSON behind every Pinpoint careers page: no key, no paging.
+            token = source["token"]
+            resp = client.get(f"https://{token}.pinpointhq.com/postings.json", timeout=HTTP_TIMEOUT)
+            resp.raise_for_status()
+            data = resp.json()
+            out = _Postings(f"pinpoint/{token}")
+            for j in data.get("data", []):
+                loc_obj = j.get("location") or {}
+                parts = [p.strip() for p in (loc_obj.get("name") or loc_obj.get("city"), loc_obj.get("province"))
+                         if p and p.strip()]
+                loc = ", ".join(dict.fromkeys(parts)) or "unknown"
+                if j.get("workplace_type") in ("remote", "hybrid"):
+                    loc = f"{loc} ({j.get('workplace_type_text') or j.get('workplace_type')})"
+                out.add(j.get("title"), j.get("url"), loc)
+            return out.done()
+
+        if platform == "successfactors":
+            # SuccessFactors career sites (the "RMK" ones on the company's own domain)
+            # publish an RSS feed of every live posting. `rows` is honoured; without it the
+            # feed stops at 20. The older `careerN.successfactors.com` deployment has no
+            # such feed — a company on that needs a different route.
+            #
+            # `filter` is for a site carrying several organisations — a parent group whose
+            # subsidiaries are tracked separately. It is matched against the posting's
+            # description, which is where these sites name the business unit; without it
+            # every sibling's postings would be reported under the tracked company.
+            domain = source["domain"]
+            resp = client.get(
+                f"https://{domain}/services/rss/job/",
+                params={"locale": source.get("locale", "en_GB"), "keywords": "",
+                        "rows": MAX_RESULTS_PER_COMPANY},
+                timeout=HTTP_TIMEOUT,
+            )
+            resp.raise_for_status()
+            root = ET.fromstring(resp.content)
+            needle = (source.get("filter") or "").lower()
+            out = _Postings(f"successfactors/{domain}")
+            for item in root.iter("item"):
+                if needle and needle not in (item.findtext("description") or "").lower():
+                    continue
+                # Titles carry the location in a trailing parenthesis:
+                # "Account Manager (London, GB, W12 7FA)".
+                title = (item.findtext("title") or "").strip()
+                loc = None
+                m = re.match(r"^(.*?)\s*\(([^()]*)\)\s*$", title)
+                if m:
+                    title, loc = m.group(1), m.group(2)
+                link = (item.findtext("link") or "").split("?", 1)[0]
+                out.add(title, link, loc)
+            return out.done()
+
+        if platform == "hireserve":
+            # Hireserve ICAMS: the JSON its own search form fetches. The hidden fields are
+            # the form's, and all of them are needed — without them the feed answers 200
+            # with an empty body. `MOBILE` is the one format carrying both the posting's
+            # link and its Location classification (`JSON` has the second, not the first).
+            domain, site_id = source["domain"], source["site_id"]
+            resp = client.get(
+                f"https://{domain}/utf8/ic_job_feeds.feed_engine",
+                params={"p_web_site_id": site_id, "p_published_to": "WWW", "p_language": "DEFAULT",
+                        "p_direct": "Y", "p_format": "MOBILE", "p_include_exclude_from_list": "N"},
+                timeout=HTTP_TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            out = _Postings(f"hireserve/{domain}")
+            for j in data.get("jobs", []):
+                places = []
+                for cls in (j.get("classifications") or {}).values():
+                    if (cls or {}).get("name") == "Location":
+                        places += [v.get("class_val") for v in cls.get("values") or [] if v.get("class_val")]
+                out.add(j.get("title"), j.get("weblink"), "; ".join(places) or None)
+            return out.done(data.get("total"))
+
+        if platform == "ukg":
+            # UKG Pro Recruiting (formerly UltiPro): the JSON the job board page itself
+            # posts to. `tenant` and `board` are the two path segments of the board URL,
+            # recruiting.ultipro.com/<tenant>/JobBoard/<board>/.
+            tenant, board = source["tenant"], source["board"]
+            base = f"https://recruiting.ultipro.com/{tenant}/JobBoard/{board}"
+            page_size = 50
+            out = _Postings(f"ukg/{tenant}")
+            total = None
+            skip = 0
+            while True:
+                resp = client.post(
+                    f"{base}/JobBoardView/LoadSearchResults",
+                    json={"opportunitySearch": {"Top": page_size, "Skip": skip, "QueryString": "",
+                                                "OrderBy": [{"Value": "postedDateDesc", "PropertyName": "PostedDate",
+                                                             "Ascending": False}],
+                                                "Filters": []},
+                          "matchCriteria": {"PreferredJobs": [], "Educations": [], "LicenseAndCertifications": [],
+                                            "Skills": [], "hasNoLicenses": False, "SkippedSkills": []}},
+                    timeout=HTTP_TIMEOUT,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if total is None:
+                    total = data.get("totalCount")
+                postings = data.get("opportunities", [])
+                if not postings:
+                    break
+                for j in postings:
+                    places = []
+                    for loc_obj in j.get("Locations") or []:
+                        addr = loc_obj.get("Address") or {}
+                        parts = [addr.get("City"), (addr.get("State") or {}).get("Code"),
+                                 (addr.get("Country") or {}).get("Name")]
+                        place = ", ".join(p for p in parts if p) or loc_obj.get("LocalizedName")
+                        if place:
+                            places.append(place)
+                    loc = "; ".join(dict.fromkeys(places)) or "unknown"
+                    # 2 is remote on a real board (its only posting so typed was located
+                    # "Remote"); 1 hybrid, 0 on-site. Undocumented, so only 2 is acted on.
+                    if j.get("JobLocationType") == 2 and "remote" not in loc.lower():
+                        loc = f"{loc} (remote)"
+                    job_id = j.get("Id")
+                    out.add(j.get("Title"),
+                            f"{base}/OpportunityDetail?opportunityId={job_id}" if job_id else None,
+                            loc)
+                skip += page_size
+                if (isinstance(total, int) and skip >= total) or len(out.jobs) >= MAX_RESULTS_PER_COMPANY:
+                    break
+            return out.done(total)
+
+        if platform == "radancy":
+            # Radancy (TalentBrew) career sites: the endpoint the search page pages
+            # through, which answers JSON whose `results` is an HTML fragment — one
+            # <a data-job-id> per posting, with an <h2> title and a .job-location span.
+            # The module-name parameters are required; without them pages past the first
+            # come back empty.
+            domain, locale = source["domain"], source.get("locale", "en")
+            out = _Postings(f"radancy/{domain}")
+            total = None
+            page = 1
+            while True:
+                resp = client.get(
+                    f"https://{domain}/{locale}/search-jobs/results",
+                    params={"CurrentPage": page, "RecordsPerPage": 100,
+                            "Keywords": _search_keyword(role_target),
+                            "SearchResultsModuleName": "Search Results",
+                            "SearchFiltersModuleName": "Search Filters",
+                            "SortCriteria": 0, "SortDirection": 0, "SearchType": 5},
+                    headers={"X-Requested-With": "XMLHttpRequest"},
+                    timeout=HTTP_TIMEOUT,
+                )
+                resp.raise_for_status()
+                fragment = resp.json().get("results") or ""
+                if total is None:
+                    m = re.search(r'data-total-results="(\d+)"', fragment)
+                    total = int(m.group(1)) if m else None
+                anchors = re.findall(r'<a\s[^>]*?href="([^"]+)"[^>]*\bdata-job-id="[^"]*"[^>]*>(.*?)</a>',
+                                     fragment, re.S)
+                if not anchors:
+                    break
+                for href, inner in anchors:
+                    title = re.search(r"<h2[^>]*>(.*?)</h2>", inner, re.S)
+                    loc = re.search(r'class="job-location"[^>]*>(.*?)<', inner, re.S)
+                    out.add(html.unescape(title.group(1)).strip() if title else None,
+                            f"https://{domain}{href}" if href.startswith("/") else href,
+                            html.unescape(loc.group(1)).strip() if loc else None)
+                page += 1
+                if (isinstance(total, int) and len(out.jobs) + out.unusable >= total) \
+                        or len(out.jobs) >= MAX_RESULTS_PER_COMPANY:
+                    break
+            return out.done(total)
+
+        if platform == "sitemap":
+            # The fallback for a careers site with no feed at all (Tribepad is one): the
+            # sitemap enumerates every live posting, and each posting page carries a
+            # schema.org JobPosting in JSON-LD — published for Google for Jobs, so it is
+            # about the most stable markup a careers site has. One request per posting,
+            # hence its own lower cap. `path` picks the posting URLs out of the sitemap.
+            sitemap, path = source["sitemap"], source["path"]
+            resp = client.get(sitemap, timeout=HTTP_TIMEOUT)
+            resp.raise_for_status()
+            root = ET.fromstring(resp.content)
+            urls = [(el.text or "").strip() for el in root.iter() if el.tag.endswith("}loc") or el.tag == "loc"]
+            urls = list(dict.fromkeys(u for u in urls if path in u))
+            out = _Postings(f"sitemap/{urlsplit(sitemap).netloc}")
+            for url in urls[:MAX_SITEMAP_POSTINGS]:
+                try:
+                    page = client.get(url, timeout=HTTP_TIMEOUT)
+                    page.raise_for_status()
+                except httpx.HTTPError:
+                    out.add(None, url)       # one dead posting costs that posting
+                    continue
+                posting = _jsonld_job_posting(page.text)
+                out.add(posting.get("title"), url, _jsonld_location(posting))
+            return out.done(len(urls))
+
         if platform == "firstparty_entries":
             # Not an ATS at all: some companies' own frontends call a first-party JSON
             # endpoint directly (found via network capture). The URL is per-company and
@@ -418,7 +661,7 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
         raise ScanError(f"{platform} request timed out after {HTTP_TIMEOUT}s")
     except httpx.HTTPStatusError as e:
         raise ScanError(f"{platform} returned HTTP {e.response.status_code}")
-    except (KeyError, json.JSONDecodeError) as e:
+    except (KeyError, json.JSONDecodeError, ET.ParseError) as e:
         raise ScanError(f"{platform} returned an unexpected response shape ({e})")
 
     raise ScanError(f"unknown platform '{platform}'")

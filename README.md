@@ -29,7 +29,7 @@ brings up this same thing in one command, without touching a data root of your o
   here, and there is no account, no server and nothing phoning home.
 - **It reads the job boards for you.** One command rescans every company you track
   across Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, BambooHR,
-  Teamtailor and Rippling, filters by location, scores what is left against what you
+  Teamtailor, Pinpoint, UKG, SuccessFactors and more, filters by location, scores what is left against what you
   actually want, and writes you a report. It never writes to your tracker — the
   decision stays yours.
 - **A CV and cover letter per application**, drawn from your own base CV and the role's

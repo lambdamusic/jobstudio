@@ -21,7 +21,7 @@ Shape:
     company_overrides:
       "Example Corp": {platform: greenhouse, token: examplecorp}
     known_unsupported:
-      "Other Corp": "BambooHR — not yet integrated"
+      "Other Corp": "Webitrent — no public API found"
 """
 
 from __future__ import annotations

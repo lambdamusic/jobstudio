@@ -2,6 +2,22 @@
 
 Dated entries, newest first.
 
+## 2026-10-08
+
+- **Six more job platforms scanned.** Pinpoint, UKG Pro Recruiting and Hireserve, read
+  through their public JSON; SuccessFactors and Radancy career sites, through the feeds
+  their own search pages use; and a sitemap fallback for a site with no feed at all,
+  which takes each posting's title and location from the schema.org JobPosting markup
+  on its page. Pinpoint is detected from a `<company>.pinpointhq.com` URL; the rest are
+  set per company in `company_overrides` (`scan.md` lists the fields for each and where
+  to find them). A SuccessFactors entry can take a `filter`, for a site that carries a
+  whole group when only one organisation in it is tracked. On a real tracker this moved
+  eight companies from "not scanned" to scanned. (`#10`)
+
+- **A Phenom careers site is usually Workday underneath.** Its postings' `applyUrl`
+  names the Workday board, which the scanner already reads, so a company on one needs
+  an override, not a fetcher. `init.md`'s "worth one look" note now says so. (`#74`)
+
 ## 2026-10-07
 
 - **Glossary entries link out.** Each entry in a `## Glossary` now ends on one link to

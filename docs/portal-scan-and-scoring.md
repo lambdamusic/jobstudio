@@ -22,9 +22,10 @@ via `/jobstudio company` / `/jobstudio application`.
 ## 1. Fetch (mechanical — no LLM)
 
 For every tracked company with a recognized ATS — Greenhouse, Lever, Workable, Workday,
-Ashby, SmartRecruiters, Teamtailor, Rippling ATS, plus a generic fetcher for companies
-whose own frontend calls a first-party JSON endpoint — every open posting is pulled via
-that platform's public API.
+Ashby, SmartRecruiters, Teamtailor, BambooHR, Pinpoint, UKG, Hireserve, Rippling ATS,
+SuccessFactors and Radancy career sites, plus a generic fetcher for companies whose own
+frontend calls a first-party JSON endpoint and a sitemap fallback for sites with no feed
+at all — every open posting is pulled via that platform's public API or feed.
 
 When a company's tracked careers URL is a generic corporate page hiding one of these
 underneath, `company_overrides` in `<DATA>/jobs/scan-config.yaml` maps it to the real

@@ -4682,6 +4682,174 @@ class ScanConfigTests(TestCase):
                             "a company endpoint is hardcoded in the firstparty_entries branch")
 
 
+class PlatformFetcherTests(TestCase):
+    """The fetchers added for `#10` on 2026-10-08 — Pinpoint, SuccessFactors career-site
+    RSS, Hireserve, UKG, Radancy, and the sitemap + JSON-LD fallback.
+
+    Each response below is trimmed from a live board, keeping only the fields the
+    fetcher reads, plus one row it must skip rather than fail on (`#63`). No network.
+    """
+
+    def _scan_portals(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "scan_portals_under_test", Path(settings.SITE_ROOT) / "src" / "scan-portals.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    class _Resp:
+        def __init__(self, body=None, text=""):
+            self._body, self.text = body, text
+            self.content = text.encode()
+        def raise_for_status(self): pass
+        def json(self): return self._body
+
+    def _client(self, respond):
+        """A client whose get/post hand (url, params, json) to `respond`; it records calls."""
+        resp_cls = self._Resp
+        class _Client:
+            calls = []
+            def get(self, url, params=None, **kw):
+                _Client.calls.append(("GET", url, params))
+                return respond(url, params, None, resp_cls)
+            def post(self, url, json=None, **kw):
+                _Client.calls.append(("POST", url, json))
+                return respond(url, None, json, resp_cls)
+        return _Client()
+
+    def test_pinpoint(self):
+        sp = self._scan_portals()
+        body = {"data": [
+            {"title": "Data Scientist", "url": "https://acme.pinpointhq.com/en/postings/abc",
+             "location": {"name": "Madrid ", "province": "Madrid"}, "workplace_type": "hybrid",
+             "workplace_type_text": "Hybrid"},
+            {"title": "No link", "location": {}},
+        ]}
+        client = self._client(lambda url, p, j, R: R(body))
+        jobs, _ = sp.fetch_jobs({"platform": "pinpoint", "token": "acme"}, "", client)
+        self.assertEqual(client.calls[0][1], "https://acme.pinpointhq.com/postings.json")
+        self.assertEqual(jobs, [{"title": "Data Scientist", "url": "https://acme.pinpointhq.com/en/postings/abc",
+                                 "location": "Madrid (Hybrid)"}],
+                         "padded duplicate place names collapse; hybrid is said")
+
+    def test_pinpoint_is_detected_from_the_board_url(self):
+        import scan_sources
+        self.assertEqual(scan_sources.resolve_source("X", "https://acme.pinpointhq.com/en/postings"),
+                         {"platform": "pinpoint", "token": "acme"})
+        self.assertIsNone(scan_sources.resolve_source("X", "https://www.pinpointhq.com/customers"),
+                          "a link to the vendor's own site is not a board called 'www'")
+
+    _RSS = """<?xml version="1.0" encoding="UTF-8" ?><rss version="2.0"><channel>
+      <item><title><![CDATA[Data Lead (London, GB, W12 7FA)]]></title>
+        <description><![CDATA[<p>DEPARTMENT: Acme Studios</p>]]></description>
+        <link>https://careers.acme.example/job/London-Data-Lead/101/?feedId=null&amp;utm_source=J2WRSS</link></item>
+      <item><title><![CDATA[News Producer (Delhi, IN)]]></title>
+        <description><![CDATA[<p>DEPARTMENT: Acme News</p>]]></description>
+        <link>https://careers.acme.example/job/Delhi-News-Producer/102/</link></item>
+      <item><title></title><description>Acme Studios</description><link>https://careers.acme.example/job/x/103/</link></item>
+    </channel></rss>"""
+
+    def test_successfactors_rss_splits_the_location_off_the_title_and_asks_for_every_row(self):
+        sp = self._scan_portals()
+        client = self._client(lambda url, p, j, R: R(text=self._RSS))
+        jobs, _ = sp.fetch_jobs({"platform": "successfactors", "domain": "careers.acme.example"}, "", client)
+        self.assertEqual(client.calls[0][1], "https://careers.acme.example/services/rss/job/")
+        self.assertIn("rows", client.calls[0][2], "without `rows` the feed stops at 20")
+        self.assertEqual(jobs[0], {"title": "Data Lead", "location": "London, GB, W12 7FA",
+                                   "url": "https://careers.acme.example/job/London-Data-Lead/101/"})
+        self.assertEqual(len(jobs), 2)
+
+    def test_successfactors_filter_keeps_one_organisation_off_a_shared_site(self):
+        sp = self._scan_portals()
+        client = self._client(lambda url, p, j, R: R(text=self._RSS))
+        jobs, _ = sp.fetch_jobs({"platform": "successfactors", "domain": "careers.acme.example",
+                                 "filter": "acme studios"}, "", client)
+        self.assertEqual([j["title"] for j in jobs], ["Data Lead"],
+                         "the sibling's posting is dropped; matching ignores case")
+
+    def test_hireserve_reads_the_location_classification(self):
+        sp = self._scan_portals()
+        body = {"total": 2, "jobs": [
+            {"title": "Data Analyst", "weblink": "https://jobs.acme.example/vacancy/data-analyst-1.html",
+             "classifications": {"class_1": {"name": "Location", "values": [{"class_val": "Hybrid"},
+                                                                            {"class_val": "Bristol"}]},
+                                 "class_2": {"name": "Department", "values": [{"class_val": "Data"}]}}},
+            {"title": "No link", "classifications": {}},
+        ]}
+        client = self._client(lambda url, p, j, R: R(body))
+        jobs, truncated = sp.fetch_jobs({"platform": "hireserve", "domain": "jobs.acme.example",
+                                         "site_id": 99}, "", client)
+        self.assertEqual(client.calls[0][2]["p_format"], "MOBILE",
+                         "the one format carrying both the link and the location")
+        self.assertEqual(jobs[0]["location"], "Hybrid; Bristol")
+        self.assertEqual(truncated, 2)
+
+    def test_ukg_pages_and_marks_remote(self):
+        sp = self._scan_portals()
+        page = {"totalCount": 2, "opportunities": [
+            {"Id": "a1", "Title": "Data Engineer", "JobLocationType": 0,
+             "Locations": [{"Address": {"City": "Columbus", "State": {"Code": "OH"},
+                                        "Country": {"Name": "United States"}}}]},
+            {"Id": "b2", "Title": "Account Manager", "JobLocationType": 2,
+             "Locations": [{"LocalizedName": "Anywhere", "Address": {}}]},
+        ]}
+        client = self._client(lambda url, p, j, R: R(page if j["opportunitySearch"]["Skip"] == 0
+                                                      else {"opportunities": []}))
+        jobs, _ = sp.fetch_jobs({"platform": "ukg", "tenant": "ACME1", "board": "guid-1"}, "", client)
+        self.assertEqual(len(client.calls), 1, "stops once the total is reached")
+        self.assertEqual(jobs[0]["location"], "Columbus, OH, United States")
+        self.assertEqual(jobs[1]["location"], "Anywhere (remote)")
+        self.assertTrue(jobs[0]["url"].endswith("/ACME1/JobBoard/guid-1/OpportunityDetail?opportunityId=a1"))
+
+    def test_ukg_links_do_not_all_normalise_to_the_same_key(self):
+        """`_normalize` keys a posting on its last path segment, and every UKG link ends
+        `/OpportunityDetail` — one tracked application would hide the whole board."""
+        sp = self._scan_portals()
+        base = "https://recruiting.ultipro.com/ACME1/JobBoard/guid-1/OpportunityDetail?opportunityId="
+        self.assertNotEqual(sp._normalize(base + "a1"), sp._normalize(base + "b2"))
+        self.assertEqual(sp._normalize("https://jobs.lever.co/acme/abc-123?lever-source=x"), "abc-123",
+                         "other platforms' keys are unchanged")
+
+    def test_radancy_parses_the_results_fragment_and_pages(self):
+        sp = self._scan_portals()
+        def li(n):
+            return (f'<li><a href="/en/job/london/role-{n}/1/{n}" data-job-id="{n}">'
+                    f'<h2>Role {n} &amp; Co</h2><span class="job-location">London, England</span></a></li>')
+        pages = {1: f'<section data-total-results="3">{li(1)}{li(2)}</section>',
+                 2: f'<section data-total-results="3">{li(3)}</section>'}
+        client = self._client(lambda url, p, j, R: R({"results": pages.get(p["CurrentPage"], "")}))
+        jobs, _ = sp.fetch_jobs({"platform": "radancy", "domain": "careers.acme.example"},
+                                "Head of Data", client)
+        self.assertEqual([j["title"] for j in jobs], ["Role 1 & Co", "Role 2 & Co", "Role 3 & Co"])
+        self.assertEqual(jobs[0]["url"], "https://careers.acme.example/en/job/london/role-1/1/1")
+        self.assertEqual(jobs[0]["location"], "London, England")
+        self.assertEqual(len(client.calls), 2, "stops at the reported total, not on an empty page")
+        self.assertEqual(client.calls[0][2]["Keywords"], "Head")
+
+    def test_sitemap_reads_each_postings_json_ld(self):
+        sp = self._scan_portals()
+        sitemap = """<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+          <url><loc> https://jobs.acme.example/jobs/job/Data-Lead/1 </loc></url>
+          <url><loc>https://jobs.acme.example/jobs/job/Gone/2</loc></url>
+          <url><loc>https://jobs.acme.example/about</loc></url></urlset>"""
+        posting = """<script type="application/ld+json">{"@context": "https://schema.org",
+          "@graph": [{"@type": "Organization"}, {"@type": "JobPosting", "title": "Data Lead",
+          "jobLocation": {"address": {"addressLocality": "London", "addressCountry": {"name": "UK"}}}}]}
+          </script>"""
+        def respond(url, p, j, R):
+            if url.endswith("/sitemap/1"):
+                return R(text=sitemap)
+            return R(text=posting if url.endswith("/1") else "<html>no markup</html>")
+        client = self._client(respond)
+        jobs, total = sp.fetch_jobs({"platform": "sitemap", "sitemap": "https://jobs.acme.example/sitemap/1",
+                                     "path": "/jobs/job/"}, "", client)
+        self.assertEqual(jobs, [{"title": "Data Lead", "url": "https://jobs.acme.example/jobs/job/Data-Lead/1",
+                                 "location": "London, UK"}])
+        self.assertEqual(len(client.calls), 3, "the sitemap, then only the posting URLs")
+        self.assertEqual(total, 2, "a posting with no JobPosting markup is counted, not hidden")
+
+
 class HelpPageTests(TestCase):
     """The in-app help page (TODO #51).
 

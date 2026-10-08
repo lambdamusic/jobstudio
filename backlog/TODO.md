@@ -8,7 +8,7 @@
      Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #90 -->
+     Next available: #91 -->
 
 ## Architecture
 - [ ] `#75` **Simplify the config settings — or at least say plainly what each one is for** — raised 2026-10-02 by Michele, after setting the toolkit up on a second machine: *"Shall we consider simplifying the config settings? Unclear to me now what is needed."* Design in [`plans/075-config-layers.md`](plans/075-config-layers.md).
@@ -63,16 +63,7 @@
 
 - [ ] `#9` **Portal scanning (discovery)** — search for new companies/roles matching target areas, not just recheck tracked ones. Flag as unvetted since these skip the manual sanity check tracked companies already had. (Related to the general-job-portal item above — may end up being the same piece of work.)
 
-- [ ] `#10` **Portal scanning — remaining platforms** — SuccessFactors, UKG and Pinpoint: platform identified but no fetcher built (low priority unless requested). **Pinpoint** (`pinpointhq.com`) was added 2026-09-29 — found on the second-machine run, where it blocked the single highest-rated company in that tracker, so it is the one of the three with a real user waiting on it. **BambooHR is done as of 2026-09-23** — a fetcher against the public JSON behind every BambooHR careers page (no key, no paging, the whole board in one response), plus a URL pattern that reads the tenant from the careers subdomain while excluding BambooHR's own `www.`/`help.` hosts.
-
-  Housekeeping that fetcher creates, wherever a data root has one: a `known_unsupported` entry saying "BambooHR — not yet integrated" is now a **dead letter**. That map is only consulted when `resolve_source()` returns `None`, so a company on a `*.bamboohr.com` URL now resolves and is scanned, and its recorded reason is never read again. Worth clearing those entries so the file stops carrying reasons that no longer apply. (`example-data/jobs/scan-config.yaml` has one, but its URL is not a BambooHR one, so it still behaves as written.)
-
-  **Survey 2026-10-08 (during `#74`)** — a pass over seventeen unscanned companies found the queue here is concrete, and that each remaining platform has a usable public feed. In order of payoff:
-
-  - [ ] **Pinpoint** — `<tenant>.pinpointhq.com/postings.json` is plain JSON, whole board in one response, no key. The smallest fetcher on this list; a URL pattern on the subdomain (excluding Pinpoint's own hosts, as BambooHR's does) would make it auto-detected rather than override-only.
-  - [ ] **SuccessFactors (RMK career sites)** — the `careers.<company>…` sites built on SuccessFactors' Recruiting Marketing expose an RSS feed at `/services/rss/job/?locale=<locale>&keywords=` with title, link and location per item. Two wrinkles: the older non-RMK `career<N>.successfactors.com` deployment has no such feed, and one parent organisation's site can carry several tracked subsidiaries, so the source config may need a filter (by business unit or title) to avoid attributing a sibling's postings.
-  - [ ] **Sitemap-based fallback** — Tribepad sites (`/sitemap/1`) and Radancy/TalentBrew front ends (`/sitemap.xml`, `/job/` URLs) both enumerate every live vacancy in a sitemap. A generic `sitemap` fetcher taking a URL plus a path filter would cover both. Weaker than an API — a title has to come from the URL slug or a second fetch per posting — so build it only once the two above are in.
-  - [ ] **Hireserve ICAMS** — already identified per company in a data root (a JSON feed under `/utf8/ic_job_feeds.feed_engine`); no fetcher yet.
+- [ ] `#90` **Portal scanning — Recruitee** — raised 2026-10-08, found by the `#10` dry run on two tracked companies (both on a `careers.<company>.com` domain, so an override each). Public JSON at `https://<token>.recruitee.com/api/offers/`, checked live: one board returned 42 offers, each with `title`, `careers_url` and `location` (which says "Remote job" when it is) — the same shape of job as Pinpoint, a few lines in `fetch_jobs` plus a `<token>.recruitee.com` pattern in `_ATS_PATTERNS`. Drop the two `known_unsupported` entries when it lands.
 
 - [ ] `#22` Create custom parsers for selected companies in the long tail (bespoke career pages with no public jobs API — see `## Not scanned` in any portal scan report for the current list)
 
