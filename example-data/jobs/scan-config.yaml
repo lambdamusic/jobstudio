@@ -43,6 +43,18 @@ company_overrides:
   Supabase: {platform: ashby, token: supabase}
   Railway: {platform: ashby, token: railway}
 
+# Searching general job boards for roles at companies you don't track (`#8`). Off until
+# a board has a key — both are free: developer.adzuna.com, reed.co.uk/developers/jobseeker.
+# Put the keys in ~/.jobstudio.ini (adzuna_app_id, adzuna_app_key, reed_api_key) rather
+# than here if this folder is a git repo: a committed key stays in its history.
+# job_boards:
+#   queries:                 # as you'd type them into a job board; OR splits a line
+#     - '"Head of Platform" OR "Data Platform Lead"'
+#     - analytics engineering
+#   max_days_old: 7          # how far back to look; match it to how often you scan
+#   results_per_query: 50
+#   agencies: [Example Talent]   # advertisers to label as agencies beyond the built-in list
+
 # Companies confirmed running on a specific ATS you have no fetcher for. Gives a
 # precise "not scanned" reason in the report instead of the generic bespoke-page one.
 known_unsupported:

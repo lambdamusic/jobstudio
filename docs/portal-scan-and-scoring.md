@@ -38,6 +38,40 @@ Companies with no recognized ATS (a bespoke career page, or a platform not yet
 integrated) land in the report's **Not scanned** section with a reason, not silently
 dropped.
 
+### Job boards — discovery beyond the tracker
+
+Everything above rereads companies you already track. With a free key for **Adzuna**
+and/or **Reed** — in `~/.jobstudio.ini` (`adzuna_app_id`, `adzuna_app_key`,
+`reed_api_key`), in the environment, or under `job_boards` in `scan-config.yaml` — and a
+list of searches in `job_boards.queries`, the same scan also searches those boards over
+the last `max_days_old` days (7 by default). See `src/job_boards.py`.
+
+```yaml
+job_boards:
+  queries:
+    - '"Head of Data" OR "VP Data" OR "Head of Analytics"'
+    - knowledge graph
+```
+
+Write them as you would type them into a job board; `OR` splits a line into phrases,
+one request per phrase per board. There is no fallback to the target areas' `key_terms`:
+they were written for recognising titles, and searched across a whole market they are
+mostly noise (tried on a real search: 124 requests and 512 candidates, "training"
+returning hairdressing coaches). Two lines like the above cost 8 requests.
+
+A posting is kept only if its title carries every word of the phrase that found it, and
+is assigned a target area by its title, as a tracked company's posting is. Also dropped:
+anything already tracked as an application, anything from a company the company scan has just covered (seen
+there already, vetted), and the same job found twice — by two queries, or on both
+boards, since Adzuna indexes Reed. A tracked company the scan *could not* read is not
+skipped: a job board is one way to see its roles.
+
+These postings are scored like any other, with the board's description snippet and
+salary standing in for the role target they lack, and reported in a section of their
+own — **Discovered on job boards** — because nobody has vetted the company. An
+advertiser that looks like a recruitment agency (a name heuristic; extend it with
+`job_boards.agencies`) is labelled *agency*, not dropped.
+
 ## 2. Category → area mapping, then dedup + keyword pre-filter (mechanical — still no LLM)
 
 A company's tracked **category** (an industry grouping, e.g. "Fintech") and a
@@ -198,7 +232,8 @@ matches.
 The report lands at `jobs/scans/YYYY-MM-DD-portal-scan.md` and is browsable at
 `/scans/` (defaults to the latest report; `/scans/all/` lists every one, oldest report
 still reachable at `/scans/<slug>/`). The page splits the report into tabs — **Strong
-matches** (first, default-active), **Other matches**, Filtered out before scoring,
+matches** (first, default-active), **Other matches**, **Job boards** (when discovery is
+on), Filtered out before scoring,
 Excluded by location, Not scanned, Coverage notes.
 
 Reports from before 2026-09-14 have a different shape (Summary and Matches as their own

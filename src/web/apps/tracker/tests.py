@@ -4850,6 +4850,252 @@ class PlatformFetcherTests(TestCase):
         self.assertEqual(total, 2, "a posting with no JobPosting markup is counted, not hidden")
 
 
+class JobBoardTests(TestCase):
+    """`#8` — searching Adzuna and Reed for roles at companies nobody has tracked.
+
+    All offline: the boards are stubbed with responses trimmed from their documented
+    shapes. Company names are invented.
+    """
+
+    PROFILES = {"data-platform": {"key_terms": ["data platform", "data engineering"]},
+                "knowledge-graph": {"key_terms": ["knowledge graph", "ontology"]}}
+    QUERIES = {"queries": ['"Data Platform" OR "Data Engineering"']}
+
+    def setUp(self):
+        # Keys may really be in this machine's ~/.jobstudio.ini; none of these tests may
+        # see them, or "no credentials" stops meaning that.
+        patcher = mock.patch("config.setting", lambda key, default="": default)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _client(self, adzuna=(), reed=(), fail=()):
+        class _Resp:
+            def __init__(self, body): self.body = body
+            def raise_for_status(self): pass
+            def json(self): return self.body
+
+        class _Client:
+            calls = []
+            def get(self, url, params=None, **kw):
+                _Client.calls.append((url, params, kw))
+                if any(f in url for f in fail):
+                    raise RuntimeError("HTTP 401")
+                if "adzuna" in url:
+                    return _Resp({"results": list(adzuna)})
+                return _Resp({"results": list(reed)})
+        return _Client()
+
+    @staticmethod
+    def _adzuna(title, company, url):
+        return {"title": title, "redirect_url": url, "company": {"display_name": company},
+                "location": {"display_name": "London, UK"}, "description": "<b>Own</b> the platform",
+                "salary_min": 70000, "salary_max": 90000}
+
+    @staticmethod
+    def _reed(title, company, url, posted=None):
+        # Today, not a fixed date: Reed postings are age-filtered against the real clock.
+        return {"jobTitle": title, "jobUrl": url, "employerName": company,
+                "locationName": "Bristol", "jobDescription": "Build pipelines",
+                "date": posted or dt.date.today().strftime("%d/%m/%Y")}
+
+    def _discover(self, client, settings, **kw):
+        import job_boards
+        kw.setdefault("skip_company_keys", set())
+        kw.setdefault("known", set())
+        return job_boards.discover(client, settings, self.PROFILES, ["data-platform", "knowledge-graph"],
+                                   "data-platform", normalize=lambda u: u.rsplit("/", 1)[-1], **kw)
+
+    def test_no_credentials_means_no_board_and_no_request(self):
+        import job_boards
+        with mock.patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(job_boards.credentials({}), {})
+            self.assertEqual(job_boards.credentials({"adzuna": {"app_id": "x"}}), {},
+                             "half a credential is no credential")
+            client = self._client()
+            postings, stats = self._discover(client, {})
+        self.assertEqual((postings, client.calls), ([], []))
+
+    def test_credentials_can_come_from_the_environment(self):
+        import job_boards
+        env = {"ADZUNA_APP_ID": "a", "ADZUNA_APP_KEY": "b", "REED_API_KEY": "c"}
+        with mock.patch.dict("os.environ", env, clear=True):
+            self.assertEqual(sorted(job_boards.credentials({})), ["adzuna", "reed"])
+
+    def test_queries_split_on_or_and_dedupe(self):
+        import job_boards
+        self.assertEqual(job_boards.queries({"queries": ['"Head of Data" OR "VP Data"', "knowledge graph",
+                                                         "head of data"]}),
+                         ["Head of Data", "VP Data", "knowledge graph"])
+        self.assertEqual(job_boards.queries({"queries": "knowledge graph"}), ["knowledge graph"])
+        self.assertEqual(job_boards.queries({}), [], "no fallback to the areas' key terms")
+
+    def test_a_title_must_carry_every_word_of_the_phrase(self):
+        import job_boards
+        self.assertTrue(job_boards.title_matches("Head of Data & Analytics", "Head of Data"))
+        self.assertTrue(job_boards.title_matches("VP, Data Products", "VP Data"))
+        self.assertFalse(job_boards.title_matches("Head of Training", "Head of Data"))
+
+    def test_keys_but_no_queries_searches_nothing(self):
+        client = self._client(adzuna=[self._adzuna("Data Platform Lead", "Acme", "https://a.example/1")])
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, {"adzuna": {"app_id": "i", "app_key": "k"}})
+        self.assertEqual((postings, client.calls, stats["queries"]), ([], [], 0))
+
+    def test_discovery_filters_dedups_and_labels(self):
+        """Every drop is counted under its own reason, and nothing is dropped twice."""
+        adzuna = [
+            self._adzuna("Data Platform Lead", "Acme Ltd", "https://adzuna.example/land/1"),
+            self._adzuna("Data Barista", "Cafe", "https://adzuna.example/land/2"),       # loose match
+            self._adzuna("Data Engineering Manager", "Tracked Co", "https://adzuna.example/land/3"),
+            self._adzuna("Data Platform Engineer", "Northwind Recruitment", "https://adzuna.example/land/4"),
+            self._adzuna("Data Platform Analyst", "Initech", "https://adzuna.example/land/known"),
+        ]
+        reed = [
+            self._reed("Data Platform Lead", "ACME Limited", "https://reed.example/jobs/9"),  # same job
+            self._reed("Data Engineering Lead", "Globex", "https://reed.example/jobs/10"),
+            self._reed("Data Platform Owner", "Globex", "https://reed.example/jobs/11", posted="01/01/2020"),
+        ]
+        settings = {"adzuna": {"app_id": "i", "app_key": "k"}, "reed": {"api_key": "r"},
+                    "results_per_query": 20, **self.QUERIES}
+        client = self._client(adzuna, reed)
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, settings,
+                                             skip_company_keys={"tracked"}, known={"known"})
+
+        self.assertEqual([(p["company"], p["title"]) for p in postings], [
+            ("Acme Ltd", "Data Platform Lead"),
+            ("Northwind Recruitment", "Data Platform Engineer"),
+            ("Globex", "Data Engineering Lead"),
+        ], "Reed's 'ACME Limited' is Adzuna's 'Acme Ltd'; the 2020 posting is too old")
+        self.assertEqual([p["agency"] for p in postings], [False, True, False])
+        self.assertEqual([p["area"] for p in postings], ["data-platform"] * 3)
+        self.assertEqual(postings[0]["salary"], "£70,000–£90,000")
+        self.assertEqual(postings[0]["snippet"], "Own the platform", "HTML is stripped")
+
+        # Two phrases (one line split on OR) on each board, each stub answering the same list.
+        self.assertEqual(stats["queries"], 4)
+        self.assertEqual(stats["found"], 5 * 2 + 2 * 2, "Reed's stale posting is never counted as found")
+        # A title must carry every word of the phrase that found it, so most rows fail one
+        # of the two phrases ("Data Platform Engineer" is not "Data Engineering").
+        self.assertEqual(stats["title_filtered"], 8)
+        self.assertEqual(stats["covered_by_company_scan"], 1)
+        self.assertEqual(stats["already_tracked"], 1)
+        self.assertEqual(stats["duplicates"], 1)
+
+        adzuna_call = next(c for c in client.calls if "adzuna" in c[0])
+        self.assertIn("title_only", adzuna_call[1], "Adzuna searches titles, not whole adverts")
+        reed_call = next(c for c in client.calls if "reed" in c[0])
+        self.assertEqual(reed_call[2]["auth"], ("r", ""), "Reed: the key is the Basic-auth username")
+
+    def test_only_advertised_annual_salaries_are_shown(self):
+        import job_boards
+        predicted = {**self._adzuna("Data Platform Lead", "Acme", "https://a.example/1"),
+                     "salary_is_predicted": "1"}
+        junk = {**self._adzuna("Data Platform Owner", "Acme", "https://a.example/2"),
+                "salary_min": 5, "salary_max": 5}
+        client = self._client(adzuna=[predicted, junk])
+        found = job_boards.search_adzuna(client, {"app_id": "i", "app_key": "k"}, "data platform",
+                                         max_days_old=7, results=10)
+        self.assertEqual([p["salary"] for p in found], ["", ""])
+
+    def test_a_failing_board_costs_its_queries_not_the_run(self):
+        settings = {"adzuna": {"app_id": "i", "app_key": "k"}, "reed": {"api_key": "r"}, **self.QUERIES}
+        client = self._client(reed=[self._reed("Data Platform Lead", "Globex", "https://reed.example/jobs/1")],
+                              fail=("adzuna",))
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, settings)
+        self.assertEqual([p["company"] for p in postings], ["Globex"])
+        self.assertEqual(len(stats["errors"]), 2)
+        self.assertIn("HTTP 401", stats["errors"][0])
+
+    def test_agency_and_company_matching(self):
+        import job_boards
+        self.assertTrue(job_boards.is_agency("Harnham"))
+        self.assertTrue(job_boards.is_agency("Michael Page Technology"), "agencies post under divisions")
+        self.assertFalse(job_boards.is_agency("Reedsy"), "a prefix match is on whole words")
+        self.assertTrue(job_boards.is_agency("Northwind Resourcing Ltd"))
+        self.assertTrue(job_boards.is_agency("Acme Partners", extra=["Acme Partners Ltd"]))
+        self.assertFalse(job_boards.is_agency("Acme Analytics"))
+        self.assertFalse(job_boards.is_agency(""))
+        self.assertEqual(job_boards.company_keys("Initech Data (Globex Analytics)"),
+                         {"initech data globex analytics", "initech data", "globex analytics"})
+
+    def test_discovered_postings_get_their_own_section_and_stay_out_of_the_match_counts(self):
+        """The vetted/unvetted line is the point of the section: a job-board hit is never
+        ranked among tracked-company matches, and the dashboard's match counts — read off
+        the Summary bullets — stay about tracked companies."""
+        import importlib
+        import config
+        import scan_report
+        from tracker import parsers
+
+        orig = config.data_root
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            (tmp / "jobs" / "scans").mkdir(parents=True)
+            config.data_root = lambda: tmp
+            importlib.reload(scan_report)
+
+            def cand(company, title, **kw):
+                c = scan_report.Candidate(company=company, title=title, url=f"https://x.example/{title}",
+                                          role_target="", area="data-platform", location="London", **kw)
+                c.cv_score, c.ideal_score, c.location_category, c.notes = 4, 4, "uk", "Fits."
+                return c
+
+            tracked = cand("Tracked Co", "Data Lead")
+            found = cand("Northwind Recruitment", "Platform Lead", source="adzuna", agency=True,
+                         salary="£80,000")
+            discovery = {"boards": ["adzuna"], "queries": 2, "found": 9, "title_filtered": 3,
+                         "covered_by_company_scan": 1, "already_tracked": 0, "duplicates": 4,
+                         "errors": ["reed 'x': HTTPStatusError: 401"]}
+            text = scan_report.write_report(
+                scanned_count=1, not_scanned=[], matches=[tracked, found], discarded_by_location=[],
+                needs_review=[], no_roles=[], total_found=1, total_skipped_dedup=0,
+                coverage_notes=[], prefiltered={}, location_prefiltered={},
+                discovery=discovery).read_text()
+        finally:
+            config.data_root = orig
+            importlib.reload(scan_report)
+            shutil.rmtree(tmp)
+
+        strong = text.split("## Strong matches", 1)[1].split("## Discovered on job boards", 1)[0]
+        self.assertIn("Tracked Co", strong)
+        self.assertNotIn("Northwind", strong)
+        board = text.split("## Discovered on job boards", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("**Northwind Recruitment** *(agency)*", board)
+        self.assertIn("£80,000", board)
+        self.assertIn("- Scored matches: 1 (1 strong, 0 other)", text)
+        self.assertIn("- Discovered matches: 1 (1 strong)", text)
+        self.assertIn("**Search failed** — reed", text)
+
+        tabs = {s["key"]: s for s in parsers.split_scan_sections(text)}
+        self.assertEqual(tabs["discovered-on-job-boards"]["short_title"], "Job boards")
+        self.assertEqual(tabs["discovered-on-job-boards"]["count"], 1)
+
+    def test_a_scan_without_job_boards_renders_as_before(self):
+        """No `job_boards` config, no section and no Job boards block — an existing
+        user's report is unchanged."""
+        import importlib
+        import config
+        import scan_report
+        orig = config.data_root
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            (tmp / "jobs" / "scans").mkdir(parents=True)
+            config.data_root = lambda: tmp
+            importlib.reload(scan_report)
+            text = scan_report.write_report(
+                scanned_count=0, not_scanned=[], matches=[], discarded_by_location=[],
+                needs_review=[], no_roles=[], total_found=0, total_skipped_dedup=0,
+                coverage_notes=[], prefiltered={}, location_prefiltered={}).read_text()
+        finally:
+            config.data_root = orig
+            importlib.reload(scan_report)
+            shutil.rmtree(tmp)
+        self.assertNotIn("Discovered on job boards", text)
+        self.assertNotIn("### Job boards", text)
+
+
 class HelpPageTests(TestCase):
     """The in-app help page (TODO #51).
 

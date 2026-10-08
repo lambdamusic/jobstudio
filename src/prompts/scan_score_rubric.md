@@ -91,6 +91,13 @@ Classify each posting's location into exactly one category:
 (Source: the plausible candidates for this area/batch, from the mechanical scan's
 candidates file.)
 
+Some postings come from searching a general job board rather than from a tracked company
+— they carry a `source` (the board), an empty `role_target`, and in its place the board's
+`snippet` of the description and, where advertised, a `salary`. Judge those from the title,
+snippet and salary together. `agency: true` means the advertiser looks like a recruitment
+agency and the company named is not the employer: score the role, not the agency, and
+say in the note when the snippet leaves the employer's sector unclear.
+
 For each posting return:
 - "cv_score": 1 (poor) to 5 (excellent) fit against Dimension 1 — the target profile.
   Score this purely on role/domain/seniority fit, ignore location entirely here.

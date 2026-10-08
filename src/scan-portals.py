@@ -46,6 +46,7 @@ import httpx
 from scan_report import Candidate, load_area_profiles
 
 import config
+import job_boards
 import scan_config
 import scan_match
 import scan_sources
@@ -808,6 +809,30 @@ def main() -> None:
                 else:
                     plausible.append(cand)
 
+        # `#8`: the same target areas searched across general job boards, for companies
+        # nobody has tracked yet. Off unless a board has credentials. A company the scan
+        # above has just read is skipped — its postings were seen there, vetted — but a
+        # tracked company it could *not* read is exactly what a job board can add.
+        discovery = None
+        board_settings = scan_config.job_boards()
+        if job_boards.credentials(board_settings):
+            skip = {k for co in scanned for k in job_boards.company_keys(co["name"])}
+            tracked = {k: co for co in companies for k in job_boards.company_keys(co["name"])}
+            postings, discovery = job_boards.discover(
+                # Default area first: `pick_area` gives ties to the first area listed.
+                client, board_settings, profiles,
+                [args.area] if args.area else sorted(profiles, key=lambda a: a != default_area),
+                args.area or default_area,
+                skip_company_keys=skip, known=known_urls, normalize=_normalize)
+            for p in postings:
+                co = tracked.get(job_boards.company_key(p["company"]))
+                plausible.append(Candidate(
+                    company=p["company"] or "Unnamed", title=p["title"], url=p["url"],
+                    role_target="", area=p["area"], category=co["category"] if co else "",
+                    location=p["location"], source=p["board"], agency=p["agency"],
+                    snippet=p["snippet"], salary=p["salary"],
+                ))
+
     if args.dry_run:
         print(f"Scanned: {len(scanned)}, not scanned: {len(not_scanned)}, "
               f"roles found: {total_found}, deduped: {total_skipped_dedup}, "
@@ -815,6 +840,19 @@ def main() -> None:
               f"filtered out pre-scoring: {sum(len(d['jobs']) for d in prefiltered.values())}, "
               f"excluded pre-scoring by location: {sum(len(d['jobs']) for d in location_prefiltered.values())}")
         print(f"By platform: {platform_counts}")
+        if discovery is not None:
+            found = sum(1 for c in plausible if c.source)
+            if not discovery["phrases"]:
+                print("Job boards: keys found but no `job_boards.queries` in scan-config.yaml "
+                      "— nothing searched")
+            print(f"Job boards: {discovery['boards']}, {discovery['queries']} queries, "
+                  f"{discovery['found']} postings found, {found} new candidates "
+                  f"({sum(1 for c in plausible if c.source and c.agency)} via agencies); dropped: "
+                  f"{discovery['title_filtered']} loose title, {discovery['covered_by_company_scan']} "
+                  f"covered by company scan, {discovery['already_tracked']} already tracked, "
+                  f"{discovery['duplicates']} duplicates")
+            for err in discovery["errors"]:
+                print(f"  JOB BOARD ERROR: {err}")
         if coverage_notes:
             print("Truncated (coverage notes):")
             for name, shown, total in coverage_notes:
@@ -836,6 +874,7 @@ def main() -> None:
         "coverage_notes": coverage_notes,
         "prefiltered": prefiltered,
         "location_prefiltered": location_prefiltered,
+        "discovery": discovery,
         "candidates": [dataclasses.asdict(c) for c in plausible],
     }, indent=2))
 

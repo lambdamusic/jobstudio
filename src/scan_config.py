@@ -22,6 +22,9 @@ Shape:
       "Example Corp": {platform: greenhouse, token: examplecorp}
     known_unsupported:
       "Other Corp": "Webitrent — no public API found"
+    job_boards:                             # optional — discovery is off without it
+      queries: ['"Head of Data" OR "VP Data"', knowledge graph]
+      max_days_old: 7                       # keys: ~/.jobstudio.ini, see src/job_boards.py
 """
 
 from __future__ import annotations
@@ -148,6 +151,14 @@ def company_overrides() -> dict[str, dict]:
     companies whose tracked careers URL is a generic corporate page with the real ATS
     hidden underneath. Keyed by name, not URL, because the URL is exactly what's wrong."""
     return _mapping("company_overrides")
+
+
+def job_boards() -> dict:
+    """Settings for searching general job boards (`#8`, `src/job_boards.py`): the
+    `queries`, optional `max_days_old`, `results_per_query` and extra `agencies`, and
+    optionally the boards' credentials (better kept in `~/.jobstudio.ini`). Empty — the
+    usual case — means discovery is off."""
+    return _mapping("job_boards")
 
 
 def criteria_path() -> Path:

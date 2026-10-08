@@ -666,6 +666,7 @@ _SHORT_TITLE_OVERRIDES = {
     "filtered-out-before-scoring": "Filtered Out",
     "excluded-by-location": "Excluded",
     "no-open-roles-found": "No open roles",
+    "discovered-on-job-boards": "Job boards",
 }
 
 # Rows/bullets that count as one "item" for a tab's count badge: a markdown table row

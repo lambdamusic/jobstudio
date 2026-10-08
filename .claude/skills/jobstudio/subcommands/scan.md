@@ -51,6 +51,14 @@ promote anything worth pursuing.
    candidates plus every already-computed bookkeeping section (not-scanned, no-roles,
    filtered-out, excluded-by-location, coverage notes). Prints the path.
 
+   **Job boards (`#8`).** With a key for Adzuna and/or Reed (`~/.jobstudio.ini`:
+   `adzuna_app_id`, `adzuna_app_key`, `reed_api_key`; or the environment; or
+   `job_boards` in `scan-config.yaml`) and searches listed in `job_boards.queries`, the
+   same run also searches those boards and adds what it finds to the candidates, each
+   with a `source`. Without both, nothing is searched and the report is unchanged. See
+   `docs/portal-scan-and-scoring.md` §1 for the query format. `--dry-run` prints a `Job boards:` line with the counts — use it
+   first after adding keys, since a bad key shows up there as an error per query.
+
 2. **Score the candidates** — pick one:
 
    **Default — score live, no API call.** Read `<DATA>/jobs/scans/YYYY-MM-DD-candidates.json`
@@ -67,6 +75,10 @@ promote anything worth pursuing.
      sectors, sectors to avoid, weighted motivators, culture/values, bonus signals)
    - `{postings}` — the candidates you're scoring (batch by area, or all at once —
      your context budget, not a hard chunk size like the API path needs)
+
+   A candidate with a `source` came from a job board, not a tracked company: it has no
+   `role_target`, and its `snippet` and `salary` are what to judge it on (the rubric says
+   so). `agency: true` means the company named is a recruitment agency, not the employer.
 
    For every candidate, fill in `cv_score`, `ideal_score`, `location_category`, and
    `notes` directly on its object (same four fields the rubric's JSON shape
@@ -111,6 +123,9 @@ promote anything worth pursuing.
    - **Strong matches** (Area Score + Ideal-Job Score ≥ 7) — company, title, both scores, and the notes. This is the section to actually read in full.
    - **Strong matches — wrong location** — same bar, but not UK/remote-eligible; worth a mention, not necessarily action.
    - A skim of **Other matches** for anything that stands out despite a lower score.
+   - **Discovered on job boards**, if the section exists — the strongest few, said plainly
+     to be **unvetted**: companies nobody has decided to watch, some advertised through
+     agencies. Offer `/jobstudio company` for any employer worth tracking from now on.
    - The **discarded (non-UK/non-remote), weak fit** count from Coverage notes — these were never shown individually, just tallied (the strong ones *are* shown, in the section above).
    - Count and list of companies **not scanned**, with the specific reason (bespoke page, unintegrated ATS, fetch error) — be explicit these need manual checking if the user wants them covered
    - Anything flagged "needs manual review" (scoring failed, or a candidate the live scoring pass didn't get to)

@@ -4,6 +4,19 @@ Dated entries, newest first.
 
 ## 2026-10-08
 
+- **The scan can search job boards, not just tracked companies.** With a free Adzuna
+  and/or Reed key and a few searches written as you would type them —
+  `'"Head of Data" OR "VP Data"'`, `knowledge graph` — under `job_boards.queries` in
+  `scan-config.yaml`, `scan` also looks for roles at companies nobody has tracked yet.
+  A posting must carry every word of the phrase that found it in its title; anything
+  already tracked, at a company the company scan just covered, or found twice (Adzuna
+  also lists Reed's adverts) is dropped. What is left is scored as usual, with the
+  board's description snippet and advertised salary standing in for a role target,
+  and reported in a section of its own, **Discovered on job boards** — unvetted, so
+  never ranked with tracked-company matches. Postings from recruitment agencies are
+  labelled, not dropped. Keys are best kept in `~/.jobstudio.ini`. Off until
+  configured. (`#8`)
+
 - **Six more job platforms scanned.** Pinpoint, UKG Pro Recruiting and Hireserve, read
   through their public JSON; SuccessFactors and Radancy career sites, through the feeds
   their own search pages use; and a sitemap fallback for a site with no feed at all,

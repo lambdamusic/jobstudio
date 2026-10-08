@@ -106,10 +106,16 @@ def score_candidates(area: str, profile: dict, candidates: list[Candidate],
 
     import anthropic
 
-    postings = [
-        {"id": i, "company": c.company, "title": c.title, "role_target": c.role_target, "location": c.location}
-        for i, c in enumerate(candidates)
-    ]
+    postings = []
+    for i, c in enumerate(candidates):
+        posting = {"id": i, "company": c.company, "title": c.title, "role_target": c.role_target,
+                   "location": c.location}
+        # A job-board posting (`#8`) has no role target; the board's own snippet and
+        # salary are what there is to judge it on, so they go in its place.
+        if c.source:
+            posting.update({"source": c.source, "agency": c.agency, "snippet": c.snippet,
+                            "salary": c.salary})
+        postings.append(posting)
     rubric = RUBRIC_FILE.read_text()
     prompt = rubric.format(
         area_name=profile.get("name", area),
