@@ -4,7 +4,7 @@ Rescan tracked companies (the tracker database) for new open roles via public AT
 APIs (Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor,
 Rippling ATS) plus a generic first-party-JSON fetcher, score matches on
 two independent dimensions — Area Score, fit against a target-area profile
-(`<DATA>/jobs/targets/*.yaml`) — and personal "ideal job" fit (`<DATA>/jobs/notes/ideal-job-notes.md`
+(`<DATA>/jobs/targets/*.yaml`) — and personal "ideal job" fit (`<DATA>/jobs/notes/search/ideal-job-notes.md`
 plus the structured `<DATA>/jobs/profile/criteria.yaml` — dealbreakers, weighted motivators,
 bonus signals, salary floor) — and produce a report for manual review. Every company
 always gets scored against some area (see "Category → area mapping" below); roles that
@@ -60,7 +60,7 @@ promote anything worth pursuing.
      the matching fields from that candidate's `<DATA>/jobs/targets/<area>.yaml`
      (`excludes` is optional; where an area has none, say so in its place rather than
      leaving the section empty)
-   - `{ideal_job_notes}` — the full contents of `<DATA>/jobs/notes/ideal-job-notes.md`
+   - `{ideal_job_notes}` — the full contents of `<DATA>/jobs/notes/search/ideal-job-notes.md`
    - `{criteria_block}` — read `<DATA>/jobs/profile/criteria.yaml` and apply it per the
      rubric file's own field-by-field breakdown (dealbreakers, salary floor, leap
      sectors, sectors to avoid, weighted motivators, culture/values, bonus signals)
@@ -120,7 +120,7 @@ promote anything worth pursuing.
 
 ## Notes
 
-- **Matches are grouped by company** (alphabetical), sorted by combined score within each — **Strong matches** (Area Score + Ideal-Job Score ≥ 7, `STRONG_THRESHOLD` in `scan_report.py`) and **Other matches** (everything else scored). Each company heading shows its Category → Area once (they're company-level, never vary within one company's group); the table under it is Role | Location | Area Score | Ideal-Job Score | Notes. Area Score is fit against the target-area profile assigned to the posting (skills/domain/seniority); Ideal-Job Score is fit against `<DATA>/jobs/notes/ideal-job-notes.md` and `<DATA>/jobs/profile/criteria.yaml` — the *nature* of the work (hands-on building vs pure management, customer-facing/evangelist-type roles vs backstage, ownership/autonomy, etc.), not skills. The scorer is told to push Ideal-Job Score down for a suspected dealbreaker and nudge it up for a bonus signal, and to call either out in the Notes cell — so scan the Notes column, not just the numbers.
+- **Matches are grouped by company** (alphabetical), sorted by combined score within each — **Strong matches** (Area Score + Ideal-Job Score ≥ 7, `STRONG_THRESHOLD` in `scan_report.py`) and **Other matches** (everything else scored). Each company heading shows its Category → Area once (they're company-level, never vary within one company's group); the table under it is Role | Location | Area Score | Ideal-Job Score | Notes. Area Score is fit against the target-area profile assigned to the posting (skills/domain/seniority); Ideal-Job Score is fit against `<DATA>/jobs/notes/search/ideal-job-notes.md` and `<DATA>/jobs/profile/criteria.yaml` — the *nature* of the work (hands-on building vs pure management, customer-facing/evangelist-type roles vs backstage, ownership/autonomy, etc.), not skills. The scorer is told to push Ideal-Job Score down for a suspected dealbreaker and nudge it up for a bonus signal, and to call either out in the Notes cell — so scan the Notes column, not just the numbers.
 - **Keep `role_target` and `key_terms` to *qualifiers*, not seniority words.** The
   pre-filter splits both into words and passes a posting if its title shares *any* of
   them, so one generic word swamps a large board: on a real run, "Research Engineer" and

@@ -1,12 +1,22 @@
 {% extends "base.html" %}{% load jobs_extras %}
 {% block title %}{{ note.title }}{% endblock %}
 {% block content %}
-<div class="crumb"><a href="/notes/">Notes</a> / {{ note.short }}</div>
-<div class="page-head"><h1>{{ note.title }}</h1></div>
+<div class="crumb"><a href="/notes/">Notes</a> / <a href="/notes/#{{ note.group|default:'other' }}">{{ note.group_label }}</a> / {{ note.short }}</div>
+<div class="page-head">
+  <h1>{{ note.title }}</h1>
+  {% comment %}
+  The applications whose folders link here, worked out from the links (`_note_backlinks`):
+  what a note was written for, and where else it has been used, without upkeep.
+  {% endcomment %}
+  {% if note.used_in %}
+    <p class="note-used-in">Used in
+      {% for a in note.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }} — {{ a.role }}</a>{% endfor %}
+    </p>
+  {% endif %}
+</div>
 {% comment %}
-One note on its own page, with the same index as the tabbed view (`#73`) so the two
-readings of a note cannot drift. Anchors are still slug-prefixed: a link copied from
-`/notes/` must land in the same place here.
+One note on its own page, with its Contents list. Anchors are slug-prefixed, so a section
+link stays unique wherever the note is shown.
 {% endcomment %}
 <div class="panel prose">
   {% include "tracker/_doc_sections.html" with sections=note.doc.sections %}

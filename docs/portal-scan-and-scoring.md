@@ -113,7 +113,7 @@ Each candidate is scored on **three independent dimensions**:
 - **Ideal-Job fit (1–5)** — the *nature* of the work (hands-on vs. management,
   customer-facing vs. backstage, autonomy, etc.), judged from title/role_target alone —
   the scorer never sees the full job description at this stage. Fed by two sources:
-  - `jobs/notes/ideal-job-notes.md` — free-text notes on what makes a job satisfying.
+  - `jobs/notes/search/ideal-job-notes.md` — free-text notes on what makes a job satisfying.
   - `jobs/profile/criteria.yaml` — read directly, applying the rules spelled out in
     `scan_score_rubric.md`:
     - **Dealbreakers** (`hard_filters.exclude`) — pull the score down hard (1–2), and

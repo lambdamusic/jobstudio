@@ -34,7 +34,7 @@ from scan_report import Candidate, load_area_profiles, render
 import config
 
 DATA_ROOT = config.data_root()
-IDEAL_JOB_NOTES_FILE = DATA_ROOT / "jobs" / "notes" / "ideal-job-notes.md"
+IDEAL_JOB_NOTES_FILE = DATA_ROOT / "jobs" / "notes" / "search" / "ideal-job-notes.md"
 CRITERIA_FILE = DATA_ROOT / "jobs" / "profile" / "criteria.yaml"
 # Code, not data — the scoring rubric ships with the repo.
 RUBRIC_FILE = Path(__file__).parent / "prompts" / "scan_score_rubric.md"

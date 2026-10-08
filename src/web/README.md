@@ -103,7 +103,7 @@ definition, used by the skills and the web app alike.
 | `jobs/companies/<slug>.md` | Notes section on `/companies/<slug>/` — see that folder's README |
 | `jobs/targets/*.yaml` + `jobs/areas.md` | `/areas/` |
 | `jobs/cv/base/*.md` | `/cvs/` |
-| `jobs/notes/*.md`, `jobs/scans/*.md` | `/notes/`, `/scans/` |
+| `jobs/notes/<group>/*.md`, `jobs/scans/*.md` | `/notes/` (a tab per group, each note at `/notes/<slug>/`), `/scans/` |
 | `extras/career-coach/**` | Career coach tab on `/notes/` — markdown rendered, other files indexed |
 
 Long-form prose is never copied into the database — only its path is stored, and it is

@@ -694,6 +694,11 @@ class StatusActionTests(TestCase):
                     self.assertIn(link, html)
 
 
+def markdownify_path(md):
+    from tracker.templatetags.jobs_extras import markdownify
+    return markdownify(md)
+
+
 class ViewTests(TestCase):
     fixtures = FIXTURE
 
@@ -762,21 +767,52 @@ class ViewTests(TestCase):
             with self.subTest(slug=slug):
                 self.assertEqual(self.client.get(f"/notes/{slug}/").status_code, 200)
 
-    # ---- /notes/ as tabs, with the shared section index (`#73`) ----
+    # ---- /notes/ as one tab per group, each an index (2026-10-08, replacing `#73`) ----
 
-    def test_notes_page_has_one_tab_per_note_named_by_its_slug(self):
-        """The slug is the tab name *and* the prefix on that note's section anchors, which
-        is what keeps the two kinds of hash apart: `#<slug>` opens a note, `#<slug>--<sec>`
-        opens the note and jumps inside it."""
-        from tracker.views import _notes_files
+    def test_notes_page_has_one_tab_per_group_indexing_its_notes(self):
+        """A group is a subfolder of jobs/notes/. Each group's tab lists its notes, each
+        linking the note's own page; the notes themselves are not rendered here."""
+        from tracker.views import _note_group, _notes_files
 
         html = self.client.get("/notes/").content.decode()
-        slugs = [p.stem for p in _notes_files()]
-        self.assertTrue(slugs, "no notes in the example data")
-        for slug in slugs:
-            with self.subTest(slug=slug):
-                self.assertIn(f'data-tab="{slug}"', html)
-                self.assertIn(f'data-panel="{slug}"', html)
+        paths = _notes_files()
+        self.assertTrue(paths, "no notes in the example data")
+        for path in paths:
+            group = _note_group(path) or "other"
+            with self.subTest(slug=path.stem):
+                self.assertIn(f'data-tab="{group}"', html)
+                panel = html[html.index(f'data-panel="{group}"'):]
+                self.assertIn(f'href="/notes/{path.stem}/"', panel[:panel.index("</section>")])
+
+    def test_notes_in_group_folders_keep_flat_urls_and_show_where_they_are_used(self):
+        """Grouping is the folder; the URL is the filename alone, so moving a note between
+        groups never breaks a link. "Used in" comes from links in application folders."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "topics").mkdir(parents=True)
+        (notes / "topics" / "graph-basics.md").write_text(
+            "# Graph basics\n\n*Started for a round; kept for the next.*\n\n## One\n\nText.\n")
+        (notes / "loose.md").write_text("# Loose note\n\nNo group.\n")
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text("# Test\n\nSee [graph basics](/notes/graph-basics/).\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            listed = self.client.get("/notes/").content.decode()
+            self.assertIn('data-tab="topics"', listed)
+            self.assertIn('data-tab="other"', listed)
+            self.assertIn("Started for a round; kept for the next.", listed)
+            self.assertIn(f'href="/applications/{app.num}/"', listed)
+            page = self.client.get("/notes/graph-basics/")
+            self.assertEqual(page.status_code, 200)
+            self.assertIn("Used in", page.content.decode())
+            self.assertIn('href="/notes/graph-basics/"',
+                          markdownify_path("`jobs/notes/topics/graph-basics.md`"))
+            self.assertIn('href="/notes/graph-basics/"', markdownify_path("`graph-basics.md`"))
 
     def test_note_titles_come_from_the_file_not_the_filename(self):
         """`ai-safety-pivot`.title() is "Ai Safety Pivot". The file says what it is called;
@@ -798,29 +834,27 @@ class ViewTests(TestCase):
         self.assertEqual(P.section_label("A 5 * 3 grid"), "A 5 * 3 grid")
 
     def test_every_id_on_the_notes_page_is_unique(self):
-        """Every note is on this page at once, so two sharing a `## Reading list` would
-        mint the same id — and `tabs.js` resolves an inbound anchor by finding the panel
-        holding it, so a collision opens the wrong note."""
+        """The coach tab stacks several documents on this page, so their anchors have to
+        stay distinct — `tabs.js` resolves an inbound anchor by finding the panel holding
+        it, so a collision would open the wrong one."""
         html = self.client.get("/notes/").content.decode()
         ids = re.findall(r'id="([^"]+)"', html)
         dupes = {i for i in ids if ids.count(i) > 1}
         self.assertEqual(dupes, set(), f"duplicate ids: {sorted(dupes)}")
 
-    def test_a_note_has_the_same_anchors_on_both_of_its_pages(self):
-        """The tabbed view and `/notes/<slug>/` render the same note, so a link copied
-        from one has to land in the same place on the other."""
+    def test_a_notes_section_anchors_are_prefixed_by_its_slug(self):
+        """Section ids on a note's page start `<slug>--`, so a link to a section stays
+        unique wherever the note is shown, and survives a move between groups."""
         from tracker.views import _notes_files
 
         for path in _notes_files():
-            listed = self.client.get("/notes/").content.decode()
             single = self.client.get(f"/notes/{path.stem}/").content.decode()
             with self.subTest(slug=path.stem):
-                for anchor in re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single):
-                    self.assertIn(f'id="{anchor}"', listed)
+                self.assertTrue(re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single))
 
     def test_the_per_note_pages_survive(self):
-        """`build_static` publishes one page per note and they are the honest target for a
-        link from outside the app, so the tabbed view is an addition, not a replacement."""
+        """`build_static` publishes one page per note: they are where a note is read, and
+        the honest target for a link from outside the app."""
         from tracker.management.commands.build_static import site_urls
         from tracker.views import _notes_files
 
@@ -4029,7 +4063,8 @@ class InterviewRoundTests(TestCase):
         from tracker.templatetags.jobs_extras import markdownify
         a = "001-grafana-labs-alex-rivera"
         cases = {
-            "`jobs/notes/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "`jobs/notes/search/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "`ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
             "see <DATA>/jobs/companies/grafana-labs.md now": 'href="/companies/grafana-labs/"',
             "`stocktake.md` §7": '<a href="/profile/"><code>stocktake.md</code></a>',
             "jobs/cv/base/cv_functional.md": 'href="/cvs/base/cv_functional/"',
@@ -4040,12 +4075,13 @@ class InterviewRoundTests(TestCase):
                 'href="/applications/1/#cv-developer-advocacy-2026-09-15"',
             f"`{a}-study-plugin-architecture-2026-09-19.md`":
                 f'href="/applications/1/#file-{a}-study-plugin-architecture-2026-09-19-md"',
-            "[the note](jobs/notes/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
+            "[the note](jobs/notes/search/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
         }
         for md, expected in cases.items():
             with self.subTest(md=md):
                 self.assertIn(expected, markdownify(md))
         for md in ("`jobs/notes/no-such-note.md`", "`notes.md`", "README.md",
+                   "`jobs/notes/ideal-job-notes.md`",  # wrong folder: not where the file is
                    "```\njobs/notes/ideal-job-notes.md\n```",
                    "https://example.com/jobs/notes/ideal-job-notes.md"):
             with self.subTest(md=md):

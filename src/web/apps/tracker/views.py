@@ -959,25 +959,106 @@ def area_list(request):
 # File-backed pages — no DB rows, just markdown on disk
 # ---------------------------------------------------------------------------
 
+# The note groups, as subfolders of jobs/notes/, in the order /notes/ shows them. A note in
+# any other subfolder still shows, under that folder's name; one at the top level of
+# jobs/notes/, under "Other". Grouping is the folder, never a list kept in step by hand.
+NOTE_GROUPS = [
+    ("search", "My search", "Direction, reflection and leads: what I am aiming at, and why."),
+    ("interviewing", "Interviewing", "Technique, and the answer bank that interview prep draws on."),
+    ("topics", "Topics", "Reusable prep: technical subjects and sector landscapes, each started "
+                         "for one application and kept for the next."),
+]
+
+
 def _notes_files():
+    """Every note under jobs/notes/, at any depth below it — the groups are subfolders.
+
+    The slug is the filename alone, so moving a note between groups never changes its URL
+    or breaks a link to it. That makes a filename the identity of a note: if two folders
+    hold the same name, the first in path order wins and the other is not served.
+    """
     notes_dir = Path(settings.NOTES_DIR)
     if not notes_dir.is_dir():
         return []
-    return sorted(notes_dir.glob("*.md"))
+    seen, out = set(), []
+    for path in sorted(notes_dir.rglob("*.md")):
+        rel = path.relative_to(notes_dir)
+        if any(part.startswith(".") for part in rel.parts) or path.stem in seen:
+            continue
+        seen.add(path.stem)
+        out.append(path)
+    return out
 
 
-def _note(path):
+def _note_group(path) -> str:
+    rel = path.relative_to(Path(settings.NOTES_DIR))
+    return rel.parts[0] if len(rel.parts) > 1 else ""
+
+
+def _note_summary(body: str) -> str:
+    """The note's opening line, as the index shows it: the first paragraph after the title,
+    stripped of markdown, cut at a sentence or ~200 characters."""
+    paras = [p.strip() for p in re.split(r"\n\s*\n", re.sub(r"\A\s*#\s+.*\n", "", body))]
+    para = next((p for p in paras if p and not p.startswith(("#", "---", "|", "```"))), "")
+    text = P.strip_links(" ".join(para.split()))
+    text = re.sub(r"[*_`=]+", "", text).strip()
+    if len(text) > 200:
+        cut = text[:200]
+        text = (cut[:cut.rfind(". ") + 1] if ". " in cut[60:] else cut.rsplit(" ", 1)[0] + "…")
+    return text
+
+
+def _note_backlinks() -> dict[str, list]:
+    """slug → the applications whose folders link to that note (`/notes/<slug>/`, or the
+    file's path or bare filename), newest first. Computed from the links, so it needs no
+    upkeep: what a note was written for is whatever points at it."""
+    from .models import Application
+
+    slugs = [p.stem for p in _notes_files()]
+    if not slugs:
+        return {}
+    pattern = re.compile(r"(?:/notes/|notes/(?:[\w-]+/)?|\b)(" + "|".join(map(re.escape, slugs))
+                         + r")(?:/|\.md\b)")
+    out: dict[str, list] = {}
+    for app in Application.objects.exclude(folder="").order_by("-num"):
+        folder = app.folder_path
+        if folder is None:
+            continue
+        found = set()
+        for md in folder.rglob("*.md"):
+            found.update(pattern.findall(md.read_text(errors="ignore")))
+        for slug in found:
+            out.setdefault(slug, []).append(app)
+    return out
+
+
+def _note(path, backlinks=None):
     """One note, ready to render: its own title, and its sections (`#73`).
 
-    The anchor prefix is the slug, which is what lets every note sit on one page. `/notes/`
-    stacks all of them, so two notes both carrying `## Reading list` would otherwise mint
-    the same id — and `tabs.js` resolves an inbound anchor by finding the panel that holds
-    it, so a collision would open the wrong note.
+    The anchor prefix is the slug, which keeps a note's section ids distinct from any
+    other note's — two notes both carrying `## Reading list` would otherwise mint the same
+    id wherever they are shown together.
     """
     body = path.read_text()
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
+    group = _note_group(path)
     return {"slug": path.stem, "title": title, "short": P.short_title(title),
-            "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path))}
+            "group": group, "group_label": dict((g, l) for g, l, _ in NOTE_GROUPS).get(
+                group, group.replace("-", " ").capitalize() if group else "Other"),
+            "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path)),
+            "used_in": (backlinks or {}).get(path.stem, [])}
+
+
+def _note_entry(path, backlinks) -> dict:
+    """A note as the index lists it — no sectioning, which only its own page needs."""
+    from datetime import date as _date
+
+    body = path.read_text()
+    title = P.first_heading(body) or path.stem.replace("-", " ").title()
+    return {"slug": path.stem, "title": title, "summary": _note_summary(body),
+            "words": len(body.split()),
+            "modified": _date.fromtimestamp(path.stat().st_mtime),
+            "used_in": backlinks.get(path.stem, [])}
 
 
 # The Career coach tab's name on /notes/, and the prefix on everything it anchors. Not a
@@ -1030,15 +1111,27 @@ def _coach():
 
 
 def note_list(request):
-    """All the notes on one page, one tab each (`#73`), plus the career-coach folder.
+    """The notes, one tab per group (subfolder of jobs/notes/), each an index of its notes,
+    plus the career-coach folder (2026-10-08).
 
-    The per-note pages at `/notes/<slug>/` stay. They are what `build_static` publishes,
-    what a link from outside the app can point at, and the right thing for reading one
-    note on its own — this page is for moving between them.
+    Until then this was one tab per note (`#73`), which stopped scaling at a dozen: the
+    notes started to include study material carried over from applications, one per round
+    prepared. Each index line links the note's own page at `/notes/<slug>/`, which carries
+    the note's Contents and is what `build_static` publishes.
     """
+    backlinks = _note_backlinks()
+    by_group: dict[str, list] = {}
+    for path in _notes_files():
+        by_group.setdefault(_note_group(path), []).append(_note_entry(path, backlinks))
+    known = [g for g, _, _ in NOTE_GROUPS]
+    groups = [{"slug": g, "label": label, "blurb": blurb,
+               "notes": sorted(by_group.get(g, []), key=lambda n: n["title"].lower())}
+              for g, label, blurb in NOTE_GROUPS if by_group.get(g)]
+    groups += [{"slug": g or "other", "label": g.replace("-", " ").capitalize() if g else "Other",
+                "blurb": "", "notes": sorted(by_group[g], key=lambda n: n["title"].lower())}
+               for g in sorted(by_group) if g not in known]
     return render(request, "tracker/note_list.html",
-                  {"page": "notes", "notes": [_note(p) for p in _notes_files()],
-                   "coach": _coach()})
+                  {"page": "notes", "groups": groups, "coach": _coach()})
 
 
 def note_detail(request, slug):
@@ -1046,7 +1139,7 @@ def note_detail(request, slug):
     if match is None:
         raise Http404("No such note")
     return render(request, "tracker/note_detail.html",
-                  {"page": "notes", "note": _note(match)})
+                  {"page": "notes", "note": _note(match, _note_backlinks())})
 
 
 def profile_view(request):

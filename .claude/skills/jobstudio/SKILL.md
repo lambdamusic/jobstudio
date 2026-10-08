@@ -62,7 +62,7 @@ Each subcommand has its own instruction file under `subcommands/`:
 | `cv --rebuild` / `cv --import <path>` | Bootstrap the two base CVs from scratch via interview, or from an existing CV document — high blast radius, always confirms and backs up first (see `subcommands/cv.md` §A) |
 | `cover-letter [company or #N] [--standard2] [--thin] [extra context]` | Draft a cover letter — standard structure, Standard 1 by default, Standard 2 (a shorter alternative) or `--thin` (the generic draft `application` leaves) on request — from the application entry, CV, company notes, and `jobs/profile/` |
 | `stocktake` | Guided interview through Step 1 of a structured career-transition process ("taking stock") — writes `jobs/profile/stocktake.md` and `jobs/profile/criteria.yaml`. Section-by-section, pre-filled from existing notes, resumable |
-| `interview [company or #N]` | Prep for an actual interview — reads the job description, fit check, CV gaps, and `jobs/profile/`, drafts likely questions (technical, behavioural, emotional-intelligence) with STAR-grounded answers and questions to ask them, writes into the application's `notes.md` "Interview prep" section, and offers to promote durable answers into the reusable `jobs/notes/interview-technique.md` bank |
+| `interview [company or #N]` | Prep for an actual interview — reads the job description, fit check, CV gaps, and `jobs/profile/`, drafts likely questions (technical, behavioural, emotional-intelligence) with STAR-grounded answers and questions to ask them, writes into the application's `notes.md` "Interview prep" section, and offers to promote durable answers into the reusable `jobs/notes/interviewing/interview-technique.md` bank |
 | `status` | Dashboard: application counts by status/area, active applications, companies by category and fit |
 | `scan [--api]` | Run `python src/scan-portals.py` (mechanical fetch), then score live by default (agent-native, no API call) or via `python src/score-candidates.py` if `--api`; render with `python src/scan_report.py`; summarize the report: top matches, unscored roles, not-scanned companies |
 | `render` | Render a specific application's CV and cover letter to .docx, no API call |
@@ -161,9 +161,27 @@ full name, linked, and their role in the process — so a profile is found once 
 application. How a link is found when `## Contacts` lacks one, and the check it must
 pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 
+## Notes and their groups
+
+`<DATA>/jobs/notes/` has three subfolders, one tab each on the Notes page:
+
+- `search/` — direction, reflection and leads, including `ideal-job-notes.md`
+  (which `scan` scoring reads in full).
+- `interviewing/` — `interview-technique.md`, with the answer bank `interview` reads and
+  appends to.
+- `topics/` — reusable prep: a technical subject or a sector landscape.
+
+**Study material that would serve another application goes to `topics/`, not into the
+application folder.** Name it for the topic (`topics/api-security.md`), open it with one
+italic line saying which application it started for and when, and keep only what is
+specific to that company or round in the application folder, linking the note as
+`/notes/<slug>/`. The Notes page lists every application whose folder links a note, so
+that link is also how the note keeps its context. The URL is the filename alone, so a
+note's name must be unique across the three folders.
+
 ## Referring to another file
 
-Write the path, in backticks: `` `jobs/notes/interview-technique.md` ``,
+Write the path, in backticks: `` `jobs/notes/interviewing/interview-technique.md` ``,
 `` `jobs/companies/<slug>.md` ``, or a file in an application folder by its full name. The
 web app turns any reference to a file that has a page into a link to that page (TODO
 `#78`), so there is no need to write a markdown link or to work out a URL. Use the

@@ -11,7 +11,7 @@ Two modes:
   concerns]` — full prep pack for one round, written as **its own file** in that
   application's folder (one file per round, since 2026-09-24 — see Step 4).
 - **Bank mode**: `/jobstudio interview --practice [topic]` (no company) — practise
-  answers against `<DATA>/jobs/notes/interview-technique.md` and `stocktake.md` directly,
+  answers against `<DATA>/jobs/notes/interviewing/interview-technique.md` and `stocktake.md` directly,
   with nothing written to an application folder. Use this when there's no specific
   interview lined up yet, or the user just wants to rehearse.
 
@@ -32,7 +32,7 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 | `<DATA>/jobs/companies/<slug>.md` | Culture signals, "Fit with my mission" — feeds both the "why this role" answer and the questions-to-ask-them list |
 | `<DATA>/jobs/profile/stocktake.md` §1–§3, §7 | §1 orgs/cultures enjoyed & disliked (relationships/culture answers) · §2 six achievements + areas of less success and lessons (behavioural + weakness answers) · §3 anchors/values (keeps "why this role" authentic, not generic) · §7 narratives to have ready |
 | `<DATA>/jobs/profile/criteria.yaml` | `weighted_motivators` and `bonus_signals` — ground "why this role/company" in what actually matters to them, not flattery |
-| `<DATA>/jobs/notes/interview-technique.md` | The reusable answer bank — **check this before drafting anything new**; reuse verbatim where a question matches |
+| `<DATA>/jobs/notes/interviewing/interview-technique.md` | The reusable answer bank — **check this before drafting anything new**; reuse verbatim where a question matches |
 | `<DATA>/extras/career-coach/materials/emotional-intelligence.md` | The 5-tip framework the EI question set is built from (read in full each time — short file) |
 
 ---
@@ -53,7 +53,7 @@ company said about itself, to this candidate, out loud.
 **Bank mode:** skip the above; read `stocktake.md` and `interview-technique.md`
 directly, and ask what topic or question type to focus on if not given.
 
-Read `<DATA>/jobs/notes/interview-technique.md` in full either way — the point of the bank
+Read `<DATA>/jobs/notes/interviewing/interview-technique.md` in full either way — the point of the bank
 is to stop re-deriving answers that already work.
 
 ---
@@ -91,7 +91,7 @@ question + one drafted answer per tip, using this mapping to source material:
 | 1. Highlight relationships | `stocktake.md` §1 (orgs/cultures worked well in) + §2 achievements with a team dimension | Give credit to others by name/role where the source material does — EI here is explicitly about crediting the team, not just "I did X" |
 | 2. Challenges & resilience | `stocktake.md` §2 "areas of less success, and lessons" | Frame as agility/learning, not just survival — what changed in how he works afterward |
 | 3. Weaknesses / self-awareness | Real, honest gap — check `notes.md` CV gaps first for one already identified for *this* role; otherwise **ask the user directly**, don't invent one | Pair the honest gap with the concrete thing being done about it. No cliché deflections ("I work too hard") |
-| 4. Passions / hobbies | `<DATA>/jobs/notes/ideal-job-notes.md` if it names outside interests; otherwise **ask directly** | Genuine energy > generic "I enjoy reading" — leadership/organising within a hobby counts |
+| 4. Passions / hobbies | `<DATA>/jobs/notes/search/ideal-job-notes.md` if it names outside interests; otherwise **ask directly** | Genuine energy > generic "I enjoy reading" — leadership/organising within a hobby counts |
 | 5. Questions about culture | `<DATA>/jobs/companies/<slug>.md` (culture/tech notes) + `criteria.yaml` `preferences.culture` | Produce 3–5 actual questions to ask *them*, not answers — tailored to this company, not generic ("what's the culture like?") |
 
 Tips 3 and 4 are explicitly flagged in the source material as not derivable from
@@ -318,9 +318,14 @@ back what actually worked), ask whether any answer is good enough to reuse verba
 next time — same test as an existing "why did you leave <employer>" entry: it
 worked in a real interview and doesn't need role-specific rewriting.
 
-For each one the user confirms, append to `<DATA>/jobs/notes/interview-technique.md` in the
-same style as the existing entry: a short dated note on when/where it worked and why
-the phrasing matters, then the answer verbatim in a blockquote. Prefer this over
+For each one the user confirms, add it to `<DATA>/jobs/notes/interviewing/interview-technique.md`
+as a `###` under the `##` category it belongs to (About me, Research analytics, Product
+management, Technical and architecture…), creating a category only when none fits. Never
+append it at the end of the file: the categories are what make the bank findable. Same
+shape as the existing entries: the question as the heading, then a *Tested* line (which
+interview, the application number, the date, how it went), a few lines on why the
+phrasing matters, then the answer verbatim in a blockquote. An answer already in the bank
+that has now worked gets its *Tested* line updated rather than a second entry. Prefer this over
 drafting a fresh version of the same answer next time — check the bank in Step 1
 before ever redrafting something that's already there.
 
