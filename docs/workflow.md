@@ -245,7 +245,7 @@ truth for status; browse by status in the web app rather than by folder location
 
 ### Refine the notes and cover letter with Claude
 
-- **Gap analysis** lives under `## My notes` in `notes.md` (`### CV gaps`, `### CV improvements`, `### Preparation steps`) — ask Claude to revisit or expand it, or edit it directly.
+- **Gap analysis** lives under `## My notes` in `notes.md` (`### Fit check`, `### CV gaps`, `### CV improvements`) — ask Claude to revisit or expand it, or edit it directly. Its preparation steps go into `## To do` → `### Application`, the first section of `notes.md`, which holds every task for the application, split by stage.
 - **Cover letter** — use `/jobstudio cover-letter [company or #N] [extra context]` to (re)draft it: 3 paragraphs (~300 words), hook → concrete achievements → close, in the user's casual-but-precise voice. Claude shows the draft for review before saving; pass free-text context (e.g. `--emphasise knowledge graphs`) to steer tone. **How structure selection and drafting actually work:** see **[cover-letters.md](cover-letters.md)**.
 - Both files are just markdown — hand-editing them directly is always fine; Claude only fills gaps, it never overwrites what's already there.
 

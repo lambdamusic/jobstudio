@@ -26,7 +26,7 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 |---|---|
 | The tracker database (`src/jobsdb.py list`) | Role title, area, status |
 | `job.md` in the application folder | The actual JD — responsibilities/requirements drive the technical & gap questions |
-| `notes.md` in the application folder — **Fit check**, **CV gaps**, **Preparation steps** sections | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
+| `notes.md` in the application folder — **Fit check** and **CV gaps** sections, and `## To do` (its `### Application` tasks and any earlier round's) | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
 | **Prior round files** in the folder (`*-interview-*.md`), newest first — their `## Outcome` above all | What was already asked, what landed, what the interviewer corrected or flagged. Never re-prep a round in ignorance of the one before it |
 | The tailored CV in the folder (`*cv-functional*.md`), else `<DATA>/jobs/cv/base/cv_functional.md` | Concrete achievements and phrasing to draw answers from |
 | `<DATA>/jobs/companies/<slug>.md` | Culture signals, "Fit with my mission" — feeds both the "why this role" answer and the questions-to-ask-them list |
@@ -69,8 +69,8 @@ Pull directly from `job.md`'s responsibilities and requirements. For each
 requirement already flagged as a gap in `notes.md`'s **CV gaps** section, turn it
 into the question an interviewer would actually ask ("tell me about your experience
 with X") plus an honest bridging answer — translate adjacent real experience, never
-claim the gap doesn't exist. Where `notes.md` already has a **Preparation steps**
-item ("brush up on Docker/Kubernetes"), that's a flag to *study*, not something to
+claim the gap doesn't exist. Where `notes.md`'s `## To do` already has a task
+("brush up on Docker/Kubernetes"), that's a flag to *study*, not something to
 draft an answer for — list it as a to-do instead of manufacturing a fake answer.
 
 ### B. Behavioural / competency
@@ -171,11 +171,12 @@ folder — one file per round, never appended to `notes.md`:
   name is what `appfolder.app_filename(folder, f"interview-{stage}", "md", when=<date>)`
   builds, so use that rather than assembling the string by hand.
 
-**Link the people and organisations you name — from sources you already have, never
-from a search.** An interviewer, the company, a product, a paper or talk someone is
-known for: if a URL for it is in the job posting, the company's own site, the scan data,
-the application folder, or something the user pasted into this session, make the mention
-a markdown link. `## Who I'm meeting` is where this pays off most — a name you can click
+**Link the people and organisations you name.** An interviewer, the company, a product,
+a paper or talk someone is known for: if a URL for it is in the job posting, the
+company's own site, the scan data, the application folder, or something the user pasted
+into this session, make the mention a markdown link. A person with no link to hand may
+be searched for, under the check below. People are named in full every time — see
+"Naming people" in `SKILL.md`. `## Who I'm meeting` is where this pays off most — a name you can click
 through to beats a paragraph describing who they are.
 
 **Add the link inside the existing line; never re-wrap the paragraph to fit it.** The
@@ -186,11 +187,20 @@ re-wrap that puts a sentence break or a capitalised name at the start of a line 
 shows. `[Derin](https://…)` makes a line long in the file and changes nothing on the page.
 Keep a `[…](…)` label on one line too.
 
-**Do not go looking for one.** A searched-for profile cannot be confirmed to be the
-right person: names repeat, and the cost of being wrong lands on a named individual and
-on the user, who walks into a call having read about someone else. No link is a small
-loss; a confident link to the wrong person is not. If the user wants a profile found,
-they can hand you the URL — then it is sourced and you link it.
+**A person may be searched for, but only a checked match is linked** (decided
+2026-10-08, TODO `#85`). Look first in the application's `## Contacts` in `notes.md`: a
+person linked there is already found, so reuse that link and do not search again.
+Otherwise search for their LinkedIn page, or another public profile (a staff page, a
+personal site), and link it **only when both hold**: the profile names the same
+employer, and its title is consistent with the part the person plays in this process (a
+hiring manager in the team the role sits in, a recruiter in talent or HR). Names repeat,
+and a confident link to the wrong person lands on a named individual and on the user,
+who walks into a call having read about someone else. So when either check fails, or
+two profiles both pass, leave the name plain and say so in one line to the user, who
+can hand you the URL. A URL the user gives is sourced and linked as it is.
+
+Record the person in `## Contacts` once found — full name, linked, then their role in
+the process — so the next round reuses it rather than searching again.
 
 Structure:
 
@@ -231,9 +241,9 @@ Structure:
 
 - …
 
-## Study before
+## To do
 
-- [ ] …
+→ [This round's tasks, in My notes](#notes--<label-slug>-<date>)
 
 ## Private — not for the call
 
@@ -244,11 +254,17 @@ Structure:
 _(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
 
-**`## Study before` is a checklist.** Every item is a `- [ ]` task, never a numbered or
-plain bullet — the rule for every to-do list the skill writes ("Lists of things to do
-are checklists" in `SKILL.md`). The page renders it as a checkbox, and ticking it on the
-local app writes `[x]` back into the file. Keep one task per item; detail can follow on
-indented lines.
+**The round's tasks are not written in the round file** (TODO `#84`). What to study or
+do before the call goes into `notes.md`, in a new `### <Round label> — <YYYY-MM-DD>`
+subsection at the end of `## To do` (create the section, first in the file, if it is
+missing). The heading follows the fixed pattern in "Lists of things to do are checklists"
+in `SKILL.md`: the label the Interviews tab shows for the round, an em dash, the round's
+date — `### Hiring manager — 2026-09-24`, `### Final round — 2026-10-10`. Every item a
+`- [ ]` task, one task per item, detail on indented lines. The round file's `## To do`
+is one line linking that subsection: `#notes--` plus the heading's slug
+(`#notes--hiring-manager-2026-09-24`, `#notes--final-round-2026-10-10`). On the
+application page it opens My notes at the subsection; on the round's focus page the
+round's tasks are shown above the round, under that same id.
 
 **The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
 colours every question red so the eye can find them without reading the answers between
@@ -278,8 +294,11 @@ checker fails the build on it. `tabs.js` resolves a hash naming an element insid
 by opening that panel, so the anchor works on a fresh load too, not just in-session.
 
 `notes.md` itself keeps only what is true of the **role** rather than of a meeting —
-`## My notes`, any domain background, `## Contacts` (people recur across rounds), and
-that `## Timeline`. Never re-create a `## Interview prep` heading there; it was retired
+`## To do` (every task, by stage), `## My notes`, `## Contacts` (people recur across
+rounds), and that `## Timeline`.
+Background on the sector itself (what the domain is, how it works) is true of the
+company, not the role: it goes in the company page's `## The domain`, with its terms in
+the `## Glossary`, never in `notes.md`. Never re-create a `## Interview prep` heading there; it was retired
 2026-09-24.
 
 If the application isn't already `interviewing`, offer to set it:

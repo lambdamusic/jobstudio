@@ -3702,6 +3702,59 @@ class InterviewRoundTests(TestCase):
             self.client.get("/applications/4/rounds/round-nope-2026-01-01/").status_code,
             404)
 
+    def test_subsection_md_takes_one_subsection_and_ignores_fenced_headings(self):
+        block = ("## To do\n\n### Application\n\n- [ ] research\n\n"
+                 "### Final round — 2026-10-10\n\n- [ ] demo\n```\n### not a heading\n```\n"
+                 "- [ ] slides\n\n### Later\n\n- [ ] thank-you note\n")
+        self.assertEqual(P.subsection_md(block, "application"), "- [ ] research")
+        final = P.subsection_md(block, "final-round-2026-10-10")
+        self.assertIn("- [ ] slides", final, "a fenced ### must not end the subsection")
+        self.assertNotIn("thank-you", final)
+        self.assertIsNone(P.subsection_md(block, "panel-2026-10-10"))
+
+    def test_focus_view_shows_the_rounds_tasks_from_notes(self):
+        """`#84`: an application's tasks live in notes.md's `## To do`, one `###` per
+        round, and the round's focus view — the page open during prep — shows its own.
+        Checked for a stage whose label slugs back to the stage (Hiring manager) and one
+        that does not (`final` → "Final round"). Ticks must still point at notes.md."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text(
+            "# Test Co\n\n## To do\n\n### Application\n\n- [x] read the posting\n\n"
+            "### Hiring manager — 2026-09-24\n\n- [ ] HM-TASK-ONE\n- [ ] HM-TASK-TWO\n\n"
+            "### Final round — 2026-10-10\n\n- [ ] FINAL-TASK\n\n## My notes\n\nPlain.\n")
+        for stage, date in (("hiring-manager", "2026-09-24"), ("final", "2026-10-10"),
+                            ("panel", "2026-10-01")):
+            (folder / f"900-test-co-alex-rivera-interview-{stage}-{date}.md").write_text(
+                f"# {stage}\n\n## Prep\n\n- **Q:** why?\n  **A:** because.\n")
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root)):
+            def page(anchor):
+                return self.client.get(
+                    f"/applications/{app.num}/rounds/{anchor}/").content.decode()
+
+            hm = page("round-hiring-manager-2026-09-24")
+            self.assertIn('id="notes--hiring-manager-2026-09-24"', hm)
+            self.assertIn("HM-TASK-TWO", hm)
+            self.assertNotIn("FINAL-TASK", hm)
+            self.assertNotIn("read the posting", hm, "Application tasks are not a round's")
+            # File-wide index: HM-TASK-ONE is notes.md's second task, so data-task="1".
+            self.assertRegex(hm, r'data-task="1"[^>]*>\s*HM-TASK-ONE')
+            self.assertIn('data-source="jobs/applications/900-test-co/notes.md"', hm)
+
+            final = page("round-final-2026-10-10")
+            self.assertIn('id="notes--final-round-2026-10-10"', final)
+            self.assertIn("FINAL-TASK", final)
+
+            self.assertNotIn("To do for this round", page("round-panel-2026-10-01"),
+                             "a round with no subsection shows no empty panel")
+
     def test_focus_view_removes_a_private_section_from_the_page_source(self):
         """Removed, not hidden. A page open during a call can be visible to someone
         else, and a CSS-hidden section is still in the source, still findable with
@@ -3977,13 +4030,19 @@ class InterviewRoundTests(TestCase):
         with self.assertRaises(IndexError):
             set_task(text, 3, True)
 
-    def test_preparation_steps_in_application_notes_are_checkboxes(self):
-        """A gap analysis's `### Preparation steps` is a `- [ ]` list (SKILL.md, "Lists of
-        things to do are checklists"), so it reaches the page as checkboxes."""
+    def test_the_to_do_section_in_application_notes_is_checkboxes(self):
+        """An application's tasks are `- [ ]` lists in notes.md's `## To do` (SKILL.md,
+        "Lists of things to do are checklists"; `#84`, which replaced the gap analysis's
+        `### Preparation steps`), so they reach the page as checkboxes — and the section
+        comes first, so the first box on the page is the file's first task."""
+        app = Application.objects.get(num=1)
+        self.assertEqual(app.notes_doc["blocks"][0]["anchor"], "notes--to-do")
         html = self.client.get("/applications/1/").content.decode()
-        prep = html[html.index("Preparation steps"):]
-        self.assertIn('class="task-box" data-task="0"', prep)
-        self.assertIn('data-task="1"', prep)
+        todo = html[html.index('data-section="notes--to-do"'):]
+        self.assertIn('class="task-box" data-task="0"', todo)
+        self.assertIn('data-task="1"', todo)
+        self.assertIn('id="notes--hr-screen-2026-09-18"', todo,
+                      "a round's subsection carries the id its round file links to")
 
     def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
         import tempfile
@@ -4083,6 +4142,33 @@ class InterviewRoundTests(TestCase):
                 self.assertTrue(f["anchor"].startswith("file-"))
                 self.assertIn(f'id="{f["anchor"]}"', html)
 
+    def test_other_files_index_appears_from_two_files_up_and_links_each_one(self):
+        """`#87`: the Interviews and CV tabs' index, on Other files — a list of one is
+        noise, and from two up every file, markdown or not, gets a line linking its id."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "900-test-co-alex-rivera-study-sql-2026-10-08.md").write_text("# SQL\n\nJoins.\n")
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        label = 'aria-label="Files in this folder"'
+        with override_settings(DATA_ROOT=str(root)):
+            one = self.client.get(f"/applications/{app.num}/").content.decode()
+            self.assertNotIn(label, one)
+
+            (folder / "salary-benchmarks.xlsx").write_bytes(b"x" * 2048)
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            self.assertIn(label, html)
+            index = html[html.index(label):html.index("</nav>", html.index(label))]
+            for f in app.extra_files:
+                with self.subTest(rel=f["rel"]):
+                    self.assertIn(f'href="#{f["anchor"]}"', index)
+            self.assertIn("2 KB", index, "a non-markdown file shows its size")
+
     def test_no_folder_markdown_links_a_bare_md_file(self):
         """Regression, twice over. A relative `.md` link inside an application folder
         resolves to nothing in the web view and fails build_static's link checker — the
@@ -4118,7 +4204,7 @@ class InterviewRoundTests(TestCase):
 
         stub = appfolder.notes_stub({"company": "Test Co", "role": "Architect"})
         self.assertNotIn("## Interview prep", stub)
-        for heading in ("## My notes", "## Contacts", "## Timeline"):
+        for heading in ("## To do", "### Application", "## My notes", "## Contacts", "## Timeline"):
             self.assertIn(heading, stub)
 
     def test_filename_is_built_from_the_shared_convention(self):

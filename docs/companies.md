@@ -93,6 +93,7 @@ default) — see [portal-scan-and-scoring.md](portal-scan-and-scoring.md) §2.
 # Company Name
 
 ## In one paragraph    (what it sells, to whom)
+## The domain        (how the sector works, and why the product exists in it)
 ## The business at a glance   (Mermaid diagram — added at interview stage)
 ## Mission
 ## Technology          (or: Products — what each answers, and who pays for it)

@@ -69,7 +69,7 @@ Idempotent — creates whatever's missing:
 
 - `jobs/applications/NNN-company-slug/` (the folder name comes from `appfolder.slug()` —
   lowercase, non-word characters stripped, spaces/underscores collapsed to hyphens)
-- `notes.md`, from a bare skeleton (`## My notes`, `## Contacts`, `## Timeline`) —
+- `notes.md`, from a bare skeleton (`## To do` with an empty `### Application`, `## My notes`, `## Contacts`, `## Timeline`) —
   deliberately carries no metadata header, since company/role/area/status live in the
   database and used to drift out of sync across three copies. No `## Interview prep`
   either, since 2026-09-24: interview rounds are their own files (see
@@ -108,7 +108,13 @@ read together and the JD is analysed against both, appended under `## My notes`:
 | **Fit check** | Hard filters (`geography`, `salary_floor_gbp`, `self_employment_ok`, `exclude` rules) scored pass/fail/unknown against JD evidence — any fail or a stack of unknowns is flagged plainly. Then the 3–4 highest-weight motivators, judged against the JD. Then any bonus signals hit. Closes with a one-line verdict: worth custom effort, or borderline/skip. |
 | **CV gaps** | Bullet list — for each JD requirement or signal missing or underplayed in the CV, the JD phrase quoted next to what's missing. |
 | **CV improvements** | For each fixable gap: the CV line/section to change, why the JD wants it, and suggested replacement text drawn from `stocktake.md` §2 (achievements/USPs) and §6 (positioning by audience). |
-| **Preparation steps** | An ordered, role-specific list — company/team research, skills to brush up, talking points from `stocktake.md` §7, domain-gap mitigation if the area is a stretch. |
+
+The fourth part, **preparation steps**, is a `- [ ]` checklist in role-specific order —
+company/team research, skills to brush up, talking points from `stocktake.md` §7,
+domain-gap mitigation if the area is a stretch. It is not written under `## My notes` but
+into `### Application`, under the `## To do` section that opens `notes.md`. Every task
+for the application lives there, split by stage, and each interview round adds its own
+subsection (see [interview-prep.md](interview-prep.md)).
 
 ### Fit summary — the structured half
 
@@ -152,7 +158,7 @@ API call:
 ```
 
 **What this did not change:** the gap analysis in §6. It is not part of tailoring — the
-Fit check, CV gaps and Preparation steps feed the fit summary on the application page
+Fit check, CV gaps and the preparation steps in `## To do` feed the fit summary on the application page
 *and* are the main source for `interview`, so they still run on every log.
 
 See [cv-pipeline.md](cv-pipeline.md) and [cover-letters.md](cover-letters.md).

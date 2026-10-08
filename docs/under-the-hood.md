@@ -168,7 +168,7 @@ their `###` subsections in document order, numbered `1 / 1.1 / 1.2 / 2`.
 Two things about that are easy to get wrong:
 
 - **Document order, not a canonical list.** Rounds come in two shapes — written before
-  the call (Details / Prep / Questions to ask them / Study before / Outcome) and written
+  the call (Details / Prep / Questions to ask them / To do / Outcome) and written
   after it (Questions and answers / What to do differently) — so a fixed vocabulary
   matches one and misses the other.
 - **The numbers are the only thing carrying depth.** The index is a flat row of pills,

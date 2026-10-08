@@ -340,9 +340,14 @@ def notes_stub(row: dict) -> str:
     own files (see the naming block above). What stays here is what is true of the *role*
     rather than of a meeting — the notes, the contacts, and a timeline that indexes the
     round files.
+
+    `## To do` comes first (`#84`): every task for the application, split by stage —
+    `### Application`, then one `### <Round label> — <date>` per round, which the round
+    file links to. First because it is the part that changes day to day.
     """
     return (
         f"# {row['company']} — {row['role']}\n\n"
+        "## To do\n\n### Application\n\n\n"
         "## My notes\n\n\n"
         "## Contacts\n\n\n"
         "## Timeline\n"

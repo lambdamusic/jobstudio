@@ -627,6 +627,7 @@ a.gloss[data-def]:focus-visible::after {
 /* Larger than the app's body text and looser between lines: this is read at arm's
    length while listening to somebody, not studied. */
 .round-focus-body { font-size: 15.5px; line-height: 1.65; }
+.round-focus-todo { margin-bottom: 16px; }
 
 .round-focus-foot { margin-top: 20px; }
 .round-focus-note { font-size: 13px; color: var(--muted); margin: 6px 0; }

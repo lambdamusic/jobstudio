@@ -1,5 +1,11 @@
 # dbt Labs — Solutions Engineer
 
+## To do
+
+### Application
+
+- [ ] Re-read own package's issue tracker before any call — expect to be asked about it.
+
 ## My notes
 
 ### CV gaps
@@ -10,10 +16,6 @@
 ### CV improvements
 
 - Lead with Enablement; the dbt package belongs in the summary, not buried in Community.
-
-### Preparation steps
-
-- Re-read own package's issue tracker before any call — expect to be asked about it.
 
 ## Contacts
 

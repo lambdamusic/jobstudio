@@ -542,6 +542,33 @@ class Application(models.Model):
                           source=_task_source(self._folder_file("notes.md")))
                 if body and body.strip() else None)
 
+    def round_todo(self, round_: dict) -> dict | None:
+        """One round's tasks, from `notes.md`'s `## To do` (`#84`), for the round's focus
+        view: the page open during prep is the round's, but its tasks live in notes.md.
+
+        The subsection is found by name, not position. The skill writes it as
+        `### <Round label> — <YYYY-MM-DD>`, the label the Interviews tab shows, which for
+        most stages slugs to the round's own anchor minus its `round-` prefix. Two labels
+        do not ("Final round" for `final`, "Informal chat" for `informal`), so both
+        spellings are tried. Returns the anchor the matched subsection carries on My
+        notes, so the round file's link to it resolves on either page.
+        """
+        doc = self.notes_doc
+        block = next((b for b in (doc or {}).get("blocks", [])
+                      if b["anchor"] == "notes--to-do"), None)
+        if block is None:
+            return None
+        from .parsers import section_slug, subsection_md
+
+        candidates = [section_slug(f"{round_['label']} {round_['date'].isoformat()}")
+                      if round_["date"] else section_slug(round_["label"]),
+                      round_["anchor"].removeprefix("round-")]
+        for slug in dict.fromkeys(candidates):
+            body = subsection_md(block["body_md"], slug)
+            if body is not None:
+                return {"anchor": f"notes--{slug}", "body_md": body}
+        return None
+
     @property
     def glossary(self) -> list[dict]:
         """The company page's glossary, which this application's documents link to when

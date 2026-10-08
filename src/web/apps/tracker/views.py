@@ -896,6 +896,7 @@ def interview_round(request, num, anchor):
         "focus_round": focus_round,
         "sections": focus_round["sections"],
         "hidden_sections": hidden,
+        "todo": app.round_todo(round_),
         # Previous/next by the same ordering the tab uses (newest first), so moving
         # between rounds mid-process does not need a trip back to the application.
         "others": [r for r in rounds if r["anchor"] != anchor],

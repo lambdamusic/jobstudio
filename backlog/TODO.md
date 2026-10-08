@@ -8,7 +8,7 @@
      Numbering: `#N` is a permanent ID assigned once when an item is added — never
      renumbered, never reused (checked-off or removed items keep/retire their number).
      Position in the file reflects section grouping, not creation order.
-     Next available: #84 -->
+     Next available: #90 -->
 
 ## Architecture
 - [ ] `#75` **Simplify the config settings — or at least say plainly what each one is for** — raised 2026-10-02 by Michele, after setting the toolkit up on a second machine: *"Shall we consider simplifying the config settings? Unclear to me now what is needed."* Design in [`plans/075-config-layers.md`](plans/075-config-layers.md).
@@ -98,6 +98,14 @@
   - [ ] **Decide where it shows.** Candidates: a section on the help page (`src/web/apps/tracker/templates/tracker/help.html`), a small panel on the dashboard (`tracker/home.html`), or a page of its own in the sidebar (`src/web/templates-global/base.html`). The dashboard is where it would actually get seen; the help page is where it fits without competing with the tracker.
   - [ ] Links open in a new tab, as everywhere else since `#17`.
 
+- [ ] `#88` **The section index as a plain vertical list, not a row of pills** — raised 2026-10-08 by Michele: *"can we try having it as a normal index (one per line, indent sub sections) so that it's easier to navigate."* Applies to every page using `_doc_sections.html`: interview rounds, My notes, Other files, notes, profile. Today it is a wrapping row of numbered pills in a grey tray (`.section-index` / `.section-chip`, `site.css`), where `1.1` pills sit inline beside `1`, so the hierarchy shows only through the numbers. One line per section with `###` entries indented reads as a table of contents.
+
+  "Try" is the word: the pill tray was itself a deliberate choice (2026-10-02, the CSS comment above `.section-index`), so this is worth seeing on real pages before committing.
+  - [ ] **The tray is sticky** (`position: sticky; top: 0`), so it can be reached mid-round without scrolling up. A vertical list of 10–15 sections would take a third of the screen if it stuck. Options: not sticky, with a small "↑ Contents" link instead; sticky but collapsed to one line ("Contents ▾") that opens on click; or a sidebar column at wide widths.
+  - [ ] Keep what `section-nav.js` does now: highlighting the section being read, opening the right `<details>` when a link targets something inside it, and the **Expand all** toggle.
+  - [ ] Check the long cases: a round with many sections, and the shortest (the index only appears from two sections up).
+
+## Interview prep
 ## File naming
 - [ ] `#27` **Re-order the application-folder naming convention to `{type}-{date-created}-{username}-{job-slug}`** — e.g. `cover-letter-2026-09-18-michele-pasin-046-bbc-studios.md`, replacing today's `{job-slug}-{username}-{type}-{date}` (`046-bbc-studios-michele-pasin-cover-letter-2026-09-18.md`, the 2026-09-08 convention in `src/appfolder.py`'s `app_filename()`). Putting the type first makes a folder listing sort by kind rather than by a company name every file in the folder already repeats. **Also covers interview-round files** (`<id>-<person>-interview-<stage>-<date>.md`, added 2026-09-24) — whose date is the interview's, not the file's, so the reorder must not assume a creation date. **Also apply it to `notes.md` and `job.md`**, which are currently bare names with no date or owner at all — so `notes-2026-09-18-michele-pasin-046-bbc-studios.md`, `job-2026-09-18-michele-pasin-046-bbc-studios.md`.
 
@@ -113,3 +121,8 @@
 - [ ] `#20` Write long-form research files (`jobs/companies/<slug>.md`) for the 64 companies added 2026-09-16 by that extraction — deferred as a separate step at Michele's request; do on demand as each one is actually worth considering, following the template in `jobs/companies/README.md`
 
 - [ ] `#21` **Idea:** "find similar companies" — pick a company already in the tracker and surface other companies (same space/positioning/stage) worth shortlisting, as a discovery mechanism. Manually prototyped 2026-09-14: given a tracked company in robotics/physical-AI data with no UK presence, asked for similar UK-based alternatives and found one with the same "data layer for physical AI" positioning and a London HQ, via a plain web search — worth automating as a repeatable step (`jobstudio` subcommand or an option on `company`) rather than redoing this research by hand each time
+
+- [ ] `#89` **Backfill `## The domain` on the company files of active applications** — raised 2026-10-08 by Michele, as the follow-up to `#86`, which made `## The domain` a required section of every company file. Only companies with an **active** application need it: status `applied` or `interviewing`, the definition `ACTIVE_STATUSES` already uses (`src/web/apps/tracker/models.py:50`). That was 23 applications on 2026-10-08, and fewer companies, since some have more than one application. Companies with only closed, rejected or discarded applications are left alone.
+  - [ ] List the companies behind active applications. Note which have no research file at all (`#20` territory), because those need the file written before a section can go in it.
+  - [ ] For each file, write `## The domain` after `## In one paragraph`, following `subcommands/application.md` step 2: how the sector works and why the product exists in it, using the glossary's terms. Where a familiar sector makes it short, keep it short rather than padding it.
+  - [ ] Check any `notes.md` among those applications for sector background that belongs in the new section, as `#86` found in one, and move it.

@@ -368,6 +368,32 @@ def split_sections(body_md: str) -> dict:
     return {"preamble": text, "blocks": blocks}
 
 
+def subsection_md(block_md: str, slug: str) -> str | None:
+    """The body of the `###` subsection whose heading slugs to `slug`, from one block's
+    markdown — the lines after that heading, up to the next `###` or the block's end.
+    None when there is no such heading. Fence-aware, like `split_sections`.
+
+    For pulling one part of a document onto another page: a round's tasks out of
+    `notes.md`'s `## To do` (`#84`). Feed it a block already through `sectioned()`, so a
+    task checkbox keeps the file-wide index that writes the tick back to the right line.
+    """
+    out: list[str] | None = None
+    in_fence = False
+    for raw in block_md.splitlines():
+        line = raw.strip()
+        if _is_fence(line):
+            in_fence = not in_fence
+        if not in_fence and line.startswith("### ") and not line.startswith("#### "):
+            if out is not None:
+                break
+            if section_slug(section_label(line[4:].rstrip("#"))) == slug:
+                out = []
+            continue
+        if out is not None:
+            out.append(raw)
+    return "\n".join(out).strip("\n") if out is not None else None
+
+
 def section_index(blocks: list[dict]) -> list[dict]:
     """The flat pill row: every block and subsection, in page order, with its number."""
     out = []

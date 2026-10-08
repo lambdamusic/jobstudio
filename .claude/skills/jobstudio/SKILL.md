@@ -127,12 +127,39 @@ it just isn't numbered. One task per item; detail can follow on indented lines.
 Lists that are not to-dos — questions, pros and cons, gaps, drafted answers — stay plain
 bullets.
 
+**An application's to-dos all live in one place: the `## To do` section of its
+`notes.md`**, first in the file, split by stage (TODO `#84`). `### Application` holds what
+comes before any interview; each round adds `### <Round label> — <YYYY-MM-DD>`, using the
+label the Interviews tab shows for the round (`HR screen`, `Hiring manager`, `Technical`,
+`Panel`, `Final round`, `Informal chat`, else the stage de-slugified) and the round's date.
+That pattern is fixed, not freehand: the round file links to its subsection by anchor
+(`#notes--<label-slug>-<date>`, e.g. `#notes--hiring-manager-2026-09-24`), and the round's
+focus page finds its tasks by the same name. Tasks that come *after* a call — a follow-up,
+a sample to send — go in that round's subsection too. No other checklist of the
+application's tasks is written anywhere else: not elsewhere in `notes.md`, not in a round
+file.
+
 ## Highlights are the user's — keep them
 
 `==text==` in a notes, company or interview file is a highlight the user made on the page
 (TODO `#77`). When editing a file that has them, keep every `==…==` exactly where it is,
 including when rewriting the passage around it, and never add one yourself. If a
 rewrite genuinely removes a highlighted passage, say so.
+
+## Naming people
+
+Whenever a subcommand writes about a person — a hiring manager, an interviewer, a
+recruiter, a referee — **name them in full, first name and surname, every time**, in
+every file: `notes.md`, interview rounds, Timeline lines, company research. Weeks later,
+with several applications in flight, "Derin said…" no longer says who. If only a first
+name is known, ask for the surname rather than writing the first name alone.
+
+Link the first mention in each file to the person's LinkedIn page or other public
+profile; later mentions in the same file keep the full name, unlinked. The link comes
+from the application's `## Contacts` in `notes.md`, which holds one entry per person —
+full name, linked, and their role in the process — so a profile is found once per
+application. How a link is found when `## Contacts` lacks one, and the check it must
+pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 
 ## Referring to another file
 
