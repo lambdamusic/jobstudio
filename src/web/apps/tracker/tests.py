@@ -3538,6 +3538,53 @@ class InterviewRoundTests(TestCase):
             with self.subTest(name=name):
                 self.assertFalse(appfolder.is_interview_filename(name))
 
+    def test_a_name_that_only_mentions_interviews_or_a_letter_is_neither(self):
+        """`#82`: the recognisers were substring tests, so a study note called
+        `...-research-interview-themes-<date>.md` was taken for a round with the stage
+        "themes" and left Other files. The tokens now count only where the convention
+        puts them — `interview-[<stage>-]<date>`, `cover-letter-<date>` — and every shape
+        found in real folders still matches."""
+        import appfolder
+
+        for name in ("058-acme-alex-rivera-research-interview-themes-2026-10-07.md",
+                     "058-acme-alex-rivera-interview-questions-bank.md",
+                     "interview-technique.md",
+                     "058-acme-alex-rivera-study-interview-prep-2026-10-07.md"):
+            with self.subTest(round=name):
+                self.assertFalse(appfolder.is_interview_filename(name))
+        for name in ("058-acme-alex-rivera-cover-letter-notes.md",
+                     "058-acme-alex-rivera-cover-letter-notes-2026-10-07.md",
+                     "cover-letter-ideas.md"):
+            with self.subTest(letter=name):
+                self.assertFalse(appfolder.is_cover_letter_filename(name))
+
+        for name in ("001-grafana-labs-alex-rivera-cover-letter-2026-09-15.md",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15-v2.md",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15.docx",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15.pdf",
+                     "cover-letter-2026-09-15.md",
+                     "2026-09-24_cover-letter.docx"):
+            with self.subTest(letter=name):
+                self.assertTrue(appfolder.is_cover_letter_filename(name))
+        self.assertTrue(appfolder.is_interview_filename(
+            "001-grafana-labs-alex-rivera-interview-hr-screen-2026-09-18-b.md"))
+
+    def test_a_study_note_about_interviews_stays_under_other_files(self):
+        """The `#82` misfire end to end: the file is listed under Other files and is not
+        shown as a round."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        note = "900-test-co-alex-rivera-research-interview-themes-2026-10-07.md"
+        (folder / note).write_text("# Themes\n\nWhat they tend to ask.\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        with override_settings(DATA_ROOT=str(root)):
+            self.assertIn(note, [f["name"] for f in app.extra_files])
+            self.assertEqual(app.interview_files, [])
+
     def test_rounds_on_disk_are_surfaced_newest_first(self):
         import appfolder
 

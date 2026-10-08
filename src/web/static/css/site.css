@@ -501,57 +501,90 @@ tr.is-stale td { background: #fffdf5; }
 }
 .coach-files li > span:last-child { display: flex; gap: 12px; white-space: nowrap; }
 
-/* ---------- section index — interview rounds, My notes, Other files (#66, #72) ---------- */
+/* ---------- section index — interview rounds, My notes, Other files (#66, #72, #88) ---------- */
 
-/* Sticky, because the whole point is reaching it without scrolling back up: a round is
-   long, and the moment you need it is the moment you have least time. */
-/* Grey tray, white pills — the same device as `.company-jump` on a scan report, adopted
-   here 2026-10-02 because it reads far better: what makes a pill row scannable is the
-   contrast between pill and tray, not the pill borders. Outlined pills directly on the
-   page background read as a line of loose text.
-
-   Not shared with `.company-jump` as one rule, because that one is a static box in the
-   flow and this one is sticky — which is the whole difference in the padding, the radius
-   and the z-index below. */
+/* A table of contents in the flow, not a sticky row of pills (`#88`, 2026-10-08): one line
+   per section, `###` indented, so the nesting reads at a glance instead of only through
+   the numbers. Not sticky because a list this tall would cover a third of the screen;
+   `.section-mini` below is the sticky part, added by section-nav.js once this scrolls
+   away. Keeps the grey tray of the pill version — the contrast with the page is what made
+   that one scannable. */
 .section-index {
-  position: sticky; top: 0; z-index: 5;
-  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-  margin: 0 0 18px; padding: 10px 12px;
+  margin: 0 0 18px; padding: 10px 14px 12px;
   background: var(--bg-sunk);
   border: 1px solid var(--line); border-radius: var(--radius);
 }
-
-.section-chip {
-  font-size: 12.5px; line-height: 1; white-space: nowrap;
-  padding: 6px 10px; border-radius: 999px;
-  border: 1px solid var(--line); color: var(--muted);
-  text-decoration: none; background: var(--bg);
+.section-index-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-bottom: 6px;
 }
-a.section-chip:hover { border-color: var(--navy); color: var(--navy); }
-
-/* The section number — `1`, `1.1`. Tabular so the pills do not jitter in width between
-   rounds, and dimmer than the label because it is an index, not a name. */
-.sec-n { font-variant-numeric: tabular-nums; color: var(--faint); font-weight: 600; }
-a.section-chip:hover .sec-n, .section-chip.here .sec-n { color: inherit; }
-
-/* A `###`. Indented rather than put on a second row: the bar is scanned left to right
-   mid-call, and the number already carries the depth. */
-.section-chip.sub { font-size: 12px; padding-left: 14px; }
-
-/* Set by section-nav.js on the section currently being read.
-   `a.section-chip.here` and an explicit `:hover`, not a bare `.here`: the plain hover
-   rule above is (0,2,1) and would otherwise outrank a (0,2,0) `.here`, painting navy
-   text on the navy pill. The cursor is on the pill you just clicked, so that is the
-   normal case rather than an edge one. */
-a.section-chip.here,
-a.section-chip.here:hover {
-  background: var(--navy); border-color: var(--navy); color: #fff;
+.section-index-title {
+  font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--faint);
 }
+
+.section-list { list-style: none; margin: 0; padding: 0; font-size: 13.5px; line-height: 1.35; }
+/* A long index goes to two columns where there is room, which halves its height. Column
+   flow runs down then across, so the reading order is still the document's. */
+.section-list.long { columns: 2 240px; column-gap: 28px; }
+.section-list li { break-inside: avoid; }
+.section-list li.sub { padding-left: 22px; font-size: 13px; }
+
+.section-link {
+  display: flex; gap: 8px; align-items: baseline;
+  padding: 3px 6px; margin: 0 -6px; border-radius: 6px;
+  color: var(--ink); text-decoration: none;
+}
+.section-list li.sub .section-link { color: var(--muted); }
+.section-link:hover { background: var(--bg); color: var(--navy); }
+
+/* The section number — `1`, `1.1`. Tabular and a fixed width, so the labels line up down
+   the list; dimmer than the label because it is an index, not a name. */
+.sec-n {
+  flex: none; min-width: 2.2em;
+  font-variant-numeric: tabular-nums; color: var(--faint); font-weight: 600;
+}
+
+/* Set by section-nav.js on the section currently being read. */
+.section-link.here,
+.section-link.here:hover { background: var(--navy); color: #fff; }
+.section-link.here .sec-n { color: inherit; }
 
 .section-toggle-all {
-  margin-left: auto; cursor: pointer; color: var(--link); border-style: dashed;
+  font: inherit; font-size: 12.5px; cursor: pointer; color: var(--link);
+  background: none; border: 0; padding: 0;
 }
-.section-toggle-all:hover { border-color: var(--navy); color: var(--navy); }
+.section-toggle-all:hover { color: var(--navy); text-decoration: underline; }
+
+/* The sticky half, inserted by section-nav.js after the index and shown only once the
+   index has scrolled out of view. Zero height in the flow, so showing and hiding it never
+   moves the page; the bar hangs below that point. One line — "Contents ▾" and the section
+   being read — that opens the same list, so the index is one click away mid-call without
+   taking the screen. */
+.section-mini { position: sticky; top: 0; z-index: 5; height: 0; }
+.section-mini-bar {
+  visibility: hidden; opacity: 0; transition: opacity .12s;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  padding: 6px 12px;
+  background: var(--bg-sunk);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+}
+.section-mini.shown .section-mini-bar { visibility: visible; opacity: 1; }
+.section-mini-toggle {
+  font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  color: var(--link); background: none; border: 0; padding: 0;
+}
+.section-mini-here {
+  font-size: 12.5px; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1;
+}
+.section-mini .section-list {
+  flex-basis: 100%; max-height: 60vh; overflow-y: auto;
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line);
+}
+.section-mini .section-list[hidden] { display: none; }
+.section-mini .section-list.long { columns: auto; }
 
 /* ---------- collapsible document sections (#66, generalised #72) ---------- */
 
