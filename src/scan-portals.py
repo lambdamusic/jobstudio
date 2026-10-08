@@ -11,16 +11,9 @@ dedup, keyword + location pre-filter, classify not-scanned companies. Never impo
 
 Writes the plausible (unscored) candidates plus every already-computed bookkeeping
 section to jobs/scans/YYYY-MM-DD-candidates.json. Scoring happens next, as a separate
-step, one of two ways (see backlog/plans/001-drop-direct-anthropic-api.md §2):
-
-- Default, agent-native — the `scan` skill subcommand reads the candidates file and
-  scores live, no API call.
-- Opt-in, API-based — `python src/score-candidates.py --candidates <path>` for a
-  fully headless/cron-able run, or when scoring volume should bill separately rather
-  than spend Claude Code session budget.
-
-Either way, `python src/scan_report.py --scored <scored-file>` (or score-candidates.py
-internally) renders the same final report format.
+step: the `scan` skill subcommand reads the candidates file and scores live, no API call
+(see backlog/plans/001-drop-direct-anthropic-api.md §2). Then
+`python src/scan_report.py --scored <scored-file>` renders the final report.
 
 Usage:
     python scan-portals.py
@@ -883,9 +876,8 @@ def main() -> None:
 
     print(f"Candidates written: {out_path} ({len(plausible)} plausible, across "
           f"{len({c.area for c in plausible})} areas)")
-    print("Next: score them — either let the `scan` skill subcommand score live "
-          "(default), or run `python src/score-candidates.py --candidates "
-          f"{out_path}` for the opt-in API path.")
+    print("Next: score them — the `scan` skill subcommand scores live, then "
+          "`python src/scan_report.py --scored <scored-file>` renders the report.")
 
 
 if __name__ == "__main__":

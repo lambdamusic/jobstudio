@@ -17,15 +17,11 @@ Nothing is auto-written into the tracker — this only
 surfaces candidates. Use the existing `company` / `application` subcommands to
 promote anything worth pursuing.
 
-> Revised 2026-09-17: scoring is split into two independent paths — see
-> `backlog/plans/001-drop-direct-anthropic-api.md` §2. **Default: agent-native, no API
-> call** — you (the agent) score live, since you already have full context. **Opt-in:
-> `--api`** — runs the old API-based scoring as a separate script, for when scoring
-> volume is high or session budget is tight (agent-native scoring spends Claude Code
-> session/rate-limit budget; the API path bills separately per token instead), or for
-> a fully headless/cron-able run. Both paths score against the exact same rubric
-> (`src/prompts/scan_score_rubric.md`) and produce the same report format
-> (`src/scan_report.py`) — pick whichever fits the moment, the output is equivalent.
+> Scoring is agent-native, no API call — you (the agent) score live, since you already
+> have full context (`backlog/plans/001-drop-direct-anthropic-api.md` §2). The rubric is
+> `src/prompts/scan_score_rubric.md`; the report is rendered by `src/scan_report.py`.
+> The opt-in `--api` path that scored through the Anthropic API was removed 2026-10-08
+> (TODO `#52`).
 
 ## Steps
 
@@ -43,7 +39,7 @@ promote anything worth pursuing.
    Area Scores, and they mean nothing. `subcommands/init.md` §"Define the target areas"
    is how to fix an empty `jobs/targets/`.
 
-1. **Fetch and pre-filter (mechanical, no API call, both paths)**:
+1. **Fetch and pre-filter (mechanical, no API call)**:
    ```bash
    tools/py src/scan-portals.py
    ```
@@ -59,9 +55,7 @@ promote anything worth pursuing.
    `docs/portal-scan-and-scoring.md` §1 for the query format. `--dry-run` prints a `Job boards:` line with the counts — use it
    first after adding keys, since a bad key shows up there as an error per query.
 
-2. **Score the candidates** — pick one:
-
-   **Default — score live, no API call.** Read `<DATA>/jobs/scans/YYYY-MM-DD-candidates.json`
+2. **Score the candidates — live, no API call.** Read `<DATA>/jobs/scans/YYYY-MM-DD-candidates.json`
    and `src/prompts/scan_score_rubric.md` (the canonical rubric — read it directly, it's
    written to be followed as-is, not paraphrased). For each `{placeholder}` in the
    rubric, substitute the real content:
@@ -74,7 +68,7 @@ promote anything worth pursuing.
      rubric file's own field-by-field breakdown (dealbreakers, salary floor, leap
      sectors, sectors to avoid, weighted motivators, culture/values, bonus signals)
    - `{postings}` — the candidates you're scoring (batch by area, or all at once —
-     your context budget, not a hard chunk size like the API path needs)
+     your context budget decides)
 
    A candidate with a `source` came from a job board, not a tracked company: it has no
    `role_target`, and its `snippet` and `salary` are what to judge it on (the rubric says
@@ -99,16 +93,7 @@ promote anything worth pursuing.
    the ordering rather than merely filling in a blank — otherwise it reads as optional
    tidying.
 
-   **Opt-in — `--api`:**
-   ```bash
-   tools/py src/score-candidates.py --candidates <DATA>/jobs/scans/YYYY-MM-DD-candidates.json
-   ```
-   This needs `ANTHROPIC_API_KEY` in the environment; if it is unset, say so rather than retrying — `tools/env.sh` is a personal, gitignored convention, not something the user necessarily has. Scores via the API
-   (chunked, same rubric file), writes the same `*-scored.json` shape, and — unlike
-   the default path — renders the final report itself in the same run (step 3 below
-   is already done when this finishes; skip straight to step 4).
-
-3. **Render the report (mechanical, no API call, default path only — `--api` already did this)**:
+3. **Render the report (mechanical, no API call)**:
    ```bash
    tools/py src/scan_report.py --scored <DATA>/jobs/scans/YYYY-MM-DD-scored.json
    ```
@@ -203,5 +188,3 @@ promote anything worth pursuing.
 - `--area <slug>` on step 1 (`scan-portals.py`) limits the whole run to one target area
 - `--dry-run` on step 1 prints fetch/dedup/pre-filter stats and writes nothing —
   useful for a quick sanity check without generating files to score
-- `--api` (mentioned by the user, or invoked when scoring volume looks large or
-  session budget is a concern) selects the opt-in API scoring path in step 2

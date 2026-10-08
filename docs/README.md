@@ -19,7 +19,7 @@ a command; none of them require reading any Python.
   everything around it.
 - **[workflow.md](workflow.md)** — **then here.** The typical daily/weekly cadence:
   what to run, in what order, across a working session. Prepare a CV → scan for
-  postings → log and work applications → publish for review.
+  postings → log and work applications.
 
 The same thing is summarised inside the web app itself, at **`/help/`**, which is
 usually closer to hand while you are looking at your search.
@@ -48,8 +48,6 @@ means, where a profile gets used downstream.
   the reusable answer bank works.
 - **[dashboard-status.md](dashboard-status.md)** — what the web dashboard shows, and
   how `/jobstudio status` mirrors it in the terminal from the same queries.
-- **[publishing.md](publishing.md)** — how `/jobstudio publish` rebuilds and deploys
-  the site.
 
 ## Under the hood
 
@@ -57,6 +55,8 @@ means, where a profile gets used downstream.
   scripts the commands drive, in one place. You never need this to *use* the toolkit.
   It is for running a single step to see what it did, for extending the code, and for
   automating a piece of it where there is no session to talk to.
+- **[publishing.md](publishing.md)** — *legacy:* rendering the web app to a static
+  `site/` folder with `tools/site-build`. Not part of the normal workflow.
 
 ---
 

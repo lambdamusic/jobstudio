@@ -4,6 +4,18 @@ Dated entries, newest first.
 
 ## 2026-10-08
 
+- **`scan --api` is gone.** Scan scoring is agent-native only: `src/score-candidates.py`
+  and the `anthropic` dependency are removed, so nothing in the toolkit reads an API key
+  any more. Unattended (cron) scans went with it; nobody was running them, and the route
+  to bring them back without an API key is kept in
+  `backlog/plans/052-headless-scan-via-setup-token.md`. (`#52`)
+
+- **No more Surge, and the static site is legacy.** `/jobstudio publish` and
+  `tools/publish-surge.sh` are removed, along with the `surge_domain` setting. The web app
+  is how the search is browsed; `tools/site-build` still renders it to `site/` and checks
+  every internal link, documented on its own in `docs/publishing.md` and no longer a step
+  in the workflow. (`#69`)
+
 - **The scan can search job boards, not just tracked companies.** With a free Adzuna
   and/or Reed key and a few searches written as you would type them —
   `'"Head of Data" OR "VP Data"'`, `knowledge graph` — under `job_boards.queries` in

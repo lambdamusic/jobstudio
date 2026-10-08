@@ -1,13 +1,9 @@
 You are screening job postings for a candidate, on three independent dimensions.
 
-This is the canonical scoring rubric for the portal scan — read and applied directly
-by both scoring paths (see `backlog/plans/001-drop-direct-anthropic-api.md` §2.3):
-
-- The agent-native default (`.claude/skills/jobstudio/subcommands/scan.md`) reads
-  this file as-is and substitutes each bracketed value below with the real content
-  from the sources named next to it.
-- `src/score-candidates.py` (the opt-in API path) formats this same file's text with
-  `str.format()`, substituting the identical placeholders programmatically.
+This is the canonical scoring rubric for the portal scan (see
+`backlog/plans/001-drop-direct-anthropic-api.md` §2.3). The `scan` subcommand
+(`.claude/skills/jobstudio/subcommands/scan.md`) reads this file as-is and substitutes
+each bracketed value below with the real content from the sources named next to it.
 
 Keep this file as the only place the rubric itself is defined — if the methodology
 changes, it should only ever need to change here.
@@ -111,10 +107,4 @@ For each posting return:
   its own field). If the posting looks like it hits a dealbreaker, or clearly hits a
   bonus signal, or the salary looks below floor, say so here.
 
-The API path returns these as a JSON array, one entry per input posting (same count,
-matched by id), no other text, in this exact shape:
-[{{"id": 0, "cv_score": 1-5, "ideal_score": 1-5, "location_category": "uk|remote|other", "notes": "..."}}, ...]
-
-The agent-native path writes these same four fields directly onto each candidate
-object in the scored file instead of returning JSON text — same fields, same values,
-same reasoning, just no wire format in between.
+Write these four fields directly onto each candidate object in the scored file.

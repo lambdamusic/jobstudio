@@ -130,9 +130,8 @@ Depth: **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)**.
 tools/run-dev-local-db            # http://127.0.0.1:8010, foreground until Ctrl-C
 tools/run-dev-local-db 8020       # if 8010 is busy
 tools/run-demo                    # the same app on example data, http://127.0.0.1:8011
-tools/site-build --clean          # render the whole site to <DATA>/site/
+tools/site-build --clean          # legacy: render the whole site to <DATA>/site/
 tools/site-preview                # browse that build locally
-bash tools/publish-surge.sh       # site-build, then push to Surge
 ```
 
 `run-demo` is the one to reach for when the app is going to be *seen* — a screen

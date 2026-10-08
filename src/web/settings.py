@@ -2,8 +2,8 @@
 Django settings — job-search front end.
 
 Pattern: Django-as-static-site-generator (see the init-django-static-site skill's
-reference/METHODOLOGY.md). Django is an authoring/templating tool only; the published
-artifact is a wget mirror of the local dev server, rsynced into site/ and pushed to surge.
+reference/METHODOLOGY.md). The app is browsed locally; the static export (legacy,
+docs/publishing.md) is rendered in-process into site/ by `manage.py build_static`.
 
 Layout deviation from the skill: the project lives at src/web/, not src/, because src/
 already holds the pipeline scripts (render.py, appfolder.py, ...). src/ itself is

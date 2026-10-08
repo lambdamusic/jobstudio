@@ -2,19 +2,15 @@
 """
 scan_report.py
 
-Shared, API-free report rendering for the portal scan — used by both scoring paths:
-
-- The default, agent-native path: the `scan` skill subcommand scores candidates itself
-  (reading `scan_score_rubric.md` as its rubric) and writes a scored candidates file,
-  then runs this module to render the final report.
-- The opt-in API path (`score-candidates.py`): scores via the Anthropic API, then calls
-  `render()` directly (same code, no subprocess round-trip needed there).
+API-free report rendering for the portal scan. The `scan` skill subcommand scores
+candidates itself (reading `scan_score_rubric.md` as its rubric) and writes a scored
+candidates file, then runs this module to render the final report.
 
 Never imports `anthropic` — nothing here does any judgement, only formatting of
 already-scored candidates plus the mechanical bookkeeping sections `scan-portals.py`
 computed (not-scanned, no-roles, filtered-out, coverage notes).
 
-CLI usage (for the agent-native path, after it has written a scored file):
+CLI usage (after the agent has written a scored file):
     python src/scan_report.py --scored jobs/scans/YYYY-MM-DD-scored.json
 """
 
@@ -41,8 +37,7 @@ REPO_ROOT = config.REPO_ROOT
 
 
 def load_area_profiles() -> dict[str, dict]:
-    """Shared by scan-portals.py (needs `key_terms` for the pre-filter) and
-    score-candidates.py (needs the full profile to build its scoring prompt)."""
+    """Used by scan-portals.py, which needs `key_terms` for the pre-filter."""
     profiles = {}
     for path in TARGETS_DIR.glob("*.yaml"):
         profiles[path.stem] = yaml.safe_load(path.read_text())
@@ -434,7 +429,7 @@ def refresh_web_db() -> None:
 def render(scored_path: Path) -> Path:
     """Load a scored candidates file (same shape `scan-portals.py`'s candidates.json
     has, but with cv_score/ideal_score/location_category/notes filled in on each
-    candidate) and write the final report. Used by both scoring paths."""
+    candidate) and write the final report."""
     data = json.loads(scored_path.read_text())
     candidates = [Candidate.from_dict(c) for c in data["candidates"]]
     matches, discarded_by_location, needs_review = classify(candidates)

@@ -251,18 +251,3 @@ renders whatever sections a given report actually contains.
 Nothing is ever auto-written to the tracker. The scan is purely advisory — a match,
 however high-scoring, only becomes an application when you (or Claude, on request) run
 `/jobstudio application` against it.
-
-## The legacy API scoring path
-
-`src/score-candidates.py` scores the same candidates file through the Anthropic API
-instead — batched by area in chunks of 20 (`SCORING_CHUNK_SIZE`), one call per chunk,
-against this same rubric, producing a `*-scored.json` of the same shape. It needs
-`ANTHROPIC_API_KEY` in the environment and is the only thing in the toolkit that reads a
-key. It exists because, before the default was agent-native, a fully headless run (cron,
-no interactive session) had nowhere else to go.
-
-**Legacy, and likely to be removed** (backlog `#52`). `claude setup-token` now prints a
-long-lived OAuth token that lets a non-interactive `claude -p` run do the ordinary
-agent-native scan on your own subscription, which removes the only reason this path was
-kept. Nothing else in the docs mentions it: treat it as unsupported, don't build on it,
-and expect it to go.
