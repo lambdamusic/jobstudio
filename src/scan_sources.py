@@ -56,6 +56,9 @@ _ATS_PATTERNS = [
     ("teamtailor", re.compile(r"//((?!www\.|blog\.)[a-z0-9][a-z0-9-]*\.teamtailor\.com)"), "domain"),
     # Tenant is the subdomain, as with BambooHR, and the same `//` anchor applies.
     ("pinpoint", re.compile(r"//(?!www\.|help\.|developers\.)([a-z0-9][a-z0-9-]*)\.pinpointhq\.com"), "token"),
+    # Same again. Many Recruitee companies serve the board from their own domain
+    # (`careers.<company>.com`), which this cannot see — those need an override.
+    ("recruitee", re.compile(r"//(?!www\.|support\.|careers-analytics\.)([a-z0-9][a-z0-9-]*)\.recruitee\.com"), "token"),
 ]
 
 BESPOKE = "bespoke career page — no public jobs API"

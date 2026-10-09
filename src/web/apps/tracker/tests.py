@@ -4736,6 +4736,36 @@ class PlatformFetcherTests(TestCase):
         self.assertIsNone(scan_sources.resolve_source("X", "https://www.pinpointhq.com/customers"),
                           "a link to the vendor's own site is not a board called 'www'")
 
+    def test_recruitee(self):
+        """`#90`. A remote offer's own `location` is only "Remote job"; the country has to
+        survive, or a US-only remote role reads as one a UK search could take."""
+        sp = self._scan_portals()
+        body = {"offers": [
+            {"title": "Account Manager", "careers_url": "https://careers.acme.com/o/account-manager",
+             "location": "Farringdon, England, United Kingdom", "city": "Farringdon",
+             "country": "United Kingdom", "remote": False, "hybrid": True},
+            {"title": "Data Engineer", "careers_url": "https://careers.acme.com/o/data-engineer",
+             "location": "Remote job", "city": "East Coast, Remote", "country": "United States",
+             "remote": True, "hybrid": False},
+            {"title": "No link", "location": "Gent, Belgium"},
+        ]}
+        client = self._client(lambda url, p, j, R: R(body))
+        jobs, _ = sp.fetch_jobs({"platform": "recruitee", "token": "acme"}, "", client)
+        self.assertEqual(client.calls[0][1], "https://acme.recruitee.com/api/offers/")
+        self.assertEqual(jobs, [
+            {"title": "Account Manager", "url": "https://careers.acme.com/o/account-manager",
+             "location": "Farringdon, England, United Kingdom (hybrid)"},
+            {"title": "Data Engineer", "url": "https://careers.acme.com/o/data-engineer",
+             "location": "East Coast, Remote, United States (remote)"},
+        ])
+
+    def test_recruitee_is_detected_from_the_board_url(self):
+        import scan_sources
+        self.assertEqual(scan_sources.resolve_source("X", "https://acme.recruitee.com/"),
+                         {"platform": "recruitee", "token": "acme"})
+        self.assertIsNone(scan_sources.resolve_source("X", "https://www.recruitee.com/"),
+                          "a link to the vendor's own site is not a board called 'www'")
+
     _RSS = """<?xml version="1.0" encoding="UTF-8" ?><rss version="2.0"><channel>
       <item><title><![CDATA[Data Lead (London, GB, W12 7FA)]]></title>
         <description><![CDATA[<p>DEPARTMENT: Acme Studios</p>]]></description>

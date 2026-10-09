@@ -2,6 +2,15 @@
 
 Dated entries, newest first.
 
+## 2026-10-09
+
+- **Recruitee boards are scanned.** Read through the public JSON behind every Recruitee
+  careers site. A `<company>.recruitee.com` URL is detected on its own; a board on the
+  company's own domain (`careers.<company>.com`, which is common) needs a one-line
+  `company_overrides` entry naming the token. A remote role keeps its country, which
+  Recruitee's own location text drops. On a real tracker this moved two companies from
+  "not scanned" to scanned. (`#90`)
+
 ## 2026-10-08
 
 - **`scan --api` is gone.** Scan scoring is agent-native only: `src/score-candidates.py`

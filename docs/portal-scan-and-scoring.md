@@ -22,7 +22,7 @@ via `/jobstudio company` / `/jobstudio application`.
 ## 1. Fetch (mechanical — no LLM)
 
 For every tracked company with a recognized ATS — Greenhouse, Lever, Workable, Workday,
-Ashby, SmartRecruiters, Teamtailor, BambooHR, Pinpoint, UKG, Hireserve, Rippling ATS,
+Ashby, SmartRecruiters, Teamtailor, BambooHR, Pinpoint, Recruitee, UKG, Hireserve, Rippling ATS,
 SuccessFactors and Radancy career sites, plus a generic fetcher for companies whose own
 frontend calls a first-party JSON endpoint and a sitemap fallback for sites with no feed
 at all — every open posting is pulled via that platform's public API or feed.

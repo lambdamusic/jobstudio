@@ -4,7 +4,7 @@ scan-portals.py
 
 Rescan tracked companies (from the tracker database) for new open roles via public
 ATS APIs (Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor,
-Rippling ATS, BambooHR, Pinpoint, UKG, Hireserve), the feeds behind SuccessFactors and
+Rippling ATS, BambooHR, Pinpoint, Recruitee, UKG, Hireserve), the feeds behind SuccessFactors and
 Radancy career sites, a sitemap + JSON-LD fallback, and a generic first-party-JSON fetcher. Purely mechanical — fetch,
 dedup, keyword + location pre-filter, classify not-scanned companies. Never imports
 `anthropic` and never calls any model.
@@ -455,6 +455,27 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                 if j.get("workplace_type") in ("remote", "hybrid"):
                     loc = f"{loc} ({j.get('workplace_type_text') or j.get('workplace_type')})"
                 out.add(j.get("title"), j.get("url"), loc)
+            return out.done()
+
+        if platform == "recruitee":
+            # Public JSON behind every Recruitee careers site, custom domain or not: no
+            # key, no paging. A remote offer's `location` is just "Remote job", which
+            # drops the country — and a US-only remote role is not one a UK search
+            # wants — so for those the place is rebuilt from `city` and `country`.
+            token = source["token"]
+            resp = client.get(f"https://{token}.recruitee.com/api/offers/", timeout=HTTP_TIMEOUT)
+            resp.raise_for_status()
+            data = resp.json()
+            out = _Postings(f"recruitee/{token}")
+            for j in data.get("offers", []):
+                loc = j.get("location")
+                if j.get("remote") or not loc or loc == "Remote job":
+                    loc = ", ".join(dict.fromkeys(p for p in (j.get("city"), j.get("country")) if p)) or "unknown"
+                if j.get("remote"):
+                    loc = f"{loc} (remote)"
+                elif j.get("hybrid"):
+                    loc = f"{loc} (hybrid)"
+                out.add(j.get("title"), j.get("careers_url"), loc)
             return out.done()
 
         if platform == "successfactors":

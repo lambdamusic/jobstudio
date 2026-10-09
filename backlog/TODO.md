@@ -35,15 +35,8 @@
 
   **Two things to be clear-eyed about.** (a) Billing is a *different pool*, not a bigger one (§8.2): no API key is needed, but the subscription's monthly Agent SDK credit is a dollar allowance separate from session limits, it does not roll over, and when it is exhausted requests either bill at API rates or stop. Watch it for a month before leaning on it. (b) It is a depth play, not a reach play (§8.4) — it only works where Claude Code is installed and authenticated, so `#2`'s "share it with someone else" is served by M1 and `#57`, not by this.
 
-- [ ] `#59` **M4 — Claude Desktop / Cowork — parked** — spun out of `#2` on 2026-10-01, where it was milestone M4; research in [`plans/059-claude-desktop-cowork.md`](plans/059-claude-desktop-cowork.md) §7. Researched 2026-09-20 and found easier than first thought, then **parked the same day on Michele's call**: the egress bugs, the Dropbox conflict and the product churn around Cowork's merge into Claude make it a poor bet, and `#58` delivers a better version of the same goal without losing the web app. The research stands if it is ever revisited; nothing here is blocked on anything.
-
 ## Portal scanning
 - [ ] `#7` **Portal scanning — LinkedIn** — investigate a legitimate way to include LinkedIn postings (direct automation is ToS-hostile/technically fragile — login wall, bot detection — so this likely means a different approach: manual-forward workflow, or checking if a compliant partner API exists, not scraping). Re-raised 2026-09-23; the position is unchanged — LinkedIn's Job Posting APIs are partner-only (ATS vendors posting *to* LinkedIn, not reading *from* it), so there is no route for an individual's job search. Realistic outcome here is the manual-forward workflow: paste a LinkedIn URL and have `jobstudio` log it, rather than a fetcher.
-
-
-- [ ] `#9` **Portal scanning (discovery)** — search for new companies/roles matching target areas, not just recheck tracked ones. Flag as unvetted since these skip the manual sanity check tracked companies already had. (Related to the general-job-portal item above — may end up being the same piece of work.)
-
-- [ ] `#90` **Portal scanning — Recruitee** — raised 2026-10-08, found by the `#10` dry run on two tracked companies (both on a `careers.<company>.com` domain, so an override each). Public JSON at `https://<token>.recruitee.com/api/offers/`, checked live: one board returned 42 offers, each with `title`, `careers_url` and `location` (which says "Remote job" when it is) — the same shape of job as Pinpoint, a few lines in `fetch_jobs` plus a `<token>.recruitee.com` pattern in `_ATS_PATTERNS`. Drop the two `known_unsupported` entries when it lands.
 
 - [ ] `#22` Create custom parsers for selected companies in the long tail (bespoke career pages with no public jobs API — see `## Not scanned` in any portal scan report for the current list)
 
@@ -73,6 +66,4 @@
 
 
 ## Company tracking
-- [ ] `#20` Write long-form research files (`jobs/companies/<slug>.md`) for the 64 companies added 2026-09-16 by that extraction — deferred as a separate step at Michele's request; do on demand as each one is actually worth considering, following the template in `jobs/companies/README.md`
-
 - [ ] `#21` **Idea:** "find similar companies" — pick a company already in the tracker and surface other companies (same space/positioning/stage) worth shortlisting, as a discovery mechanism. Manually prototyped 2026-09-14: given a tracked company in robotics/physical-AI data with no UK presence, asked for similar UK-based alternatives and found one with the same "data layer for physical AI" positioning and a London HQ, via a plain web search — worth automating as a repeatable step (`jobstudio` subcommand or an option on `company`) rather than redoing this research by hand each time
