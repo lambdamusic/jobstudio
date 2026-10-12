@@ -124,7 +124,7 @@ tools/py src/jobsdb.py show-company "{Company}"
      ```
   2. **Research and write `<DATA>/jobs/companies/<slug>.md`.** Web-research the company — mission,
      technology/data posture, where they are now (ownership, funding, size, direction) —
-     and write the file following the template in `<DATA>/jobs/companies/README.md`: `## Mission`,
+     and write the file following the template in `<DATA>/jobs/companies/README.md`: `## The domain`, `## Mission`,
      `## Technology`, `## Where they are now`, `## Fit with my mission` (honest for/against
      read against `<DATA>/jobs/profile/stocktake.md`), `## Sources` (dated links). Match the depth
      of existing profiles (e.g. `<DATA>/jobs/companies/grafana-labs.md`) — this is real research,
@@ -132,9 +132,17 @@ tools/py src/jobsdb.py show-company "{Company}"
      **Add a `## Glossary` whenever the sector is unfamiliar** (judge against
      `stocktake.md`, not general knowledge — healthcare, finance, regulation, a lab domain).
      One bullet per term, opening with a bold label (`- **EHR (Electronic Health Record).** …`),
-     defined plainly. Mark each term ***in bold italic*** where it first appears in a section;
+     defined plainly, and **ending on one link out** to a page for following it up:
+     `… defined plainly. [Wikipedia](https://en.wikipedia.org/wiki/Electronic_health_record)`.
+     Prefer the Wikipedia article on that exact term, else the regulator's or standard's own
+     page, else a reputable explainer; name the site as the link text. Only a page you have
+     actually found and checked: no link beats a guessed URL. Mark each term ***in bold italic*** where it first appears in a section;
      the page then links it and shows the definition on hover. Skip terms the user already
      knows well — the glossary is for the domain, not for their own field.
+     **Always write a `## The domain`** right after `## In one paragraph`: a few short
+     paragraphs on how the sector works and why the company's product exists in it, using
+     the glossary's terms rather than redefining them. Every company file has one, however
+     familiar the sector; it is company-level, so never in an application's `notes.md`.
      **No business diagram at this stage.** The `## The business at a glance` diagram is
      added when an application reaches interview — see `interview.md` — not when a role is
      first logged.
@@ -234,9 +242,11 @@ For each gap that is fixable now:
 - **Suggested text**: the actual revised or new text to use — draw on `stocktake.md`
   §2 (achievements, USPs) and §6 (the positioning block for this area)
 
-### Preparation steps
-A `- [ ]` checklist (see "Lists of things to do are checklists" in `SKILL.md`), most
-important first, prioritised for this specific role:
+### Preparation steps → `## To do` / `### Application`
+Not under `## My notes`: these are written into the `### Application` subsection of
+`## To do`, the first section of `notes.md` (create both if missing — see "Lists of things
+to do are checklists" in `SKILL.md`, which is where every task for the application goes).
+A `- [ ]` checklist, most important first, prioritised for this specific role:
 - Company/team/product research to do
 - Skills, tools, or concepts to brush up on
 - Talking points or stories to prepare — cross-reference `stocktake.md` §7 (team

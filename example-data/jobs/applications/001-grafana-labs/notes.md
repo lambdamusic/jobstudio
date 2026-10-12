@@ -1,5 +1,16 @@
 # Grafana Labs — Senior Developer Advocate
 
+## To do
+
+### Application
+
+- [ ] Read three of their RFCs and have an opinion on one.
+- [ ] Have the six-hours-to-35-minutes story ready in three minutes, not ten.
+
+### HR screen — 2026-09-18
+
+- [ ] Grafana's plugin architecture, enough to follow a technical conversation.
+
 ## My notes
 
 ### CV gaps
@@ -15,11 +26,6 @@
   the target YAML already expands that cluster.
 - Pull the 400-star package and the two keynotes into the summary; they are the evidence
   that this is a switch already in progress rather than a hope.
-
-### Preparation steps
-
-- [ ] Read three of their RFCs and have an opinion on one.
-- [ ] Have the six-hours-to-35-minutes story ready in three minutes, not ten.
 
 ## Contacts
 

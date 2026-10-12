@@ -22,9 +22,10 @@ via `/jobstudio company` / `/jobstudio application`.
 ## 1. Fetch (mechanical — no LLM)
 
 For every tracked company with a recognized ATS — Greenhouse, Lever, Workable, Workday,
-Ashby, SmartRecruiters, Teamtailor, Rippling ATS, plus a generic fetcher for companies
-whose own frontend calls a first-party JSON endpoint — every open posting is pulled via
-that platform's public API.
+Ashby, SmartRecruiters, Teamtailor, BambooHR, Pinpoint, Recruitee, UKG, Hireserve, Rippling ATS,
+SuccessFactors and Radancy career sites, plus a generic fetcher for companies whose own
+frontend calls a first-party JSON endpoint and a sitemap fallback for sites with no feed
+at all — every open posting is pulled via that platform's public API or feed.
 
 When a company's tracked careers URL is a generic corporate page hiding one of these
 underneath, `company_overrides` in `<DATA>/jobs/scan-config.yaml` maps it to the real
@@ -36,6 +37,45 @@ it the scanner still runs on URL detection alone. See `src/scan_config.py`.
 Companies with no recognized ATS (a bespoke career page, or a platform not yet
 integrated) land in the report's **Not scanned** section with a reason, not silently
 dropped.
+
+A company you have decided against goes in `excluded_companies` (name → reason) in the
+same file. It is listed under Not scanned as "excluded from scans", its postings are
+dropped from the job-board results too, and its tracker record and applications are
+untouched — so it stays in your history without coming back in every scan.
+
+### Job boards — discovery beyond the tracker
+
+Everything above rereads companies you already track. With a free key for **Adzuna**
+and/or **Reed** — in `~/.jobstudio.ini` (`adzuna_app_id`, `adzuna_app_key`,
+`reed_api_key`), in the environment, or under `job_boards` in `scan-config.yaml` — and a
+list of searches in `job_boards.queries`, the same scan also searches those boards over
+the last `max_days_old` days (7 by default). See `src/job_boards.py`.
+
+```yaml
+job_boards:
+  queries:
+    - '"Head of Data" OR "VP Data" OR "Head of Analytics"'
+    - knowledge graph
+```
+
+Write them as you would type them into a job board; `OR` splits a line into phrases,
+one request per phrase per board. There is no fallback to the target areas' `key_terms`:
+they were written for recognising titles, and searched across a whole market they are
+mostly noise (tried on a real search: 124 requests and 512 candidates, "training"
+returning hairdressing coaches). Two lines like the above cost 8 requests.
+
+A posting is kept only if its title carries every word of the phrase that found it, and
+is assigned a target area by its title, as a tracked company's posting is. Also dropped:
+anything already tracked as an application, anything from a company the company scan has just covered (seen
+there already, vetted), and the same job found twice — by two queries, or on both
+boards, since Adzuna indexes Reed. A tracked company the scan *could not* read is not
+skipped: a job board is one way to see its roles.
+
+These postings are scored like any other, with the board's description snippet and
+salary standing in for the role target they lack, and reported in a section of their
+own — **Discovered on job boards** — because nobody has vetted the company. An
+advertiser that looks like a recruitment agency (a name heuristic; extend it with
+`job_boards.agencies`) is labelled *agency*, not dropped.
 
 ## 2. Category → area mapping, then dedup + keyword pre-filter (mechanical — still no LLM)
 
@@ -113,7 +153,7 @@ Each candidate is scored on **three independent dimensions**:
 - **Ideal-Job fit (1–5)** — the *nature* of the work (hands-on vs. management,
   customer-facing vs. backstage, autonomy, etc.), judged from title/role_target alone —
   the scorer never sees the full job description at this stage. Fed by two sources:
-  - `jobs/notes/ideal-job-notes.md` — free-text notes on what makes a job satisfying.
+  - `jobs/notes/search/ideal-job-notes.md` — free-text notes on what makes a job satisfying.
   - `jobs/profile/criteria.yaml` — read directly, applying the rules spelled out in
     `scan_score_rubric.md`:
     - **Dealbreakers** (`hard_filters.exclude`) — pull the score down hard (1–2), and
@@ -197,7 +237,8 @@ matches.
 The report lands at `jobs/scans/YYYY-MM-DD-portal-scan.md` and is browsable at
 `/scans/` (defaults to the latest report; `/scans/all/` lists every one, oldest report
 still reachable at `/scans/<slug>/`). The page splits the report into tabs — **Strong
-matches** (first, default-active), **Other matches**, Filtered out before scoring,
+matches** (first, default-active), **Other matches**, **Job boards** (when discovery is
+on), Filtered out before scoring,
 Excluded by location, Not scanned, Coverage notes.
 
 Reports from before 2026-09-14 have a different shape (Summary and Matches as their own
@@ -210,18 +251,3 @@ renders whatever sections a given report actually contains.
 Nothing is ever auto-written to the tracker. The scan is purely advisory — a match,
 however high-scoring, only becomes an application when you (or Claude, on request) run
 `/jobstudio application` against it.
-
-## The legacy API scoring path
-
-`src/score-candidates.py` scores the same candidates file through the Anthropic API
-instead — batched by area in chunks of 20 (`SCORING_CHUNK_SIZE`), one call per chunk,
-against this same rubric, producing a `*-scored.json` of the same shape. It needs
-`ANTHROPIC_API_KEY` in the environment and is the only thing in the toolkit that reads a
-key. It exists because, before the default was agent-native, a fully headless run (cron,
-no interactive session) had nowhere else to go.
-
-**Legacy, and likely to be removed** (backlog `#52`). `claude setup-token` now prints a
-long-lived OAuth token that lets a non-interactive `claude -p` run do the ordinary
-agent-native scan on your own subscription, which removes the only reason this path was
-kept. Nothing else in the docs mentions it: treat it as unsupported, don't build on it,
-and expect it to go.

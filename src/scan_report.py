@@ -2,19 +2,15 @@
 """
 scan_report.py
 
-Shared, API-free report rendering for the portal scan — used by both scoring paths:
-
-- The default, agent-native path: the `scan` skill subcommand scores candidates itself
-  (reading `scan_score_rubric.md` as its rubric) and writes a scored candidates file,
-  then runs this module to render the final report.
-- The opt-in API path (`score-candidates.py`): scores via the Anthropic API, then calls
-  `render()` directly (same code, no subprocess round-trip needed there).
+API-free report rendering for the portal scan. The `scan` skill subcommand scores
+candidates itself (reading `scan_score_rubric.md` as its rubric) and writes a scored
+candidates file, then runs this module to render the final report.
 
 Never imports `anthropic` — nothing here does any judgement, only formatting of
 already-scored candidates plus the mechanical bookkeeping sections `scan-portals.py`
 computed (not-scanned, no-roles, filtered-out, coverage notes).
 
-CLI usage (for the agent-native path, after it has written a scored file):
+CLI usage (after the agent has written a scored file):
     python src/scan_report.py --scored jobs/scans/YYYY-MM-DD-scored.json
 """
 
@@ -41,8 +37,7 @@ REPO_ROOT = config.REPO_ROOT
 
 
 def load_area_profiles() -> dict[str, dict]:
-    """Shared by scan-portals.py (needs `key_terms` for the pre-filter) and
-    score-candidates.py (needs the full profile to build its scoring prompt)."""
+    """Used by scan-portals.py, which needs `key_terms` for the pre-filter."""
     profiles = {}
     for path in TARGETS_DIR.glob("*.yaml"):
         profiles[path.stem] = yaml.safe_load(path.read_text())
@@ -65,6 +60,14 @@ class Candidate:
     ideal_score: int | None = None
     location_category: str = "other"  # "uk" | "remote" | "other"
     notes: str = ""
+    # Set only for a posting found by searching a job board rather than by rescanning a
+    # tracked company (`#8`, src/job_boards.py): which board, whether the advertiser
+    # looks like a recruitment agency, and the board's own description snippet and
+    # salary — the scorer's only context, since such a posting has no role target.
+    source: str = ""
+    agency: bool = False
+    snippet: str = ""
+    salary: str = ""
 
     @property
     def combined_score(self) -> int:
@@ -159,6 +162,23 @@ def _match_table_by_company(candidates: list[Candidate]) -> list[str]:
     return lines
 
 
+def _discovered_table(candidates: list[Candidate]) -> list[str]:
+    """Flat, by combined score — the company is the thing being discovered, so it goes
+    on every row rather than in a heading."""
+    lines = [
+        "| Role | Area | Location | Salary | Area Score | Ideal-Job Score | Notes |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for c in sorted(candidates, key=lambda c: c.combined_score, reverse=True):
+        flags = " *(agency)*" if c.agency else ""
+        role_cell = f"**{_cell(c.company or 'Unnamed')}**{flags} — [{_cell(c.title)}]({c.url})"
+        lines.append(f"| {role_cell} | {c.area} | {_cell(c.location)} ({c.location_category}) | "
+                     f"{_cell(c.salary) or '—'} | {c.cv_score}/5 | {c.ideal_score}/5 | "
+                     f"{_cell(c.notes)} *({c.source})* |")
+    lines.append("")
+    return lines
+
+
 def _company_job_list(entries: dict[str, dict]) -> list[str]:
     """Company-grouped (alphabetical), full per-posting list, for the two
     before-scoring exclusion buckets — so any of these can be manually followed up on
@@ -195,8 +215,17 @@ def write_report(
     coverage_notes: list[tuple[str, int, int]],
     prefiltered: dict[str, dict],
     location_prefiltered: dict[str, dict],
+    discovery: dict | None = None,
 ) -> Path:
     today = date.today().isoformat()
+
+    # Job-board postings (`#8`) are scored like the rest but never ranked with them: a
+    # tracked company was vetted by a person, a job-board hit was not. They get a section
+    # of their own, and every count below the line stays about tracked companies only.
+    discovered = [c for c in matches if c.source]
+    matches = [c for c in matches if not c.source]
+    discovered_wrong_location = sum(1 for c in discarded_by_location if c.source)
+    discarded_by_location = [c for c in discarded_by_location if not c.source]
     lines = [f"# Portal Scan — {today}", ""]
 
     # `#62`. The Ideal-Job Score compares a posting to what the person wants, which lives
@@ -264,6 +293,17 @@ def write_report(
     ]
     lines += _match_table_by_company(other_matches) if other_matches else ["_None this run._", ""]
 
+    if discovery is not None:
+        lines += [
+            "## Discovered on job boards", "",
+            "Found by searching general job boards for your target areas, at companies "
+            "the company scan does not cover — **not vetted**: nobody has decided these "
+            "companies are worth watching. Kept apart from the matches above for that "
+            "reason. *Agency* marks an advertiser that looks like a recruitment agency, "
+            "where the employer is not named. Sorted by combined score.", "",
+        ]
+        lines += _discovered_table(discovered) if discovered else ["_None this run._", ""]
+
     lines += [
         "## Filtered out before scoring",
         "",
@@ -328,6 +368,29 @@ def write_report(
         f"- Discarded (non-UK/non-remote), weak fit: {weak_discarded_count}",
         f"- Discarded (non-UK/non-remote), strong fit — shown above: {len(strong_wrong_location)}",
         "",
+    ]
+    if discovery is not None:
+        strong_discovered = sum(1 for c in discovered if c.combined_score >= STRONG_THRESHOLD)
+        lines += [
+            "### Job boards", "",
+            f"- Boards searched: {', '.join(discovery.get('boards') or []) or 'none'} "
+            f"({discovery.get('queries', 0)} queries)",
+            f"- Postings found: {discovery.get('found', 0)}",
+            f"- Dropped — title only loosely matched the query: {discovery.get('title_filtered', 0)}",
+            f"- Dropped — company already covered by the company scan: "
+            f"{discovery.get('covered_by_company_scan', 0)}",
+            f"- Dropped — company excluded from scans: {discovery.get('excluded', 0)}",
+            f"- Dropped — already tracked as an application: {discovery.get('already_tracked', 0)}",
+            f"- Dropped — the same job found twice: {discovery.get('duplicates', 0)}",
+            f"- Discovered matches: {len(discovered)} ({strong_discovered} strong)",
+            f"- Discarded (non-UK/non-remote): {discovered_wrong_location}",
+            "",
+        ]
+        for err in discovery.get("errors") or []:
+            lines.append(f"- **Search failed** — {err}")
+        if discovery.get("errors"):
+            lines.append("")
+    lines += [
         "### ATS pagination caps", "",
     ]
     if coverage_notes:
@@ -366,7 +429,7 @@ def refresh_web_db() -> None:
 def render(scored_path: Path) -> Path:
     """Load a scored candidates file (same shape `scan-portals.py`'s candidates.json
     has, but with cv_score/ideal_score/location_category/notes filled in on each
-    candidate) and write the final report. Used by both scoring paths."""
+    candidate) and write the final report."""
     data = json.loads(scored_path.read_text())
     candidates = [Candidate.from_dict(c) for c in data["candidates"]]
     matches, discarded_by_location, needs_review = classify(candidates)
@@ -382,6 +445,7 @@ def render(scored_path: Path) -> Path:
         coverage_notes=[tuple(x) for x in data["coverage_notes"]],
         prefiltered=data["prefiltered"],
         location_prefiltered=data["location_prefiltered"],
+        discovery=data.get("discovery"),
     )
     refresh_web_db()
     return out_path

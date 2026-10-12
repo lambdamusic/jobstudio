@@ -1,6 +1,6 @@
 """A reference to a markdown file, in rendered prose, becomes a link to its page (TODO `#78`).
 
-The skill writes cross-references as paths — `jobs/notes/interview-technique.md`, usually
+The skill writes cross-references as paths — `jobs/notes/interviewing/interview-technique.md`, usually
 in backticks — because a path is what an agent reading the file can follow. On a page it
 was dead text, though the note it named had a page of its own. This maps a path to the
 page that renders that file, and leaves it as text when there is none: a reference is
@@ -8,7 +8,7 @@ only ever turned into a link that works, never into a guess.
 
 Forms resolved, relative to the data root (a leading `<DATA>/` is dropped):
 
-    jobs/notes/<slug>.md                  ->  /notes/<slug>/
+    jobs/notes/[<group>/]<slug>.md        ->  /notes/<slug>/
     jobs/companies/<slug>.md              ->  /companies/<slug>/
     jobs/profile/stocktake.md             ->  /profile/
     jobs/cv/base/<slug>.md                ->  /cvs/base/<slug>/
@@ -74,8 +74,9 @@ def _resolve_path(rel: str) -> str | None:
     """A data-root-relative path to its page, or None."""
     root = _data_root()
     parts = rel.split("/")
-    if parts[:2] == ["jobs", "notes"] and len(parts) == 3:
-        return f"/notes/{Path(parts[2]).stem}/" if (root / rel).is_file() else None
+    # A note may sit in a group subfolder; its URL is the filename alone either way.
+    if parts[:2] == ["jobs", "notes"] and len(parts) in (3, 4):
+        return f"/notes/{Path(parts[-1]).stem}/" if (root / rel).is_file() else None
     if parts[:2] == ["jobs", "companies"] and len(parts) == 3:
         from .models import Company
 
@@ -94,8 +95,11 @@ def _resolve_bare(name: str) -> str | None:
     """A filename with no directory, when exactly one place holds it."""
     if name in ("notes.md", "job.md"):
         return None
-    candidates = [f"jobs/notes/{name}", f"jobs/companies/{name}", f"jobs/profile/{name}",
-                  f"jobs/cv/base/{name}"]
+    candidates = [f"jobs/companies/{name}", f"jobs/profile/{name}", f"jobs/cv/base/{name}"]
+    notes = _data_root() / "jobs" / "notes"
+    if notes.is_dir():
+        candidates += [p.relative_to(_data_root()).as_posix() for p in notes.rglob(name)
+                       if len(p.relative_to(notes).parts) <= 2]
     # A file named by the folder convention starts with its folder's name.
     m = re.match(r"(\d{3}-[a-z0-9-]+?)-", name)
     if m:

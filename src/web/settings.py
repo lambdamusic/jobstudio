@@ -2,8 +2,8 @@
 Django settings — job-search front end.
 
 Pattern: Django-as-static-site-generator (see the init-django-static-site skill's
-reference/METHODOLOGY.md). Django is an authoring/templating tool only; the published
-artifact is a wget mirror of the local dev server, rsynced into site/ and pushed to surge.
+reference/METHODOLOGY.md). The app is browsed locally; the static export (legacy,
+docs/publishing.md) is rendered in-process into site/ by `manage.py build_static`.
 
 Layout deviation from the skill: the project lives at src/web/, not src/, because src/
 already holds the pipeline scripts (render.py, appfolder.py, ...). src/ itself is
@@ -127,4 +127,7 @@ APPLICATIONS_DIR = os.path.join(JOBS_DIR, "applications")
 CV_DIR = os.path.join(JOBS_DIR, "cv")
 SCANS_DIR = os.path.join(JOBS_DIR, "scans")
 NOTES_DIR = os.path.join(JOBS_DIR, "notes")
+# Sessions with a career coach, and whatever material they hand over. Outside `jobs/`
+# because it is not the skill's to write — notes are dictated, files are dropped in.
+COACH_DIR = os.path.join(DATA_ROOT, "extras", "career-coach")
 PROFILE_DIR = os.path.join(JOBS_DIR, "profile")

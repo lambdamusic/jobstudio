@@ -2,7 +2,70 @@
 
 Dated entries, newest first.
 
+## 2026-10-09
+
+- **Recruitee boards are scanned.** Read through the public JSON behind every Recruitee
+  careers site. A `<company>.recruitee.com` URL is detected on its own; a board on the
+  company's own domain (`careers.<company>.com`, which is common) needs a one-line
+  `company_overrides` entry naming the token. A remote role keeps its country, which
+  Recruitee's own location text drops. On a real tracker this moved two companies from
+  "not scanned" to scanned. (`#90`)
+
+## 2026-10-08
+
+- **`scan --api` is gone.** Scan scoring is agent-native only: `src/score-candidates.py`
+  and the `anthropic` dependency are removed, so nothing in the toolkit reads an API key
+  any more. Unattended (cron) scans went with it; nobody was running them, and the route
+  to bring them back without an API key is kept in
+  `backlog/plans/052-headless-scan-via-setup-token.md`. (`#52`)
+
+- **No more Surge, and the static site is legacy.** `/jobstudio publish` and
+  `tools/publish-surge.sh` are removed, along with the `surge_domain` setting. The web app
+  is how the search is browsed; `tools/site-build` still renders it to `site/` and checks
+  every internal link, documented on its own in `docs/publishing.md` and no longer a step
+  in the workflow. (`#69`)
+
+- **The scan can search job boards, not just tracked companies.** With a free Adzuna
+  and/or Reed key and a few searches written as you would type them —
+  `'"Head of Data" OR "VP Data"'`, `knowledge graph` — under `job_boards.queries` in
+  `scan-config.yaml`, `scan` also looks for roles at companies nobody has tracked yet.
+  A posting must carry every word of the phrase that found it in its title; anything
+  already tracked, at a company the company scan just covered, or found twice (Adzuna
+  also lists Reed's adverts) is dropped. What is left is scored as usual, with the
+  board's description snippet and advertised salary standing in for a role target,
+  and reported in a section of its own, **Discovered on job boards** — unvetted, so
+  never ranked with tracked-company matches. Postings from recruitment agencies are
+  labelled, not dropped. Keys are best kept in `~/.jobstudio.ini`. Off until
+  configured. (`#8`)
+
+- **Six more job platforms scanned.** Pinpoint, UKG Pro Recruiting and Hireserve, read
+  through their public JSON; SuccessFactors and Radancy career sites, through the feeds
+  their own search pages use; and a sitemap fallback for a site with no feed at all,
+  which takes each posting's title and location from the schema.org JobPosting markup
+  on its page. Pinpoint is detected from a `<company>.pinpointhq.com` URL; the rest are
+  set per company in `company_overrides` (`scan.md` lists the fields for each and where
+  to find them). A SuccessFactors entry can take a `filter`, for a site that carries a
+  whole group when only one organisation in it is tracked. On a real tracker this moved
+  eight companies from "not scanned" to scanned. (`#10`)
+
+- **A Phenom careers site is usually Workday underneath.** Its postings' `applyUrl`
+  names the Workday board, which the scanner already reads, so a company on one needs
+  an override, not a fetcher. `init.md`'s "worth one look" note now says so. (`#74`)
+
 ## 2026-10-07
+
+- **Glossary entries link out.** Each entry in a `## Glossary` now ends on one link to
+  a page for following the term up, usually its Wikipedia article, else the regulator
+  or standard body (`- **Form ADV.** … [Investor.gov](…)`). The skill writes them for
+  new glossaries, and the existing ones were backfilled. The hover tooltip leaves the
+  link out. (`#83`)
+
+- **Career coach tab on Notes.** Everything in `<DATA>/extras/career-coach/` now shows
+  on `/notes/` in a tab of its own. Markdown, meaning the notes dictated after each
+  session, renders in full, newest session first, with an index at the top. Everything
+  else (PDFs, spreadsheets, Pages files) is listed by folder, with an **Open** link on
+  the local app. That link goes through `/actions/open-file/`, which used to be
+  `/actions/open-docx/` and now opens any document type, still nothing executable.
 
 - **Hard-wrapped prose reads as paragraphs.** Markdown files written by an agent are
   wrapped at about 90 columns, and the app turns every newline into a line break, so

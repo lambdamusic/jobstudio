@@ -21,7 +21,10 @@ Shape:
     company_overrides:
       "Example Corp": {platform: greenhouse, token: examplecorp}
     known_unsupported:
-      "Other Corp": "BambooHR — not yet integrated"
+      "Other Corp": "Webitrent — no public API found"
+    job_boards:                             # optional — discovery is off without it
+      queries: ['"Head of Data" OR "VP Data"', knowledge graph]
+      max_days_old: 7                       # keys: ~/.jobstudio.ini, see src/job_boards.py
 """
 
 from __future__ import annotations
@@ -148,6 +151,33 @@ def company_overrides() -> dict[str, dict]:
     companies whose tracked careers URL is a generic corporate page with the real ATS
     hidden underneath. Keyed by name, not URL, because the URL is exactly what's wrong."""
     return _mapping("company_overrides")
+
+
+def excluded_companies() -> dict[str, str]:
+    """Company name → why it is never scanned: a company you have decided against.
+
+    Not `known_unsupported`, which says a scan *cannot* reach a company; this says it
+    should not. The difference matters twice: a company here may be perfectly
+    scannable (so its override can stay, for the day the decision changes), and the
+    job-board search drops it too — tracked or not — where an unscannable tracked
+    company is exactly what a job board is kept for. The tracker record, with any
+    applications, is untouched. A bare list of names is accepted.
+    """
+    raw = _load().get("excluded_companies") or {}
+    if isinstance(raw, list):
+        raw = {name: "" for name in raw}
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path()}: 'excluded_companies' must be a mapping or a list, "
+                         f"got {type(raw).__name__}")
+    return {str(k): str(v or "") for k, v in raw.items()}
+
+
+def job_boards() -> dict:
+    """Settings for searching general job boards (`#8`, `src/job_boards.py`): the
+    `queries`, optional `max_days_old`, `results_per_query` and extra `agencies`, and
+    optionally the boards' credentials (better kept in `~/.jobstudio.ini`). Empty — the
+    usual case — means discovery is off."""
+    return _mapping("job_boards")
 
 
 def criteria_path() -> Path:

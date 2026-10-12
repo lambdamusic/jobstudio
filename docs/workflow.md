@@ -11,7 +11,7 @@ layer in one place. For how a specific piece works internally, see the dedicated
 linked from `docs/README.md` (e.g.
 [portal-scan-and-scoring.md](portal-scan-and-scoring.md)).
 
-Four stages, roughly in order: prepare a CV → scan for postings → log and work applications → publish for easy review.
+Three stages, roughly in order: prepare a CV → scan for postings → log and work applications.
 
 **Before all of it (once, revisit as needed):** `/jobstudio stocktake` builds the
 career "taking stock" profile in `jobs/profile/` — `stocktake.md` (what I've done,
@@ -39,7 +39,6 @@ per-company interview prep, not the career-profile-building exercise.
 | **3. Log & work applications** | Log a role, set up its folder, refine notes + cover letter, finalise to .docx | `/jobstudio application [url or paste]` (or `#N` / company name to refresh)<br>`/jobstudio cover-letter [company or #N] [extra context]`<br>`/jobstudio render #N`<br>`/jobstudio company [name or url]` (track a new company) |
 | **3c. Interview prep** | Once an interview is scheduled — likely questions, STAR-grounded draft answers, questions to ask them | `/jobstudio interview [company or #N]` |
 | **3b. Review / edit** | Browse and change statuses | `tools/run-dev-local-db` → http://127.0.0.1:8010/ |
-| **4. Publish for review** | Rebuild the `site/` folder and sync to Surge | `/jobstudio publish` |
 | **Any time** | Dashboard summary of companies + applications | `/jobstudio status` |
 
 ---
@@ -245,7 +244,7 @@ truth for status; browse by status in the web app rather than by folder location
 
 ### Refine the notes and cover letter with Claude
 
-- **Gap analysis** lives under `## My notes` in `notes.md` (`### CV gaps`, `### CV improvements`, `### Preparation steps`) — ask Claude to revisit or expand it, or edit it directly.
+- **Gap analysis** lives under `## My notes` in `notes.md` (`### Fit check`, `### CV gaps`, `### CV improvements`) — ask Claude to revisit or expand it, or edit it directly. Its preparation steps go into `## To do` → `### Application`, the first section of `notes.md`, which holds every task for the application, split by stage.
 - **Cover letter** — use `/jobstudio cover-letter [company or #N] [extra context]` to (re)draft it: 3 paragraphs (~300 words), hook → concrete achievements → close, in the user's casual-but-precise voice. Claude shows the draft for review before saving; pass free-text context (e.g. `--emphasise knowledge graphs`) to steer tone. **How structure selection and drafting actually work:** see **[cover-letters.md](cover-letters.md)**.
 - Both files are just markdown — hand-editing them directly is always fine; Claude only fills gaps, it never overwrites what's already there.
 
@@ -298,39 +297,3 @@ tools/db-dump                   # -> backups/django/dump.json (commit this)
 ```
 
 See `src/web/README.md` for the full picture.
-
-## 4. Publishing HTML pages for easier exploration
-
-`/jobstudio publish` refreshes the `site/` folder and syncs it to the private Surge site in one step:
-
-```
-/jobstudio publish
-```
-
-It rebuilds the site and pushes it, and needs `surge` installed and authenticated. It does **not** regenerate CV exports — if a base CV changed, run `/jobstudio render` for the relevant application(s) first. Rebuilding or previewing without publishing: **[under-the-hood.md](under-the-hood.md#the-web-app)**.
-
-**How the rebuild-and-deploy pipeline actually works:** see
-**[publishing.md](publishing.md)**. See **`src/web/README.md`** for how the front end
-works, how to run it locally, and where each page's content comes from.
-
-The build re-imports the markdown into sqlite and renders the whole site from the Django app in `src/web/`, with no server running — a couple of seconds for a search of any realistic size.
-
-The published site has a page for:
-
-- every application, with its job description, gap-analysis notes, cover letters and the CV variant used
-- every company, and every company category
-- every target area — positioning, emphasis, key terms, its CV variants and applications
-- every CV: both base CVs in `jobs/cv/base/`, and every per-application tailored copy
-- every portal scan report and every file in `jobs/notes/`
-- the career stocktake profile (`jobs/profile/`) at `/profile/`
-- filtered application views as real paths (`/applications/status/applied/`, `/applications/area/data-platform/`, `/applications/active/`)
-
-Every internal link in the output is verified before the build is accepted, so a missing
-page fails the build rather than 404ing after publish.
-
-To rebuild `site/` only, without syncing to Surge:
-
-```bash
-tools/site-build --clean      # rebuild
-tools/site-preview            # browse it at http://127.0.0.1:9111/
-```

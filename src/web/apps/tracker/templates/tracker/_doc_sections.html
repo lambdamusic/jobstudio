@@ -1,22 +1,33 @@
 {% comment %}
 The jump index for one sectioned document — shared by the Interviews tab, the round
-focus view, My notes and Other files, so they cannot drift apart in wording, numbering
-or order.
+focus view, My notes, Other files and the company page, so they cannot drift apart in
+wording, numbering or order.
 
-Numbered `1 / 1.1 / 1.2 / 2`, which is the only way a flat row of pills can show that
-one section sits inside another: without it "What they asked" reads as a sibling of
-"Outcome" rather than part of it.
+A table of contents, one section per line with `###` entries indented under their `##`
+(TODO `#88`, replacing the row of pills from 2026-10-02, where a `1.1` sat inline beside
+`1` and the nesting showed only through the numbers). The numbers stay: they are what
+the section headings below carry too.
+
+It sits in the flow at the top rather than sticking, since a list of 10–15 lines would
+take a third of the screen if it stuck. section-nav.js adds the sticky part once this has
+scrolled away: a one-line "Contents ▾" bar naming the section being read, which opens the
+same list. Without script it is still a working list of links.
 
 The document's own headings in page order, not a canonical list — see the note on
 `split_sections`. Shown from two sections up: a one-item index is noise.
 {% endcomment %}
 {% if sections|length > 1 %}
   <nav class="section-index" aria-label="Sections in this document" data-section-index>
-    {% for s in sections %}
-      <a class="section-chip{% if s.level == 3 %} sub{% endif %}"
-         href="#{{ s.anchor }}" data-target="{{ s.anchor }}" data-parent="{{ s.parent }}"
-        ><span class="sec-n">{{ s.number }}</span> {{ s.label }}</a>
-    {% endfor %}
-    <button type="button" class="section-chip section-toggle-all" data-toggle-all>Expand all</button>
+    <div class="section-index-head">
+      <span class="section-index-title">Contents</span>
+      <button type="button" class="section-toggle-all" data-toggle-all>Expand all</button>
+    </div>
+    <ol class="section-list{% if sections|length > 8 %} long{% endif %}">
+      {% for s in sections %}
+        <li{% if s.level == 3 %} class="sub"{% endif %}><a class="section-link"
+           href="#{{ s.anchor }}" data-target="{{ s.anchor }}" data-parent="{{ s.parent }}"
+          ><span class="sec-n">{{ s.number }}</span> {{ s.label }}</a></li>
+      {% endfor %}
+    </ol>
   </nav>
 {% endif %}

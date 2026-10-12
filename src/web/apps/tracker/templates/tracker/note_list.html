@@ -1,62 +1,121 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load jobs_extras %}
 {% block title %}Notes{% endblock %}
 {% block content %}
 <div class="page-head">
   <h1>Notes</h1>
   <p class="lede">
-    The strategy notes behind the search — what I am aiming at, what I have learned
-    interviewing, and the techniques worth rehearsing. Read from <code>jobs/notes/</code>;
-    the career stocktake has its own page at <a href="/profile/">Profile</a>.
+    The notes behind the search, from <code>jobs/notes/</code>, one tab per subfolder:
+    where I am aiming, how I interview, and the topics I have prepared. Plus a Career coach
+    tab from <code>extras/career-coach/</code>; the career stocktake has its own page at
+    <a href="/profile/">Profile</a>.
   </p>
 </div>
 
 {% comment %}
-One tab per note, with the same jump index the Interviews tab and My notes use (`#73`).
+One tab per group, each an index of its notes (2026-10-08). It was one tab per note
+(`#73`) until study material carried over from applications took it past a dozen tabs.
+A group is a subfolder of jobs/notes/ (`views.NOTE_GROUPS` gives the known ones their
+names and order). Each line links the note's own page, which has its Contents list.
 
-**The per-note pages at `/notes/<slug>/` are kept, not replaced.** They are what
-`build_static` publishes, and the honest target for a link from outside the app. This
-page is for moving between notes without a trip through a list and a back button; each
-panel links its own page for reading one on its own.
-
-**Why the slug prefixes the section anchors.** Every note is on this page at once, so two
-notes both carrying `## Reading list` would mint the same id. `tabs.js` resolves an
-inbound `#...` by finding the panel that holds it, so a collision opens the wrong note —
-the tab name is the note's slug and the sections sit under `<slug>--...`, which keeps the
-two kinds of hash distinct as well as unique.
+"Used in" lists the applications whose folders link to the note, worked out from the
+links themselves (`_note_backlinks`). It is what says which conversation a note served,
+without anyone keeping that up by hand.
 
 Without JavaScript every panel renders, so this is one long page rather than a broken
 one — the same bargain `tabs.js` makes everywhere.
 {% endcomment %}
-{% if notes %}
+{% if groups or coach %}
   <div data-tabs>
     <div class="tablist" role="tablist" aria-label="Notes">
-      {% for n in notes %}
-        <button class="tab" data-tab="{{ n.slug }}" role="tab" type="button">{{ n.short }}</button>
+      {% for g in groups %}
+        <button class="tab" data-tab="{{ g.slug }}" role="tab" type="button">{{ g.label }} <span class="tab-count">{{ g.notes|length }}</span></button>
       {% endfor %}
+      {% if coach %}
+        <button class="tab" data-tab="{{ coach.slug }}" role="tab" type="button">Career coach</button>
+      {% endif %}
     </div>
 
-    {% for n in notes %}
-      <section class="tabpanel" data-panel="{{ n.slug }}" role="tabpanel">
-        <div class="panel prose">
-          {% comment %}
-          Carries the title itself rather than a `.panel-heading`, which `.js-tabs` hides
-          — with JavaScript off that would print the title twice, and with it on the tab
-          shows only the short form, so the full one is worth keeping here.
-          {% endcomment %}
-          <div class="note-head">
-            <h2>{{ n.title }}</h2>
-            <a href="/notes/{{ n.slug }}/">Open on its own page</a>
-          </div>
-          {% comment %}
-          Expanded, like My notes and unlike an interview round: a strategy note is read
-          while thinking, with no clock running, and collapsing it would hide the file
-          behind a click per section while the pills already answer "where is X".
-          {% endcomment %}
-          {% include "tracker/_doc_sections.html" with sections=n.doc.sections %}
-          {% include "tracker/_doc_body.html" with doc=n.doc qa=False open=True %}
+    {% for g in groups %}
+      <section class="tabpanel" data-panel="{{ g.slug }}" role="tabpanel">
+        <div class="panel">
+          <h2 class="panel-heading">{{ g.label }}</h2>
+          {% if g.blurb %}<p class="note-group-blurb">{{ g.blurb }}</p>{% endif %}
+          <ul class="note-index">
+            {% for n in g.notes %}
+              <li>
+                <a class="note-index-title" href="/notes/{{ n.slug }}/">{{ n.title }}</a>
+                {% if n.summary %}<p class="note-index-summary">{{ n.summary }}</p>{% endif %}
+                <p class="note-index-meta">
+                  {{ n.words }} words · updated {{ n.modified|date:"j M Y" }}
+                  {% if n.used_in %} · used in
+                    {% for a in n.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }}</a>{% endfor %}
+                  {% endif %}
+                </p>
+              </li>
+            {% endfor %}
+          </ul>
         </div>
       </section>
     {% endfor %}
+
+    {% if coach %}
+      {% comment %}
+      The career-coach folder, which is not a note but lives with them: session notes
+      dictated afterwards, and the material the coach hands over. Markdown renders in
+      full, newest session first; everything else (PDFs, spreadsheets, subfolders) is an
+      index, since a page cannot show it — with an Open link on the local app. No page of
+      its own: there is nothing to link to from outside that this tab does not cover.
+
+      The index at the top is plain links rather than the section pills: the pills index
+      one document, and this tab stacks several, each keeping its own.
+      {% endcomment %}
+      <section class="tabpanel" data-panel="{{ coach.slug }}" role="tabpanel">
+        <div class="panel prose">
+          <div class="note-head"><h2>Career coach</h2></div>
+          {% if coach.docs or coach.folders %}
+            <ul class="coach-index">
+              {% for d in coach.docs %}
+                <li><a href="#{{ d.anchor }}">{{ d.title }}</a> <code>{{ d.rel }}</code></li>
+              {% endfor %}
+              {% if coach.folders %}<li><a href="#{{ coach.slug }}--files">Other files</a></li>{% endif %}
+            </ul>
+          {% else %}
+            <p class="empty">Nothing in <code>extras/career-coach/</code> yet.</p>
+          {% endif %}
+        </div>
+
+        {% for d in coach.docs %}
+          <div class="panel prose" style="margin-top:16px">
+            <div class="note-head">
+              <h2 id="{{ d.anchor }}">{{ d.title }}</h2>
+              <code style="font-size:12.5px">{{ d.rel }}</code>
+            </div>
+            {% include "tracker/_doc_sections.html" with sections=d.doc.sections %}
+            {% include "tracker/_doc_body.html" with doc=d.doc qa=False open=True %}
+          </div>
+        {% endfor %}
+
+        {% if coach.folders %}
+          <div class="panel" style="margin-top:16px">
+            <div class="note-head"><h2 id="{{ coach.slug }}--files">Other files</h2></div>
+            {% for folder in coach.folders %}
+              {% if folder.name %}<h3 class="coach-folder">{{ folder.name }}/</h3>{% endif %}
+              <ul class="coach-files">
+                {% for f in folder.files %}
+                  <li>
+                    <span>{{ f.name }}</span>
+                    <span>
+                      <span style="color:var(--faint)">{{ f.size_kb }} KB</span>
+                      {% if IS_LOCAL %}<a href="/actions/open-file/?path={{ f.path|data_rel|urlencode }}">Open</a>{% endif %}
+                    </span>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </section>
+    {% endif %}
   </div>
 {% else %}
   <div class="panel"><p class="empty">No notes yet.</p></div>

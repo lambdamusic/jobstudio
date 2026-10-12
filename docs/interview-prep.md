@@ -14,12 +14,12 @@ actually builds. Not to be confused with **[career-stocktake-profile.md](career-
 
 | Source | Feeds |
 |---|---|
-| `job.md` + `notes.md` (Fit check, CV gaps, Preparation steps) in the application folder | Role/technical questions, and honest bridging answers for already-identified gaps |
+| `job.md` + `notes.md` (Fit check, CV gaps, and the tasks in `## To do`) in the application folder | Role/technical questions, and honest bridging answers for already-identified gaps |
 | The tailored CV, else `jobs/cv/base/cv_functional.md` | Concrete achievements to answer from |
 | `jobs/companies/<slug>.md` | Culture signals — feeds "why this company" and the questions-to-ask-them list |
 | `jobs/profile/stocktake.md` §1–§3, §7 | Behavioural and emotional-intelligence material — see below |
 | `jobs/profile/criteria.yaml` | `weighted_motivators`/`bonus_signals` ground "why this role" in what actually matters, not flattery |
-| `jobs/notes/interview-technique.md` | The reusable answer bank — checked before drafting anything new |
+| `jobs/notes/interviewing/interview-technique.md` | The reusable answer bank — checked before drafting anything new |
 | `<DATA>/extras/career-coach/materials/emotional-intelligence.md` (optional) | The 5-tip framework the EI question set is built from |
 
 ## Four question categories
@@ -42,7 +42,7 @@ actually builds. Not to be confused with **[career-stocktake-profile.md](career-
 ## Drafting rules
 
 - Every answer is grounded in real material already in the CV or `stocktake.md` — no invented numbers, employers, or outcomes, same non-invention constraint as CV tailoring and cover letters.
-- Check `jobs/notes/interview-technique.md` before drafting anything — a question that's already been answered well in a real interview gets reused verbatim, not redrafted.
+- Check `jobs/notes/interviewing/interview-technique.md` before drafting anything — a question that's already been answered well in a real interview gets reused verbatim, not redrafted.
 - Drafted as one full pack, not section-by-section like the stocktake — this is time-pressured prep, not a reflective exercise.
 
 ## Where it's written
@@ -69,12 +69,23 @@ Stages: `hr-screen`, `hiring-manager`, `technical`, `panel`, `final`, `informal`
 | `## Who I'm meeting` | research on the interviewer |
 | `## Prep` | the drafted Q&A pack |
 | `## Questions to ask them` | |
-| `## Study before` | study-only flags, no drafted answers |
+| `## To do` | one line linking this round's tasks in `notes.md` |
 | `## Private — not for the call` | |
 | `## Outcome` | filled in afterwards — what was asked, what landed, next step |
 
 `## Outcome` is what makes a round self-closing, and it is the first thing the next
 round's prep reads.
+
+**A round's tasks live in `notes.md`, not in the round file** (2026-10-08, TODO `#84`).
+What to study or do for the round goes into a `### <Round label> — <date>` subsection of
+the `## To do` section that opens `notes.md` (`### Hiring manager — 2026-09-24`), next to
+the application's own `### Application` tasks. One place then answers "what is left for
+this application", and a task done once is not left unticked in a second file. The
+heading is a fixed pattern because the round file links to it by anchor
+(`#notes--hiring-manager-2026-09-24`). The round's focus page shows the same tasks above
+the round, under that same id, and ticks there write back to `notes.md`.
+`manage.py migrate_todos` moved the older `### Preparation steps` and `## Study before`
+lists into this shape.
 
 **Why one file per round** (decided 2026-09-24): all of this used to live under a
 single `## Interview prep` heading in `notes.md`, which put a round's prep, its
@@ -105,8 +116,11 @@ no specific interview lined up yet.
 ## Growing the bank
 
 After a real interview, if an answer landed well and needs no role-specific
-rewriting, it gets appended to `jobs/notes/interview-technique.md`'s **Standard
-answer bank** section — a short note on which interview validated it and why the
-phrasing matters, then the answer verbatim. The existing "why did you leave Digital
-Science" entry (validated at a real HR screen, and dated in the file) is the template for
-new entries.
+rewriting, it goes into `jobs/notes/interviewing/interview-technique.md`, the answer bank.
+The bank is grouped by what a question is about (About me, Research analytics, Product
+management, Technical and architecture…), one `##` per category, and each answer is a
+`###` under its category: the question as the heading, a *Tested* line saying which
+interview validated it and when, a few lines on why the phrasing matters, then the answer
+verbatim. A new answer is filed under its category, never appended at the end, and a
+category is created only when an answer needs one. Restructured this way on 2026-10-08,
+when a flat list of answers had stopped being findable.

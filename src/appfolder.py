@@ -247,10 +247,17 @@ def is_cv_filename(name: str) -> bool:
     )
 
 
+# The `cover-letter` token as the convention places it: followed by the date (a `-v2`
+# or other suffix may come after that), or directly by the extension. Anchored rather
+# than a substring test (TODO `#82`): `...-cover-letter-notes.md`, a note *about* the
+# letter, used to be claimed by the Cover letters tab and vanish from Other files.
+_COVER_LETTER_RE = re.compile(r"(?:^|[-_])cover-letter(?:-\d{4}-\d{2}-\d{2}|\.[A-Za-z0-9]+$)")
+
+
 def is_cover_letter_filename(name: str) -> bool:
     """A cover-letter file, old naming (`cover-letter-<date>.md`) or new
     (`<application-id>-<person-slug>-cover-letter-<date>.<ext>`)."""
-    return "cover-letter" in name
+    return bool(_COVER_LETTER_RE.search(name))
 
 
 # ---------------------------------------------------------------------------
@@ -287,10 +294,22 @@ _INTERVIEW_STAGE_LABELS = {
 }
 
 
+# `interview-`, then one of INTERVIEW_STAGES or nothing, then the date — the shape the
+# convention gives a round and nothing else does. A substring test on `-interview-`
+# (until TODO `#82`) claimed any file whose name merely mentioned interviews: a study note
+# called `...-research-interview-themes-<date>.md` left Other files and was shown as a
+# round whose stage was "themes". The skill names rounds only after these stages, so an
+# unknown stage is a file about interviews, not a round.
+_INTERVIEW_RE = re.compile(
+    r"(?:^|-)interview-(?:(?:" + "|".join(map(re.escape, INTERVIEW_STAGES)) + r")-)?"
+    r"\d{4}-\d{2}-\d{2}")
+
+
 def is_interview_filename(name: str) -> bool:
     """An interview-round file — `<application-id>-<person-slug>-interview-<stage>-<date>.md`,
-    or a bare `interview-<stage>-<date>.md` written by hand."""
-    return name.endswith(".md") and ("-interview-" in name or name.startswith("interview-"))
+    or a bare `interview-<stage>-<date>.md` written by hand. `<stage>` is one of
+    INTERVIEW_STAGES, or absent."""
+    return name.endswith(".md") and bool(_INTERVIEW_RE.search(name))
 
 
 def interview_stage(name: str) -> str:
@@ -340,9 +359,14 @@ def notes_stub(row: dict) -> str:
     own files (see the naming block above). What stays here is what is true of the *role*
     rather than of a meeting — the notes, the contacts, and a timeline that indexes the
     round files.
+
+    `## To do` comes first (`#84`): every task for the application, split by stage —
+    `### Application`, then one `### <Round label> — <date>` per round, which the round
+    file links to. First because it is the part that changes day to day.
     """
     return (
         f"# {row['company']} — {row['role']}\n\n"
+        "## To do\n\n### Application\n\n\n"
         "## My notes\n\n\n"
         "## Contacts\n\n\n"
         "## Timeline\n"

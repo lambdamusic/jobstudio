@@ -26,9 +26,9 @@ engineering job rather than a marketing one.
 - How is developer advocacy measured here — adoption, or reach?
 - Who does this role report to, and how big is the team?
 
-## Study before
+## To do
 
-- Grafana's plugin architecture, enough to follow a technical conversation.
+→ [This round's tasks, in My notes](#notes--hr-screen-2026-09-18)
 
 ## Outcome
 

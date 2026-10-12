@@ -368,6 +368,32 @@ def split_sections(body_md: str) -> dict:
     return {"preamble": text, "blocks": blocks}
 
 
+def subsection_md(block_md: str, slug: str) -> str | None:
+    """The body of the `###` subsection whose heading slugs to `slug`, from one block's
+    markdown — the lines after that heading, up to the next `###` or the block's end.
+    None when there is no such heading. Fence-aware, like `split_sections`.
+
+    For pulling one part of a document onto another page: a round's tasks out of
+    `notes.md`'s `## To do` (`#84`). Feed it a block already through `sectioned()`, so a
+    task checkbox keeps the file-wide index that writes the tick back to the right line.
+    """
+    out: list[str] | None = None
+    in_fence = False
+    for raw in block_md.splitlines():
+        line = raw.strip()
+        if _is_fence(line):
+            in_fence = not in_fence
+        if not in_fence and line.startswith("### ") and not line.startswith("#### "):
+            if out is not None:
+                break
+            if section_slug(section_label(line[4:].rstrip("#"))) == slug:
+                out = []
+            continue
+        if out is not None:
+            out.append(raw)
+    return "\n".join(out).strip("\n") if out is not None else None
+
+
 def section_index(blocks: list[dict]) -> list[dict]:
     """The flat pill row: every block and subsection, in page order, with its number."""
     out = []
@@ -404,10 +430,18 @@ def _gloss_keys(label: str) -> list[str]:
     return [_gloss_norm(n) for n in out if n.strip()]
 
 
+# The external reference an entry ends on — `… definition. [Wikipedia](url)` (`#83`).
+# A URL may hold one level of balanced brackets: `wiki/Default_(finance)`.
+_GLOSS_REF = re.compile(r"\s*\[[^\]]+\]\((?:[^()\s]|\([^()\s]*\))+\)\s*$")
+
+
 def _gloss_plain(md: str, limit: int = 280) -> str:
-    """An entry's definition as one line of plain text, for a tooltip: links reduced to
-    their label, emphasis and code markers dropped, cut at a word near `limit`."""
-    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", md)
+    """An entry's definition as one line of plain text, for a tooltip: the trailing
+    reference link dropped (a tooltip ending "… Wikipedia" reads as part of the
+    definition, and cannot be clicked anyway), other links reduced to their label,
+    emphasis and code markers dropped, cut at a word near `limit`."""
+    text = _GLOSS_REF.sub("", md.strip())
+    text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"[*_`]+", "", text)
     text = " ".join(text.split())
     if len(text) > limit:
@@ -632,6 +666,7 @@ _SHORT_TITLE_OVERRIDES = {
     "filtered-out-before-scoring": "Filtered Out",
     "excluded-by-location": "Excluded",
     "no-open-roles-found": "No open roles",
+    "discovered-on-job-boards": "Job boards",
 }
 
 # Rows/bullets that count as one "item" for a tab's count badge: a markdown table row

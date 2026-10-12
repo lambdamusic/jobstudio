@@ -27,6 +27,20 @@ would undo.
 
   {% include "tracker/_doc_sections.html" with sections=sections %}
 
+  {% comment %}
+  This round's tasks, from notes.md's `## To do` (`#84`): they live there so one page
+  answers "what is left for this application", but this is the page open during prep.
+  The id is the subsection's id on My notes, so the round file's own link to its tasks
+  lands here on this page and there on the application. Ticks write back to notes.md —
+  each checkbox carries its file and its index in it.
+  {% endcomment %}
+  {% if todo %}
+    <section class="panel prose round-focus-todo" id="{{ todo.anchor }}">
+      <h2 class="panel-heading">To do for this round</h2>
+      {{ todo.body_md|markdown|blank_links }}
+    </section>
+  {% endif %}
+
   <article class="panel prose round-focus-body">
     {% include "tracker/_doc_body.html" with doc=focus_round qa=True %}
   </article>

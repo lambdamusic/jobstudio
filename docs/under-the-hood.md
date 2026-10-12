@@ -130,9 +130,8 @@ Depth: **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)**.
 tools/run-dev-local-db            # http://127.0.0.1:8010, foreground until Ctrl-C
 tools/run-dev-local-db 8020       # if 8010 is busy
 tools/run-demo                    # the same app on example data, http://127.0.0.1:8011
-tools/site-build --clean          # render the whole site to <DATA>/site/
+tools/site-build --clean          # legacy: render the whole site to <DATA>/site/
 tools/site-preview                # browse that build locally
-bash tools/publish-surge.sh       # site-build, then push to Surge
 ```
 
 `run-demo` is the one to reach for when the app is going to be *seen* — a screen
@@ -168,7 +167,7 @@ their `###` subsections in document order, numbered `1 / 1.1 / 1.2 / 2`.
 Two things about that are easy to get wrong:
 
 - **Document order, not a canonical list.** Rounds come in two shapes — written before
-  the call (Details / Prep / Questions to ask them / Study before / Outcome) and written
+  the call (Details / Prep / Questions to ask them / To do / Outcome) and written
   after it (Questions and answers / What to do differently) — so a fixed vocabulary
   matches one and misses the other.
 - **The numbers are the only thing carrying depth.** The index is a flat row of pills,

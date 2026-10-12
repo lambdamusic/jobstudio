@@ -206,21 +206,6 @@ Grouped by company (alphabetical) with the full list.
                             f"{path.name}: {key} entry parsed as {type(item).__name__} — "
                             f"wrap it in quotes: {item}")
 
-    def test_the_rubric_and_the_api_scorer_agree_on_placeholders(self):
-        """The rubric file is shared by both scoring paths, but only the API path
-        substitutes it with `str.format()` — so a `{placeholder}` added to the rubric
-        without a matching kwarg in `score-candidates.py` raises KeyError, and only
-        when someone runs `--api`. The agent-native default would never notice."""
-        import string
-        rubric = (Path(config.REPO_ROOT) / "src/prompts/scan_score_rubric.md").read_text()
-        in_rubric = {f for _, f, _, _ in string.Formatter().parse(rubric) if f}
-        source = (Path(config.REPO_ROOT) / "src/score-candidates.py").read_text()
-        call = source.split("prompt = rubric.format(", 1)[1].split("\n    )", 1)[0]
-        supplied = {line.split("=", 1)[0].strip() for line in call.splitlines()
-                    if "=" in line and not line.strip().startswith(("#", '"', "or "))}
-        self.assertEqual(in_rubric - supplied, set(),
-                         "rubric placeholder with no value in score-candidates.py")
-
     def test_yaml_list_entries_are_always_strings(self):
         """Unquoted 'Key: value' YAML entries parse as dicts; they must be rejoined."""
         self.assertEqual(P._flatten_yaml_list([{"SN SciGraph": "1B+ facts"}, "plain"]),
@@ -596,6 +581,17 @@ class ScanCoverageTests(TestCase):
         self.assertFalse(cov["scanned"])
         self.assertIn("Oleeo", cov["reason"])
 
+    def test_an_excluded_company_is_not_scanned_even_with_an_override(self):
+        """`excluded_companies` is a decision, not a capability gap: it wins over a
+        working override, and says so in its own words."""
+        import scan_config
+        import scan_sources
+        with mock.patch.object(scan_config, "excluded_companies",
+                               return_value={"Grafana Labs": "not interested"}):
+            cov = scan_sources.coverage("Grafana Labs", "https://grafana.com/about/careers/")
+        self.assertFalse(cov["scanned"])
+        self.assertEqual(cov["reason"], "excluded from scans — not interested")
+
     def test_no_url_is_its_own_reason_not_the_bespoke_fallback(self):
         import scan_sources
         cov = scan_sources.coverage("Nobody Ltd", "")
@@ -694,6 +690,11 @@ class StatusActionTests(TestCase):
                     self.assertIn(link, html)
 
 
+def markdownify_path(md):
+    from tracker.templatetags.jobs_extras import markdownify
+    return markdownify(md)
+
+
 class ViewTests(TestCase):
     fixtures = FIXTURE
 
@@ -762,21 +763,52 @@ class ViewTests(TestCase):
             with self.subTest(slug=slug):
                 self.assertEqual(self.client.get(f"/notes/{slug}/").status_code, 200)
 
-    # ---- /notes/ as tabs, with the shared section index (`#73`) ----
+    # ---- /notes/ as one tab per group, each an index (2026-10-08, replacing `#73`) ----
 
-    def test_notes_page_has_one_tab_per_note_named_by_its_slug(self):
-        """The slug is the tab name *and* the prefix on that note's section anchors, which
-        is what keeps the two kinds of hash apart: `#<slug>` opens a note, `#<slug>--<sec>`
-        opens the note and jumps inside it."""
-        from tracker.views import _notes_files
+    def test_notes_page_has_one_tab_per_group_indexing_its_notes(self):
+        """A group is a subfolder of jobs/notes/. Each group's tab lists its notes, each
+        linking the note's own page; the notes themselves are not rendered here."""
+        from tracker.views import _note_group, _notes_files
 
         html = self.client.get("/notes/").content.decode()
-        slugs = [p.stem for p in _notes_files()]
-        self.assertTrue(slugs, "no notes in the example data")
-        for slug in slugs:
-            with self.subTest(slug=slug):
-                self.assertIn(f'data-tab="{slug}"', html)
-                self.assertIn(f'data-panel="{slug}"', html)
+        paths = _notes_files()
+        self.assertTrue(paths, "no notes in the example data")
+        for path in paths:
+            group = _note_group(path) or "other"
+            with self.subTest(slug=path.stem):
+                self.assertIn(f'data-tab="{group}"', html)
+                panel = html[html.index(f'data-panel="{group}"'):]
+                self.assertIn(f'href="/notes/{path.stem}/"', panel[:panel.index("</section>")])
+
+    def test_notes_in_group_folders_keep_flat_urls_and_show_where_they_are_used(self):
+        """Grouping is the folder; the URL is the filename alone, so moving a note between
+        groups never breaks a link. "Used in" comes from links in application folders."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "topics").mkdir(parents=True)
+        (notes / "topics" / "graph-basics.md").write_text(
+            "# Graph basics\n\n*Started for a round; kept for the next.*\n\n## One\n\nText.\n")
+        (notes / "loose.md").write_text("# Loose note\n\nNo group.\n")
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text("# Test\n\nSee [graph basics](/notes/graph-basics/).\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            listed = self.client.get("/notes/").content.decode()
+            self.assertIn('data-tab="topics"', listed)
+            self.assertIn('data-tab="other"', listed)
+            self.assertIn("Started for a round; kept for the next.", listed)
+            self.assertIn(f'href="/applications/{app.num}/"', listed)
+            page = self.client.get("/notes/graph-basics/")
+            self.assertEqual(page.status_code, 200)
+            self.assertIn("Used in", page.content.decode())
+            self.assertIn('href="/notes/graph-basics/"',
+                          markdownify_path("`jobs/notes/topics/graph-basics.md`"))
+            self.assertIn('href="/notes/graph-basics/"', markdownify_path("`graph-basics.md`"))
 
     def test_note_titles_come_from_the_file_not_the_filename(self):
         """`ai-safety-pivot`.title() is "Ai Safety Pivot". The file says what it is called;
@@ -798,29 +830,27 @@ class ViewTests(TestCase):
         self.assertEqual(P.section_label("A 5 * 3 grid"), "A 5 * 3 grid")
 
     def test_every_id_on_the_notes_page_is_unique(self):
-        """Every note is on this page at once, so two sharing a `## Reading list` would
-        mint the same id — and `tabs.js` resolves an inbound anchor by finding the panel
-        holding it, so a collision opens the wrong note."""
+        """The coach tab stacks several documents on this page, so their anchors have to
+        stay distinct — `tabs.js` resolves an inbound anchor by finding the panel holding
+        it, so a collision would open the wrong one."""
         html = self.client.get("/notes/").content.decode()
         ids = re.findall(r'id="([^"]+)"', html)
         dupes = {i for i in ids if ids.count(i) > 1}
         self.assertEqual(dupes, set(), f"duplicate ids: {sorted(dupes)}")
 
-    def test_a_note_has_the_same_anchors_on_both_of_its_pages(self):
-        """The tabbed view and `/notes/<slug>/` render the same note, so a link copied
-        from one has to land in the same place on the other."""
+    def test_a_notes_section_anchors_are_prefixed_by_its_slug(self):
+        """Section ids on a note's page start `<slug>--`, so a link to a section stays
+        unique wherever the note is shown, and survives a move between groups."""
         from tracker.views import _notes_files
 
         for path in _notes_files():
-            listed = self.client.get("/notes/").content.decode()
             single = self.client.get(f"/notes/{path.stem}/").content.decode()
             with self.subTest(slug=path.stem):
-                for anchor in re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single):
-                    self.assertIn(f'id="{anchor}"', listed)
+                self.assertTrue(re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single))
 
     def test_the_per_note_pages_survive(self):
-        """`build_static` publishes one page per note and they are the honest target for a
-        link from outside the app, so the tabbed view is an addition, not a replacement."""
+        """`build_static` publishes one page per note: they are where a note is read, and
+        the honest target for a link from outside the app."""
         from tracker.management.commands.build_static import site_urls
         from tracker.views import _notes_files
 
@@ -2984,15 +3014,15 @@ class ExportFolderTests(TestCase):
         docx = self._place(appfolder.export_dir(app.folder_path) / cv_md.with_suffix(".docx").name)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         self.assertNotIn("vscode:", html)
-        self.assertIn("/actions/open-docx/?path=", html)
+        self.assertIn("/actions/open-file/?path=", html)
 
         rel = docx.resolve().relative_to(Path(settings.DATA_ROOT).resolve())
         with mock.patch("tracker.views._open_locally") as opened:
-            self.assertEqual(self.client.get("/actions/open-docx/", {"path": str(rel)}).status_code, 302)
+            self.assertEqual(self.client.get("/actions/open-file/", {"path": str(rel)}).status_code, 302)
             opened.assert_called_once()
             for bad in (str(cv_md.relative_to(Path(settings.DATA_ROOT).resolve())), "nope.docx"):
                 with self.subTest(path=bad):
-                    self.assertEqual(self.client.get("/actions/open-docx/", {"path": bad}).status_code, 404)
+                    self.assertEqual(self.client.get("/actions/open-file/", {"path": bad}).status_code, 404)
 
     def test_a_docx_beside_its_markdown_is_still_found(self):
         """Pre-2026-09-24 folders are not migrated; dropping the flat lookup would make
@@ -3538,6 +3568,53 @@ class InterviewRoundTests(TestCase):
             with self.subTest(name=name):
                 self.assertFalse(appfolder.is_interview_filename(name))
 
+    def test_a_name_that_only_mentions_interviews_or_a_letter_is_neither(self):
+        """`#82`: the recognisers were substring tests, so a study note called
+        `...-research-interview-themes-<date>.md` was taken for a round with the stage
+        "themes" and left Other files. The tokens now count only where the convention
+        puts them — `interview-[<stage>-]<date>`, `cover-letter-<date>` — and every shape
+        found in real folders still matches."""
+        import appfolder
+
+        for name in ("058-acme-alex-rivera-research-interview-themes-2026-10-07.md",
+                     "058-acme-alex-rivera-interview-questions-bank.md",
+                     "interview-technique.md",
+                     "058-acme-alex-rivera-study-interview-prep-2026-10-07.md"):
+            with self.subTest(round=name):
+                self.assertFalse(appfolder.is_interview_filename(name))
+        for name in ("058-acme-alex-rivera-cover-letter-notes.md",
+                     "058-acme-alex-rivera-cover-letter-notes-2026-10-07.md",
+                     "cover-letter-ideas.md"):
+            with self.subTest(letter=name):
+                self.assertFalse(appfolder.is_cover_letter_filename(name))
+
+        for name in ("001-grafana-labs-alex-rivera-cover-letter-2026-09-15.md",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15-v2.md",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15.docx",
+                     "001-grafana-labs-alex-rivera-cover-letter-2026-09-15.pdf",
+                     "cover-letter-2026-09-15.md",
+                     "2026-09-24_cover-letter.docx"):
+            with self.subTest(letter=name):
+                self.assertTrue(appfolder.is_cover_letter_filename(name))
+        self.assertTrue(appfolder.is_interview_filename(
+            "001-grafana-labs-alex-rivera-interview-hr-screen-2026-09-18-b.md"))
+
+    def test_a_study_note_about_interviews_stays_under_other_files(self):
+        """The `#82` misfire end to end: the file is listed under Other files and is not
+        shown as a round."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        note = "900-test-co-alex-rivera-research-interview-themes-2026-10-07.md"
+        (folder / note).write_text("# Themes\n\nWhat they tend to ask.\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        with override_settings(DATA_ROOT=str(root)):
+            self.assertIn(note, [f["name"] for f in app.extra_files])
+            self.assertEqual(app.interview_files, [])
+
     def test_rounds_on_disk_are_surfaced_newest_first(self):
         import appfolder
 
@@ -3702,6 +3779,59 @@ class InterviewRoundTests(TestCase):
             self.client.get("/applications/4/rounds/round-nope-2026-01-01/").status_code,
             404)
 
+    def test_subsection_md_takes_one_subsection_and_ignores_fenced_headings(self):
+        block = ("## To do\n\n### Application\n\n- [ ] research\n\n"
+                 "### Final round — 2026-10-10\n\n- [ ] demo\n```\n### not a heading\n```\n"
+                 "- [ ] slides\n\n### Later\n\n- [ ] thank-you note\n")
+        self.assertEqual(P.subsection_md(block, "application"), "- [ ] research")
+        final = P.subsection_md(block, "final-round-2026-10-10")
+        self.assertIn("- [ ] slides", final, "a fenced ### must not end the subsection")
+        self.assertNotIn("thank-you", final)
+        self.assertIsNone(P.subsection_md(block, "panel-2026-10-10"))
+
+    def test_focus_view_shows_the_rounds_tasks_from_notes(self):
+        """`#84`: an application's tasks live in notes.md's `## To do`, one `###` per
+        round, and the round's focus view — the page open during prep — shows its own.
+        Checked for a stage whose label slugs back to the stage (Hiring manager) and one
+        that does not (`final` → "Final round"). Ticks must still point at notes.md."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text(
+            "# Test Co\n\n## To do\n\n### Application\n\n- [x] read the posting\n\n"
+            "### Hiring manager — 2026-09-24\n\n- [ ] HM-TASK-ONE\n- [ ] HM-TASK-TWO\n\n"
+            "### Final round — 2026-10-10\n\n- [ ] FINAL-TASK\n\n## My notes\n\nPlain.\n")
+        for stage, date in (("hiring-manager", "2026-09-24"), ("final", "2026-10-10"),
+                            ("panel", "2026-10-01")):
+            (folder / f"900-test-co-alex-rivera-interview-{stage}-{date}.md").write_text(
+                f"# {stage}\n\n## Prep\n\n- **Q:** why?\n  **A:** because.\n")
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root)):
+            def page(anchor):
+                return self.client.get(
+                    f"/applications/{app.num}/rounds/{anchor}/").content.decode()
+
+            hm = page("round-hiring-manager-2026-09-24")
+            self.assertIn('id="notes--hiring-manager-2026-09-24"', hm)
+            self.assertIn("HM-TASK-TWO", hm)
+            self.assertNotIn("FINAL-TASK", hm)
+            self.assertNotIn("read the posting", hm, "Application tasks are not a round's")
+            # File-wide index: HM-TASK-ONE is notes.md's second task, so data-task="1".
+            self.assertRegex(hm, r'data-task="1"[^>]*>\s*HM-TASK-ONE')
+            self.assertIn('data-source="jobs/applications/900-test-co/notes.md"', hm)
+
+            final = page("round-final-2026-10-10")
+            self.assertIn('id="notes--final-round-2026-10-10"', final)
+            self.assertIn("FINAL-TASK", final)
+
+            self.assertNotIn("To do for this round", page("round-panel-2026-10-01"),
+                             "a round with no subsection shows no empty panel")
+
     def test_focus_view_removes_a_private_section_from_the_page_source(self):
         """Removed, not hidden. A page open during a call can be visible to someone
         else, and a CSS-hidden section is still in the source, still findable with
@@ -3865,6 +3995,23 @@ class InterviewRoundTests(TestCase):
         for anchor in ("co--gloss-claims-data", "co--gloss-site"):
             self.assertIn(f'id="{anchor}"', gloss)
 
+    def test_a_glossary_entrys_reference_link_stays_out_of_the_tooltip(self):
+        """`#83`: an entry ends on a link out (`[Wikipedia](…)`). It renders in the
+        glossary, but in a tooltip it would read as the last word of the definition."""
+        from tracker.parsers import glossary_of, sectioned
+        doc_md = (
+            "# Co\n\n## Products\n\nRuns ***attestations*** and ***KYC***.\n\n## Glossary\n\n"
+            "- **Attestation.** A signed confirmation. [Wikipedia](https://en.wikipedia.org/wiki/Attestation)\n"
+            "- **KYC.** Checks on [customers](https://example.org/c) before onboarding. "
+            "[FCA](https://www.fca.org.uk/)\n"
+            "- **Default.** Failing to pay. [Wikipedia](https://en.wikipedia.org/wiki/Default_(finance))\n")
+        doc = sectioned(doc_md, "co")
+        body, gloss = doc["blocks"][0]["body_md"], doc["blocks"][1]["body_md"]
+        self.assertIn('data-def="A signed confirmation."', body)
+        self.assertIn('data-def="Checks on customers before onboarding."', body)
+        self.assertIn("[Wikipedia](https://en.wikipedia.org/wiki/Attestation)", gloss)
+        self.assertEqual(glossary_of(doc_md, "co", "")[2]["definition"], "Failing to pay.")
+
     def test_a_document_falls_back_to_a_supplied_glossary(self):
         from tracker.parsers import glossary_of, sectioned
         company = glossary_of("## Glossary\n\n- **SEC (Securities and Exchange Commission).** "
@@ -3912,7 +4059,8 @@ class InterviewRoundTests(TestCase):
         from tracker.templatetags.jobs_extras import markdownify
         a = "001-grafana-labs-alex-rivera"
         cases = {
-            "`jobs/notes/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "`jobs/notes/search/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "`ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
             "see <DATA>/jobs/companies/grafana-labs.md now": 'href="/companies/grafana-labs/"',
             "`stocktake.md` §7": '<a href="/profile/"><code>stocktake.md</code></a>',
             "jobs/cv/base/cv_functional.md": 'href="/cvs/base/cv_functional/"',
@@ -3923,12 +4071,13 @@ class InterviewRoundTests(TestCase):
                 'href="/applications/1/#cv-developer-advocacy-2026-09-15"',
             f"`{a}-study-plugin-architecture-2026-09-19.md`":
                 f'href="/applications/1/#file-{a}-study-plugin-architecture-2026-09-19-md"',
-            "[the note](jobs/notes/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
+            "[the note](jobs/notes/search/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
         }
         for md, expected in cases.items():
             with self.subTest(md=md):
                 self.assertIn(expected, markdownify(md))
         for md in ("`jobs/notes/no-such-note.md`", "`notes.md`", "README.md",
+                   "`jobs/notes/ideal-job-notes.md`",  # wrong folder: not where the file is
                    "```\njobs/notes/ideal-job-notes.md\n```",
                    "https://example.com/jobs/notes/ideal-job-notes.md"):
             with self.subTest(md=md):
@@ -3960,13 +4109,19 @@ class InterviewRoundTests(TestCase):
         with self.assertRaises(IndexError):
             set_task(text, 3, True)
 
-    def test_preparation_steps_in_application_notes_are_checkboxes(self):
-        """A gap analysis's `### Preparation steps` is a `- [ ]` list (SKILL.md, "Lists of
-        things to do are checklists"), so it reaches the page as checkboxes."""
+    def test_the_to_do_section_in_application_notes_is_checkboxes(self):
+        """An application's tasks are `- [ ]` lists in notes.md's `## To do` (SKILL.md,
+        "Lists of things to do are checklists"; `#84`, which replaced the gap analysis's
+        `### Preparation steps`), so they reach the page as checkboxes — and the section
+        comes first, so the first box on the page is the file's first task."""
+        app = Application.objects.get(num=1)
+        self.assertEqual(app.notes_doc["blocks"][0]["anchor"], "notes--to-do")
         html = self.client.get("/applications/1/").content.decode()
-        prep = html[html.index("Preparation steps"):]
-        self.assertIn('class="task-box" data-task="0"', prep)
-        self.assertIn('data-task="1"', prep)
+        todo = html[html.index('data-section="notes--to-do"'):]
+        self.assertIn('class="task-box" data-task="0"', todo)
+        self.assertIn('data-task="1"', todo)
+        self.assertIn('id="notes--hr-screen-2026-09-18"', todo,
+                      "a round's subsection carries the id its round file links to")
 
     def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
         import tempfile
@@ -4066,6 +4221,33 @@ class InterviewRoundTests(TestCase):
                 self.assertTrue(f["anchor"].startswith("file-"))
                 self.assertIn(f'id="{f["anchor"]}"', html)
 
+    def test_other_files_index_appears_from_two_files_up_and_links_each_one(self):
+        """`#87`: the Interviews and CV tabs' index, on Other files — a list of one is
+        noise, and from two up every file, markdown or not, gets a line linking its id."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "900-test-co-alex-rivera-study-sql-2026-10-08.md").write_text("# SQL\n\nJoins.\n")
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        label = 'aria-label="Files in this folder"'
+        with override_settings(DATA_ROOT=str(root)):
+            one = self.client.get(f"/applications/{app.num}/").content.decode()
+            self.assertNotIn(label, one)
+
+            (folder / "salary-benchmarks.xlsx").write_bytes(b"x" * 2048)
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+            self.assertIn(label, html)
+            index = html[html.index(label):html.index("</nav>", html.index(label))]
+            for f in app.extra_files:
+                with self.subTest(rel=f["rel"]):
+                    self.assertIn(f'href="#{f["anchor"]}"', index)
+            self.assertIn("2 KB", index, "a non-markdown file shows its size")
+
     def test_no_folder_markdown_links_a_bare_md_file(self):
         """Regression, twice over. A relative `.md` link inside an application folder
         resolves to nothing in the web view and fails build_static's link checker — the
@@ -4101,7 +4283,7 @@ class InterviewRoundTests(TestCase):
 
         stub = appfolder.notes_stub({"company": "Test Co", "role": "Architect"})
         self.assertNotIn("## Interview prep", stub)
-        for heading in ("## My notes", "## Contacts", "## Timeline"):
+        for heading in ("## To do", "### Application", "## My notes", "## Contacts", "## Timeline"):
             self.assertIn(heading, stub)
 
     def test_filename_is_built_from_the_shared_convention(self):
@@ -4496,6 +4678,459 @@ class ScanConfigTests(TestCase):
                             "a company endpoint is hardcoded in the firstparty_entries branch")
 
 
+class PlatformFetcherTests(TestCase):
+    """The fetchers added for `#10` on 2026-10-08 — Pinpoint, SuccessFactors career-site
+    RSS, Hireserve, UKG, Radancy, and the sitemap + JSON-LD fallback.
+
+    Each response below is trimmed from a live board, keeping only the fields the
+    fetcher reads, plus one row it must skip rather than fail on (`#63`). No network.
+    """
+
+    def _scan_portals(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "scan_portals_under_test", Path(settings.SITE_ROOT) / "src" / "scan-portals.py")
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    class _Resp:
+        def __init__(self, body=None, text=""):
+            self._body, self.text = body, text
+            self.content = text.encode()
+        def raise_for_status(self): pass
+        def json(self): return self._body
+
+    def _client(self, respond):
+        """A client whose get/post hand (url, params, json) to `respond`; it records calls."""
+        resp_cls = self._Resp
+        class _Client:
+            calls = []
+            def get(self, url, params=None, **kw):
+                _Client.calls.append(("GET", url, params))
+                return respond(url, params, None, resp_cls)
+            def post(self, url, json=None, **kw):
+                _Client.calls.append(("POST", url, json))
+                return respond(url, None, json, resp_cls)
+        return _Client()
+
+    def test_pinpoint(self):
+        sp = self._scan_portals()
+        body = {"data": [
+            {"title": "Data Scientist", "url": "https://acme.pinpointhq.com/en/postings/abc",
+             "location": {"name": "Madrid ", "province": "Madrid"}, "workplace_type": "hybrid",
+             "workplace_type_text": "Hybrid"},
+            {"title": "No link", "location": {}},
+        ]}
+        client = self._client(lambda url, p, j, R: R(body))
+        jobs, _ = sp.fetch_jobs({"platform": "pinpoint", "token": "acme"}, "", client)
+        self.assertEqual(client.calls[0][1], "https://acme.pinpointhq.com/postings.json")
+        self.assertEqual(jobs, [{"title": "Data Scientist", "url": "https://acme.pinpointhq.com/en/postings/abc",
+                                 "location": "Madrid (Hybrid)"}],
+                         "padded duplicate place names collapse; hybrid is said")
+
+    def test_pinpoint_is_detected_from_the_board_url(self):
+        import scan_sources
+        self.assertEqual(scan_sources.resolve_source("X", "https://acme.pinpointhq.com/en/postings"),
+                         {"platform": "pinpoint", "token": "acme"})
+        self.assertIsNone(scan_sources.resolve_source("X", "https://www.pinpointhq.com/customers"),
+                          "a link to the vendor's own site is not a board called 'www'")
+
+    def test_recruitee(self):
+        """`#90`. A remote offer's own `location` is only "Remote job"; the country has to
+        survive, or a US-only remote role reads as one a UK search could take."""
+        sp = self._scan_portals()
+        body = {"offers": [
+            {"title": "Account Manager", "careers_url": "https://careers.acme.com/o/account-manager",
+             "location": "Farringdon, England, United Kingdom", "city": "Farringdon",
+             "country": "United Kingdom", "remote": False, "hybrid": True},
+            {"title": "Data Engineer", "careers_url": "https://careers.acme.com/o/data-engineer",
+             "location": "Remote job", "city": "East Coast, Remote", "country": "United States",
+             "remote": True, "hybrid": False},
+            {"title": "No link", "location": "Gent, Belgium"},
+        ]}
+        client = self._client(lambda url, p, j, R: R(body))
+        jobs, _ = sp.fetch_jobs({"platform": "recruitee", "token": "acme"}, "", client)
+        self.assertEqual(client.calls[0][1], "https://acme.recruitee.com/api/offers/")
+        self.assertEqual(jobs, [
+            {"title": "Account Manager", "url": "https://careers.acme.com/o/account-manager",
+             "location": "Farringdon, England, United Kingdom (hybrid)"},
+            {"title": "Data Engineer", "url": "https://careers.acme.com/o/data-engineer",
+             "location": "East Coast, Remote, United States (remote)"},
+        ])
+
+    def test_recruitee_is_detected_from_the_board_url(self):
+        import scan_sources
+        self.assertEqual(scan_sources.resolve_source("X", "https://acme.recruitee.com/"),
+                         {"platform": "recruitee", "token": "acme"})
+        self.assertIsNone(scan_sources.resolve_source("X", "https://www.recruitee.com/"),
+                          "a link to the vendor's own site is not a board called 'www'")
+
+    _RSS = """<?xml version="1.0" encoding="UTF-8" ?><rss version="2.0"><channel>
+      <item><title><![CDATA[Data Lead (London, GB, W12 7FA)]]></title>
+        <description><![CDATA[<p>DEPARTMENT: Acme Studios</p>]]></description>
+        <link>https://careers.acme.example/job/London-Data-Lead/101/?feedId=null&amp;utm_source=J2WRSS</link></item>
+      <item><title><![CDATA[News Producer (Delhi, IN)]]></title>
+        <description><![CDATA[<p>DEPARTMENT: Acme News</p>]]></description>
+        <link>https://careers.acme.example/job/Delhi-News-Producer/102/</link></item>
+      <item><title></title><description>Acme Studios</description><link>https://careers.acme.example/job/x/103/</link></item>
+    </channel></rss>"""
+
+    def test_successfactors_rss_splits_the_location_off_the_title_and_asks_for_every_row(self):
+        sp = self._scan_portals()
+        client = self._client(lambda url, p, j, R: R(text=self._RSS))
+        jobs, _ = sp.fetch_jobs({"platform": "successfactors", "domain": "careers.acme.example"}, "", client)
+        self.assertEqual(client.calls[0][1], "https://careers.acme.example/services/rss/job/")
+        self.assertIn("rows", client.calls[0][2], "without `rows` the feed stops at 20")
+        self.assertEqual(jobs[0], {"title": "Data Lead", "location": "London, GB, W12 7FA",
+                                   "url": "https://careers.acme.example/job/London-Data-Lead/101/"})
+        self.assertEqual(len(jobs), 2)
+
+    def test_successfactors_filter_keeps_one_organisation_off_a_shared_site(self):
+        sp = self._scan_portals()
+        client = self._client(lambda url, p, j, R: R(text=self._RSS))
+        jobs, _ = sp.fetch_jobs({"platform": "successfactors", "domain": "careers.acme.example",
+                                 "filter": "acme studios"}, "", client)
+        self.assertEqual([j["title"] for j in jobs], ["Data Lead"],
+                         "the sibling's posting is dropped; matching ignores case")
+
+    def test_hireserve_reads_the_location_classification(self):
+        sp = self._scan_portals()
+        body = {"total": 2, "jobs": [
+            {"title": "Data Analyst", "weblink": "https://jobs.acme.example/vacancy/data-analyst-1.html",
+             "classifications": {"class_1": {"name": "Location", "values": [{"class_val": "Hybrid"},
+                                                                            {"class_val": "Bristol"}]},
+                                 "class_2": {"name": "Department", "values": [{"class_val": "Data"}]}}},
+            {"title": "No link", "classifications": {}},
+        ]}
+        client = self._client(lambda url, p, j, R: R(body))
+        jobs, truncated = sp.fetch_jobs({"platform": "hireserve", "domain": "jobs.acme.example",
+                                         "site_id": 99}, "", client)
+        self.assertEqual(client.calls[0][2]["p_format"], "MOBILE",
+                         "the one format carrying both the link and the location")
+        self.assertEqual(jobs[0]["location"], "Hybrid; Bristol")
+        self.assertEqual(truncated, 2)
+
+    def test_ukg_pages_and_marks_remote(self):
+        sp = self._scan_portals()
+        page = {"totalCount": 2, "opportunities": [
+            {"Id": "a1", "Title": "Data Engineer", "JobLocationType": 0,
+             "Locations": [{"Address": {"City": "Columbus", "State": {"Code": "OH"},
+                                        "Country": {"Name": "United States"}}}]},
+            {"Id": "b2", "Title": "Account Manager", "JobLocationType": 2,
+             "Locations": [{"LocalizedName": "Anywhere", "Address": {}}]},
+        ]}
+        client = self._client(lambda url, p, j, R: R(page if j["opportunitySearch"]["Skip"] == 0
+                                                      else {"opportunities": []}))
+        jobs, _ = sp.fetch_jobs({"platform": "ukg", "tenant": "ACME1", "board": "guid-1"}, "", client)
+        self.assertEqual(len(client.calls), 1, "stops once the total is reached")
+        self.assertEqual(jobs[0]["location"], "Columbus, OH, United States")
+        self.assertEqual(jobs[1]["location"], "Anywhere (remote)")
+        self.assertTrue(jobs[0]["url"].endswith("/ACME1/JobBoard/guid-1/OpportunityDetail?opportunityId=a1"))
+
+    def test_ukg_links_do_not_all_normalise_to_the_same_key(self):
+        """`_normalize` keys a posting on its last path segment, and every UKG link ends
+        `/OpportunityDetail` — one tracked application would hide the whole board."""
+        sp = self._scan_portals()
+        base = "https://recruiting.ultipro.com/ACME1/JobBoard/guid-1/OpportunityDetail?opportunityId="
+        self.assertNotEqual(sp._normalize(base + "a1"), sp._normalize(base + "b2"))
+        self.assertEqual(sp._normalize("https://jobs.lever.co/acme/abc-123?lever-source=x"), "abc-123",
+                         "other platforms' keys are unchanged")
+
+    def test_radancy_parses_the_results_fragment_and_pages(self):
+        sp = self._scan_portals()
+        def li(n):
+            return (f'<li><a href="/en/job/london/role-{n}/1/{n}" data-job-id="{n}">'
+                    f'<h2>Role {n} &amp; Co</h2><span class="job-location">London, England</span></a></li>')
+        pages = {1: f'<section data-total-results="3">{li(1)}{li(2)}</section>',
+                 2: f'<section data-total-results="3">{li(3)}</section>'}
+        client = self._client(lambda url, p, j, R: R({"results": pages.get(p["CurrentPage"], "")}))
+        jobs, _ = sp.fetch_jobs({"platform": "radancy", "domain": "careers.acme.example"},
+                                "Head of Data", client)
+        self.assertEqual([j["title"] for j in jobs], ["Role 1 & Co", "Role 2 & Co", "Role 3 & Co"])
+        self.assertEqual(jobs[0]["url"], "https://careers.acme.example/en/job/london/role-1/1/1")
+        self.assertEqual(jobs[0]["location"], "London, England")
+        self.assertEqual(len(client.calls), 2, "stops at the reported total, not on an empty page")
+        self.assertEqual(client.calls[0][2]["Keywords"], "Head")
+
+    def test_sitemap_reads_each_postings_json_ld(self):
+        sp = self._scan_portals()
+        sitemap = """<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+          <url><loc> https://jobs.acme.example/jobs/job/Data-Lead/1 </loc></url>
+          <url><loc>https://jobs.acme.example/jobs/job/Gone/2</loc></url>
+          <url><loc>https://jobs.acme.example/about</loc></url></urlset>"""
+        posting = """<script type="application/ld+json">{"@context": "https://schema.org",
+          "@graph": [{"@type": "Organization"}, {"@type": "JobPosting", "title": "Data Lead",
+          "jobLocation": {"address": {"addressLocality": "London", "addressCountry": {"name": "UK"}}}}]}
+          </script>"""
+        def respond(url, p, j, R):
+            if url.endswith("/sitemap/1"):
+                return R(text=sitemap)
+            return R(text=posting if url.endswith("/1") else "<html>no markup</html>")
+        client = self._client(respond)
+        jobs, total = sp.fetch_jobs({"platform": "sitemap", "sitemap": "https://jobs.acme.example/sitemap/1",
+                                     "path": "/jobs/job/"}, "", client)
+        self.assertEqual(jobs, [{"title": "Data Lead", "url": "https://jobs.acme.example/jobs/job/Data-Lead/1",
+                                 "location": "London, UK"}])
+        self.assertEqual(len(client.calls), 3, "the sitemap, then only the posting URLs")
+        self.assertEqual(total, 2, "a posting with no JobPosting markup is counted, not hidden")
+
+
+class JobBoardTests(TestCase):
+    """`#8` — searching Adzuna and Reed for roles at companies nobody has tracked.
+
+    All offline: the boards are stubbed with responses trimmed from their documented
+    shapes. Company names are invented.
+    """
+
+    PROFILES = {"data-platform": {"key_terms": ["data platform", "data engineering"]},
+                "knowledge-graph": {"key_terms": ["knowledge graph", "ontology"]}}
+    QUERIES = {"queries": ['"Data Platform" OR "Data Engineering"']}
+
+    def setUp(self):
+        # Keys may really be in this machine's ~/.jobstudio.ini; none of these tests may
+        # see them, or "no credentials" stops meaning that.
+        patcher = mock.patch("config.setting", lambda key, default="": default)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _client(self, adzuna=(), reed=(), fail=()):
+        class _Resp:
+            def __init__(self, body): self.body = body
+            def raise_for_status(self): pass
+            def json(self): return self.body
+
+        class _Client:
+            calls = []
+            def get(self, url, params=None, **kw):
+                _Client.calls.append((url, params, kw))
+                if any(f in url for f in fail):
+                    raise RuntimeError("HTTP 401")
+                if "adzuna" in url:
+                    return _Resp({"results": list(adzuna)})
+                return _Resp({"results": list(reed)})
+        return _Client()
+
+    @staticmethod
+    def _adzuna(title, company, url):
+        return {"title": title, "redirect_url": url, "company": {"display_name": company},
+                "location": {"display_name": "London, UK"}, "description": "<b>Own</b> the platform",
+                "salary_min": 70000, "salary_max": 90000}
+
+    @staticmethod
+    def _reed(title, company, url, posted=None):
+        # Today, not a fixed date: Reed postings are age-filtered against the real clock.
+        return {"jobTitle": title, "jobUrl": url, "employerName": company,
+                "locationName": "Bristol", "jobDescription": "Build pipelines",
+                "date": posted or dt.date.today().strftime("%d/%m/%Y")}
+
+    def _discover(self, client, settings, **kw):
+        import job_boards
+        kw.setdefault("skip_company_keys", set())
+        kw.setdefault("known", set())
+        return job_boards.discover(client, settings, self.PROFILES, ["data-platform", "knowledge-graph"],
+                                   "data-platform", normalize=lambda u: u.rsplit("/", 1)[-1], **kw)
+
+    def test_no_credentials_means_no_board_and_no_request(self):
+        import job_boards
+        with mock.patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(job_boards.credentials({}), {})
+            self.assertEqual(job_boards.credentials({"adzuna": {"app_id": "x"}}), {},
+                             "half a credential is no credential")
+            client = self._client()
+            postings, stats = self._discover(client, {})
+        self.assertEqual((postings, client.calls), ([], []))
+
+    def test_credentials_can_come_from_the_environment(self):
+        import job_boards
+        env = {"ADZUNA_APP_ID": "a", "ADZUNA_APP_KEY": "b", "REED_API_KEY": "c"}
+        with mock.patch.dict("os.environ", env, clear=True):
+            self.assertEqual(sorted(job_boards.credentials({})), ["adzuna", "reed"])
+
+    def test_queries_split_on_or_and_dedupe(self):
+        import job_boards
+        self.assertEqual(job_boards.queries({"queries": ['"Head of Data" OR "VP Data"', "knowledge graph",
+                                                         "head of data"]}),
+                         ["Head of Data", "VP Data", "knowledge graph"])
+        self.assertEqual(job_boards.queries({"queries": "knowledge graph"}), ["knowledge graph"])
+        self.assertEqual(job_boards.queries({}), [], "no fallback to the areas' key terms")
+
+    def test_a_title_must_carry_every_word_of_the_phrase(self):
+        import job_boards
+        self.assertTrue(job_boards.title_matches("Head of Data & Analytics", "Head of Data"))
+        self.assertTrue(job_boards.title_matches("VP, Data Products", "VP Data"))
+        self.assertFalse(job_boards.title_matches("Head of Training", "Head of Data"))
+
+    def test_keys_but_no_queries_searches_nothing(self):
+        client = self._client(adzuna=[self._adzuna("Data Platform Lead", "Acme", "https://a.example/1")])
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, {"adzuna": {"app_id": "i", "app_key": "k"}})
+        self.assertEqual((postings, client.calls, stats["queries"]), ([], [], 0))
+
+    def test_discovery_filters_dedups_and_labels(self):
+        """Every drop is counted under its own reason, and nothing is dropped twice."""
+        adzuna = [
+            self._adzuna("Data Platform Lead", "Acme Ltd", "https://adzuna.example/land/1"),
+            self._adzuna("Data Barista", "Cafe", "https://adzuna.example/land/2"),       # loose match
+            self._adzuna("Data Engineering Manager", "Tracked Co", "https://adzuna.example/land/3"),
+            self._adzuna("Data Platform Engineer", "Northwind Recruitment", "https://adzuna.example/land/4"),
+            self._adzuna("Data Platform Analyst", "Initech", "https://adzuna.example/land/known"),
+        ]
+        reed = [
+            self._reed("Data Platform Lead", "ACME Limited", "https://reed.example/jobs/9"),  # same job
+            self._reed("Data Engineering Lead", "Globex", "https://reed.example/jobs/10"),
+            self._reed("Data Platform Owner", "Globex", "https://reed.example/jobs/11", posted="01/01/2020"),
+        ]
+        settings = {"adzuna": {"app_id": "i", "app_key": "k"}, "reed": {"api_key": "r"},
+                    "results_per_query": 20, **self.QUERIES}
+        client = self._client(adzuna, reed)
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, settings,
+                                             skip_company_keys={"tracked"}, known={"known"})
+
+        self.assertEqual([(p["company"], p["title"]) for p in postings], [
+            ("Acme Ltd", "Data Platform Lead"),
+            ("Northwind Recruitment", "Data Platform Engineer"),
+            ("Globex", "Data Engineering Lead"),
+        ], "Reed's 'ACME Limited' is Adzuna's 'Acme Ltd'; the 2020 posting is too old")
+        self.assertEqual([p["agency"] for p in postings], [False, True, False])
+        self.assertEqual([p["area"] for p in postings], ["data-platform"] * 3)
+        self.assertEqual(postings[0]["salary"], "£70,000–£90,000")
+        self.assertEqual(postings[0]["snippet"], "Own the platform", "HTML is stripped")
+
+        # Two phrases (one line split on OR) on each board, each stub answering the same list.
+        self.assertEqual(stats["queries"], 4)
+        self.assertEqual(stats["found"], 5 * 2 + 2 * 2, "Reed's stale posting is never counted as found")
+        # A title must carry every word of the phrase that found it, so most rows fail one
+        # of the two phrases ("Data Platform Engineer" is not "Data Engineering").
+        self.assertEqual(stats["title_filtered"], 8)
+        self.assertEqual(stats["covered_by_company_scan"], 1)
+        self.assertEqual(stats["already_tracked"], 1)
+        self.assertEqual(stats["duplicates"], 1)
+
+        adzuna_call = next(c for c in client.calls if "adzuna" in c[0])
+        self.assertIn("title_only", adzuna_call[1], "Adzuna searches titles, not whole adverts")
+        reed_call = next(c for c in client.calls if "reed" in c[0])
+        self.assertEqual(reed_call[2]["auth"], ("r", ""), "Reed: the key is the Basic-auth username")
+
+    def test_only_advertised_annual_salaries_are_shown(self):
+        import job_boards
+        predicted = {**self._adzuna("Data Platform Lead", "Acme", "https://a.example/1"),
+                     "salary_is_predicted": "1"}
+        junk = {**self._adzuna("Data Platform Owner", "Acme", "https://a.example/2"),
+                "salary_min": 5, "salary_max": 5}
+        client = self._client(adzuna=[predicted, junk])
+        found = job_boards.search_adzuna(client, {"app_id": "i", "app_key": "k"}, "data platform",
+                                         max_days_old=7, results=10)
+        self.assertEqual([p["salary"] for p in found], ["", ""])
+
+    def test_a_failing_board_costs_its_queries_not_the_run(self):
+        settings = {"adzuna": {"app_id": "i", "app_key": "k"}, "reed": {"api_key": "r"}, **self.QUERIES}
+        client = self._client(reed=[self._reed("Data Platform Lead", "Globex", "https://reed.example/jobs/1")],
+                              fail=("adzuna",))
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, settings)
+        self.assertEqual([p["company"] for p in postings], ["Globex"])
+        self.assertEqual(len(stats["errors"]), 2)
+        self.assertIn("HTTP 401", stats["errors"][0])
+
+    def test_an_excluded_company_is_dropped_tracked_or_not(self):
+        settings = {"adzuna": {"app_id": "i", "app_key": "k"}, **self.QUERIES}
+        client = self._client(adzuna=[self._adzuna("Data Platform Lead", "Initech Ltd", "https://a.example/1"),
+                                      self._adzuna("Data Platform Lead", "Globex", "https://a.example/2")])
+        with mock.patch.dict("os.environ", {}, clear=True):
+            postings, stats = self._discover(client, settings, excluded_company_keys={"initech"})
+        self.assertEqual([p["company"] for p in postings], ["Globex"])
+        self.assertEqual(stats["excluded"], 1, "once — the second phrase's title filter drops the rest")
+
+    def test_agency_and_company_matching(self):
+        import job_boards
+        self.assertTrue(job_boards.is_agency("Harnham"))
+        self.assertTrue(job_boards.is_agency("Michael Page Technology"), "agencies post under divisions")
+        self.assertFalse(job_boards.is_agency("Reedsy"), "a prefix match is on whole words")
+        self.assertTrue(job_boards.is_agency("Northwind Resourcing Ltd"))
+        self.assertTrue(job_boards.is_agency("Acme Partners", extra=["Acme Partners Ltd"]))
+        self.assertFalse(job_boards.is_agency("Acme Analytics"))
+        self.assertFalse(job_boards.is_agency(""))
+        self.assertEqual(job_boards.company_keys("Initech Data (Globex Analytics)"),
+                         {"initech data globex analytics", "initech data", "globex analytics"})
+
+    def test_discovered_postings_get_their_own_section_and_stay_out_of_the_match_counts(self):
+        """The vetted/unvetted line is the point of the section: a job-board hit is never
+        ranked among tracked-company matches, and the dashboard's match counts — read off
+        the Summary bullets — stay about tracked companies."""
+        import importlib
+        import config
+        import scan_report
+        from tracker import parsers
+
+        orig = config.data_root
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            (tmp / "jobs" / "scans").mkdir(parents=True)
+            config.data_root = lambda: tmp
+            importlib.reload(scan_report)
+
+            def cand(company, title, **kw):
+                c = scan_report.Candidate(company=company, title=title, url=f"https://x.example/{title}",
+                                          role_target="", area="data-platform", location="London", **kw)
+                c.cv_score, c.ideal_score, c.location_category, c.notes = 4, 4, "uk", "Fits."
+                return c
+
+            tracked = cand("Tracked Co", "Data Lead")
+            found = cand("Northwind Recruitment", "Platform Lead", source="adzuna", agency=True,
+                         salary="£80,000")
+            discovery = {"boards": ["adzuna"], "queries": 2, "found": 9, "title_filtered": 3,
+                         "covered_by_company_scan": 1, "already_tracked": 0, "duplicates": 4,
+                         "errors": ["reed 'x': HTTPStatusError: 401"]}
+            text = scan_report.write_report(
+                scanned_count=1, not_scanned=[], matches=[tracked, found], discarded_by_location=[],
+                needs_review=[], no_roles=[], total_found=1, total_skipped_dedup=0,
+                coverage_notes=[], prefiltered={}, location_prefiltered={},
+                discovery=discovery).read_text()
+        finally:
+            config.data_root = orig
+            importlib.reload(scan_report)
+            shutil.rmtree(tmp)
+
+        strong = text.split("## Strong matches", 1)[1].split("## Discovered on job boards", 1)[0]
+        self.assertIn("Tracked Co", strong)
+        self.assertNotIn("Northwind", strong)
+        board = text.split("## Discovered on job boards", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("**Northwind Recruitment** *(agency)*", board)
+        self.assertIn("£80,000", board)
+        self.assertIn("- Scored matches: 1 (1 strong, 0 other)", text)
+        self.assertIn("- Discovered matches: 1 (1 strong)", text)
+        self.assertIn("**Search failed** — reed", text)
+
+        tabs = {s["key"]: s for s in parsers.split_scan_sections(text)}
+        self.assertEqual(tabs["discovered-on-job-boards"]["short_title"], "Job boards")
+        self.assertEqual(tabs["discovered-on-job-boards"]["count"], 1)
+
+    def test_a_scan_without_job_boards_renders_as_before(self):
+        """No `job_boards` config, no section and no Job boards block — an existing
+        user's report is unchanged."""
+        import importlib
+        import config
+        import scan_report
+        orig = config.data_root
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            (tmp / "jobs" / "scans").mkdir(parents=True)
+            config.data_root = lambda: tmp
+            importlib.reload(scan_report)
+            text = scan_report.write_report(
+                scanned_count=0, not_scanned=[], matches=[], discarded_by_location=[],
+                needs_review=[], no_roles=[], total_found=0, total_skipped_dedup=0,
+                coverage_notes=[], prefiltered={}, location_prefiltered={}).read_text()
+        finally:
+            config.data_root = orig
+            importlib.reload(scan_report)
+            shutil.rmtree(tmp)
+        self.assertNotIn("Discovered on job boards", text)
+        self.assertNotIn("### Job boards", text)
+
+
 class HelpPageTests(TestCase):
     """The in-app help page (TODO #51).
 
@@ -4570,3 +5205,67 @@ class HelpPageTests(TestCase):
             r = self.client.get("/help/")
             self.assertEqual(r.status_code, 200)
             self.assertContains(r, "/jobstudio help")
+
+
+class CareerCoachTabTests(TestCase):
+    """The career-coach folder as a tab on /notes/: dictated session notes render, the
+    material the coach hands over is listed, and opening it is local-only and limited to
+    documents."""
+
+    fixtures = FIXTURE
+
+    def setUp(self):
+        # Inside the data root, because that is the only place `open_file` will open from.
+        tmp = tempfile.TemporaryDirectory(dir=settings.DATA_ROOT)
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        (self.root / "2026-01-10_session-1.md").write_text("# Session one\n\n## Actions\n\n- first\n")
+        (self.root / "2026-02-14_session-2.md").write_text("# Session two\n\n## Actions\n\n- second\n")
+        (self.root / "materials").mkdir()
+        (self.root / "materials" / "reading.md").write_text("# Reading\n\nA handout.\n")
+        (self.root / "materials" / "STAR template.pdf").write_bytes(b"%PDF-1.4")
+        (self.root / "materials" / ".DS_Store").write_bytes(b"x")
+        (self.root / "run-me.sh").write_text("echo no\n")
+        override = self.settings(COACH_DIR=str(self.root))
+        override.enable()
+        self.addCleanup(override.disable)
+
+    def _tab(self) -> str:
+        html = self.client.get("/notes/").content.decode()
+        self.assertIn('data-tab="career-coach"', html)
+        return html[html.index('data-panel="career-coach"'):]
+
+    def test_markdown_renders_newest_session_first_then_subfolders(self):
+        tab = self._tab()
+        order = [tab.index(t) for t in ("Session two", "Session one", "Reading")]
+        self.assertEqual(order, sorted(order))
+        self.assertIn("second", tab)
+        self.assertIn('href="#career-coach--2026-02-14-session-2"', tab)
+
+    def test_other_files_are_listed_by_folder_and_hidden_files_skipped(self):
+        tab = self._tab()
+        self.assertIn("STAR template.pdf", tab)
+        self.assertIn("materials/", tab)
+        self.assertNotIn(".DS_Store", tab)
+        self.assertIn("/actions/open-file/?path=", tab)
+
+    def test_open_file_opens_documents_only(self):
+        rel = lambda p: str(p.relative_to(Path(settings.DATA_ROOT).resolve()))
+        root = self.root.resolve()
+        with mock.patch("tracker.views._open_locally") as opened:
+            r = self.client.get("/actions/open-file/", {"path": rel(root / "materials" / "STAR template.pdf")})
+            self.assertEqual(r.status_code, 302)
+            opened.assert_called_once()
+            for bad in (rel(root / "run-me.sh"), rel(root / "missing.pdf")):
+                with self.subTest(path=bad):
+                    self.assertEqual(self.client.get("/actions/open-file/", {"path": bad}).status_code, 404)
+
+    def test_no_folder_no_tab(self):
+        with self.settings(COACH_DIR=str(self.root / "nope")):
+            html = self.client.get("/notes/").content.decode()
+        self.assertNotIn('data-tab="career-coach"', html)
+
+    def test_every_id_is_still_unique(self):
+        html = self.client.get("/notes/").content.decode()
+        ids = re.findall(r'id="([^"]+)"', html)
+        self.assertEqual({i for i in ids if ids.count(i) > 1}, set())

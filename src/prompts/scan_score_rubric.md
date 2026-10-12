@@ -1,13 +1,9 @@
 You are screening job postings for a candidate, on three independent dimensions.
 
-This is the canonical scoring rubric for the portal scan — read and applied directly
-by both scoring paths (see `backlog/plans/001-drop-direct-anthropic-api.md` §2.3):
-
-- The agent-native default (`.claude/skills/jobstudio/subcommands/scan.md`) reads
-  this file as-is and substitutes each bracketed value below with the real content
-  from the sources named next to it.
-- `src/score-candidates.py` (the opt-in API path) formats this same file's text with
-  `str.format()`, substituting the identical placeholders programmatically.
+This is the canonical scoring rubric for the portal scan (see
+`backlog/plans/001-drop-direct-anthropic-api.md` §2.3). The `scan` subcommand
+(`.claude/skills/jobstudio/subcommands/scan.md`) reads this file as-is and substitutes
+each bracketed value below with the real content from the sources named next to it.
 
 Keep this file as the only place the rubric itself is defined — if the methodology
 changes, it should only ever need to change here.
@@ -44,7 +40,7 @@ The candidate wrote these personal notes on what makes a job satisfying to them
 
 {ideal_job_notes}
 
-(Source: the full contents of `jobs/notes/ideal-job-notes.md`.)
+(Source: the full contents of `jobs/notes/search/ideal-job-notes.md`.)
 
 Structured criteria from the candidate's career profile (`jobs/profile/criteria.yaml`):
 
@@ -91,6 +87,13 @@ Classify each posting's location into exactly one category:
 (Source: the plausible candidates for this area/batch, from the mechanical scan's
 candidates file.)
 
+Some postings come from searching a general job board rather than from a tracked company
+— they carry a `source` (the board), an empty `role_target`, and in its place the board's
+`snippet` of the description and, where advertised, a `salary`. Judge those from the title,
+snippet and salary together. `agency: true` means the advertiser looks like a recruitment
+agency and the company named is not the employer: score the role, not the agency, and
+say in the note when the snippet leaves the employer's sector unclear.
+
 For each posting return:
 - "cv_score": 1 (poor) to 5 (excellent) fit against Dimension 1 — the target profile.
   Score this purely on role/domain/seniority fit, ignore location entirely here.
@@ -104,10 +107,4 @@ For each posting return:
   its own field). If the posting looks like it hits a dealbreaker, or clearly hits a
   bonus signal, or the salary looks below floor, say so here.
 
-The API path returns these as a JSON array, one entry per input posting (same count,
-matched by id), no other text, in this exact shape:
-[{{"id": 0, "cv_score": 1-5, "ideal_score": 1-5, "location_category": "uk|remote|other", "notes": "..."}}, ...]
-
-The agent-native path writes these same four fields directly onto each candidate
-object in the scored file instead of returning JSON text — same fields, same values,
-same reasoning, just no wire format in between.
+Write these four fields directly onto each candidate object in the scored file.

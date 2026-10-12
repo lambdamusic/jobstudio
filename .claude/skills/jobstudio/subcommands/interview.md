@@ -11,7 +11,7 @@ Two modes:
   concerns]` — full prep pack for one round, written as **its own file** in that
   application's folder (one file per round, since 2026-09-24 — see Step 4).
 - **Bank mode**: `/jobstudio interview --practice [topic]` (no company) — practise
-  answers against `<DATA>/jobs/notes/interview-technique.md` and `stocktake.md` directly,
+  answers against `<DATA>/jobs/notes/interviewing/interview-technique.md` and `stocktake.md` directly,
   with nothing written to an application folder. Use this when there's no specific
   interview lined up yet, or the user just wants to rehearse.
 
@@ -26,13 +26,13 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 |---|---|
 | The tracker database (`src/jobsdb.py list`) | Role title, area, status |
 | `job.md` in the application folder | The actual JD — responsibilities/requirements drive the technical & gap questions |
-| `notes.md` in the application folder — **Fit check**, **CV gaps**, **Preparation steps** sections | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
+| `notes.md` in the application folder — **Fit check** and **CV gaps** sections, and `## To do` (its `### Application` tasks and any earlier round's) | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
 | **Prior round files** in the folder (`*-interview-*.md`), newest first — their `## Outcome` above all | What was already asked, what landed, what the interviewer corrected or flagged. Never re-prep a round in ignorance of the one before it |
 | The tailored CV in the folder (`*cv-functional*.md`), else `<DATA>/jobs/cv/base/cv_functional.md` | Concrete achievements and phrasing to draw answers from |
 | `<DATA>/jobs/companies/<slug>.md` | Culture signals, "Fit with my mission" — feeds both the "why this role" answer and the questions-to-ask-them list |
 | `<DATA>/jobs/profile/stocktake.md` §1–§3, §7 | §1 orgs/cultures enjoyed & disliked (relationships/culture answers) · §2 six achievements + areas of less success and lessons (behavioural + weakness answers) · §3 anchors/values (keeps "why this role" authentic, not generic) · §7 narratives to have ready |
 | `<DATA>/jobs/profile/criteria.yaml` | `weighted_motivators` and `bonus_signals` — ground "why this role/company" in what actually matters to them, not flattery |
-| `<DATA>/jobs/notes/interview-technique.md` | The reusable answer bank — **check this before drafting anything new**; reuse verbatim where a question matches |
+| `<DATA>/jobs/notes/interviewing/interview-technique.md` | The reusable answer bank — **check this before drafting anything new**; reuse verbatim where a question matches |
 | `<DATA>/extras/career-coach/materials/emotional-intelligence.md` | The 5-tip framework the EI question set is built from (read in full each time — short file) |
 
 ---
@@ -53,7 +53,7 @@ company said about itself, to this candidate, out loud.
 **Bank mode:** skip the above; read `stocktake.md` and `interview-technique.md`
 directly, and ask what topic or question type to focus on if not given.
 
-Read `<DATA>/jobs/notes/interview-technique.md` in full either way — the point of the bank
+Read `<DATA>/jobs/notes/interviewing/interview-technique.md` in full either way — the point of the bank
 is to stop re-deriving answers that already work.
 
 ---
@@ -69,8 +69,8 @@ Pull directly from `job.md`'s responsibilities and requirements. For each
 requirement already flagged as a gap in `notes.md`'s **CV gaps** section, turn it
 into the question an interviewer would actually ask ("tell me about your experience
 with X") plus an honest bridging answer — translate adjacent real experience, never
-claim the gap doesn't exist. Where `notes.md` already has a **Preparation steps**
-item ("brush up on Docker/Kubernetes"), that's a flag to *study*, not something to
+claim the gap doesn't exist. Where `notes.md`'s `## To do` already has a task
+("brush up on Docker/Kubernetes"), that's a flag to *study*, not something to
 draft an answer for — list it as a to-do instead of manufacturing a fake answer.
 
 ### B. Behavioural / competency
@@ -91,7 +91,7 @@ question + one drafted answer per tip, using this mapping to source material:
 | 1. Highlight relationships | `stocktake.md` §1 (orgs/cultures worked well in) + §2 achievements with a team dimension | Give credit to others by name/role where the source material does — EI here is explicitly about crediting the team, not just "I did X" |
 | 2. Challenges & resilience | `stocktake.md` §2 "areas of less success, and lessons" | Frame as agility/learning, not just survival — what changed in how he works afterward |
 | 3. Weaknesses / self-awareness | Real, honest gap — check `notes.md` CV gaps first for one already identified for *this* role; otherwise **ask the user directly**, don't invent one | Pair the honest gap with the concrete thing being done about it. No cliché deflections ("I work too hard") |
-| 4. Passions / hobbies | `<DATA>/jobs/notes/ideal-job-notes.md` if it names outside interests; otherwise **ask directly** | Genuine energy > generic "I enjoy reading" — leadership/organising within a hobby counts |
+| 4. Passions / hobbies | `<DATA>/jobs/notes/search/ideal-job-notes.md` if it names outside interests; otherwise **ask directly** | Genuine energy > generic "I enjoy reading" — leadership/organising within a hobby counts |
 | 5. Questions about culture | `<DATA>/jobs/companies/<slug>.md` (culture/tech notes) + `criteria.yaml` `preferences.culture` | Produce 3–5 actual questions to ask *them*, not answers — tailored to this company, not generic ("what's the culture like?") |
 
 Tips 3 and 4 are explicitly flagged in the source material as not derivable from
@@ -128,8 +128,8 @@ the sources don't support is worse than no diagram. Check it renders on the comp
 
 Prep is where unfamiliar terms pile up. Before drafting, read the company page's
 `## Glossary` (create one if the sector is unfamiliar and there is none — format in
-`application.md` step 2). **Add any term the pack relies on that it lacks**: a
-regulation, a buyer type, an acronym from the JD. Definitions live on the company page
+`application.md` step 2, including the link out each entry ends on). **Add any term the
+pack relies on that it lacks**: a regulation, a buyer type, an acronym from the JD. Definitions live on the company page
 only, never in the round file.
 
 Then, in the round file, mark each glossary term ***in bold italic*** the first time it
@@ -171,11 +171,12 @@ folder — one file per round, never appended to `notes.md`:
   name is what `appfolder.app_filename(folder, f"interview-{stage}", "md", when=<date>)`
   builds, so use that rather than assembling the string by hand.
 
-**Link the people and organisations you name — from sources you already have, never
-from a search.** An interviewer, the company, a product, a paper or talk someone is
-known for: if a URL for it is in the job posting, the company's own site, the scan data,
-the application folder, or something the user pasted into this session, make the mention
-a markdown link. `## Who I'm meeting` is where this pays off most — a name you can click
+**Link the people and organisations you name.** An interviewer, the company, a product,
+a paper or talk someone is known for: if a URL for it is in the job posting, the
+company's own site, the scan data, the application folder, or something the user pasted
+into this session, make the mention a markdown link. A person with no link to hand may
+be searched for, under the check below. People are named in full every time — see
+"Naming people" in `SKILL.md`. `## Who I'm meeting` is where this pays off most — a name you can click
 through to beats a paragraph describing who they are.
 
 **Add the link inside the existing line; never re-wrap the paragraph to fit it.** The
@@ -186,11 +187,20 @@ re-wrap that puts a sentence break or a capitalised name at the start of a line 
 shows. `[Derin](https://…)` makes a line long in the file and changes nothing on the page.
 Keep a `[…](…)` label on one line too.
 
-**Do not go looking for one.** A searched-for profile cannot be confirmed to be the
-right person: names repeat, and the cost of being wrong lands on a named individual and
-on the user, who walks into a call having read about someone else. No link is a small
-loss; a confident link to the wrong person is not. If the user wants a profile found,
-they can hand you the URL — then it is sourced and you link it.
+**A person may be searched for, but only a checked match is linked** (decided
+2026-10-08, TODO `#85`). Look first in the application's `## Contacts` in `notes.md`: a
+person linked there is already found, so reuse that link and do not search again.
+Otherwise search for their LinkedIn page, or another public profile (a staff page, a
+personal site), and link it **only when both hold**: the profile names the same
+employer, and its title is consistent with the part the person plays in this process (a
+hiring manager in the team the role sits in, a recruiter in talent or HR). Names repeat,
+and a confident link to the wrong person lands on a named individual and on the user,
+who walks into a call having read about someone else. So when either check fails, or
+two profiles both pass, leave the name plain and say so in one line to the user, who
+can hand you the URL. A URL the user gives is sourced and linked as it is.
+
+Record the person in `## Contacts` once found — full name, linked, then their role in
+the process — so the next round reuses it rather than searching again.
 
 Structure:
 
@@ -231,9 +241,9 @@ Structure:
 
 - …
 
-## Study before
+## To do
 
-- [ ] …
+→ [This round's tasks, in My notes](#notes--<label-slug>-<date>)
 
 ## Private — not for the call
 
@@ -244,11 +254,17 @@ Structure:
 _(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
 
-**`## Study before` is a checklist.** Every item is a `- [ ]` task, never a numbered or
-plain bullet — the rule for every to-do list the skill writes ("Lists of things to do
-are checklists" in `SKILL.md`). The page renders it as a checkbox, and ticking it on the
-local app writes `[x]` back into the file. Keep one task per item; detail can follow on
-indented lines.
+**The round's tasks are not written in the round file** (TODO `#84`). What to study or
+do before the call goes into `notes.md`, in a new `### <Round label> — <YYYY-MM-DD>`
+subsection at the end of `## To do` (create the section, first in the file, if it is
+missing). The heading follows the fixed pattern in "Lists of things to do are checklists"
+in `SKILL.md`: the label the Interviews tab shows for the round, an em dash, the round's
+date — `### Hiring manager — 2026-09-24`, `### Final round — 2026-10-10`. Every item a
+`- [ ]` task, one task per item, detail on indented lines. The round file's `## To do`
+is one line linking that subsection: `#notes--` plus the heading's slug
+(`#notes--hiring-manager-2026-09-24`, `#notes--final-round-2026-10-10`). On the
+application page it opens My notes at the subsection; on the round's focus page the
+round's tasks are shown above the round, under that same id.
 
 **The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
 colours every question red so the eye can find them without reading the answers between
@@ -278,8 +294,11 @@ checker fails the build on it. `tabs.js` resolves a hash naming an element insid
 by opening that panel, so the anchor works on a fresh load too, not just in-session.
 
 `notes.md` itself keeps only what is true of the **role** rather than of a meeting —
-`## My notes`, any domain background, `## Contacts` (people recur across rounds), and
-that `## Timeline`. Never re-create a `## Interview prep` heading there; it was retired
+`## To do` (every task, by stage), `## My notes`, `## Contacts` (people recur across
+rounds), and that `## Timeline`.
+Background on the sector itself (what the domain is, how it works) is true of the
+company, not the role: it goes in the company page's `## The domain`, with its terms in
+the `## Glossary`, never in `notes.md`. Never re-create a `## Interview prep` heading there; it was retired
 2026-09-24.
 
 If the application isn't already `interviewing`, offer to set it:
@@ -299,9 +318,14 @@ back what actually worked), ask whether any answer is good enough to reuse verba
 next time — same test as an existing "why did you leave <employer>" entry: it
 worked in a real interview and doesn't need role-specific rewriting.
 
-For each one the user confirms, append to `<DATA>/jobs/notes/interview-technique.md` in the
-same style as the existing entry: a short dated note on when/where it worked and why
-the phrasing matters, then the answer verbatim in a blockquote. Prefer this over
+For each one the user confirms, add it to `<DATA>/jobs/notes/interviewing/interview-technique.md`
+as a `###` under the `##` category it belongs to (About me, Research analytics, Product
+management, Technical and architecture…), creating a category only when none fits. Never
+append it at the end of the file: the categories are what make the bank findable. Same
+shape as the existing entries: the question as the heading, then a *Tested* line (which
+interview, the application number, the date, how it went), a few lines on why the
+phrasing matters, then the answer verbatim in a blockquote. An answer already in the bank
+that has now worked gets its *Tested* line updated rather than a second entry. Prefer this over
 drafting a fresh version of the same answer next time — check the bank in Step 1
 before ever redrafting something that's already there.
 

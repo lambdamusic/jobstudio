@@ -93,6 +93,7 @@ default) — see [portal-scan-and-scoring.md](portal-scan-and-scoring.md) §2.
 # Company Name
 
 ## In one paragraph    (what it sells, to whom)
+## The domain        (how the sector works, and why the product exists in it)
 ## The business at a glance   (Mermaid diagram — added at interview stage)
 ## Mission
 ## Technology          (or: Products — what each answers, and who pays for it)
@@ -116,7 +117,9 @@ it answers, who pays for it, and the decision it unblocks — backed by the comp
 case studies where they exist.
 
 **Glossary terms link themselves.** In any document with a `## Glossary` section whose
-entries open with a bold label (`- **EHR (Electronic Health Record).** …`), a term
+entries open with a bold label (`- **EHR (Electronic Health Record).** …`) and end on a
+link out for following the term up (`… [Wikipedia](…)` — dropped from the tooltip, which
+cannot be clicked), a term
 written ***in bold italic*** elsewhere becomes an in-page link to its entry, styled with
 a dotted underline to set it apart from outbound links, and shows the definition as a
 tooltip on hover or focus (`parsers.link_glossary`). Plurals,

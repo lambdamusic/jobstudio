@@ -52,5 +52,4 @@ dependency for a format that ATS parsers read less reliably than the `.docx`.
 
 - Output lands where its source lives (2026-09-24): a source inside `<DATA>/jobs/applications/NNN-*/` renders into that application's `export/` subfolder under the markdown's own name (`...-cv-functional-2026-10-01.md` → `export/...-cv-functional-2026-10-01.docx`, TODO `#80`); a base CV from `<DATA>/jobs/cv/base/` renders into `<DATA>/jobs/cv/export/`. One copy, not two — `<DATA>/exports/<format>/<YYYY-MM-DD>/` is now only the fallback for a source that belongs to no folder.
 - Does not call the API — use the **`cv` subcommand** (`subcommands/cv.md`) to tailor the CV first, if the role is worth it and nobody has yet.
-- Does not publish to the site — use `publish` after this if needed.
 - To check a base CV parses without rendering anything at all, use `tools/py src/render.py --functional --check` (see `cv.md` step 8).

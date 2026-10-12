@@ -29,7 +29,7 @@ brings up this same thing in one command, without touching a data root of your o
   here, and there is no account, no server and nothing phoning home.
 - **It reads the job boards for you.** One command rescans every company you track
   across Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, BambooHR,
-  Teamtailor and Rippling, filters by location, scores what is left against what you
+  Teamtailor, Pinpoint, UKG, SuccessFactors and more, filters by location, scores what is left against what you
   actually want, and writes you a report. It never writes to your tracker — the
   decision stays yours.
 - **A CV and cover letter per application**, drawn from your own base CV and the role's
@@ -51,9 +51,6 @@ brings up this same thing in one command, without touching a data root of your o
 | **[Claude Code](https://claude.com/claude-code)** | How you drive the toolkit. Every workflow is a `/jobstudio` command in a session opened in the clone |
 | **git** | To clone it |
 | **macOS or Linux** | Windows is out of scope: the `tools/` scripts are bash. It may work under WSL; nothing is built or tested for it |
-
-Optional, and only where you'd expect: **surge** for publishing a private copy of the
-site. It is not needed for a normal install.
 
 ## Quick start
 
@@ -113,7 +110,7 @@ the full index.
 |---|---|
 | **[docs/getting-started.md](docs/getting-started.md)** | Setup by hand, signing in, the web app, the configuration files, and the checks for anyone changing the code |
 | **[docs/workflow.md](docs/workflow.md)** | Then here. The daily/weekly cadence: what to run, in what order. Every step is a Claude command |
-| **The deep dives** | One guide per piece, for how something actually works rather than how to invoke it — [scanning and scoring](docs/portal-scan-and-scoring.md), [applications and gap analysis](docs/applications-and-gap-analysis.md), [the CV pipeline](docs/cv-pipeline.md), [cover letters](docs/cover-letters.md), [the career stocktake](docs/career-stocktake-profile.md), [interview prep](docs/interview-prep.md), [companies](docs/companies.md), [the dashboard](docs/dashboard-status.md), [publishing](docs/publishing.md) |
+| **The deep dives** | One guide per piece, for how something actually works rather than how to invoke it — [scanning and scoring](docs/portal-scan-and-scoring.md), [applications and gap analysis](docs/applications-and-gap-analysis.md), [the CV pipeline](docs/cv-pipeline.md), [cover letters](docs/cover-letters.md), [the career stocktake](docs/career-stocktake-profile.md), [interview prep](docs/interview-prep.md), [companies](docs/companies.md), [the dashboard](docs/dashboard-status.md) |
 | **[docs/under-the-hood.md](docs/under-the-hood.md)** | The Python entry points and shell scripts the commands drive. You never need this to *use* the toolkit — only to debug a step, extend it, or automate it |
 
 The same workflow summary is inside the web app at **`/help/`**, which is usually closer

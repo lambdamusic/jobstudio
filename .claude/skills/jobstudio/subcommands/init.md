@@ -398,7 +398,9 @@ fetch, so checking twenty is free.
 
 On `NOT scanned`, it is worth one look before settling: many corporate careers pages
 hide a Greenhouse, Lever, Ashby, Workday, SmartRecruiters or Teamtailor board
-underneath — open the page and check where the job links actually go. When you find
+underneath — open the page and check where the job links actually go (a Phenom-built
+careers site, `phenompeople` in the page source, usually fronts a Workday board: its
+postings' `applyUrl` names it). When you find
 one, record it in `company_overrides` in `<DATA>/jobs/scan-config.yaml` (see `scan.md`)
 rather than putting the board URL in the tracker; the tracker should keep the URL a
 human would want to click. If there is genuinely no API, add the company anyway with

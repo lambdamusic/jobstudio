@@ -31,7 +31,8 @@ EXAMPLE = REPO / "example-data"
 
 # The subdirectories of a data root. `init` creates them all, even the ones a given
 # user may never fill, so the skill can write into any of them without checking first.
-TREE = ["jobs/applications", "jobs/companies", "jobs/cv/base", "jobs/notes",
+TREE = ["jobs/applications", "jobs/companies", "jobs/cv/base", "jobs/notes/search",
+        "jobs/notes/interviewing", "jobs/notes/topics",
         "jobs/profile", "jobs/scans", "jobs/targets", "exports", "backups/django"]
 
 # The two-folder VS Code workspace. The `+data` in the name is the point: it says at a

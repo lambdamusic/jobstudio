@@ -5,7 +5,7 @@ description: >
   cover letters, run gap analysis, and scan ATS job boards for new postings. Use when
   the user says "jobstudio <subcommand>", "new company", "new application", "log this
   job", "write a cover letter", or references tracking or applying to a role.
-argument-hint: "help | init | company | application | cv | cover-letter | stocktake | interview | status | scan | render | publish"
+argument-hint: "help | init | company | application | cv | cover-letter | stocktake | interview | status | scan | render"
 ---
 
 # Jobs Search
@@ -34,7 +34,6 @@ When the argument is `help` or no argument is given, output ONLY the following a
 | `status` | Dashboard summary of companies and applications |
 | `scan` | Rescan tracked companies for new open roles, score matches, report for review |
 | `render` | Render an application's CV/cover letter to .docx (no API call) |
-| `publish` | Refresh site/ and sync to Surge |
 
 **Usage examples:**
 
@@ -62,11 +61,10 @@ Each subcommand has its own instruction file under `subcommands/`:
 | `cv --rebuild` / `cv --import <path>` | Bootstrap the two base CVs from scratch via interview, or from an existing CV document — high blast radius, always confirms and backs up first (see `subcommands/cv.md` §A) |
 | `cover-letter [company or #N] [--standard2] [--thin] [extra context]` | Draft a cover letter — standard structure, Standard 1 by default, Standard 2 (a shorter alternative) or `--thin` (the generic draft `application` leaves) on request — from the application entry, CV, company notes, and `jobs/profile/` |
 | `stocktake` | Guided interview through Step 1 of a structured career-transition process ("taking stock") — writes `jobs/profile/stocktake.md` and `jobs/profile/criteria.yaml`. Section-by-section, pre-filled from existing notes, resumable |
-| `interview [company or #N]` | Prep for an actual interview — reads the job description, fit check, CV gaps, and `jobs/profile/`, drafts likely questions (technical, behavioural, emotional-intelligence) with STAR-grounded answers and questions to ask them, writes into the application's `notes.md` "Interview prep" section, and offers to promote durable answers into the reusable `jobs/notes/interview-technique.md` bank |
+| `interview [company or #N]` | Prep for an actual interview — reads the job description, fit check, CV gaps, and `jobs/profile/`, drafts likely questions (technical, behavioural, emotional-intelligence) with STAR-grounded answers and questions to ask them, writes into the application's `notes.md` "Interview prep" section, and offers to promote durable answers into the reusable `jobs/notes/interviewing/interview-technique.md` bank |
 | `status` | Dashboard: application counts by status/area, active applications, companies by category and fit |
-| `scan [--api]` | Run `python src/scan-portals.py` (mechanical fetch), then score live by default (agent-native, no API call) or via `python src/score-candidates.py` if `--api`; render with `python src/scan_report.py`; summarize the report: top matches, unscored roles, not-scanned companies |
+| `scan` | Run `python src/scan-portals.py` (mechanical fetch), then score live (agent-native, no API call); render with `python src/scan_report.py`; summarize the report: top matches, unscored roles, not-scanned companies |
 | `render` | Render a specific application's CV and cover letter to .docx, no API call |
-| `publish` | Run `tools/publish-surge.sh` — refresh site/ and push to Surge |
 
 **To execute a subcommand**: read the corresponding file in `subcommands/` and follow its instructions exactly.
 
@@ -105,8 +103,8 @@ or a file write.
 
 **Two places deliberately keep bare `jobs/...`, and neither is a path to act on.** The
 help table above is printed verbatim to the user, where `<DATA>` would be noise rather
-than information; and `status.md` / `publish.md` mention `jobs/` generically when
-describing what a *script* does — those scripts resolve the data root themselves. If
+than information; and `status.md` mentions `jobs/` generically when
+describing what a *script* does — that script resolves the data root itself. If
 you are about to read or write a file, the path is written `<DATA>/...`; anything else
 is prose.
 
@@ -127,6 +125,18 @@ it just isn't numbered. One task per item; detail can follow on indented lines.
 Lists that are not to-dos — questions, pros and cons, gaps, drafted answers — stay plain
 bullets.
 
+**An application's to-dos all live in one place: the `## To do` section of its
+`notes.md`**, first in the file, split by stage (TODO `#84`). `### Application` holds what
+comes before any interview; each round adds `### <Round label> — <YYYY-MM-DD>`, using the
+label the Interviews tab shows for the round (`HR screen`, `Hiring manager`, `Technical`,
+`Panel`, `Final round`, `Informal chat`, else the stage de-slugified) and the round's date.
+That pattern is fixed, not freehand: the round file links to its subsection by anchor
+(`#notes--<label-slug>-<date>`, e.g. `#notes--hiring-manager-2026-09-24`), and the round's
+focus page finds its tasks by the same name. Tasks that come *after* a call — a follow-up,
+a sample to send — go in that round's subsection too. No other checklist of the
+application's tasks is written anywhere else: not elsewhere in `notes.md`, not in a round
+file.
+
 ## Highlights are the user's — keep them
 
 `==text==` in a notes, company or interview file is a highlight the user made on the page
@@ -134,9 +144,42 @@ bullets.
 including when rewriting the passage around it, and never add one yourself. If a
 rewrite genuinely removes a highlighted passage, say so.
 
+## Naming people
+
+Whenever a subcommand writes about a person — a hiring manager, an interviewer, a
+recruiter, a referee — **name them in full, first name and surname, every time**, in
+every file: `notes.md`, interview rounds, Timeline lines, company research. Weeks later,
+with several applications in flight, "Derin said…" no longer says who. If only a first
+name is known, ask for the surname rather than writing the first name alone.
+
+Link the first mention in each file to the person's LinkedIn page or other public
+profile; later mentions in the same file keep the full name, unlinked. The link comes
+from the application's `## Contacts` in `notes.md`, which holds one entry per person —
+full name, linked, and their role in the process — so a profile is found once per
+application. How a link is found when `## Contacts` lacks one, and the check it must
+pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
+
+## Notes and their groups
+
+`<DATA>/jobs/notes/` has three subfolders, one tab each on the Notes page:
+
+- `search/` — direction, reflection and leads, including `ideal-job-notes.md`
+  (which `scan` scoring reads in full).
+- `interviewing/` — `interview-technique.md`, with the answer bank `interview` reads and
+  appends to.
+- `topics/` — reusable prep: a technical subject or a sector landscape.
+
+**Study material that would serve another application goes to `topics/`, not into the
+application folder.** Name it for the topic (`topics/api-security.md`), open it with one
+italic line saying which application it started for and when, and keep only what is
+specific to that company or round in the application folder, linking the note as
+`/notes/<slug>/`. The Notes page lists every application whose folder links a note, so
+that link is also how the note keeps its context. The URL is the filename alone, so a
+note's name must be unique across the three folders.
+
 ## Referring to another file
 
-Write the path, in backticks: `` `jobs/notes/interview-technique.md` ``,
+Write the path, in backticks: `` `jobs/notes/interviewing/interview-technique.md` ``,
 `` `jobs/companies/<slug>.md` ``, or a file in an application folder by its full name. The
 web app turns any reference to a file that has a page into a link to that page (TODO
 `#78`), so there is no need to write a markdown link or to work out a URL. Use the

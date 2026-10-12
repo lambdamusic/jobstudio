@@ -1,5 +1,7 @@
 # M4 — Claude Desktop / Cowork *(parked)*
 
+> **Status:** `#59` closed as won't do on 2026-10-09 (see `DONE.md`). Kept for reference.
+
 > Extracted from [`002-share-as-toolkit.md`](002-share-as-toolkit.md) on 2026-10-02,
 > where this was **milestone M4** and lived as §7. `#2` — the umbrella item that plan
 > served — is closed; this is the part still open, so it moves to its own file named for

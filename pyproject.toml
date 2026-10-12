@@ -3,8 +3,7 @@ name = "jobstudio"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
-    "anthropic>=0.40.0",  # only src/score-candidates.py — the opt-in `scan --api` path
-    # (CV tailoring and default scan scoring are agent-native, no API dependency)
+    # (CV tailoring and scan scoring are agent-native, no API dependency)
     "markdown>=3.0",
     "pyyaml>=6.0",
     "httpx>=0.28.0",

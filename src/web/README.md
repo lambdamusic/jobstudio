@@ -1,7 +1,8 @@
 # Web front end
 
 Django app for browsing the job search — applications, companies, target areas, CVs,
-notes and portal scans — and for publishing the same content as a static site.
+notes and portal scans. It can also render the same content as a static site (legacy,
+see `docs/publishing.md`).
 
 Design decisions, data model and phase history: **`log/2026-09-07-django-frontend-plan.md`**.
 
@@ -61,9 +62,8 @@ It includes the admin account and its edit history, so a restore gives you a wor
 
 ```bash
 tools/run-dev-local-db          # http://127.0.0.1:8010/   (8000 is taken by another project)
-tools/site-build --clean        # render every page to site/
+tools/site-build --clean        # legacy: render every page to site/
 tools/site-preview              # browse site/ at http://127.0.0.1:9111/
-bash tools/publish-surge.sh     # site-build, then push to surge
 tools/db-dump                   # <data-root>/backups/django/dump-<ts>.json — the portable backup, not the .sqlite3
 tools/db-load <file.json>       # restore from a dump
 ```
@@ -103,7 +103,8 @@ definition, used by the skills and the web app alike.
 | `jobs/companies/<slug>.md` | Notes section on `/companies/<slug>/` — see that folder's README |
 | `jobs/targets/*.yaml` + `jobs/areas.md` | `/areas/` |
 | `jobs/cv/base/*.md` | `/cvs/` |
-| `jobs/notes/*.md`, `jobs/scans/*.md` | `/notes/`, `/scans/` |
+| `jobs/notes/<group>/*.md`, `jobs/scans/*.md` | `/notes/` (a tab per group, each note at `/notes/<slug>/`), `/scans/` |
+| `extras/career-coach/**` | Career coach tab on `/notes/` — markdown rendered, other files indexed |
 
 Long-form prose is never copied into the database — only its path is stored, and it is
 rendered from disk at request time (plan §2.2).
@@ -117,8 +118,9 @@ Rendered only when `ENVIRONMENT=local`, and never present in the published mirro
 - **Open folder** → `/actions/reveal/<num>/`, which runs `open` on the server. Chrome
   blocks `file://` navigation from an `http://` page, so a plain link cannot work; the
   endpoint refuses any path outside the repo.
-- **Open .docx** (CV and Cover letters tabs) → `/actions/open-docx/?path=…`, which opens
-  the export in the default app the same way. No "Open in VS Code" link anywhere: a
+- **Open .docx** (CV and Cover letters tabs) and **Open** (Career coach tab) →
+  `/actions/open-file/?path=…`, which opens the document in the default app the same
+  way. Documents only — a fixed list of suffixes, never anything executable. No "Open in VS Code" link anywhere: a
   `vscode://` URL can take over an open VS Code window and its Claude sessions (`#81`)
 - **Set status** → a `<details>` menu on the application detail page listing every status
   except the current one, each linking to `/actions/set-status/<num>/<status>/`. The
@@ -136,7 +138,7 @@ linking back to the public page.
 different places the old markdown kept them and are genuinely different prose — don't
 collapse them.
 
-## Publishing
+## Static export (legacy)
 
 `manage.py build_static` renders every page in-process with Django's test client: no
 server, no wget, ~2s for 150 pages. It replaced `src/make-docs.py`, now in
@@ -145,13 +147,13 @@ the owner's private archive.
 Two things to know:
 
 - **`site/` is generated.** `site-build --clean` deletes everything in it except `CNAME`
-  and `.nojekill`. Never keep hand-written files there.
+  and `.nojekyll`. Never keep hand-written files there.
 - **Filters must be real paths**, not querystrings — a static build cannot publish
   `?status=applied`. The build fails if any internal link is a querystring or does not
   resolve to a file, which is what replaces wget's crawl-based discovery.
 
-The published site is public but unlisted (plan §2.3): everything goes on it, including
-gap-analysis notes. Treat the surge URL as a secret.
+Everything goes into the build, including gap-analysis notes — if it is ever hosted,
+treat the URL as a secret.
 
 ## Tests
 
