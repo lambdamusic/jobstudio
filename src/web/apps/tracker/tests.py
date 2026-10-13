@@ -791,6 +791,8 @@ class ViewTests(TestCase):
         (notes / "topics" / "graph-basics.md").write_text(
             "# Graph basics\n\n*Started for a round; kept for the next.*\n\n## One\n\nText.\n")
         (notes / "loose.md").write_text("# Loose note\n\nNo group.\n")
+        (notes / "interviewing").mkdir()
+        (notes / "interviewing" / "answer-bank.md").write_text("# Answer bank\n\nAnswers.\n")
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
         (folder / "notes.md").write_text("# Test\n\nSee [graph basics](/notes/graph-basics/).\n")
@@ -801,6 +803,12 @@ class ViewTests(TestCase):
             listed = self.client.get("/notes/").content.decode()
             self.assertIn('data-tab="topics"', listed)
             self.assertIn('data-tab="other"', listed)
+            # interviewing/ has no tab of its own: it opens the Topics tab (2026-10-13).
+            self.assertNotIn('data-tab="interviewing"', listed)
+            panel = listed[listed.index('data-panel="topics"'):]
+            panel = panel[:panel.index("</section>")]
+            self.assertLess(panel.index('href="/notes/answer-bank/"'),
+                            panel.index('href="/notes/graph-basics/"'))
             self.assertIn("Started for a round; kept for the next.", listed)
             self.assertIn(f'href="/applications/{app.num}/"', listed)
             page = self.client.get("/notes/graph-basics/")

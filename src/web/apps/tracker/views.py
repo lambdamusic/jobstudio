@@ -962,12 +962,20 @@ def area_list(request):
 # The note groups, as subfolders of jobs/notes/, in the order /notes/ shows them. A note in
 # any other subfolder still shows, under that folder's name; one at the top level of
 # jobs/notes/, under "Other". Grouping is the folder, never a list kept in step by hand.
+#
+# A tab can gather more than one folder (2026-10-13): interviewing/ held one file, the
+# answer bank, and sat beside topics/ as a tab of its own; both are prep for a round, so
+# they share one. The folders stay apart on disk — the skill writes to the answer bank by
+# its path — and the tab keeps the `topics` slug, so links to it still land.
 NOTE_GROUPS = [
-    ("search", "My search", "Direction, reflection and leads: what I am aiming at, and why."),
-    ("interviewing", "Interviewing", "Technique, and the answer bank that interview prep draws on."),
-    ("topics", "Topics", "Reusable prep: technical subjects and sector landscapes, each started "
-                         "for one application and kept for the next."),
+    ("search", "My search", "Direction, reflection and leads: what I am aiming at, and why.",
+     ["search"]),
+    ("topics", "Interviewing & topics",
+     "Interview technique and the answer bank that prep draws on, then reusable topics: "
+     "technical subjects and sector landscapes, each started for one application and kept "
+     "for the next.", ["interviewing", "topics"]),
 ]
+_FOLDER_TAB = {folder: slug for slug, _, _, folders in NOTE_GROUPS for folder in folders}
 
 
 def _notes_files():
@@ -990,9 +998,15 @@ def _notes_files():
     return out
 
 
-def _note_group(path) -> str:
+def _note_folder(path) -> str:
     rel = path.relative_to(Path(settings.NOTES_DIR))
     return rel.parts[0] if len(rel.parts) > 1 else ""
+
+
+def _note_group(path) -> str:
+    """The tab a note shows under: its folder, or the tab that gathers that folder."""
+    folder = _note_folder(path)
+    return _FOLDER_TAB.get(folder, folder)
 
 
 def _note_summary(body: str) -> str:
@@ -1043,7 +1057,7 @@ def _note(path, backlinks=None):
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     group = _note_group(path)
     return {"slug": path.stem, "title": title, "short": P.short_title(title),
-            "group": group, "group_label": dict((g, l) for g, l, _ in NOTE_GROUPS).get(
+            "group": group, "group_label": dict((g, l) for g, l, _, _ in NOTE_GROUPS).get(
                 group, group.replace("-", " ").capitalize() if group else "Other"),
             "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path)),
             "used_in": (backlinks or {}).get(path.stem, [])}
@@ -1056,6 +1070,7 @@ def _note_entry(path, backlinks) -> dict:
     body = path.read_text()
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     return {"slug": path.stem, "title": title, "summary": _note_summary(body),
+            "folder": _note_folder(path),
             "words": len(body.split()),
             "modified": _date.fromtimestamp(path.stat().st_mtime),
             "used_in": backlinks.get(path.stem, [])}
@@ -1123,10 +1138,13 @@ def note_list(request):
     by_group: dict[str, list] = {}
     for path in _notes_files():
         by_group.setdefault(_note_group(path), []).append(_note_entry(path, backlinks))
-    known = [g for g, _, _ in NOTE_GROUPS]
+    known = [g for g, _, _, _ in NOTE_GROUPS]
+    # Within a tab, folder by folder in the order NOTE_GROUPS lists them, then by title.
+    order = {f: i for _, _, _, folders in NOTE_GROUPS for i, f in enumerate(folders)}
     groups = [{"slug": g, "label": label, "blurb": blurb,
-               "notes": sorted(by_group.get(g, []), key=lambda n: n["title"].lower())}
-              for g, label, blurb in NOTE_GROUPS if by_group.get(g)]
+               "notes": sorted(by_group.get(g, []),
+                               key=lambda n: (order.get(n["folder"], 0), n["title"].lower()))}
+              for g, label, blurb, _ in NOTE_GROUPS if by_group.get(g)]
     groups += [{"slug": g or "other", "label": g.replace("-", " ").capitalize() if g else "Other",
                 "blurb": "", "notes": sorted(by_group[g], key=lambda n: n["title"].lower())}
                for g in sorted(by_group) if g not in known]
