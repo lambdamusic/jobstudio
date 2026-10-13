@@ -198,7 +198,11 @@ pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 into the application folder.** Name it for the topic (`topics/tech-data/api-security.md`),
 open it with one italic line saying which application it started for and when, and keep
 only what is specific to that company or round in the application folder, linking the
-note as `/notes/<slug>/`. When a note straddles two subfolders, file it by what it mostly
+note as `/notes/<slug>/`. That company-specific part goes **in `notes.md`**, as a section
+under `## My notes` (or in the round file, if it is prep for one round), never in a
+separate study or research file that only says "see the note" plus a few lines. Nor
+does the note get a list of the applications it served: the Notes page works that out
+from the links. When a note straddles two subfolders, file it by what it mostly
 teaches; a note left straight in `topics/` still shows, under "Other topics", until it is
 sorted. The Notes page lists every application whose folder links a note, so that link is
 also how the note keeps its context. The URL is the filename alone, so a note's name must
