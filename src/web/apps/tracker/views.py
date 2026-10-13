@@ -971,11 +971,22 @@ NOTE_GROUPS = [
     ("search", "My search", "Direction, reflection and leads: what I am aiming at, and why.",
      ["search"]),
     ("topics", "Interviewing & topics",
-     "Interview technique and the answer bank that prep draws on, then reusable topics: "
-     "technical subjects and sector landscapes, each started for one application and kept "
-     "for the next.", ["interviewing", "topics"]),
+     "Prep that outlives one application: how to answer, and what to know.",
+     ["interviewing", "topics"]),
 ]
 _FOLDER_TAB = {folder: slug for slug, _, _, folders in NOTE_GROUPS for folder in folders}
+
+# Sections within a tab, by the folder a note sits in, in the order the tab shows them
+# (2026-10-13). They carry the names of the to-do themes, so a task and the note behind it
+# sit under the same word. A note straight in topics/, or in a subfolder not listed here,
+# still shows — after these, under its folder's name.
+NOTE_SECTIONS = [
+    ("interviewing", "Technique", "How to answer, and the bank of answers that prep reuses."),
+    ("topics/product", "Product", "Product practice: discovery, strategy, delivery."),
+    ("topics/tech-data", "Tech & Data", "Technical subjects: architecture, data modelling, "
+                                        "knowledge graphs, security."),
+    ("topics/domain", "Domain", "Sector landscapes: who the players are, and what they need."),
+]
 
 
 def _notes_files():
@@ -999,8 +1010,15 @@ def _notes_files():
 
 
 def _note_folder(path) -> str:
+    """The note's top-level folder under jobs/notes/ — its tab — or "" at the top level."""
     rel = path.relative_to(Path(settings.NOTES_DIR))
     return rel.parts[0] if len(rel.parts) > 1 else ""
+
+
+def _note_section(path) -> str:
+    """The folder the note sits in, relative to jobs/notes/ — its section within the tab."""
+    rel = path.parent.relative_to(Path(settings.NOTES_DIR)).as_posix()
+    return "" if rel == "." else rel
 
 
 def _note_group(path) -> str:
@@ -1031,7 +1049,7 @@ def _note_backlinks() -> dict[str, list]:
     slugs = [p.stem for p in _notes_files()]
     if not slugs:
         return {}
-    pattern = re.compile(r"(?:/notes/|notes/(?:[\w-]+/)?|\b)(" + "|".join(map(re.escape, slugs))
+    pattern = re.compile(r"(?:/notes/|notes/(?:[\w-]+/)*|\b)(" + "|".join(map(re.escape, slugs))
                          + r")(?:/|\.md\b)")
     out: dict[str, list] = {}
     for app in Application.objects.exclude(folder="").order_by("-num"):
@@ -1070,7 +1088,7 @@ def _note_entry(path, backlinks) -> dict:
     body = path.read_text()
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     return {"slug": path.stem, "title": title, "summary": _note_summary(body),
-            "folder": _note_folder(path),
+            "section": _note_section(path),
             "words": len(body.split()),
             "modified": _date.fromtimestamp(path.stat().st_mtime),
             "used_in": backlinks.get(path.stem, [])}
@@ -1139,17 +1157,42 @@ def note_list(request):
     for path in _notes_files():
         by_group.setdefault(_note_group(path), []).append(_note_entry(path, backlinks))
     known = [g for g, _, _, _ in NOTE_GROUPS]
-    # Within a tab, folder by folder in the order NOTE_GROUPS lists them, then by title.
-    order = {f: i for _, _, _, folders in NOTE_GROUPS for i, f in enumerate(folders)}
-    groups = [{"slug": g, "label": label, "blurb": blurb,
-               "notes": sorted(by_group.get(g, []),
-                               key=lambda n: (order.get(n["folder"], 0), n["title"].lower()))}
+    groups = [{"slug": g, "label": label, "blurb": blurb, "notes": by_group[g]}
               for g, label, blurb, _ in NOTE_GROUPS if by_group.get(g)]
     groups += [{"slug": g or "other", "label": g.replace("-", " ").capitalize() if g else "Other",
-                "blurb": "", "notes": sorted(by_group[g], key=lambda n: n["title"].lower())}
+                "blurb": "", "notes": by_group[g]}
                for g in sorted(by_group) if g not in known]
+    for group in groups:
+        group["sections"] = _sections(group["notes"])
     return render(request, "tracker/note_list.html",
                   {"page": "notes", "groups": groups, "coach": _coach()})
+
+
+def _sections(notes) -> list[dict]:
+    """A tab's notes split by folder: the known sections first, in NOTE_SECTIONS order, then
+    any other folder by name. A tab whose notes share one unlisted folder gets a single
+    section with no heading — it renders as the flat list it always was."""
+    known = {key: (label, blurb) for key, label, blurb in NOTE_SECTIONS}
+    order = [key for key, _, _ in NOTE_SECTIONS]
+    by_key: dict[str, list] = {}
+    for note in notes:
+        by_key.setdefault(note["section"], []).append(note)
+    keys = [k for k in order if k in by_key] + sorted(k for k in by_key if k not in known)
+    if len(keys) == 1 and keys[0] not in known:
+        keys_labels = [(keys[0], "", "")]
+    else:
+        keys_labels = [(k, *known.get(k, (_folder_label(k), ""))) for k in keys]
+    return [{"key": k, "label": label, "blurb": blurb,
+             "notes": sorted(by_key[k], key=lambda n: n["title"].lower())}
+            for k, label, blurb in keys_labels]
+
+
+def _folder_label(key: str) -> str:
+    """A section for a folder NOTE_SECTIONS does not name: `topics` alone reads as "Other
+    topics" (a note not yet sorted into a subfolder), anything deeper by its last part."""
+    if "/" not in key:
+        return f"Other {key.replace('-', ' ')}" if key else "Other"
+    return key.rsplit("/", 1)[1].replace("-", " ").capitalize()
 
 
 def note_detail(request, slug):

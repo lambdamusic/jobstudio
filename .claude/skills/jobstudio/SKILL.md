@@ -180,21 +180,30 @@ pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 
 ## Notes and their groups
 
-`<DATA>/jobs/notes/` has three subfolders, one tab each on the Notes page:
+`<DATA>/jobs/notes/` has three subfolders. `search/` is a tab on the Notes page;
+`interviewing/` and `topics/` share the "Interviewing & topics" tab, one section per folder:
 
 - `search/` — direction, reflection and leads, including `ideal-job-notes.md`
   (which `scan` scoring reads in full).
 - `interviewing/` — `interview-technique.md`, with the answer bank `interview` reads and
-  appends to.
-- `topics/` — reusable prep: a technical subject or a sector landscape.
+  appends to. Shown as **Technique**.
+- `topics/` — reusable prep, in one of three subfolders named after the to-do themes:
+  - `topics/product/` — **Product**: product practice (discovery, strategy, delivery).
+  - `topics/tech-data/` — **Tech & Data**: technical subjects (architecture, data
+    modelling, knowledge graphs, security).
+  - `topics/domain/` — **Domain**: a sector landscape (who the players are, what they
+    need).
 
-**Study material that would serve another application goes to `topics/`, not into the
-application folder.** Name it for the topic (`topics/api-security.md`), open it with one
-italic line saying which application it started for and when, and keep only what is
-specific to that company or round in the application folder, linking the note as
-`/notes/<slug>/`. The Notes page lists every application whose folder links a note, so
-that link is also how the note keeps its context. The URL is the filename alone, so a
-note's name must be unique across the three folders.
+**Study material that would serve another application goes to `topics/<subfolder>/`, not
+into the application folder.** Name it for the topic (`topics/tech-data/api-security.md`),
+open it with one italic line saying which application it started for and when, and keep
+only what is specific to that company or round in the application folder, linking the
+note as `/notes/<slug>/`. When a note straddles two subfolders, file it by what it mostly
+teaches; a note left straight in `topics/` still shows, under "Other topics", until it is
+sorted. The Notes page lists every application whose folder links a note, so that link is
+also how the note keeps its context. The URL is the filename alone, so a note's name must
+be unique across all the folders, and moving a note never breaks a `/notes/<slug>/` link —
+only a written path to it, which must then be updated.
 
 ## Referring to another file
 

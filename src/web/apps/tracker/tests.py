@@ -793,6 +793,8 @@ class ViewTests(TestCase):
         (notes / "loose.md").write_text("# Loose note\n\nNo group.\n")
         (notes / "interviewing").mkdir()
         (notes / "interviewing" / "answer-bank.md").write_text("# Answer bank\n\nAnswers.\n")
+        (notes / "topics" / "domain").mkdir()
+        (notes / "topics" / "domain" / "energy-markets.md").write_text("# Energy markets\n\nX.\n")
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
         (folder / "notes.md").write_text("# Test\n\nSee [graph basics](/notes/graph-basics/).\n")
@@ -807,8 +809,13 @@ class ViewTests(TestCase):
             self.assertNotIn('data-tab="interviewing"', listed)
             panel = listed[listed.index('data-panel="topics"'):]
             panel = panel[:panel.index("</section>")]
-            self.assertLess(panel.index('href="/notes/answer-bank/"'),
-                            panel.index('href="/notes/graph-basics/"'))
+            # Sections by subfolder: the named ones in order, a note straight in topics/
+            # last as "Other topics"; nested notes keep the flat URL.
+            order = [panel.index(x) for x in (">Technique ", 'href="/notes/answer-bank/"',
+                                              ">Domain ", 'href="/notes/energy-markets/"',
+                                              ">Other topics ", 'href="/notes/graph-basics/"')]
+            self.assertEqual(order, sorted(order))
+            self.assertEqual(self.client.get("/notes/energy-markets/").status_code, 200)
             self.assertIn("Started for a round; kept for the next.", listed)
             self.assertIn(f'href="/applications/{app.num}/"', listed)
             page = self.client.get("/notes/graph-basics/")

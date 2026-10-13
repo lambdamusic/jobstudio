@@ -15,7 +15,8 @@
 One tab per group, each an index of its notes (2026-10-08; a group can span folders since 2026-10-13). It was one tab per note
 (`#73`) until study material carried over from applications took it past a dozen tabs.
 A group is a subfolder of jobs/notes/ (`views.NOTE_GROUPS` gives the known ones their
-names and order). Each line links the note's own page, which has its Contents list.
+names and order); within a tab, the folder a note sits in is its section
+(`views.NOTE_SECTIONS`, 2026-10-13). Each line links the note's own page, which has its Contents list.
 
 "Used in" lists the applications whose folders link to the note, worked out from the
 links themselves (`_note_backlinks`). It is what says which conversation a note served,
@@ -40,20 +41,26 @@ one — the same bargain `tabs.js` makes everywhere.
         <div class="panel">
           <h2 class="panel-heading">{{ g.label }}</h2>
           {% if g.blurb %}<p class="note-group-blurb">{{ g.blurb }}</p>{% endif %}
-          <ul class="note-index">
-            {% for n in g.notes %}
-              <li>
-                <a class="note-index-title" href="/notes/{{ n.slug }}/">{{ n.title }}</a>
-                {% if n.summary %}<p class="note-index-summary">{{ n.summary }}</p>{% endif %}
-                <p class="note-index-meta">
-                  {{ n.words }} words · updated {{ n.modified|date:"j M Y" }}
-                  {% if n.used_in %} · used in
-                    {% for a in n.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }}</a>{% endfor %}
-                  {% endif %}
-                </p>
-              </li>
-            {% endfor %}
-          </ul>
+          {% for sec in g.sections %}
+            {% if sec.label %}
+              <h3 class="note-section-heading">{{ sec.label }} <span class="tab-count">{{ sec.notes|length }}</span></h3>
+              {% if sec.blurb %}<p class="note-group-blurb">{{ sec.blurb }}</p>{% endif %}
+            {% endif %}
+            <ul class="note-index">
+              {% for n in sec.notes %}
+                <li>
+                  <a class="note-index-title" href="/notes/{{ n.slug }}/">{{ n.title }}</a>
+                  {% if n.summary %}<p class="note-index-summary">{{ n.summary }}</p>{% endif %}
+                  <p class="note-index-meta">
+                    {{ n.words }} words · updated {{ n.modified|date:"j M Y" }}
+                    {% if n.used_in %} · used in
+                      {% for a in n.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }}</a>{% endfor %}
+                    {% endif %}
+                  </p>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endfor %}
         </div>
       </section>
     {% endfor %}

@@ -494,6 +494,9 @@ tr.is-stale td { background: #fffdf5; }
 /* One tab per group; the count says how much is behind it before you click. */
 .tab-count { font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; margin-left: 2px; }
 .note-group-blurb { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+/* Sections within a tab, by subfolder: Technique, Product, Tech & Data, Domain. */
+.note-section-heading { margin: 22px 0 2px; font-size: 15px; }
+.note-section-heading + .note-group-blurb { margin-bottom: 6px; }
 
 /* An index, not the notes themselves: title, the note's opening line, and its metadata.
    Reading happens on the note's own page, where its Contents list is. */

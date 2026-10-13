@@ -12,6 +12,10 @@ Dated entries, newest first.
   short title, a note under a ticked task stays readable, and new `notes.md` files open
   with a short paragraph explaining all this. Older files with one heading per round still
   work. (`#91`)
+- **Notes: Interviewing and Topics are one tab, in sections.** The tab shows Technique
+  (the answer bank), then Product, Tech & Data and Domain. Each section is a subfolder
+  (`topics/product/`, `topics/tech-data/`, `topics/domain/`), so a note is filed by
+  moving it. Note URLs stay the filename alone, so `/notes/<slug>/` links survive the move.
 
 ## 2026-10-09
 
