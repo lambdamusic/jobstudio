@@ -126,16 +126,35 @@ Lists that are not to-dos — questions, pros and cons, gaps, drafted answers �
 bullets.
 
 **An application's to-dos all live in one place: the `## To do` section of its
-`notes.md`**, first in the file, split by stage (TODO `#84`). `### Application` holds what
-comes before any interview; each round adds `### <Round label> — <YYYY-MM-DD>`, using the
-label the Interviews tab shows for the round (`HR screen`, `Hiring manager`, `Technical`,
-`Panel`, `Final round`, `Informal chat`, else the stage de-slugified) and the round's date.
-That pattern is fixed, not freehand: the round file links to its subsection by anchor
-(`#notes--<label-slug>-<date>`, e.g. `#notes--hiring-manager-2026-09-24`), and the round's
-focus page finds its tasks by the same name. Tasks that come *after* a call — a follow-up,
-a sample to send — go in that round's subsection too. No other checklist of the
-application's tasks is written anywhere else: not elsewhere in `notes.md`, not in a round
-file.
+`notes.md`**, first in the file (TODO `#84`), grouped by **theme**, with the interview
+round as a **tag** on the task (TODO `#91`):
+
+- The section opens with the short "How this list works" paragraph (`TODO_GUIDE` in
+  `src/appfolder.py`, which `notes_stub()` writes) — the file explains itself to whoever
+  edits it by hand. Keep it; add it if an older file lacks it.
+- The `###` headings are four fixed themes, always in this order: **Domain**,
+  **Stories & positions**, **Tech & Data**, **Questions & Practicalities**
+  (`TODO_THEMES`). Put a new task under the closest one; do not invent others, and do not
+  add `### <Round> — <date>` headings.
+- Every task is `- [ ] **Short title.** Longer description.` — a bold title the eye can
+  scan, then the detail, on indented lines if it runs on.
+- A task meant for one interview round ends its description with that round's tag,
+  `@<stage>`: `@hr-screen`, `@hiring-manager`, `@technical`, `@panel`, `@final`,
+  `@informal` (the stage slug from the round file's name). An untagged task is general
+  prep. Tasks that come *after* a call — a follow-up, a sample to send — carry that
+  round's tag too.
+- A note on how a task went is an indented sub-bullet under it, written by the user
+  (`    - => answered in [interview prep](#round-…)`). Leave those alone.
+
+The round's focus page gathers the tasks tagged for it, under their themes. They are not
+copies: each checkbox is one line in `notes.md`, so a tick on either page is the same
+tick. No other checklist of the application's tasks is written anywhere else: not
+elsewhere in `notes.md`, not in a round file.
+
+Older files may still use the earlier layout (`### Application` then one
+`### <Round label> — <YYYY-MM-DD>` per round). The app reads both, so do not migrate one
+unasked — but when adding to such a file, ask whether to convert it rather than mixing
+the two layouts.
 
 ## Highlights are the user's — keep them
 

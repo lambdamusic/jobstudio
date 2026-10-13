@@ -347,6 +347,24 @@ def has_folder(row: dict) -> bool:
 # Folder creation
 # ---------------------------------------------------------------------------
 
+# The `## To do` section of notes.md (`#91`): `###` headings are these themes, always in
+# this order, and a task meant for one interview round ends with that round's tag,
+# `@<stage>` from INTERVIEW_STAGES. The round's focus page gathers its tagged tasks; an
+# untagged task is general prep. The guide is the paragraph that opens the section, so
+# the file says how to use it to whoever edits it by hand. No line of it may end in a bare
+# `@word`, or the page would draw it as a tag.
+TODO_THEMES = ["Domain", "Stories & positions", "Tech & Data", "Questions & Practicalities"]
+TODO_GUIDE = (
+    "*How this list works.* Tasks are grouped by theme. To mark a task for an interview\n"
+    "round, end its description with that round's tag: `@hr-screen`, `@hiring-manager`,\n"
+    "`@technical`, `@panel`, `@final` or `@informal`. The round's page then gathers its\n"
+    "tagged tasks without copying them, so a tick on either page is the same tick. A task\n"
+    "with no tag is general prep. Add tasks by writing them straight into this file under\n"
+    "the right theme, as `- [ ] **Short title.** Longer description. @tag`; a note on how\n"
+    "it went can follow as an indented sub-bullet."
+)
+
+
 def notes_stub(row: dict) -> str:
     """Skeleton notes.md for a new application folder.
 
@@ -360,13 +378,14 @@ def notes_stub(row: dict) -> str:
     rather than of a meeting — the notes, the contacts, and a timeline that indexes the
     round files.
 
-    `## To do` comes first (`#84`): every task for the application, split by stage —
-    `### Application`, then one `### <Round label> — <date>` per round, which the round
-    file links to. First because it is the part that changes day to day.
+    `## To do` comes first (`#84`): every task for the application, under the fixed
+    TODO_THEMES, a task for one interview round tagged `@<stage>` (`#91`). First because
+    it is the part that changes day to day.
     """
+    themes = "".join(f"### {t}\n\n\n" for t in TODO_THEMES)
     return (
         f"# {row['company']} — {row['role']}\n\n"
-        "## To do\n\n### Application\n\n\n"
+        f"## To do\n\n{TODO_GUIDE}\n\n{themes}"
         "## My notes\n\n\n"
         "## Contacts\n\n\n"
         "## Timeline\n"

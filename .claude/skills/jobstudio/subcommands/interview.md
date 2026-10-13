@@ -26,7 +26,7 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 |---|---|
 | The tracker database (`src/jobsdb.py list`) | Role title, area, status |
 | `job.md` in the application folder | The actual JD — responsibilities/requirements drive the technical & gap questions |
-| `notes.md` in the application folder — **Fit check** and **CV gaps** sections, and `## To do` (its `### Application` tasks and any earlier round's) | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
+| `notes.md` in the application folder — **Fit check** and **CV gaps** sections, and `## To do` (every task, by theme, with earlier rounds' tags) | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
 | **Prior round files** in the folder (`*-interview-*.md`), newest first — their `## Outcome` above all | What was already asked, what landed, what the interviewer corrected or flagged. Never re-prep a round in ignorance of the one before it |
 | The tailored CV in the folder (`*cv-functional*.md`), else `<DATA>/jobs/cv/base/cv_functional.md` | Concrete achievements and phrasing to draw answers from |
 | `<DATA>/jobs/companies/<slug>.md` | Culture signals, "Fit with my mission" — feeds both the "why this role" answer and the questions-to-ask-them list |
@@ -243,7 +243,9 @@ Structure:
 
 ## To do
 
-→ [This round's tasks, in My notes](#notes--<label-slug>-<date>)
+→ [This round's tasks](#notes--<label-slug>-<date>) — the tasks in My notes tagged
+`@<stage>`, gathered on this round's page. They are not copies: each is one line in
+notes.md, so ticking it here or on My notes ticks the same task.
 
 ## Private — not for the call
 
@@ -254,17 +256,20 @@ Structure:
 _(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
 
-**The round's tasks are not written in the round file** (TODO `#84`). What to study or
-do before the call goes into `notes.md`, in a new `### <Round label> — <YYYY-MM-DD>`
-subsection at the end of `## To do` (create the section, first in the file, if it is
-missing). The heading follows the fixed pattern in "Lists of things to do are checklists"
-in `SKILL.md`: the label the Interviews tab shows for the round, an em dash, the round's
-date — `### Hiring manager — 2026-09-24`, `### Final round — 2026-10-10`. Every item a
-`- [ ]` task, one task per item, detail on indented lines. The round file's `## To do`
-is one line linking that subsection: `#notes--` plus the heading's slug
-(`#notes--hiring-manager-2026-09-24`, `#notes--final-round-2026-10-10`). On the
-application page it opens My notes at the subsection; on the round's focus page the
-round's tasks are shown above the round, under that same id.
+**The round's tasks are not written in the round file** (TODO `#84`, `#91`). What to
+study or do before the call goes into `notes.md`'s `## To do`, each task under the closest
+of its four theme headings, ending with the round's tag — `@<stage>`, the stage slug from
+the round file's name (`@hiring-manager`, `@final`). Follow "Lists of things to do are
+checklists" in `SKILL.md`: every item `- [ ] **Short title.** Longer description. @<stage>`,
+one task per item. Before adding, read what is already there: an open task from an earlier
+round that still matters gets this round's tag in place of (or beside) its old one rather
+than a duplicate.
+
+The round file's `## To do` is the one line above. Its anchor is `#notes--` plus the slug
+of `<Round label> <date>` (`#notes--hiring-manager-2026-09-24`,
+`#notes--final-round-2026-10-10`, using the label the Interviews tab shows). The round's
+focus page shows the round's tasks under that id; on the application page the app sends
+the link to the focus page.
 
 **The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
 colours every question red so the eye can find them without reading the answers between
@@ -294,7 +299,7 @@ checker fails the build on it. `tabs.js` resolves a hash naming an element insid
 by opening that panel, so the anchor works on a fresh load too, not just in-session.
 
 `notes.md` itself keeps only what is true of the **role** rather than of a meeting —
-`## To do` (every task, by stage), `## My notes`, `## Contacts` (people recur across
+`## To do` (every task, by theme, tagged by round), `## My notes`, `## Contacts` (people recur across
 rounds), and that `## Timeline`.
 Background on the sector itself (what the domain is, how it works) is true of the
 company, not the role: it goes in the company page's `## The domain`, with its terms in

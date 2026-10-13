@@ -561,6 +561,10 @@ class Application(models.Model):
         """One round's tasks, from `notes.md`'s `## To do` (`#84`), for the round's focus
         view: the page open during prep is the round's, but its tasks live in notes.md.
 
+        Two layouts. The standard one since `#91` groups tasks under theme headings and
+        marks a round's with `@<stage>` — those are gathered by `tagged_md()`. The earlier
+        one gives each round a dated `###` subsection, looked up first, as below.
+
         The subsection is found by name, not position. The skill writes it as
         `### <Round label> — <YYYY-MM-DD>`, the label the Interviews tab shows, which for
         most stages slugs to the round's own anchor minus its `round-` prefix. Two labels

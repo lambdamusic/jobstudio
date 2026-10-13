@@ -2,6 +2,17 @@
 
 Dated entries, newest first.
 
+## 2026-10-13
+
+- **To-dos are grouped by theme, and tagged by round.** `## To do` in `notes.md` now has
+  four fixed headings (Domain, Stories & positions, Tech & Data, Questions &
+  Practicalities), and a task for one interview round ends with that round's tag, such as
+  `@hiring-manager`. The round's page gathers its tagged tasks. They are not copies, so a
+  tick on either page is the same tick. Tags show as pills, every task opens with a bold
+  short title, a note under a ticked task stays readable, and new `notes.md` files open
+  with a short paragraph explaining all this. Older files with one heading per round still
+  work. (`#91`)
+
 ## 2026-10-09
 
 - **Recruitee boards are scanned.** Read through the public JSON behind every Recruitee

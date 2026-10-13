@@ -4166,8 +4166,12 @@ class InterviewRoundTests(TestCase):
         todo = html[html.index('data-section="notes--to-do"'):]
         self.assertIn('class="task-box" data-task="0"', todo)
         self.assertIn('data-task="1"', todo)
-        self.assertIn('id="notes--hr-screen-2026-09-18"', todo,
-                      "a round's subsection carries the id its round file links to")
+        self.assertIn('<span class="task-tag">@hr-screen</span>', todo,
+                      "a task's round tag is drawn as a pill (#91)")
+        # The round file's link has no subsection to land on in My notes, so it goes to
+        # the round's page, where the tagged tasks are gathered.
+        self.assertIn('href="/applications/1/rounds/round-hr-screen-2026-09-18/'
+                      '#notes--hr-screen-2026-09-18"', html)
 
     def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
         import tempfile
@@ -4329,8 +4333,16 @@ class InterviewRoundTests(TestCase):
 
         stub = appfolder.notes_stub({"company": "Test Co", "role": "Architect"})
         self.assertNotIn("## Interview prep", stub)
-        for heading in ("## To do", "### Application", "## My notes", "## Contacts", "## Timeline"):
+        for heading in ("## To do", "## My notes", "## Contacts", "## Timeline"):
             self.assertIn(heading, stub)
+        # `#91`: the to-do section explains itself, then the four themes in their order.
+        self.assertIn(appfolder.TODO_GUIDE, stub)
+        positions = [stub.index(f"### {t}\n") for t in appfolder.TODO_THEMES]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn("### Application", stub)
+        from tracker.parsers import _TASK_TAG
+        self.assertIsNone(_TASK_TAG.search(appfolder.TODO_GUIDE),
+                          "no line of the guide may end in something drawn as a tag")
 
     def test_filename_is_built_from_the_shared_convention(self):
         """app_filename() stays the single implementation — and the date is the date of

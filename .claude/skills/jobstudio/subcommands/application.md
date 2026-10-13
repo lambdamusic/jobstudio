@@ -242,11 +242,13 @@ For each gap that is fixable now:
 - **Suggested text**: the actual revised or new text to use — draw on `stocktake.md`
   §2 (achievements, USPs) and §6 (the positioning block for this area)
 
-### Preparation steps → `## To do` / `### Application`
-Not under `## My notes`: these are written into the `### Application` subsection of
-`## To do`, the first section of `notes.md` (create both if missing — see "Lists of things
-to do are checklists" in `SKILL.md`, which is where every task for the application goes).
-A `- [ ]` checklist, most important first, prioritised for this specific role:
+### Preparation steps → `## To do`, under its themes
+Not under `## My notes`: these are written into `## To do`, the first section of
+`notes.md`, each under the closest of its four theme headings (create the section from
+`notes_stub()`'s skeleton if missing — see "Lists of things to do are checklists" in
+`SKILL.md`, which is where every task for the application goes, and in what form). Each
+item is `- [ ] **Short title.** Longer description.`, untagged — there is no round yet —
+most important first within its theme, prioritised for this specific role:
 - Company/team/product research to do
 - Skills, tools, or concepts to brush up on
 - Talking points or stories to prepare — cross-reference `stocktake.md` §7 (team

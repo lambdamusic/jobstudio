@@ -69,7 +69,7 @@ Stages: `hr-screen`, `hiring-manager`, `technical`, `panel`, `final`, `informal`
 | `## Who I'm meeting` | research on the interviewer |
 | `## Prep` | the drafted Q&A pack |
 | `## Questions to ask them` | |
-| `## To do` | one line linking this round's tasks in `notes.md` |
+| `## To do` | one line linking this round's tasks, gathered from `notes.md` by tag |
 | `## Private — not for the call` | |
 | `## Outcome` | filled in afterwards — what was asked, what landed, next step |
 
@@ -77,15 +77,32 @@ Stages: `hr-screen`, `hiring-manager`, `technical`, `panel`, `final`, `informal`
 round's prep reads.
 
 **A round's tasks live in `notes.md`, not in the round file** (2026-10-08, TODO `#84`).
-What to study or do for the round goes into a `### <Round label> — <date>` subsection of
-the `## To do` section that opens `notes.md` (`### Hiring manager — 2026-09-24`), next to
-the application's own `### Application` tasks. One place then answers "what is left for
-this application", and a task done once is not left unticked in a second file. The
-heading is a fixed pattern because the round file links to it by anchor
-(`#notes--hiring-manager-2026-09-24`). The round's focus page shows the same tasks above
-the round, under that same id, and ticks there write back to `notes.md`.
-`manage.py migrate_todos` moved the older `### Preparation steps` and `## Study before`
-lists into this shape.
+What to study or do for the round goes into the `## To do` section that opens `notes.md`.
+One place then answers "what is left for this application", and a task done once is not
+left unticked in a second file.
+
+Since 2026-10-13 (TODO `#91`) that section is grouped by **theme** — four fixed `###`
+headings: Domain, Stories & positions, Tech & Data, Questions & Practicalities — and a
+task meant for one round ends with that round's **tag**, `@<stage>`:
+
+```markdown
+### Tech & Data
+
+- [ ] **Learn the plugin architecture.** Enough to follow a technical conversation. @hr-screen
+    - => written up in [study notes](#file-…)
+```
+
+Every task opens with a bold short title; a note on how it went is an indented
+sub-bullet. The round's focus page gathers the tasks tagged for it, under their themes,
+and the round file's `## To do` link lands there. They are views of one line, not copies:
+each checkbox carries its index in `notes.md`, so a tick on either page writes the same
+line. On My notes the tag shows as a small pill.
+
+Themes beat stages because the same kind of preparation (domain reading, a story to
+rehearse) recurs across rounds; grouping by stage split each across three or four
+headings. The earlier layout — `### Application` then `### <Round label> — <date>` per
+round, which `manage.py migrate_todos` produced from the older `### Preparation steps` and
+`## Study before` lists — is still read: the round page tries the dated heading first.
 
 **Why one file per round** (decided 2026-09-24): all of this used to live under a
 single `## Interview prep` heading in `notes.md`, which put a round's prep, its

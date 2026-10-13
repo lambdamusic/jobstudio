@@ -69,7 +69,7 @@ Idempotent — creates whatever's missing:
 
 - `jobs/applications/NNN-company-slug/` (the folder name comes from `appfolder.slug()` —
   lowercase, non-word characters stripped, spaces/underscores collapsed to hyphens)
-- `notes.md`, from a bare skeleton (`## To do` with an empty `### Application`, `## My notes`, `## Contacts`, `## Timeline`) —
+- `notes.md`, from a bare skeleton (`## To do` with its how-to paragraph and four empty theme headings, `## My notes`, `## Contacts`, `## Timeline`) —
   deliberately carries no metadata header, since company/role/area/status live in the
   database and used to drift out of sync across three copies. No `## Interview prep`
   either, since 2026-09-24: interview rounds are their own files (see
@@ -112,9 +112,9 @@ read together and the JD is analysed against both, appended under `## My notes`:
 The fourth part, **preparation steps**, is a `- [ ]` checklist in role-specific order —
 company/team research, skills to brush up, talking points from `stocktake.md` §7,
 domain-gap mitigation if the area is a stretch. It is not written under `## My notes` but
-into `### Application`, under the `## To do` section that opens `notes.md`. Every task
-for the application lives there, split by stage, and each interview round adds its own
-subsection (see [interview-prep.md](interview-prep.md)).
+into the `## To do` section that opens `notes.md`, each task under its theme heading.
+Every task for the application lives there; an interview round's tasks carry its
+`@<stage>` tag (see [interview-prep.md](interview-prep.md)).
 
 ### Fit summary — the structured half
 
