@@ -3832,6 +3832,52 @@ class InterviewRoundTests(TestCase):
             self.assertNotIn("To do for this round", page("round-panel-2026-10-01"),
                              "a round with no subsection shows no empty panel")
 
+    def test_tagged_md_keeps_tagged_items_under_their_themes(self):
+        block = ("### Domain\n\n- [ ] DOM-HM long task\n  continued @hiring-manager\n"
+                 "- [ ] DOM-UNTAGGED\n\n### Tech & Data\n\n- [x] TECH-HR @hr-screen\n"
+                 "- [ ] TECH-HM @Hiring-Manager\n```\n- [ ] FENCED @hiring-manager\n```\n"
+                 "- [ ] TECH-HM2 @hiring-managers\n")
+        hm = P.tagged_md(block, "hiring-manager")
+        self.assertIn("### Domain", hm)
+        self.assertIn("continued @hiring-manager", hm, "an item's continuation lines go with it")
+        self.assertIn("TECH-HM @Hiring-Manager", hm)
+        for absent in ("DOM-UNTAGGED", "TECH-HR", "FENCED", "TECH-HM2"):
+            self.assertNotIn(absent, hm)
+        self.assertNotIn("### Tech & Data", P.tagged_md(block, "hr-screen").split("TECH-HR")[1])
+        self.assertIsNone(P.tagged_md(block, "final"))
+
+    def test_focus_view_collects_tagged_tasks_when_headings_are_themes(self):
+        """Trial layout: `###` under `## To do` are themes, a task names its round with
+        `@<label>`. The round page gathers them, one checkbox per notes.md line."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text(
+            "# Test Co\n\n## To do\n\n### Domain\n\n- [ ] GENERAL\n- [ ] HM-ONE @hiring-manager\n\n"
+            "### Questions & Practicalities\n\n- [ ] HM-TWO @hiring-manager\n\n## My notes\n\nPlain.\n")
+        (folder / "900-test-co-alex-rivera-interview-hiring-manager-2026-09-24.md").write_text(
+            "# HM\n\n## To do\n\n→ [This round's tasks, in My notes](#notes--hiring-manager-2026-09-24)\n\n"
+            "## Prep\n\n- **Q:** why?\n  **A:** because.\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root)):
+            hm = self.client.get(
+                f"/applications/{app.num}/rounds/round-hiring-manager-2026-09-24/").content.decode()
+            full = self.client.get(f"/applications/{app.num}/").content.decode()
+        # No such subsection on My notes, so the round file's link goes to the focus page.
+        self.assertIn(f'href="/applications/{app.num}/rounds/round-hiring-manager-2026-09-24/'
+                      f'#notes--hiring-manager-2026-09-24"', full)
+        self.assertIn('id="notes--hiring-manager-2026-09-24"', hm)
+        self.assertIn("Questions &amp; Practicalities", hm)
+        self.assertNotIn("GENERAL", hm)
+        self.assertRegex(hm, r'data-task="1"[^>]*>\s*HM-ONE')
+        self.assertRegex(hm, r'data-task="2"[^>]*>\s*HM-TWO')
+        self.assertIn('<span class="task-tag">@hiring-manager</span>', hm,
+                      "a round tag is shown as a badge")
+
     def test_focus_view_removes_a_private_section_from_the_page_source(self):
         """Removed, not hidden. A page open during a call can be visible to someone
         else, and a CSS-hidden section is still in the source, still findable with

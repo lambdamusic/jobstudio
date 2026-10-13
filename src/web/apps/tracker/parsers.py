@@ -394,6 +394,59 @@ def subsection_md(block_md: str, slug: str) -> str | None:
     return "\n".join(out).strip("\n") if out is not None else None
 
 
+# A task's round tag, `@hiring-manager`, as the last word of a line that has text before
+# it — so an indented `@decorator` in a code sample is left alone. Shown as a badge.
+_TASK_TAG = re.compile(r"(?<=\S[ \t])@([a-z][a-z0-9-]*)[ \t]*$", re.M)
+
+# A top-level list item, which runs until the next line that is neither blank nor indented.
+_ITEM = re.compile(r"^(?:[-*+]|\d+[.)])[ \t]+")
+
+
+def tagged_md(block_md: str, tag: str) -> str | None:
+    """The list items in one block that carry `@<tag>`, still under their `###` theme
+    headings — the tag layout of `## To do`, where themes are the headings and the round
+    is a marker on the task. None when no item carries the tag.
+
+    Like `subsection_md`, feed it a block already through `sectioned()`, so each checkbox
+    keeps its file-wide index: the same task shown here and on My notes is one line in
+    notes.md, and ticking it on either page writes that line.
+    """
+    mark = re.compile(rf"(?<![\w@])@{re.escape(tag)}(?![\w-])", re.I)
+    themes: list[tuple[str | None, list[str]]] = [(None, [])]
+    item: list[str] | None = None
+    in_fence = False
+
+    def close():
+        if item and mark.search("\n".join(item)):
+            themes[-1][1].append("\n".join(item).rstrip())
+
+    for raw in block_md.splitlines():
+        line = raw.strip()
+        if _is_fence(line):
+            in_fence = not in_fence
+            if raw[:1] not in " \t":  # an unindented fence is not part of any item
+                close()
+                item = None
+                continue
+        if not in_fence and line.startswith("### ") and not line.startswith("#### "):
+            close()
+            item = None
+            themes.append((raw, []))
+            continue
+        if not in_fence and _ITEM.match(raw):
+            close()
+            item = [raw]
+        elif item is not None and (not line or raw[:1] in " \t" or in_fence):
+            item.append(raw)
+        else:
+            close()
+            item = None
+    close()
+    parts = [(f"{h}\n\n" if h else "") + "\n".join(items)
+             for h, items in themes if items]
+    return "\n\n".join(parts) if parts else None
+
+
 def section_index(blocks: list[dict]) -> list[dict]:
     """The flat pill row: every block and subsection, in page order, with its number."""
     out = []
@@ -607,7 +660,8 @@ def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None,
 
     # Marks before tasks, and both before splitting: each is counted across the whole
     # file, so an index on the page is an index into the file.
-    body_md = render_tasks(render_marks(body_md, source), source)
+    body_md = _TASK_TAG.sub(r'<span class="task-tag">@\1</span>',
+                            render_tasks(render_marks(body_md, source), source))
     split = split_sections(body_md)
     blocks = [
         {**b,

@@ -520,7 +520,22 @@ class Application(models.Model):
         # scoped by the round's own anchor because the Interviews tab stacks every round
         # into one page — two rounds both carrying "## Outcome" would otherwise collide,
         # and the browser would send every "Outcome" link to whichever came first.
+        # A link to a round's tasks names its subsection on My notes. In the tag layout
+        # there is no such subsection — the tasks are gathered only on the round's focus
+        # page — so point the link there, where the panel carries the same id.
+        on_notes = {s["anchor"] for b in (self.notes_doc or {}).get("blocks", [])
+                    for s in [b, *b["subsections"]]}
+        retarget = {}
         for round_ in out:
+            todo = self.round_todo(round_)
+            if todo and todo["anchor"] not in on_notes:
+                retarget[todo["anchor"]] = (f"/applications/{self.num}/rounds/"
+                                            f"{round_['anchor']}/#{todo['anchor']}")
+        for round_ in out:
+            if retarget:
+                round_["body_md"] = re.sub(
+                    r"\]\(#(notes--[\w-]+)\)",
+                    lambda m: f"]({retarget.get(m[1], '#' + m[1])})", round_["body_md"])
             round_.update(sectioned(round_["body_md"], round_["anchor"], self.glossary,
                                     source=_task_source(round_["path"])))
         return out
@@ -558,7 +573,7 @@ class Application(models.Model):
                       if b["anchor"] == "notes--to-do"), None)
         if block is None:
             return None
-        from .parsers import section_slug, subsection_md
+        from .parsers import section_slug, subsection_md, tagged_md
 
         candidates = [section_slug(f"{round_['label']} {round_['date'].isoformat()}")
                       if round_["date"] else section_slug(round_["label"]),
@@ -567,6 +582,14 @@ class Application(models.Model):
             body = subsection_md(block["body_md"], slug)
             if body is not None:
                 return {"anchor": f"notes--{slug}", "body_md": body}
+
+        # The tag layout (trial): `###` headings are themes, and a task names its round
+        # with `@<label>` — `@hiring-manager`, or the stage itself. The anchor stays the
+        # dated one, so a round file's "this round's tasks" link still lands here.
+        for tag in dict.fromkeys([section_slug(round_["label"]), round_["stage"] or ""]):
+            body = tag and tagged_md(block["body_md"], tag)
+            if body:
+                return {"anchor": f"notes--{candidates[0]}", "body_md": body}
         return None
 
     @property

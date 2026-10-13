@@ -811,8 +811,21 @@ input.task-box {
   margin: 0 8px 0 -20px; vertical-align: -1px; accent-color: var(--navy); cursor: pointer;
 }
 input.task-box:disabled { cursor: default; }
+/* A task's round tag (`@hiring-manager`): which round it is for, as a small pill, so it
+   reads as a label rather than as the last word of the sentence. */
+.task-tag {
+  display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 999px;
+  background: #e8ecf4; color: var(--navy); font-size: 11.5px; font-weight: 600;
+  line-height: 1.6; white-space: nowrap; vertical-align: 1px;
+}
 li:has(> input.task-box:checked), li:has(> p > input.task-box:checked) {
   color: var(--faint); text-decoration: line-through; text-decoration-color: var(--line);
+}
+/* A note under a task (an indented sub-bullet — what came of it, where it was answered)
+   is written once the task is done, so it must not be struck through with it. A line-
+   through cannot be undone on a child; an inline-block is the one box it skips. */
+li:has(> input.task-box:checked) > ul, li:has(> p > input.task-box:checked) > ul {
+  display: inline-block; width: 100%; color: var(--muted);
 }
 
 /* ---------- highlights (#77) ----------
