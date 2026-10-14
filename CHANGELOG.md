@@ -19,6 +19,8 @@ Dated entries, newest first.
 - **Repeated subheadings get their own anchors.** A document that uses the same `###`
   under several `##` sections (What it is, Stack…) gave them one shared id, so every jump
   link landed on the first. The first keeps its anchor; repeats are scoped by section.
+- **Notes can show images.** `![diagram](img/x.png)` in a note renders on its page: the
+  path resolves against the note's own folder, images only, never outside `jobs/notes/`.
 
 ## 2026-10-09
 

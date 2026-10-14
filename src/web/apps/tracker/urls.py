@@ -28,6 +28,7 @@ urlpatterns = [
     path("areas/", views.area_list, name="area_list"),
     path("notes/", views.note_list, name="note_list"),
     path("notes/<slug:slug>/", views.note_detail, name="note_detail"),
+    path("notes/<slug:slug>/<path:rel>", views.note_image, name="note_image"),
     path("profile/", views.profile_view, name="profile"),
     path("help/", views.help_view, name="help"),
     # Bare path defaults to the latest report (day-to-day view); "all" is the dated

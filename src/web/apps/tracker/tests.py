@@ -825,6 +825,26 @@ class ViewTests(TestCase):
                           markdownify_path("`jobs/notes/topics/graph-basics.md`"))
             self.assertIn('href="/notes/graph-basics/"', markdownify_path("`graph-basics.md`"))
 
+    def test_note_images_are_served_from_beside_the_note_and_nowhere_else(self):
+        """A relative image path in a note resolves against the note's folder. Only
+        images, and only inside jobs/notes/: no markdown, no climbing out with `..`."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "topics" / "img").mkdir(parents=True)
+        (notes / "topics" / "graph-basics.md").write_text(
+            "# Graph basics\n\n![diagram](img/arch.png)\n")
+        (notes / "topics" / "img" / "arch.png").write_bytes(b"\x89PNG\r\n")
+        (root / "secret.png").write_bytes(b"\x89PNG\r\n")
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            page = self.client.get("/notes/graph-basics/").content.decode()
+            self.assertIn('src="img/arch.png"', page)
+            self.assertEqual(self.client.get("/notes/graph-basics/img/arch.png").status_code, 200)
+            self.assertEqual(self.client.get("/notes/graph-basics/graph-basics.md").status_code, 404)
+            self.assertEqual(self.client.get("/notes/graph-basics/../../../secret.png").status_code, 404)
+            self.assertEqual(self.client.get("/notes/graph-basics/img/missing.png").status_code, 404)
+
     def test_note_titles_come_from_the_file_not_the_filename(self):
         """`ai-safety-pivot`.title() is "Ai Safety Pivot". The file says what it is called;
         the slug is only the fallback."""

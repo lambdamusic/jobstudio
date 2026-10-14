@@ -864,3 +864,8 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
   font-size: 13px; padding: 8px 12px; border-radius: var(--radius);
   background: var(--navy); color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.15);
 }
+
+/* Images a note embeds (2026-10-14): a 2,000px diagram must fit the column, and stay
+   readable by opening it on its own. */
+.prose img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
+

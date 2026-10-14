@@ -19,7 +19,7 @@ import config
 from django.conf import settings
 from django.db.models import Count, F, Max, Q
 from django.utils import timezone
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
@@ -1201,6 +1201,29 @@ def note_detail(request, slug):
         raise Http404("No such note")
     return render(request, "tracker/note_detail.html",
                   {"page": "notes", "note": _note(match, _note_backlinks())})
+
+
+# What a note may show inline. Images only: the route serves files from the data root.
+NOTE_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"}
+
+
+def note_image(request, slug, rel):
+    """An image a note embeds by a path relative to its own file (2026-10-14).
+
+    `![diagram](img/architecture.png)` in a note renders on /notes/<slug>/, so the browser
+    asks for /notes/<slug>/img/architecture.png: resolved against the note's folder, it is
+    the file next to the note, and the markdown reads the same in an editor as on the page.
+    Images only, and never outside jobs/notes/, so a crafted path can't fetch anything else.
+    """
+    match = next((p for p in _notes_files() if p.stem == slug), None)
+    if match is None:
+        raise Http404("No such note")
+    target = (match.parent / rel).resolve()
+    notes_dir = Path(settings.NOTES_DIR).resolve()
+    if (target.suffix.lower() not in NOTE_IMAGE_SUFFIXES or not target.is_file()
+            or notes_dir not in target.parents):
+        raise Http404("No such image")
+    return FileResponse(open(target, "rb"))
 
 
 def profile_view(request):
