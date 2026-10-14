@@ -16,6 +16,9 @@ Dated entries, newest first.
   (the answer bank), then Product, Tech & Data and Domain. Each section is a subfolder
   (`topics/product/`, `topics/tech-data/`, `topics/domain/`), so a note is filed by
   moving it. Note URLs stay the filename alone, so `/notes/<slug>/` links survive the move.
+- **Repeated subheadings get their own anchors.** A document that uses the same `###`
+  under several `##` sections (What it is, Stack…) gave them one shared id, so every jump
+  link landed on the first. The first keeps its anchor; repeats are scoped by section.
 
 ## 2026-10-09
 

@@ -3847,6 +3847,18 @@ class InterviewRoundTests(TestCase):
             self.assertNotIn("To do for this round", page("round-panel-2026-10-01"),
                              "a round with no subsection shows no empty panel")
 
+    def test_repeated_subheadings_get_distinct_anchors(self):
+        """The same `###` under two `##` sections must not share an id: the first keeps
+        the bare slug, the repeat is scoped by its section. A repeat inside one section
+        is still indexed, so ids stamped by position stay in step with the headings."""
+        from tracker.parsers import split_sections
+
+        md = ("## Orgs\n\n### Stack\n\nA\n\n### Scale\n\nB\n\n"
+              "## People\n\n### Stack\n\nC\n\n### Stack\n\nD\n")
+        blocks = split_sections(md)["blocks"]
+        anchors = [s["anchor"] for b in blocks for s in b["subsections"]]
+        self.assertEqual(anchors, ["stack", "scale", "people-stack", "people-stack-2"])
+
     def test_tagged_md_keeps_tagged_items_under_their_themes(self):
         block = ("### Domain\n\n- [ ] DOM-HM long task\n  continued @hiring-manager\n"
                  "- [ ] DOM-UNTAGGED\n\n### Tech & Data\n\n- [x] TECH-HR @hr-screen\n"

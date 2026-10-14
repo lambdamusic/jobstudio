@@ -292,6 +292,24 @@ def _is_fence(line: str) -> bool:
     return line.startswith("```") or line.startswith("~~~")
 
 
+def _unique_sub_anchor(slug: str, block: dict, blocks: list[dict]) -> str:
+    """A `###` anchor no other heading in the document already uses (2026-10-14).
+
+    A note that gives every `##` the same subheadings — What it is, Stack, Scale — minted
+    the same id once per section, and every pill and link landed on the first. The first
+    use keeps the bare slug, so links written before this still resolve; a repeat is
+    scoped by its section's slug, and numbered only if that is taken too. Every `###`
+    gets an entry, which `number_sections` relies on: it stamps ids by position.
+    """
+    used = {b["anchor"] for b in blocks} | {s["anchor"] for b in blocks for s in b["subsections"]}
+    if slug not in used:
+        return slug
+    candidate, n = f"{block['anchor']}-{slug}", 2
+    while candidate in used:
+        candidate, n = f"{block['anchor']}-{slug}-{n}", n + 1
+    return candidate
+
+
 def split_sections(body_md: str) -> dict:
     """One markdown document, split for the collapsible reading view.
 
@@ -345,15 +363,11 @@ def split_sections(body_md: str) -> dict:
         block = blocks[-1]
         if is_h3:
             label = section_label(line[4:].rstrip("#"))
-            slug = section_slug(label)
-            # A repeated subheading inside one block is indexed once — a second pill
-            # would be an anchor pointing at the first, which is worse than no pill.
-            if slug not in {s["anchor"] for s in block["subsections"]}:
-                block["subsections"].append({
-                    "number": f"{block['number']}.{len(block['subsections']) + 1}",
-                    "label": label,
-                    "anchor": slug,
-                })
+            block["subsections"].append({
+                "number": f"{block['number']}.{len(block['subsections']) + 1}",
+                "label": label,
+                "anchor": _unique_sub_anchor(section_slug(label), block, blocks),
+            })
         block["lines"].append(raw)
 
     for block in blocks:
