@@ -780,16 +780,18 @@ class ViewTests(TestCase):
                 panel = html[html.index(f'data-panel="{group}"'):]
                 self.assertIn(f'href="/notes/{path.stem}/"', panel[:panel.index("</section>")])
 
-    def test_notes_in_group_folders_keep_flat_urls_and_show_where_they_are_used(self):
+    def test_notes_in_group_folders_keep_flat_urls_and_show_what_they_were_written_for(self):
         """Grouping is the folder; the URL is the filename alone, so moving a note between
-        groups never breaks a link. "Used in" comes from links in application folders."""
+        groups never breaks a link. "First written for" is the first application the
+        note's own opening links — not every folder that links back, a list that only grew."""
         from django.test import override_settings
 
         root = Path(tempfile.mkdtemp())
         notes = root / "jobs" / "notes"
         (notes / "topics").mkdir(parents=True)
         (notes / "topics" / "graph-basics.md").write_text(
-            "# Graph basics\n\n*Started for a round; kept for the next.*\n\n## One\n\nText.\n")
+            "# Graph basics\n\n*Started for [a round](/applications/1/); kept for the next.*\n\n"
+            "## One\n\nAlso used in [another](/applications/2/).\n")
         (notes / "loose.md").write_text("# Loose note\n\nNo group.\n")
         (notes / "interviewing").mkdir()
         (notes / "interviewing" / "answer-bank.md").write_text("# Answer bank\n\nAnswers.\n")
@@ -818,9 +820,12 @@ class ViewTests(TestCase):
             self.assertEqual(self.client.get("/notes/energy-markets/").status_code, 200)
             self.assertIn("Started for a round; kept for the next.", listed)
             self.assertIn(f'href="/applications/{app.num}/"', listed)
-            page = self.client.get("/notes/graph-basics/")
-            self.assertEqual(page.status_code, 200)
-            self.assertIn("Used in", page.content.decode())
+            page = self.client.get("/notes/graph-basics/").content.decode()
+            self.assertIn("First written for", page)
+            head = page[page.index("First written for"):page.index("</p>", page.index("First written for"))]
+            self.assertIn('href="/applications/1/"', head)
+            self.assertNotIn('href="/applications/2/"', head)
+            self.assertNotIn("First written for", self.client.get("/notes/energy-markets/").content.decode())
             self.assertIn('href="/notes/graph-basics/"',
                           markdownify_path("`jobs/notes/topics/graph-basics.md`"))
             self.assertIn('href="/notes/graph-basics/"', markdownify_path("`graph-basics.md`"))

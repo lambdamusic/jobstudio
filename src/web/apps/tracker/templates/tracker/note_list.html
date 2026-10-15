@@ -18,9 +18,9 @@ A group is a subfolder of jobs/notes/ (`views.NOTE_GROUPS` gives the known ones 
 names and order); within a tab, the folder a note sits in is its section
 (`views.NOTE_SECTIONS`, 2026-10-13). Each line links the note's own page, which has its Contents list.
 
-"Used in" lists the applications whose folders link to the note, worked out from the
-links themselves (`_note_backlinks`). It is what says which conversation a note served,
-without anyone keeping that up by hand.
+"First written for" names the application a note was started for, read from the note's
+own opening line (`_note_origin`) — only that one, since a topic note is reused across
+many and the full list only grew.
 
 Without JavaScript every panel renders, so this is one long page rather than a broken
 one — the same bargain `tabs.js` makes everywhere.
@@ -53,8 +53,8 @@ one — the same bargain `tabs.js` makes everywhere.
                   {% if n.summary %}<p class="note-index-summary">{{ n.summary }}</p>{% endif %}
                   <p class="note-index-meta">
                     {{ n.words }} words · updated {{ n.modified|date:"j M Y" }}
-                    {% if n.used_in %} · used in
-                      {% for a in n.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }}</a>{% endfor %}
+                    {% if n.origin %} · first written for
+                      <a href="/applications/{{ n.origin.num }}/">#{{ n.origin.num }} {{ n.origin.company_name }}</a>
                     {% endif %}
                   </p>
                 </li>

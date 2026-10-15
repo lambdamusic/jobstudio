@@ -1040,31 +1040,31 @@ def _note_summary(body: str) -> str:
     return text
 
 
-def _note_backlinks() -> dict[str, list]:
-    """slug → the applications whose folders link to that note (`/notes/<slug>/`, or the
-    file's path or bare filename), newest first. Computed from the links, so it needs no
-    upkeep: what a note was written for is whatever points at it."""
+# An application link — `/applications/58/` — as a note's opening lines write it.
+_APP_LINK = re.compile(r"/applications/(\d+)/")
+
+
+def _note_origin(body: str):
+    """The application a note was first written for, or None (2026-10-15).
+
+    Read from the note's own opening — everything before its first `##` — where a note
+    started for an application says so: *Started 2026-10-07, preparing a hiring-manager
+    round ([application 058](/applications/58/))*. The first application linked there is
+    the one.
+
+    This replaced a "Used in" line built from every application folder that links to the
+    note. A topic note is reused across many applications, so that list only grew, and it
+    said less than the one fact that stays fixed: what the note was started for. A note
+    started as general prep links none, and shows nothing.
+    """
     from .models import Application
 
-    slugs = [p.stem for p in _notes_files()]
-    if not slugs:
-        return {}
-    pattern = re.compile(r"(?:/notes/|notes/(?:[\w-]+/)*|\b)(" + "|".join(map(re.escape, slugs))
-                         + r")(?:/|\.md\b)")
-    out: dict[str, list] = {}
-    for app in Application.objects.exclude(folder="").order_by("-num"):
-        folder = app.folder_path
-        if folder is None:
-            continue
-        found = set()
-        for md in folder.rglob("*.md"):
-            found.update(pattern.findall(md.read_text(errors="ignore")))
-        for slug in found:
-            out.setdefault(slug, []).append(app)
-    return out
+    opening = re.split(r"(?m)^##\s", body, maxsplit=1)[0]
+    m = _APP_LINK.search(opening)
+    return Application.objects.filter(num=int(m.group(1))).first() if m else None
 
 
-def _note(path, backlinks=None):
+def _note(path):
     """One note, ready to render: its own title, and its sections (`#73`).
 
     The anchor prefix is the slug, which keeps a note's section ids distinct from any
@@ -1078,10 +1078,10 @@ def _note(path, backlinks=None):
             "group": group, "group_label": dict((g, l) for g, l, _, _ in NOTE_GROUPS).get(
                 group, group.replace("-", " ").capitalize() if group else "Other"),
             "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path)),
-            "used_in": (backlinks or {}).get(path.stem, [])}
+            "origin": _note_origin(body)}
 
 
-def _note_entry(path, backlinks) -> dict:
+def _note_entry(path) -> dict:
     """A note as the index lists it — no sectioning, which only its own page needs."""
     from datetime import date as _date
 
@@ -1091,7 +1091,7 @@ def _note_entry(path, backlinks) -> dict:
             "section": _note_section(path),
             "words": len(body.split()),
             "modified": _date.fromtimestamp(path.stat().st_mtime),
-            "used_in": backlinks.get(path.stem, [])}
+            "origin": _note_origin(body)}
 
 
 # The Career coach tab's name on /notes/, and the prefix on everything it anchors. Not a
@@ -1152,10 +1152,9 @@ def note_list(request):
     prepared. Each index line links the note's own page at `/notes/<slug>/`, which carries
     the note's Contents and is what `build_static` publishes.
     """
-    backlinks = _note_backlinks()
     by_group: dict[str, list] = {}
     for path in _notes_files():
-        by_group.setdefault(_note_group(path), []).append(_note_entry(path, backlinks))
+        by_group.setdefault(_note_group(path), []).append(_note_entry(path))
     known = [g for g, _, _, _ in NOTE_GROUPS]
     groups = [{"slug": g, "label": label, "blurb": blurb, "notes": by_group[g]}
               for g, label, blurb, _ in NOTE_GROUPS if by_group.get(g)]
@@ -1200,7 +1199,7 @@ def note_detail(request, slug):
     if match is None:
         raise Http404("No such note")
     return render(request, "tracker/note_detail.html",
-                  {"page": "notes", "note": _note(match, _note_backlinks())})
+                  {"page": "notes", "note": _note(match)})
 
 
 # What a note may show inline. Images only: the route serves files from the data root.

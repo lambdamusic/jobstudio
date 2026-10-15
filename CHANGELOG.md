@@ -4,6 +4,10 @@ Dated entries, newest first.
 
 ## 2026-10-15
 
+- **Notes say what they were first written for, not everywhere they were used.** The
+  "Used in" line under a note's title listed every application linking to it, and grew with
+  each one. It is now one link, "First written for #N", taken from the first application
+  link in the note's opening, before its first `##`. A note with none shows nothing.
 - **Questions are numbered, listed and foldable.** Every `**Q:**` question is numbered
   under its heading (`3.1.1`, `3.1.2`), shown bold in red, and listed in the page's
   contents under that heading, so a question can be found without scrolling the answers.

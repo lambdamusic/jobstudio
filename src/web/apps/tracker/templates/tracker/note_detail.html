@@ -5,12 +5,13 @@
 <div class="page-head">
   <h1>{{ note.title }}</h1>
   {% comment %}
-  The applications whose folders link here, worked out from the links (`_note_backlinks`):
-  what a note was written for, and where else it has been used, without upkeep.
+  The application the note was first written for, read from its own opening line
+  (`_note_origin`). Only the first: a topic note is reused across many applications, and
+  a list of all of them only grew without saying more.
   {% endcomment %}
-  {% if note.used_in %}
-    <p class="note-used-in">Used in
-      {% for a in note.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }} — {{ a.role }}</a>{% endfor %}
+  {% if note.origin %}
+    <p class="note-used-in">First written for
+      <a href="/applications/{{ note.origin.num }}/">#{{ note.origin.num }} {{ note.origin.company_name }} — {{ note.origin.role }}</a>
     </p>
   {% endif %}
 </div>
