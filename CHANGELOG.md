@@ -2,6 +2,17 @@
 
 Dated entries, newest first.
 
+## 2026-10-15
+
+- **Questions are numbered, listed and foldable.** Every `**Q:**` question is numbered
+  under its heading (`3.1.1`, `3.1.2`), shown bold in red, and listed in the page's
+  contents under that heading, so a question can be found without scrolling the answers.
+  Each question and its answer is one block that opens and closes. A "Hide answers" link
+  on each heading folds them all to read the questions alone, "Expand all" opens them
+  again, and a link to a question opens it. This works on every page that uses the
+  convention, not only interview rounds: the answer bank, study files and topic notes too.
+  A heading that is itself the question, as in the answer bank, folds the same way.
+
 ## 2026-10-13
 
 - **To-dos are grouped by theme, and tagged by round.** `## To do` in `notes.md` now has

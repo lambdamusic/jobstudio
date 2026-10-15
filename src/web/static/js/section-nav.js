@@ -30,6 +30,11 @@
  * the index that appears once the index has scrolled out of view, names the section being
  * read, and opens a copy of the same list. Every link — in the index and in the bar's copy
  * — goes through the same handlers, so the two cannot disagree about what is active.
+ *
+ * Since 2026-10-15 each question and its answer is a `<details class="qa">` of its own
+ * (`qa_items`), listed in the index under its heading. This file opens a folded question
+ * when a link targets it, opens every answer on "Expand all", and adds (5): a "Hide
+ * answers" link per heading, to read its questions alone.
  */
 (function () {
   "use strict";
@@ -115,6 +120,12 @@
     function reveal(id, scrollTo) {
       var block = blockFor(id);
       if (block && !block.open) block.open = true;
+      // A question folded inside it, or the question itself (2026-10-15): open every
+      // closed <details> on the way down, or the jump lands on a folded line.
+      var target = scope.querySelector('[id="' + CSS.escape(id) + '"]');
+      for (var d = target; d && d !== scope; d = d.parentElement) {
+        if (d.tagName === "DETAILS" && !d.open) d.open = true;
+      }
       if (!scrollTo) return;
       measure();
       var el = scope.querySelector('[id="' + CSS.escape(id) + '"]');
@@ -143,6 +154,8 @@
       toggle.addEventListener("click", function () {
         var opening = blocks.some(function (d) { return !d.open; });
         blocks.forEach(function (d) { d.open = opening; });
+        // Expanding all means reading straight through, so the answers open too.
+        if (opening) showAnswers(scope);
         toggle.textContent = opening ? "Collapse all" : "Expand all";
       });
       blocks.forEach(function (d) {
@@ -153,6 +166,40 @@
         });
       });
     }
+
+    // (5) "Hide answers" (2026-10-15): one link per heading with two or more questions
+    // under it, folding every answer there so the questions can be read alone. Questions
+    // before any `###`, and headings that are themselves questions, get one link at the top
+    // of their section instead.
+    Array.prototype.forEach.call(scope.querySelectorAll(".doc-section-body"), function (body) {
+      var groups = [], top = { at: null, items: [] }, cur = top;
+      groups.push(top);
+      Array.prototype.forEach.call(body.children, function (el) {
+        if (el.tagName === "H3") { cur = { at: el, items: [] }; groups.push(cur); return; }
+        if (el.matches("details.qa-h")) { top.items.push(el); return; }
+        if (el.matches("details.qa")) cur.items.push(el);
+        Array.prototype.forEach.call(el.querySelectorAll("details.qa:not(.qa-h)"), function (d) {
+          if (!d.parentElement.closest("details.qa")) cur.items.push(d);
+        });
+      });
+      groups.forEach(function (g) {
+        if (g.items.length < 2) return;
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "qa-toggle";
+        b.textContent = "Hide answers";
+        b.addEventListener("click", function () {
+          var hide = b.textContent === "Hide answers";
+          g.items.forEach(function (d) { d.open = !hide; });
+          b.textContent = hide ? "Show answers" : "Hide answers";
+        });
+        if (g.at) { g.at.appendChild(b); return; }
+        var tools = document.createElement("div");
+        tools.className = "qa-tools";
+        tools.appendChild(b);
+        body.insertBefore(tools, body.firstChild);
+      });
+    });
 
     // (3) Highlight.
     var active = null;
@@ -203,6 +250,13 @@
     }
     window.addEventListener("hashchange", fromHash);
     fromHash();
+  }
+
+  function showAnswers(scope) {
+    Array.prototype.forEach.call(scope.querySelectorAll("details.qa"), function (d) { d.open = true; });
+    Array.prototype.forEach.call(scope.querySelectorAll(".qa-toggle"), function (b) {
+      b.textContent = "Hide answers";
+    });
   }
 
   document.addEventListener("DOMContentLoaded", function () {

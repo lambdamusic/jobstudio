@@ -271,9 +271,11 @@ of `<Round label> <date>` (`#notes--hiring-manager-2026-09-24`,
 focus page shows the round's tasks under that id; on the application page the app sends
 the link to the focus page.
 
-**The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
-colours every question red so the eye can find them without reading the answers between
-(`mark_qa` in `jobs_extras.py`). That only works on the markers, so write every question as
+**The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The site colours every
+question red, numbers it under its heading (`3.1.2`), lists it in the page's contents, and
+makes each question and its answer a block that opens and closes (`mark_qa` and `qa_items`
+in `jobs_extras.py`). That works on any page, not only rounds: the answer bank, study files
+and topic notes get the same treatment. It only works on the markers, so write every question as
 `- **Q:** …` with its `**A:**` beneath — never as a heading, a numbered list, or a bolded
 topic title. Four of the five rounds written before this convention each invented their own
 structure, and the result is a set of files that read differently from one another for no
@@ -281,7 +283,9 @@ reason. Use `###` for the four category headings only (Role / technical, Behavio
 Emotional intelligence, Why this role).
 
 A question hard-wrapped over several source lines is fine — the whole question stays
-coloured. STAR sub-markers (`**S:**`, `**T:**`, `**A:**`, `**R:**`) sit inside an answer and
+coloured. An answer with its own bullets or bold sub-headings under it must indent them
+**four spaces** (two more than the `**A:**` line): at two spaces they end the list item,
+and render as loose bullets after the question instead of inside its answer. STAR sub-markers (`**S:**`, `**T:**`, `**A:**`, `**R:**`) sit inside an answer and
 are left plain.
 
 Then **add one line to `## Timeline` in `notes.md`** linking the new file, so the

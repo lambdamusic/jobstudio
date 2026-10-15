@@ -13,6 +13,9 @@ take a third of the screen if it stuck. section-nav.js adds the sticky part once
 scrolled away: a one-line "Contents ▾" bar naming the section being read, which opens the
 same list. Without script it is still a working list of links.
 
+Since 2026-10-15 it also lists every `**Q:**` question (level 4) under the heading it
+sits beneath, numbered like the page — `3.1.2` — so a question can be found from here.
+
 The document's own headings in page order, not a canonical list — see the note on
 `split_sections`. Shown from two sections up: a one-item index is noise.
 {% endcomment %}
@@ -24,9 +27,9 @@ The document's own headings in page order, not a canonical list — see the note
     </div>
     <ol class="section-list{% if sections|length > 8 %} long{% endif %}">
       {% for s in sections %}
-        <li{% if s.level == 3 %} class="sub"{% endif %}><a class="section-link"
+        <li{% if s.level == 4 %} class="sub qq"{% elif s.level == 3 %} class="sub{% if s.question %} qh{% endif %}"{% endif %}><a class="section-link"
            href="#{{ s.anchor }}" data-target="{{ s.anchor }}" data-parent="{{ s.parent }}"
-          ><span class="sec-n">{{ s.number }}</span> {{ s.label }}</a></li>
+          {% if s.level == 4 %} title="{{ s.label }}"{% endif %}><span class="sec-n">{{ s.number }}</span> {{ s.label }}</a></li>
       {% endfor %}
     </ol>
   </nav>

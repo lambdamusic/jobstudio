@@ -692,6 +692,60 @@ a.gloss[data-def]:focus-visible::after {
    does not stop mid-sentence. Markers and headings keep their own weight. */
 .prose .qa-q { color: var(--qa-q); }
 
+/* Each question and its answer as one block that opens and closes (2026-10-15). `qa_items`
+   builds them: `<details class="qa">`, the question as its summary, the answer in `.qa-a`.
+   Numbered by subsection — 3.1.1, 3.1.2 — from `data-n`, so the number is never part of
+   the text highlight.js matches against the file. The `Q:` marker stays in the text for
+   the same reason, hidden: the number does its job. Bold rather than bigger, so a
+   question never outranks the heading it sits under. */
+.prose li.qa-li { list-style: none; }
+.prose ul:has(> li.qa-li):not(:has(> li:not(.qa-li))) { padding-left: 0; }
+.prose li.qa-li, .prose .doc-section-body > details.qa:not(.qa-h) {
+  border-top: 1px solid var(--line); padding: 10px 0 2px; margin: 0;
+}
+.prose ul > li.qa-li:first-child, .prose h3 + details.qa { border-top: 0; }
+details.qa { scroll-margin-top: var(--section-clearance, 56px); }
+details.qa > summary { list-style: none; cursor: pointer; }
+details.qa > summary::-webkit-details-marker { display: none; }
+details.qa > summary::before {
+  content: "▾"; display: inline-block; width: 14px; color: var(--faint); font-size: 11px;
+}
+details.qa:not([open]) > summary::before { content: "▸"; }
+.prose details.qa > summary .qa-q { font-weight: 700; }
+details.qa > summary .qa-q > strong:first-child { display: none; }
+details.qa > summary .qa-q[data-n]::before {
+  content: attr(data-n); display: inline-block; min-width: 3.4em; margin-right: 4px;
+  font-size: .85em; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted);
+}
+details.qa > summary:hover .qa-q { text-decoration: underline; text-decoration-color: var(--line); }
+details.qa:not([open]) > summary { padding-bottom: 8px; }
+.qa-a { padding-top: 4px; }
+details.qa:not(.qa-h) > .qa-a > p:first-child > strong:first-child,
+details.qa:not(.qa-h) > .qa-a > strong:first-child {
+  font-size: 11.5px; letter-spacing: .06em; color: var(--muted);
+}
+.prose .qa-a ul { list-style: disc; }
+/* A heading that is the question (the answer bank's `### "Tell me about yourself"`): the
+   heading itself is the summary, with the caret beside it. */
+details.qa-h > summary { display: flex; align-items: baseline; gap: 4px; }
+details.qa-h > summary > h3, details.qa-h > summary > h4 { margin-bottom: .5em; }
+details.qa-h > summary .qa-q { font-weight: 700; }
+
+/* "Hide answers": section-nav.js adds one per heading with two or more questions under it,
+   to read the questions alone. */
+.qa-toggle {
+  float: right; font: inherit; font-size: 12.5px; font-weight: 400; color: var(--link);
+  background: none; border: 0; padding: 0; margin-left: 12px; cursor: pointer;
+}
+.qa-tools { text-align: right; margin: 6px 0 -6px; }
+.qa-tools .qa-toggle { float: none; }
+
+/* Questions in the contents: under their heading, one line each, in the question colour. */
+.section-list li.qq { padding-left: 44px; font-size: 12.5px; }
+.section-list li.qq .section-link { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--qa-q); }
+.section-list li.qq .sec-n { display: inline-block; min-width: 3.6em; }
+.section-list li.sub.qh .section-link { color: var(--qa-q); }
+
 /* ---------- fit summary (Record tab) ---------- */
 
 .fit-summary { margin-bottom: 16px; }

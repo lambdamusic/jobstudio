@@ -10,6 +10,7 @@ from django.utils.safestring import mark_safe
 
 from ..filelinks import link_file_refs
 from ..highlights import render_marks
+from ..parsers import QA_BREAK, QA_OPENER, is_question_heading
 
 register = template.Library()
 
@@ -235,24 +236,15 @@ def strip_h1(text):
     return re.sub(r"\A\s*#\s+.*?(?:\n|\Z)", "", text, count=1)
 
 
-# A line that opens a Q or an A in an interview prep file: `**Q:** …`, optionally as a
-# bullet. Only the five markers the prep template actually uses (Q and A, plus STAR).
-_QA_OPENER = re.compile(r"^(?P<lead>[ \t]*(?:[-*+][ \t]+)?)\*\*(?P<who>Q|A|S|T|R):\*\*")
-# Anything that ends a wrapped question: a blank line, a heading, or a new list item.
-_QA_BREAK = re.compile(r"^(?:[ \t]*$|[ \t]*#|[ \t]*(?:[-*+]|\d+[.)])[ \t])")
-
-# Rounds written before the `**Q:**` convention (2026-09-24) put the question in the heading
-# instead — `#### Why do you want to leave?`, or `### A1. "Walk me through a platform you
-# architected."`. Those are still questions and should still be coloured, so a heading counts
-# when it asks something or quotes what was asked. Deliberately narrow: a heading naming a
-# topic ("AWS — say it first", "Questions to ask them", "Why this role") has neither mark and
-# stays plain. The known false positive is a heading quoting a product name; it would only be
-# coloured, never broken.
+# What a question is — the `**Q:**` line, the break that ends one, and a heading that asks
+# — lives in parsers.py, because the contents lists the questions and the page numbers them
+# by position: the parser and this filter have to agree exactly.
+_QA_OPENER = QA_OPENER
+_QA_BREAK = QA_BREAK
 _HEADING = re.compile(r"^(?P<hashes>\#{2,6}[ \t]+)(?P<text>.+?)[ \t]*$")
-_QUESTION_HEADING = re.compile(r'\?|"[^"]+"|\u201c[^\u201d]+\u201d')
 
 
-def _wrap_questions(text: str) -> str:
+def _wrap_questions(text: str, loose: bool = True) -> str:
     """Put a span round each `**Q:** …` line, closing it where the question ends."""
     out: list[str] = []
     open_q = False
@@ -262,7 +254,7 @@ def _wrap_questions(text: str) -> str:
             out[-1] += "</span>"
             open_q = False
         heading = _HEADING.match(line)
-        if heading and _QUESTION_HEADING.search(heading.group("text")):
+        if heading and is_question_heading(heading.group("text"), loose):
             # Wrap the text only — the hashes have to stay at the line start to parse.
             out.append(f'{heading.group("hashes")}<span class="qa-q">'
                        f'{heading.group("text")}</span>')
@@ -279,26 +271,26 @@ def _wrap_questions(text: str) -> str:
 
 
 @register.filter(name="mark_qa")
-def mark_qa(text, enabled=True):
-    """Mark up the questions in an interview round so the Interviews tab can colour them
+def mark_qa(text, rounds=True):
+    """Mark up the questions in a document so the page can colour, number and fold them
     — the eye needs to find the questions without reading the answers between them.
 
-    Source-level, like `strip_h1`, and applied only to interview rounds: `**Q:**` is that
-    file's convention, not the site's. A question hard-wrapped over several source lines
-    stays inside one span — wrapped prose is the norm in these files, and a colour that
-    stopped at the first line would read as a rendering bug.
+    Source-level, like `strip_h1`. A question hard-wrapped over several source lines stays
+    inside one span — wrapped prose is the norm in these files, and a colour that stopped
+    at the first line would read as a rendering bug.
 
-    `enabled` exists so `_doc_body.html` can stay one template with one filter chain
-    (`#72`). My notes and Other files pass false: a `**Q:**` in a note is somebody's
-    prose, not this convention. Branching in the template instead would mean writing the
-    whole chain out twice, which is how the two copies drift.
+    On every document since 2026-10-15, not just interview rounds: the answer bank, study
+    files and topic notes use the same `**Q:**` convention, and the contents now lists
+    questions, which needs them marked wherever they are. What `rounds` still decides is
+    which *headings* count as questions — loosely in a round, where any heading that asks
+    or quotes is one; strictly elsewhere (see `parsers.QUESTION_HEADING_STRICT`).
     """
-    if not text or not enabled:
-        return text or ""
+    if not text:
+        return ""
     chunks = re.split(r"(```.*?```)", text, flags=re.S)
     for i, chunk in enumerate(chunks):
         if not chunk.startswith("```"):
-            chunks[i] = _wrap_questions(chunk)
+            chunks[i] = _wrap_questions(chunk, bool(rounds))
     return "".join(chunks)
 
 
@@ -332,6 +324,106 @@ def number_sections(html, block):
                 f'<span class="sec-n">{sub["number"]}</span> {m.group(2)}</h3>')
 
     return mark_safe(_H3_RE.sub(one, str(html)))
+
+
+# The pieces of rendered HTML `qa_items` works with. It only ever sees markdown's own output
+# for one block, so these are the few shapes that renderer produces, not HTML in general.
+_QA_SPAN = '<span class="qa-q">'
+_QA_ITEM_START = re.compile(r'(?P<li><li>\s*)?(?P<p><p>)?<span class="qa-q">')
+_SPAN_TAG = re.compile(r"<span\b|</span>")
+_LI_TAG = re.compile(r"<li\b|</li>")
+# Where the answer to a bare-paragraph question stops: the next question, list of
+# questions, heading or rule — or the end of whatever holds the paragraph, so an answer
+# never swallows a closing tag and breaks the nesting around it.
+_QA_P_END = re.compile(r'<h[1-6][\s>]|<details class="qa|<[uo]l>\s*<li class="qa-li"|<hr\b'
+                       r'|</li>|</[uo]l>|</blockquote>')
+_QA_HEADING = re.compile(r'<h(?P<n>[34])(?P<attrs>[^>]*)>(?P<inner>(?:(?!</h(?P=n)>).)*?'
+                         r'<span class="qa-q">.*?)</h(?P=n)>', re.S)
+
+
+def _close(html: str, start: int, tag_re: re.Pattern, open_prefix: str) -> int:
+    """Index just past the tag that closes the element opened at `start`, counting nested
+    tags of the same name. Falls back to the end of the string."""
+    depth = 0
+    for m in tag_re.finditer(html, start):
+        depth += 1 if m.group(0).startswith(open_prefix) else -1
+        if depth == 0:
+            return m.end()
+    return len(html)
+
+
+def _strip_br(fragment: str) -> str:
+    return re.sub(r"\A\s*<br\s*/?>\s*", "", fragment)
+
+
+@register.filter(name="qa_items")
+def qa_items(html, block):
+    """Turn each question and its answer into a numbered block that opens and closes
+    (2026-10-15). Runs after `number_sections`, on one block's rendered HTML.
+
+    A `**Q:**` question becomes `<details class="qa" open>`: the question is the summary,
+    the answer everything after it — the rest of its list item, or for a bare paragraph,
+    everything up to the next question or heading. Native `<details>`, like the sections,
+    so it folds with no script and the browser's find-in-page opens it. The number goes in
+    a `data-n` the CSS shows, not in the text: highlight.js matches a selection against
+    the file by its surrounding text, and a number that isn't in the file would break that.
+
+    Numbers and ids come from `block["questions"]`, **by position**, the way
+    `number_sections` stamps headings: the parser walked the same markdown in the same
+    order. A heading that is itself a question (the answer bank's `### "Tell me about
+    yourself"`) folds the same way, and keeps the number and id its heading already has.
+    """
+    if not html:
+        return ""
+    html = str(html)
+    questions = list((block or {}).get("questions") or [])
+
+    starts = [m for m in _QA_ITEM_START.finditer(html) if m.group("li") or m.group("p")]
+    for i in range(len(starts) - 1, -1, -1):  # from the end, so earlier offsets hold
+        m = starts[i]
+        q = questions[i] if i < len(questions) else None
+        span_at = m.end() - len(_QA_SPAN)
+        span_end = _close(html, span_at, _SPAN_TAG, "<span")
+        number = f' data-n="{q["number"]}"' if q else ""
+        summary = (f'<summary class="qa-sum"><span class="qa-q"{number}>'
+                   f'{html[m.end():span_end]}</summary>')
+        attrs = f' id="{q["anchor"]}"' if q else ""
+        if m.group("li"):
+            li_end = _close(html, m.start(), _LI_TAG, "<li")
+            inner_end = li_end - len("</li>")
+            if m.group("p"):
+                p_end = html.index("</p>", span_end) + len("</p>")
+                first = _strip_br(html[span_end:p_end - len("</p>")])
+                answer = (f"<p>{first}</p>" if first.strip() else "") + html[p_end:inner_end]
+            else:
+                answer = _strip_br(html[span_end:inner_end])
+            html = (html[:m.start()] + f'<li class="qa-li"><details class="qa"{attrs} open>'
+                    + summary + f'<div class="qa-a">{answer}</div></details></li>'
+                    + html[li_end:])
+        else:
+            p_end = html.index("</p>", span_end) + len("</p>")
+            first = _strip_br(html[span_end:p_end - len("</p>")])
+            stop = _QA_P_END.search(html, p_end)
+            end = stop.start() if stop else len(html)
+            answer = (f"<p>{first}</p>" if first.strip() else "") + html[p_end:end]
+            html = (html[:m.start()] + f'<details class="qa"{attrs} open>' + summary
+                    + f'<div class="qa-a">{answer}</div></details>' + html[end:])
+
+    # Headings that ask: h4 first, so an h3's answer can contain them already folded.
+    for level in ("4", "3"):
+        out, pos = [], 0
+        stop_re = re.compile(rf"<h[1-{level}][\s>]")
+        for m in _QA_HEADING.finditer(html):
+            if m.group("n") != level or m.start() < pos:
+                continue
+            stop = stop_re.search(html, m.end())
+            end = stop.start() if stop else len(html)
+            out += [html[pos:m.start()], '<details class="qa qa-h" open><summary class="qa-sum">',
+                    m.group(0), '</summary><div class="qa-a">', html[m.end():end], "</div></details>"]
+            pos = end
+        out.append(html[pos:])
+        html = "".join(out)
+    return mark_safe(html)
 
 
 @register.filter

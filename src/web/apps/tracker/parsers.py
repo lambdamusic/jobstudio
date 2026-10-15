@@ -288,6 +288,30 @@ def section_label(raw: str) -> str:
     return out.strip()
 
 
+# The Q/A convention of interview files, and of any note or study file that borrows it: a
+# line opening `**Q:** …`, optionally as a bullet. Only the five markers the prep template
+# uses (Q and A, plus STAR). Shared with `mark_qa`, which colours what this finds — the two
+# have to agree on what a question is, because the page numbers questions by position.
+QA_OPENER = re.compile(r"^(?P<lead>[ \t]*(?:[-*+][ \t]+)?)\*\*(?P<who>Q|A|S|T|R):\*\*")
+# Anything that ends a wrapped question: a blank line, a heading, or a new list item.
+QA_BREAK = re.compile(r"^(?:[ \t]*$|[ \t]*#|[ \t]*(?:[-*+]|\d+[.)])[ \t])")
+
+# A heading that is itself the question. Rounds written before the `**Q:**` convention
+# (2026-09-24) did this — `#### Why do you want to leave?`, `### A1. "Walk me through a
+# platform you architected."` — and so does the answer bank, `### "Tell me about
+# yourself"`. Loose for interview rounds, where a heading that asks or quotes anything is
+# a question. Strict everywhere else (2026-10-15), where headings are topics and a quoted
+# product name is common: the heading has to open with the quote, after an optional
+# `A1.`-style label, or end with a question mark.
+QUESTION_HEADING = re.compile(r'\?|"[^"]+"|\u201c[^\u201d]+\u201d')
+QUESTION_HEADING_STRICT = re.compile(r'^(?:[A-Z]?\d+[.)][ \t]*)?["\u201c]|\?[ \t]*$')
+
+
+def is_question_heading(label: str, loose: bool = False) -> bool:
+    """Whether a heading's text asks the question its section answers."""
+    return bool((QUESTION_HEADING if loose else QUESTION_HEADING_STRICT).search(label))
+
+
 def _is_fence(line: str) -> bool:
     return line.startswith("```") or line.startswith("~~~")
 
@@ -308,6 +332,36 @@ def _unique_sub_anchor(slug: str, block: dict, blocks: list[dict]) -> str:
     while candidate in used:
         candidate, n = f"{block['anchor']}-{slug}-{n}", n + 1
     return candidate
+
+
+def _add_question(block: dict, text: str) -> None:
+    """Record one `**Q:**` question under the heading it sits beneath: the last `###` so
+    far, or the `##` itself when it comes before any. Numbered later, once the block is
+    complete (see `_number_questions`)."""
+    sub = block["subsections"][-1] if block["subsections"] else None
+    block["questions"].append({"label": section_label(text), "sub": sub})
+
+
+def _number_questions(block: dict) -> None:
+    """Number and anchor a block's questions, now that its headings are all known (2026-10-15).
+
+    A question is numbered under its heading: the third under `3.1` is `3.1.3`. One that
+    comes before the first `###` takes `3.0.n` when the block has subsections, so it can't
+    be mistaken for the `3.1` below it, and plain `3.n` when it has none. The anchor
+    extends the heading's, so a link to a question survives the section being renumbered.
+    """
+    counts: dict[str, int] = {}
+    for q in block["questions"]:
+        sub = q.pop("sub")
+        if sub is not None:
+            head, anchor = sub["number"], sub["anchor"]
+        else:
+            head = f"{block['number']}.0" if block["subsections"] else block["number"]
+            anchor = block["anchor"]
+        counts[anchor] = counts.get(anchor, 0) + 1
+        q["number"] = f"{head}.{counts[anchor]}"
+        q["anchor"] = f"{anchor}--q{counts[anchor]}"
+        q["parent"] = anchor
 
 
 def split_sections(body_md: str) -> dict:
@@ -335,13 +389,29 @@ def split_sections(body_md: str) -> dict:
     preamble: list[str] = []
     blocks: list[dict] = []
     in_fence = False
+    question: list[str] | None = None  # the lines of a `**Q:**` still being read
+
+    def end_question():
+        nonlocal question
+        if question is not None and blocks:
+            _add_question(blocks[-1], " ".join(question))
+        question = None
 
     for raw in lines:
         line = raw.strip()
+        if question is not None:
+            opener = QA_OPENER.match(raw)
+            if opener or QA_BREAK.match(raw) or _is_fence(line):
+                end_question()
+            else:
+                question.append(line)
         if _is_fence(line):
             in_fence = not in_fence
         is_h2 = not in_fence and line.startswith("## ") and not line.startswith("### ")
         is_h3 = not in_fence and line.startswith("### ") and not line.startswith("#### ")
+        opener = None if in_fence else QA_OPENER.match(raw)
+        if opener and opener.group("who") == "Q" and blocks and not is_h2:
+            question = [raw[opener.end():].strip()]
 
         if is_h2:
             label = section_label(line[3:].rstrip("#"))
@@ -353,6 +423,7 @@ def split_sections(body_md: str) -> dict:
                 "private": slug.startswith(PRIVATE_SECTION_PREFIX),
                 "lines": [],
                 "subsections": [],
+                "questions": [],
             })
             continue
 
@@ -367,11 +438,14 @@ def split_sections(body_md: str) -> dict:
                 "number": f"{block['number']}.{len(block['subsections']) + 1}",
                 "label": label,
                 "anchor": _unique_sub_anchor(section_slug(label), block, blocks),
+                "question": is_question_heading(label),
             })
         block["lines"].append(raw)
+    end_question()
 
     for block in blocks:
         block["body_md"] = "\n".join(block.pop("lines")).strip("\n")
+        _number_questions(block)
 
     # The leading `# Title` is dropped here rather than by `strip_h1` in the template:
     # every round file opens with one, the page renders the title itself, and leaving it
@@ -462,16 +536,29 @@ def tagged_md(block_md: str, tag: str) -> str | None:
 
 
 def section_index(blocks: list[dict]) -> list[dict]:
-    """The flat pill row: every block and subsection, in page order, with its number."""
+    """The contents: every block and subsection, in page order, with its number — and
+    since 2026-10-15 every `**Q:**` question under the heading it sits beneath (level 4),
+    so a question can be found without scrolling the answers."""
     out = []
     for block in blocks:
+        questions = block.get("questions", [])
+
+        def under(anchor):
+            return [{"number": q["number"], "label": q["label"], "anchor": q["anchor"],
+                     "level": 4, "question": True, "private": block["private"],
+                     "parent": block["anchor"]}
+                    for q in questions if q["parent"] == anchor]
+
         out.append({"number": block["number"], "label": block["label"],
                     "anchor": block["anchor"], "level": 2,
                     "private": block["private"], "parent": block["anchor"]})
+        out += under(block["anchor"])
         for sub in block["subsections"]:
             out.append({"number": sub["number"], "label": sub["label"],
                         "anchor": sub["anchor"], "level": 3,
+                        "question": sub.get("question", False),
                         "private": block["private"], "parent": block["anchor"]})
+            out += under(sub["anchor"])
     return out
 
 
@@ -681,7 +768,10 @@ def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None,
         {**b,
          "anchor": f"{prefix}--{b['anchor']}",
          "subsections": [{**sub, "anchor": f"{prefix}--{sub['anchor']}"}
-                         for sub in b["subsections"]]}
+                         for sub in b["subsections"]],
+         "questions": [{**q, "anchor": f"{prefix}--{q['anchor']}",
+                        "parent": f"{prefix}--{q['parent']}"}
+                       for q in b["questions"]]}
         for b in split["blocks"]
     ]
     preamble = link_glossary(blocks, split["preamble"], prefix, glossary)

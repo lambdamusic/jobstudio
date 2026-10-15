@@ -4292,15 +4292,72 @@ class InterviewRoundTests(TestCase):
                     if m:
                         self.assertNotIn("open", m.group(1))
 
-    def test_mark_qa_is_off_outside_interview_rounds(self):
-        """`**Q:**` is the interview files' convention, not the site's — a note that
-        happens to use it is somebody's prose. The flag exists so `_doc_body.html` stays
-        one template with one filter chain; two chains are how the two copies drift.
-        """
+    def test_mark_qa_marks_questions_everywhere_but_headings_strictly_outside_rounds(self):
+        """`**Q:**` is marked in every document since 2026-10-15 — the answer bank, study
+        files and topic notes use it too, and the contents lists questions wherever they
+        are. What differs outside a round is the heading rule: a note's headings are
+        topics, so only one that opens with a quote or ends with "?" is a question."""
         from tracker.templatetags.jobs_extras import mark_qa
         text = "- **Q:** what is it?"
         self.assertIn("qa-q", mark_qa(text, True))
-        self.assertEqual(mark_qa(text, False), text)
+        self.assertIn("qa-q", mark_qa(text, False))
+        topic = '### Why the "AI-ready" label matters'
+        self.assertIn("qa-q", mark_qa(topic, True))
+        self.assertNotIn("qa-q", mark_qa(topic, False))
+        for asked in ['### "Tell me about yourself" — the 45-second version',
+                      "### When is a graph the wrong answer?"]:
+            with self.subTest(heading=asked):
+                self.assertIn("qa-q", mark_qa(asked, False))
+
+    def test_questions_are_numbered_under_their_heading_and_listed(self):
+        """Each `**Q:**` is numbered under the heading it sits beneath — 1.1.1, 1.1.2 — with
+        an anchor extending the heading's, and appears in the contents under it. One
+        before the first `###` takes `n.0.k`, so it can't be read as the `n.1` below it."""
+        src = (
+            "# Round\n\n## Prep\n\n- **Q:** Before any subsection?\n  **A:** Yes.\n\n"
+            "### Role / technical\n\n- **Q:** First question,\n  wrapped over two lines?\n"
+            "  **A:** One.\n\n- **Q:** Second?\n  **A:** Two.\n\n"
+            "### Why this role\n\n**Q:** A bare one?\n**A:** Three.\n"
+        )
+        doc = P.sectioned(src, "r")
+        qs = doc["blocks"][0]["questions"]
+        self.assertEqual([q["number"] for q in qs], ["1.0.1", "1.1.1", "1.1.2", "1.2.1"])
+        self.assertEqual(qs[1]["label"], "First question, wrapped over two lines?")
+        self.assertEqual(qs[1]["anchor"], "r--role-technical--q1")
+        index = [(s["level"], s["number"]) for s in doc["sections"]]
+        self.assertEqual(index, [(2, "1"), (4, "1.0.1"), (3, "1.1"), (4, "1.1.1"),
+                                 (4, "1.1.2"), (3, "1.2"), (4, "1.2.1")])
+
+    def test_each_question_folds_with_its_answer(self):
+        """`qa_items` turns every question into a `<details>` that opens and closes, the
+        question as its summary and the whole answer inside — including an answer's own
+        bullets, which must stay bullets inside it rather than escape the block."""
+        from tracker.templatetags.jobs_extras import mark_qa, markdownify, number_sections, qa_items
+        src = (
+            "# Round\n\n## Prep\n\n### Role / technical\n\n"
+            "- **Q:** A bulleted question?\n  **A:**\n\n    **Phase one.**\n"
+            "    - first step\n    - second step\n\n"
+            "- **Q:** Another?\n  **A:** Short.\n\n"
+            "### Why this role\n\n**Q:** A bare one?\n**A:** Its answer.\n\nMore of it.\n\n"
+            '### "Tell me about yourself"\n\nThe heading is the question.\n'
+        )
+        doc = P.sectioned(src, "r")
+        block = doc["blocks"][0]
+        html = str(qa_items(number_sections(markdownify(mark_qa(block["body_md"], False)), block),
+                            block))
+        self.assertEqual(html.count('<details class="qa" id='), 3)
+        self.assertIn('<details class="qa" id="r--role-technical--q1" open>', html)
+        self.assertIn('data-n="1.1.1"', html)
+        self.assertIn('data-n="1.2.1"', html)
+        # The answer's bullets are inside the first question's block, before the second.
+        first = html[html.index('id="r--role-technical--q1"'):html.index('id="r--role-technical--q2"')]
+        self.assertIn("<li>second step</li>", first)
+        # A bare-paragraph answer runs on to the next heading, and no further.
+        bare = html[html.index('id="r--why-this-role--q1"'):]
+        self.assertLess(bare.index("More of it."), bare.index("Tell me about yourself"))
+        # The heading that asks folds too, keeping its own number and id.
+        self.assertIn('<details class="qa qa-h" open><summary class="qa-sum"><h3', html)
+        self.assertEqual(html.count("<details"), html.count("</details>"))
 
     def test_extra_files_carry_unique_anchors_rendered_as_ids(self):
         """Prose in a folder needs a target for a specific file. Without an id the only
@@ -4465,7 +4522,7 @@ class InterviewRoundTests(TestCase):
         app = Application.objects.get(num="1")
         r = self.client.get(f"/applications/{app.num}/")
         self.assertEqual(r.status_code, 200)
-        self.assertIn('<span class="qa-q">', r.content.decode())
+        self.assertIn('class="qa-q"', r.content.decode())
 
 
 class CreateFolderActionTests(TestCase):
