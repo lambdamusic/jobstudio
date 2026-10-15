@@ -136,7 +136,12 @@ done
 # job-search CONTENT this check exists to catch, waved through by a comment written for
 # the assert-the-name-is-absent files. An exemption no file needs is not free: it is a
 # blind spot waiting for the next file that matches the path.
-ALLOW_NAME='tools/smoke-test|tools/build-example-fixture|tools/make-public-tree|LICENSE|^backlog/|^log/'
+#
+# backlog/ left the repo on 2026-10-15 (gitignored, kept locally by the maintainer), so
+# its entry here and in the two path filters below went with it — an exemption for a
+# path no tracked file has is exactly the blind spot described above. The comments that
+# still say "backlog/ and log/" record why the exemption was made; only log/ needs it now.
+ALLOW_NAME='tools/smoke-test|tools/build-example-fixture|tools/make-public-tree|LICENSE|^log/'
 
 # The exemption above covers the author's NAME only, and that distinction is the whole
 # point of splitting the check in two. backlog/ and log/ are signed design documents, so
@@ -276,7 +281,7 @@ fi
 # describing the deletion of a citation is not a citation. Match on the path, so a real
 # citation creeping back into subcommands/ or docs/ is still caught.
 hits=$(cd "$DEST" && grep -rn "Manual pp\.\|manual pp\." . 2>/dev/null \
-       | sed 's|^\./||' | grep -Ev "^(backlog/|log/|tools/make-public-tree:)" || true)
+       | sed 's|^\./||' | grep -Ev "^(log/|tools/make-public-tree:)" || true)
 [ -z "$hits" ] || fail $'third-party manual citations:\n'"$hits"
 
 hits=$(cd "$DEST" && grep -rl "/Users/" . 2>/dev/null | sed 's|^\./||' | grep -Ev "$ALLOW_PATH" || true)
@@ -302,7 +307,7 @@ hits=$(cd "$DEST" && grep -rl "/Users/" . 2>/dev/null | sed 's|^\./||' | grep -E
 # had no check at all. A guard only refuses what someone thought to ask it about.
 hits=$(cd "$DEST" && grep -rnEi '\b(his|him|he'"'"'s|hers|she'"'"'s)\b' \
        --include='*.md' . 2>/dev/null | sed 's|^\./||' \
-       | grep -Ev "^(backlog/|log/|CHANGELOG\.md|tools/make-public-tree)" || true)
+       | grep -Ev "^(log/|CHANGELOG\.md|tools/make-public-tree)" || true)
 if [ -n "$hits" ]; then
     fail $'the user is referred to in the third person singular, so this prose was written about one person:\n'"$hits"$'\n\n  Rewrite as "the user" / "they". A file that says "his" is usually\n  carrying that person\x27s own details with it \x2d- check what else is in it.'
 fi
