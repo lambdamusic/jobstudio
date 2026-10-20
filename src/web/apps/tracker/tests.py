@@ -4453,6 +4453,17 @@ class InterviewRoundTests(TestCase):
         self.assertIsNone(_TASK_TAG.search(appfolder.TODO_GUIDE),
                           "no line of the guide may end in something drawn as a tag")
 
+    def test_todo_guide_is_classed_as_a_how_to_note(self):
+        """The guide is for whoever edits notes.md by hand: on the page it is styled
+        apart from the tasks, and the paragraph after it is left alone."""
+        import appfolder
+        from tracker.templatetags.jobs_extras import markdownify
+
+        doc = P.sectioned(f"## To do\n\n{appfolder.TODO_GUIDE}\n\nPlain para.\n", "notes")
+        html = markdownify(doc["body_md"])
+        self.assertIn('<p class="todo-guide"><em>How this list works.</em>', html)
+        self.assertIn("<p>Plain para.</p>", html)
+
     def test_filename_is_built_from_the_shared_convention(self):
         """app_filename() stays the single implementation — and the date is the date of
         the interview, not the day the file was written."""

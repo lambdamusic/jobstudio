@@ -2,6 +2,12 @@
 
 Dated entries, newest first.
 
+## 2026-10-20
+
+- **The to-do guide reads as a how-to.** The "How this list works" paragraph that opens
+  `## To do` in notes.md is shown as a small, muted box with an info badge, set apart from
+  the tasks it explains. Existing files pick it up as they are; nothing to migrate.
+
 ## 2026-10-15
 
 - **Notes say what they were first written for, not everywhere they were used.** The
