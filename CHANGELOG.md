@@ -4,6 +4,12 @@ Dated entries, newest first.
 
 ## 2026-10-21
 
+- **Applications, Notes and Portal scans fold in the sidebar (`#94`).** Their headings
+  now open and close their sub-items instead of linking to a page. Notes' sub-items are
+  its tabs (My search, Interviewing & topics, Career coach), linking straight to each,
+  and the one in view is marked. The active-applications list the Applications heading
+  used to open is now its first sub-item, "Active". The group you are in is always open;
+  the others remember whether you left them open, per browser.
 - **The answer bank's notes on using an answer are boxed as how-tos (`#95`).** Under a
   heading that asks a question, the plain paragraphs before the quoted answer ("A third
   take, for…", "*Tested: …*") are a note on when and how to use it, so they now get the

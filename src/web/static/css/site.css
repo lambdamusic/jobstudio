@@ -138,6 +138,26 @@ a:hover { text-decoration: underline; }
    would flatten the hierarchy back out. The indent lines their text up with the labels
    above: 8px padding + 16px icon + 8px gap. */
 .nav-group a.nav-sub { padding-left: 32px; font-size: 13px; color: #6a6a74; }
+/* A group that opens and closes (`#94`): the heading is a <summary>, laid out like a nav
+   link, with a chevron that turns when open. `.inside` marks the group the page is in,
+   when no sub-item matches exactly (an application's own page, say). */
+.nav-fold > summary {
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+  padding: 6px 8px; margin: 1px 0; border-radius: 6px;
+  color: #3a3a44; font-size: 14px; cursor: pointer; list-style: none; user-select: none;
+}
+.nav-fold > summary::-webkit-details-marker { display: none; }
+.nav-fold > summary:hover { background: #eeeef2; }
+.nav-fold > summary:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+.nav-fold > summary::after {
+  content: ""; flex: none; width: 6px; height: 6px; margin: 0 2px 0 6px;
+  border-right: 1.5px solid var(--faint); border-bottom: 1.5px solid var(--faint);
+  transform: rotate(-45deg); transition: transform .15s ease;
+}
+.nav-fold > summary:not(:has(.nav-count))::after { margin-left: auto; }
+.nav-fold[open] > summary::after { transform: rotate(45deg); }
+.nav-fold > summary.inside { color: var(--navy); font-weight: 600; }
+.nav-fold > summary.inside .ico { opacity: 1; }
 .nav-count { margin-left: auto; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .nav-group a.active .nav-count { color: var(--navy-soft); }
 
