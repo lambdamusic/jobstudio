@@ -259,7 +259,11 @@ if [ -n "$COMPANY_NAMES" ]; then
         # and 5MB of minified JavaScript names plenty of companies by accident (Mermaid
         # carries icon-set and font names). Exempting those names instead would blind
         # the check for every first-party file too. The README itself is still checked.
-        hits=$(cd "$DEST" && grep -rEiwnH "$PATTERN" . 2>/dev/null | sed 's|^\./||' \
+        # Binary files are skipped too (-I): compressed image data is random bytes, and a
+        # short name turns up in it by chance. A three-letter tracked name matched inside
+        # docs/images/quick-intro.gif and blocked every push (2026-10-21). A company name
+        # in an image is not readable text, so there is nothing for this grep to find there.
+        hits=$(cd "$DEST" && grep -rEiwnHI "$PATTERN" . 2>/dev/null | sed 's|^\./||' \
                | grep -Ev '^src/web/static/vendor/[^/:]+\.min\.js:' || true)
         if [ -n "$hits" ]; then
             echo "REFUSING TO SHIP: a company from your tracker is named in the public tree:" >&2
