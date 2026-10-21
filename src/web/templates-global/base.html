@@ -142,13 +142,14 @@ one — the head, the stylesheet and the title convention all stay shared.
       <summary>, so it folds with no script, works from the keyboard, and the published
       mirror needs nothing extra. Open whenever the page is inside the group; `nav.js`
       remembers the rest. The active list the heading used to link to is the "Active"
-      sub-item, so no view was lost. Interviewing comes first after it: the sub-nav runs
+      sub-item, so no view was lost; the heading carries no count, since each sub-item has
+      its own. No "All" (2026-10-21): the full list is still at /applications/all/, reached
+      from the applications pages themselves. Interviewing comes first after it: the sub-nav runs
       down the funnel, and it is the one status where something is already in motion.
       {% endcomment %}
       <details class="nav-fold" data-fold="applications"{% if page == 'applications' %} open data-inside{% endif %}>
         <summary class="nav-head{% if page == 'applications' %} inside{% endif %}">
-          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-applications"/></svg><span>Applications</span>
-          <span class="nav-count">{{ nav_counts.active }}</span></summary>
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-applications"/></svg><span>Applications</span></summary>
         <a href="/applications/" class="nav-sub {% if nav_apps == 'applications' and request_path == '/applications/' %}active{% endif %}">
           Active <span class="nav-count">{{ nav_counts.active }}</span></a>
         <a href="/applications/status/interviewing/" class="nav-sub {% if nav_apps == 'interviewing' %}active{% endif %}">
@@ -157,8 +158,6 @@ one — the head, the stylesheet and the title convention all stay shared.
           Reviewing <span class="nav-count">{{ nav_counts.reviewing }}</span></a>
         <a href="/applications/status/saved/" class="nav-sub {% if nav_apps == 'saved' %}active{% endif %}">
           Saved <span class="nav-count">{{ nav_counts.saved }}</span></a>
-        <a href="/applications/all/" class="nav-sub {% if nav_apps == 'all' %}active{% endif %}">
-          All <span class="nav-count">{{ nav_counts.applications }}</span></a>
       </details>
       <a href="/companies/" class="{% if page == 'companies' %}active{% endif %}">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-companies"/></svg><span>Companies</span>
