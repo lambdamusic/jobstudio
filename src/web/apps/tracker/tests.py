@@ -2942,19 +2942,21 @@ class DefaultActiveListTests(TestCase):
 
     def test_sidebar_groups_fold_and_open_where_the_page_is(self):
         """`#94`: Applications, Notes and Portal scans are <details> groups, not links.
-        The group the page is in renders open; the others start closed. The active list
-        the Applications heading used to link to is kept as its "Active" sub-item."""
+        The group the page is in renders open; the others start closed. Applications lists
+        only the three working statuses (2026-10-21)."""
         html = self.client.get("/companies/").content.decode()
         for name in ("applications", "notes", "scans"):
             with self.subTest(group=name):
                 self.assertIn(f'<details class="nav-fold" data-fold="{name}">', html)
         self.assertNotIn('<a href="/notes/" class=', html)
-        self.assertIn('<a href="/applications/" class="nav-sub ', html)
+        group = html[html.index('data-fold="applications"'):html.index('data-fold="notes"')]
+        self.assertEqual(re.findall(r'href="(/applications/[^"]*)"', group),
+                         ["/applications/status/interviewing/", "/applications/status/reviewing/",
+                          "/applications/status/saved/"])
 
         listing = self.client.get("/applications/").content.decode()
         self.assertIn('<details class="nav-fold" data-fold="applications" open data-inside>',
                       listing)
-        self.assertIn('<a href="/applications/" class="nav-sub active">', listing)
 
     def test_notes_sub_items_are_the_notes_tabs(self):
         html = self.client.get("/").content.decode()
