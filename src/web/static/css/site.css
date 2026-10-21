@@ -870,23 +870,25 @@ input.task-box {
 input.task-box:disabled { cursor: default; }
 /* A task's round tag (`@hiring-manager`): which round it is for, as a small pill, so it
    reads as a label rather than as the last word of the sentence. */
-/* The "How this list works" note atop `## To do`: a how-to for whoever edits notes.md,
-   so it sits back from the tasks — small, muted, boxed, with an info badge. */
-.todo-guide {
+/* A how-to note: words for the reader about the text, not part of it — the "How this
+   list works" paragraph atop `## To do`, and the note introducing each answer in the
+   answer bank (`_box_intro`). Small, muted, boxed, with an info badge, so it sits back
+   from the tasks or the answer it explains. */
+.howto-note {
   margin: 4px 0 18px; padding: 8px 12px; border-radius: var(--radius);
   background: var(--bg-sunk); border: 1px dashed var(--line);
   color: var(--muted); font-size: 12.5px; line-height: 1.5;
 }
-.todo-guide > em:first-child {
-  font-style: normal; font-weight: 600; color: var(--navy-soft);
-}
-.todo-guide > em:first-child::before {
+div.howto-note > p { margin: 0 0 6px; }
+div.howto-note > p:last-child { margin-bottom: 0; }
+.howto-note > em:first-child { font-style: normal; font-weight: 600; color: var(--navy-soft); }
+p.howto-note::before, div.howto-note > p:first-child::before {
   content: "i"; display: inline-block; width: 15px; height: 15px; margin-right: 6px;
   border-radius: 50%; background: var(--faint); color: #fff; font: 600 10.5px/15px Georgia, serif;
   text-align: center; font-style: italic; vertical-align: 1px;
 }
-.todo-guide code { font-size: 11.5px; }
-.todo-guide br:last-child { display: none; }
+.howto-note code { font-size: 11.5px; }
+.howto-note br:last-child { display: none; }
 .task-tag {
   display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 999px;
   background: #e8ecf4; color: var(--navy); font-size: 11.5px; font-weight: 600;

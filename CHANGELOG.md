@@ -2,6 +2,16 @@
 
 Dated entries, newest first.
 
+## 2026-10-21
+
+- **The answer bank's notes on using an answer are boxed as how-tos (`#95`).** Under a
+  heading that asks a question, the plain paragraphs before the quoted answer ("A third
+  take, for…", "*Tested: …*") are a note on when and how to use it, so they now get the
+  same muted box as the "How this list works" guide in `## To do`. Told apart by shape, so
+  no file needs a marker: a paragraph that opens in bold is the answer starting, and an
+  entry with no quoted answer is left as it is. The box's class is now `howto-note`, one
+  class for both.
+
 ## 2026-10-20
 
 - **The to-do guide reads as a how-to.** The "How this list works" paragraph that opens

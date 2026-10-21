@@ -356,6 +356,31 @@ def _strip_br(fragment: str) -> str:
     return re.sub(r"\A\s*<br\s*/?>\s*", "", fragment)
 
 
+# A paragraph at the start of a heading-question's answer, and what may follow the intro.
+_INTRO_P = re.compile(r"\s*<p>(?!\s*<strong>)(?:(?!</p>).)*</p>", re.S)
+_AFTER_INTRO = re.compile(r"\s*(?:<blockquote|<p>\s*<strong>)")
+
+
+def _box_intro(answer: str) -> str:
+    """Frame the note that introduces a heading-question's answer as a how-to box.
+
+    The answer bank's entries open with a word on when and how to use the answer ("A
+    third take, for…", "*Tested: …*") before the answer itself, which is quoted. Told
+    apart by shape, so the files need no marker: the plain paragraphs before the first
+    blockquote, stopping at one that opens in bold — "**Trend 1 — …**" or "**If asked…**"
+    is the start of the answer, not a note about it. Nothing is boxed unless the entry has
+    a quoted answer, so a round's prose answers are left alone.
+    """
+    if "<blockquote" not in answer:
+        return answer
+    pos = 0
+    while m := _INTRO_P.match(answer, pos):
+        pos = m.end()
+    if not pos or not _AFTER_INTRO.match(answer, pos):
+        return answer
+    return f'<div class="howto-note">{answer[:pos]}</div>{answer[pos:]}'
+
+
 @register.filter(name="qa_items")
 def qa_items(html, block):
     """Turn each question and its answer into a numbered block that opens and closes
@@ -419,7 +444,8 @@ def qa_items(html, block):
             stop = stop_re.search(html, m.end())
             end = stop.start() if stop else len(html)
             out += [html[pos:m.start()], '<details class="qa qa-h" open><summary class="qa-sum">',
-                    m.group(0), '</summary><div class="qa-a">', html[m.end():end], "</div></details>"]
+                    m.group(0), '</summary><div class="qa-a">', _box_intro(html[m.end():end]),
+                    "</div></details>"]
             pos = end
         out.append(html[pos:])
         html = "".join(out)

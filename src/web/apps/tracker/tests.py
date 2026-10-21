@@ -4461,8 +4461,31 @@ class InterviewRoundTests(TestCase):
 
         doc = P.sectioned(f"## To do\n\n{appfolder.TODO_GUIDE}\n\nPlain para.\n", "notes")
         html = markdownify(doc["body_md"])
-        self.assertIn('<p class="todo-guide"><em>How this list works.</em>', html)
+        self.assertIn('<p class="howto-note"><em>How this list works.</em>', html)
         self.assertIn("<p>Plain para.</p>", html)
+
+    def test_answer_bank_intro_is_boxed_as_a_how_to_note(self):
+        """`#95`: under a heading that asks, the plain paragraphs before the quoted answer
+        are a note on using it, boxed like the to-do guide. A bold-led paragraph is the
+        answer starting, and an entry with no quoted answer is left alone."""
+        from tracker.templatetags.jobs_extras import markdownify, mark_qa, qa_items
+
+        def render(body):
+            doc = P.sectioned(f"## About me\n\n{body}", "n")
+            block = doc["blocks"][0]
+            return str(qa_items(markdownify(mark_qa(block["body_md"], False)), block))
+
+        html = render('### "Tell me about yourself"\n\n*Tested: worked.*\n\nKeep it short.\n\n'
+                      '> "I build data foundations."\n')
+        self.assertRegex(html, r'<div class="howto-note">\s*<p><em>Tested: worked\.</em></p>')
+        self.assertRegex(html, r'Keep it short\.(<br />)?</p>\s*</div>\s*<blockquote>')
+
+        bold = render('### "What are the trends?"\n\n**Trend 1 — delivery.** More text.\n\n'
+                      '> "The question changed."\n')
+        self.assertNotIn("howto-note", bold)
+
+        unquoted = render('### "Why this role?"\n\nA plain answer, no quote.\n')
+        self.assertNotIn("howto-note", unquoted)
 
     def test_filename_is_built_from_the_shared_convention(self):
         """app_filename() stays the single implementation — and the date is the date of

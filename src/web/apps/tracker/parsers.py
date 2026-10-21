@@ -488,7 +488,8 @@ _TASK_TAG = re.compile(r"(?<=\S[ \t])@([a-z][a-z0-9-]*)[ \t]*$", re.M)
 
 # The "How this list works" paragraph that opens `## To do` (`TODO_GUIDE` in
 # `src/appfolder.py`). It explains the file to whoever edits it by hand, so on the page it
-# is classed as a muted how-to note rather than read as part of the list.
+# is classed as a muted how-to note (`howto-note`, shared with the answer bank's intros)
+# rather than read as part of the list.
 _TODO_GUIDE = re.compile(r"(?m)^\*How this list works\.\*(?:.+\n?)+")
 
 # A top-level list item, which runs until the next line that is neither blank nor indented.
@@ -768,7 +769,7 @@ def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None,
     # file, so an index on the page is an index into the file.
     body_md = _TASK_TAG.sub(r'<span class="task-tag">@\1</span>',
                             render_tasks(render_marks(body_md, source), source))
-    body_md = _TODO_GUIDE.sub(lambda m: m[0].rstrip("\n") + "\n{: .todo-guide }\n", body_md)
+    body_md = _TODO_GUIDE.sub(lambda m: m[0].rstrip("\n") + "\n{: .howto-note }\n", body_md)
     split = split_sections(body_md)
     blocks = [
         {**b,
