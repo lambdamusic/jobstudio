@@ -699,7 +699,7 @@ Dated entries, newest first.
   title.
 
 Found by installing the toolkit on a second machine against an unfamiliar CV — the last
-outstanding piece of `#2`. Write-up in `log/2026-09-29-second-machine-findings.md`;
+outstanding piece of `#2`. Write-up in `backlog/log/2026-09-29-second-machine-findings.md`;
 `#46`–`#51` are the rest of what that run turned up.
 
 ## 2026-09-28

@@ -165,7 +165,7 @@ recap progress in chat if they want to pause and resume within the same session)
    included — is just a file that happens to be lying around, and copying its shape
    is how an import silently loses its entire work history. This is not hypothetical:
    it is what happened on 2026-09-29, twice in one session, because the shipped
-   examples were themselves off-contract (log/2026-09-29-second-machine-findings.md).
+   examples were themselves off-contract (backlog/log/2026-09-29-second-machine-findings.md).
    They are correct again now, and `--check` is what keeps the question answerable
    without trusting either file.
 
