@@ -1106,6 +1106,36 @@ def _size(path: Path) -> int:
     return path.stat().st_size
 
 
+def _coach_paths(root: Path) -> list[Path]:
+    """Every document in the career-coach folder, as the person would count them: hidden
+    files skipped, folders not counted, and an iWork document that is a folder on disk
+    counted once, as the one file it is to them."""
+    out = []
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        if any(Path(part).suffix in PACKAGE_SUFFIXES for part in rel.parts[:-1]):
+            continue
+        if path.is_dir() and path.suffix not in PACKAGE_SUFFIXES:
+            continue
+        out.append(path)
+    return out
+
+
+def nav_note_counts() -> dict[str, int]:
+    """How many notes each Notes tab holds, for the sidebar's sub-items (`#94`): notes per
+    group as the Notes page counts them, and the Career coach tab's documents."""
+    counts: dict[str, int] = {}
+    for path in _notes_files():
+        group = _note_group(path)
+        counts[group] = counts.get(group, 0) + 1
+    root = Path(settings.COACH_DIR)
+    if root.is_dir():
+        counts[COACH_TAB] = len(_coach_paths(root))
+    return counts
+
+
 def _coach():
     """The career-coach folder, ready for its tab on /notes/ — or None when there is none.
 
@@ -1119,15 +1149,8 @@ def _coach():
     if not root.is_dir():
         return None
     top, nested, folders = [], [], {}
-    for path in sorted(root.rglob("*")):
+    for path in _coach_paths(root):
         rel = path.relative_to(root)
-        if any(part.startswith(".") for part in rel.parts):
-            continue
-        # An iWork document can be a folder on disk; it is one file to the person.
-        if any(Path(part).suffix in PACKAGE_SUFFIXES for part in rel.parts[:-1]):
-            continue
-        if path.is_dir() and path.suffix not in PACKAGE_SUFFIXES:
-            continue
         anchor = f"{COACH_TAB}--" + re.sub(r"[^a-z0-9]+", "-", rel.with_suffix("").as_posix().lower()).strip("-")
         if path.suffix == ".md":
             body = path.read_text()

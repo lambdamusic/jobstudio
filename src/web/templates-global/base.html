@@ -185,7 +185,8 @@ one — the head, the stylesheet and the title convention all stay shared.
         <summary class="nav-head{% if page == 'notes' %} inside{% endif %}">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-notes"/></svg><span>Notes</span></summary>
         {% for g in nav_notes %}
-          <a href="/notes/#{{ g.slug }}" data-tab-link="{{ g.slug }}" class="nav-sub {% if note and note.group == g.slug %}active{% endif %}">{{ g.label }}</a>
+          <a href="/notes/#{{ g.slug }}" data-tab-link="{{ g.slug }}" class="nav-sub {% if note and note.group == g.slug %}active{% endif %}">
+            {{ g.label }} <span class="nav-count">{{ g.count }}</span></a>
         {% endfor %}
       </details>
       <details class="nav-fold" data-fold="scans"{% if page == 'scans' %} open data-inside{% endif %}>

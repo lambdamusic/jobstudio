@@ -2961,6 +2961,13 @@ class DefaultActiveListTests(TestCase):
         group = html[html.index('data-fold="notes"'):html.index('data-fold="scans"')]
         self.assertIn('href="/notes/#search"', group)
         self.assertIn('href="/notes/#topics"', group)
+        # Each carries its count, matching the Notes page's own tab counts.
+        notes_page = self.client.get("/notes/").content.decode()
+        for slug, count in re.findall(
+                r'data-tab="([\w-]+)"[^>]*>[^<]*<span class="tab-count">(\d+)</span>', notes_page):
+            with self.subTest(tab=slug):
+                self.assertRegex(group, rf'data-tab-link="{slug}"[^>]*>\s*[^<]*'
+                                        rf'<span class="nav-count">{count}</span>')
 
     def test_sidebar_has_reviewing_link_not_active(self):
         html = self.client.get("/").content.decode()
