@@ -185,17 +185,24 @@ pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 
 - `search/` — direction, reflection and leads, including `ideal-job-notes.md`
   (which `scan` scoring reads in full).
-- `interviewing/` — `interview-technique.md`, with the answer bank `interview` reads and
-  appends to. Shown as **Technique**.
-- `topics/` — reusable prep, in one of three subfolders named after the to-do themes:
+- `interviewing/` — **about me**, shown as **Me: answers and my work**:
+  `interview-technique.md`, the answer bank `interview` reads and appends to, plus
+  reference notes on what I built (how a product or pipeline worked, my role, the
+  figures). Each story is told once, in the answer bank; the reference notes hold the
+  detail behind it.
+- `topics/` — **about the subject**: general, reusable prep, in one of four subfolders:
   - `topics/product/` — **Product**: product practice (discovery, strategy, delivery).
-  - `topics/tech-data/` — **Tech & Data**: technical subjects (architecture, data
-    modelling, knowledge graphs, security).
-  - `topics/domain/` — **Domain**: a sector landscape (who the players are, what they
-    need).
+  - `topics/data-architecture/` — **Data architecture**: system design, APIs, platforms,
+    security.
+  - `topics/knowledge-graphs/` — **Knowledge graphs**: entity resolution, ontologies,
+    graph data.
+  - `topics/other/` — **Other**: sector landscapes and anything else.
+
+  A topic note doesn't retell my stories; it says what a story shows and links to it in
+  the answer bank (`/notes/interview-technique/#…`) or to the reference note.
 
 **Study material that would serve another application goes to `topics/<subfolder>/`, not
-into the application folder.** Name it for the topic (`topics/tech-data/api-security.md`),
+into the application folder.** Name it for the topic (`topics/data-architecture/api-security.md`),
 open it with one italic line saying which application it started for and when, and keep
 only what is specific to that company or round in the application folder, linking the
 note as `/notes/<slug>/`. That company-specific part goes **in `notes.md`**, as a section

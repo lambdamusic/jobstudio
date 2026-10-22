@@ -795,8 +795,8 @@ class ViewTests(TestCase):
         (notes / "loose.md").write_text("# Loose note\n\nNo group.\n")
         (notes / "interviewing").mkdir()
         (notes / "interviewing" / "answer-bank.md").write_text("# Answer bank\n\nAnswers.\n")
-        (notes / "topics" / "domain").mkdir()
-        (notes / "topics" / "domain" / "energy-markets.md").write_text("# Energy markets\n\nX.\n")
+        (notes / "topics" / "data-architecture").mkdir()
+        (notes / "topics" / "data-architecture" / "energy-markets.md").write_text("# Energy markets\n\nX.\n")
         (notes / "search" / "recruiter-leads").mkdir(parents=True)
         (notes / "search" / "recruiter-leads" / "agencies.md").write_text("# Agencies\n\nY.\n")
         (notes / "search" / "aims.md").write_text("# Aims\n\nZ.\n")
@@ -816,8 +816,8 @@ class ViewTests(TestCase):
             panel = panel[:panel.index("</section>")]
             # Sections by subfolder: the named ones in order, a note straight in topics/
             # last as "Other notes"; nested notes keep the flat URL.
-            order = [panel.index(x) for x in (">Technique ", 'href="/notes/answer-bank/"',
-                                              ">Domain ", 'href="/notes/energy-markets/"',
+            order = [panel.index(x) for x in (">Me: answers and my work ", 'href="/notes/answer-bank/"',
+                                              ">Data architecture ", 'href="/notes/energy-markets/"',
                                               ">Other notes ", 'href="/notes/graph-basics/"')]
             self.assertEqual(order, sorted(order))
             # An unlisted subfolder of search/ is a section named after it; the notes

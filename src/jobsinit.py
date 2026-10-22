@@ -33,7 +33,8 @@ EXAMPLE = REPO / "example-data"
 # user may never fill, so the skill can write into any of them without checking first.
 TREE = ["jobs/applications", "jobs/companies", "jobs/cv/base", "jobs/notes/search",
         "jobs/notes/interviewing", "jobs/notes/topics/product",
-        "jobs/notes/topics/tech-data", "jobs/notes/topics/domain",
+        "jobs/notes/topics/data-architecture", "jobs/notes/topics/knowledge-graphs",
+        "jobs/notes/topics/other",
         "jobs/profile", "jobs/scans", "jobs/targets", "exports", "backups/django"]
 
 # The two-folder VS Code workspace. The `+data` in the name is the point: it says at a

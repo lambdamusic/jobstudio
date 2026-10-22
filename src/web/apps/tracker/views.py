@@ -977,15 +977,20 @@ NOTE_GROUPS = [
 _FOLDER_TAB = {folder: slug for slug, _, _, folders in NOTE_GROUPS for folder in folders}
 
 # Sections within a tab, by the folder a note sits in, in the order the tab shows them
-# (2026-10-13). They carry the names of the to-do themes, so a task and the note behind it
-# sit under the same word. A note straight in topics/, or in a subfolder not listed here,
-# still shows — after these, under its folder's name.
+# (2026-10-13). The tab splits "about me" from "about the subject" (2026-10-22):
+# interviewing/ holds the answers and the detail of my own work, each story told once;
+# topics/ holds general knowledge, which links to those stories rather than retelling
+# them. A note straight in topics/, or in a subfolder not listed here, still shows: after
+# these, under its folder's name, with the loose ones last as "Other notes".
 NOTE_SECTIONS = [
-    ("interviewing", "Technique", "How to answer, and the bank of answers that prep reuses."),
+    ("interviewing", "Me: answers and my work",
+     "The answer bank, and the detail of what I built, to say aloud and to draw on."),
     ("topics/product", "Product", "Product practice: discovery, strategy, delivery."),
-    ("topics/tech-data", "Tech & Data", "Technical subjects: architecture, data modelling, "
-                                        "knowledge graphs, security."),
-    ("topics/domain", "Domain", "Sector landscapes: who the players are, and what they need."),
+    ("topics/data-architecture", "Data architecture",
+     "System design, APIs, platforms and security."),
+    ("topics/knowledge-graphs", "Knowledge graphs",
+     "Entity resolution, ontologies, graph data and who uses it."),
+    ("topics/other", "Other", "Sector landscapes and anything else worth keeping."),
 ]
 
 

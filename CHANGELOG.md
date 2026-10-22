@@ -4,6 +4,12 @@ Dated entries, newest first.
 
 ## 2026-10-22
 
+- **The "Interviewing & topics" tab splits "about me" from "about the subject".**
+  `interviewing/` (shown as "Me: answers and my work") holds the answer bank and reference
+  notes on what you built; `topics/` holds general knowledge in four subfolders: product,
+  data architecture, knowledge graphs, and other. `init` creates the new folders, and the
+  skill now says that a topic note links to a story in the answer bank rather than
+  retelling it.
 - **Notes not filed in a subfolder read "Other notes", and come last.** Once a tab's folder
   has a subfolder (`search/recruiter-leads/`, say), that subfolder becomes a section named
   after it. The notes left straight in the folder are now headed "Other notes", after every
