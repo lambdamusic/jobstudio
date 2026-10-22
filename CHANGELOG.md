@@ -2,6 +2,16 @@
 
 Dated entries, newest first.
 
+## 2026-10-22
+
+- **The sidebar collapses to an icon rail (`#96`).** A button next to the logo shrinks
+  the sidebar to a narrow strip of icons, giving long pages the full width. Each
+  top-level entry keeps its icon as a link, with its label as a tooltip. A group
+  heading (Applications, Notes, Portal scans) opens the full sidebar on that group. The
+  choice is remembered per browser and applied before the page draws, so it doesn't
+  flicker on load. At phone width the collapsed sidebar is one row of icons above the
+  page.
+
 ## 2026-10-21
 
 - **Applications, Notes and Portal scans fold in the sidebar (`#94`).** Their headings

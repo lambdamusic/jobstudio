@@ -113,6 +113,7 @@ a:hover { text-decoration: underline; }
 }
 
 .brand { padding: 0 20px 18px; }
+.brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 /* The lockup draws its own type, so the brand block itself sets no font — only the
    owner/year line under it does. */
 .brand-mark { display: block; }
@@ -179,6 +180,40 @@ a:hover { text-decoration: underline; }
 }
 .sidebar-foot a { color: var(--muted); }
 .sidebar-foot a:hover { color: var(--navy); }
+
+/* ---------- collapsed sidebar: an icon rail (`#96`) ----------
+   `side-collapsed` sits on <html>, set by the inline script in base.html before first
+   paint, and toggled by nav.js. Only top-level entries survive: each keeps its icon as a
+   link, with its label as a tooltip (nav.js copies it into `title`). Labels, counts,
+   sub-items and the footer go. A group heading opens the full sidebar on that group,
+   since its sub-items have nowhere to show in the rail. */
+.side-toggle {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--faint); cursor: pointer;
+}
+.side-toggle[hidden] { display: none; }
+.side-toggle:hover { background: #eeeef2; color: var(--navy); }
+.side-toggle:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+.side-toggle .ico { opacity: 1; }
+
+.side-collapsed .sidebar { width: 56px; flex-basis: 56px; }
+.side-collapsed .brand { padding: 0 8px 14px; }
+.side-collapsed .brand-row { flex-direction: column; gap: 10px; }
+.side-collapsed .brand-mark { width: 24px; }
+.side-collapsed .brand > span,
+.side-collapsed .nav-label,
+.side-collapsed .nav-group a > span,
+.side-collapsed .nav-fold > summary > span,
+.side-collapsed .nav-fold > summary::after,
+.side-collapsed .nav-sub,
+.side-collapsed .nav-group a.local-only::after,
+.side-collapsed .sidebar-foot { display: none; }
+.side-collapsed .nav-group { padding: 0 8px; margin-bottom: 10px; }
+.side-collapsed .nav-group + .nav-group { border-top: 1px solid var(--line); padding-top: 10px; }
+.side-collapsed .nav-group a,
+.side-collapsed .nav-fold > summary { justify-content: center; padding: 8px 0; }
+.side-collapsed .nav-fold > summary.inside { background: #e8ebf3; }
 
 .content { flex: 1; min-width: 0; padding: 34px 44px 72px; }
 .content-inner { max-width: 1080px; }
@@ -399,6 +434,16 @@ a.badge:hover { text-decoration: none; filter: brightness(0.96); }
   .layout { flex-direction: column; }
   .sidebar { width: auto; flex: none; border-right: 0; border-bottom: 1px solid var(--line); }
   .content { padding: 24px 20px 48px; }
+  /* Stacked above the content, the rail becomes one row of icons instead. */
+  .side-collapsed .sidebar { width: auto; flex: none; flex-direction: row; flex-wrap: wrap;
+                             align-items: center; padding: 10px 8px; }
+  .side-collapsed .brand { padding: 0 8px 0 4px; }
+  .side-collapsed .brand-row { flex-direction: row; }
+  .side-collapsed .nav-group { display: flex; margin: 0; padding: 0 4px; }
+  .side-collapsed .nav-group + .nav-group { border-top: 0; padding-top: 0;
+                                            border-left: 1px solid var(--line); }
+  .side-collapsed .nav-group a,
+  .side-collapsed .nav-fold > summary { padding: 8px 10px; }
 }
 
 

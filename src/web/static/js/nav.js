@@ -10,11 +10,18 @@
  *   groups start closed.
  * - On /notes/, marks the sub-item for whichever tab is open. Which tab that is lives in
  *   the URL hash, which the server never sees, so the template cannot mark it.
+ *
+ * And it runs the button that collapses the whole sidebar to an icon rail (`#96`). The
+ * saved choice is applied by an inline script in base.html before first paint; this
+ * shows the button, flips the class on <html>, and gives each icon its label as a
+ * tooltip while the labels are hidden.
  */
 (function () {
   "use strict";
 
   var KEY = "jobstudio.nav.open";
+  var COLLAPSED_KEY = "jobstudio.nav.collapsed";
+  var root = document.documentElement;
 
   function load() {
     try {
@@ -44,6 +51,54 @@
     });
   }
 
+  function isCollapsed() {
+    return root.classList.contains("side-collapsed");
+  }
+
+  // Labels are hidden in the rail, so each entry's label becomes its tooltip there, and
+  // stops being one when the labels are back.
+  function setTooltips(on) {
+    var entries = document.querySelectorAll(".sidebar .nav-group > a, .sidebar .nav-fold > summary");
+    Array.prototype.forEach.call(entries, function (el) {
+      var label = el.querySelector("span");
+      if (on && label) el.setAttribute("title", label.textContent.trim());
+      else el.removeAttribute("title");
+    });
+  }
+
+  function setCollapsed(button, collapsed) {
+    root.classList.toggle("side-collapsed", collapsed);
+    var label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+    button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
+    setTooltips(collapsed);
+  }
+
+  function setupToggle() {
+    var button = document.querySelector(".side-toggle");
+    if (!button) return; // the interview focus view has no sidebar
+    button.hidden = false;
+    setCollapsed(button, isCollapsed());
+    button.addEventListener("click", function () {
+      var collapsed = !isCollapsed();
+      setCollapsed(button, collapsed);
+      try {
+        window.localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+      } catch (e) { /* blocked storage: the choice lasts for this page only */ }
+    });
+    // A group heading in the rail has no room for its sub-items, so it opens the full
+    // sidebar on that group instead of folding something invisible.
+    Array.prototype.forEach.call(document.querySelectorAll(".nav-fold > summary"), function (summary) {
+      summary.addEventListener("click", function (event) {
+        if (!isCollapsed()) return;
+        event.preventDefault();
+        button.click();
+        summary.parentNode.open = true;
+      });
+    });
+  }
+
   function markNotesTab() {
     var links = document.querySelectorAll("[data-tab-link]");
     if (!links.length || window.location.pathname !== "/notes/") return;
@@ -61,6 +116,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     setupFolds();
+    setupToggle();
     // After tabs.js (also deferred, loaded first) has opened the tab from the hash.
     markNotesTab();
     window.addEventListener("hashchange", function () { setTimeout(markNotesTab, 0); });

@@ -2971,6 +2971,25 @@ class DefaultActiveListTests(TestCase):
                 self.assertRegex(group, rf'data-tab-link="{slug}"[^>]*>\s*[^<]*'
                                         rf'<span class="nav-count">{count}</span>')
 
+    def test_the_sidebar_can_collapse_to_an_icon_rail(self):
+        """`#96`: a toggle collapses the sidebar to icons. It starts `hidden`, since it only
+        works with nav.js; the saved choice is applied in <head>, before first paint; and
+        every top-level entry has an icon plus a <span> label, which nav.js turns into the
+        entry's tooltip in the rail."""
+        html = self.client.get("/companies/").content.decode()
+        self.assertRegex(html, r'<button type="button" class="side-toggle" hidden')
+        head = html[:html.index("<body>")]
+        self.assertIn('localStorage.getItem("jobstudio.nav.collapsed")', head)
+        nav = html[html.index('<nav class="sidebar">'):html.index("</nav>")]
+        entries = re.findall(r'<a href="[^"]*" class="(?!nav-sub)[^"]*"[^>]*>\s*(.*?)</a>'
+                             r'|<summary class="nav-head[^"]*">\s*(.*?)</summary>', nav, re.S)
+        self.assertGreater(len(entries), 5)
+        for link, summary in entries:
+            body = link or summary
+            with self.subTest(entry=body[:60]):
+                self.assertRegex(body, r'^<svg class="ico"[^>]*><use href="#i-[\w-]+"/></svg>'
+                                       r'<span>[^<]+</span>')
+
     def test_sidebar_has_reviewing_link_not_active(self):
         html = self.client.get("/").content.decode()
         self.assertIn('href="/applications/status/reviewing/"', html)
