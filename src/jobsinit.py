@@ -31,7 +31,7 @@ EXAMPLE = REPO / "example-data"
 
 # The subdirectories of a data root. `init` creates them all, even the ones a given
 # user may never fill, so the skill can write into any of them without checking first.
-TREE = ["jobs/applications", "jobs/companies", "jobs/cv/base", "jobs/notes/search",
+TREE = ["jobs/applications", "jobs/companies", "jobs/cv/base", "jobs/notes/search/direction",
         "jobs/notes/interviewing", "jobs/notes/topics/product",
         "jobs/notes/topics/data-architecture", "jobs/notes/topics/knowledge-graphs",
         "jobs/notes/topics/other",

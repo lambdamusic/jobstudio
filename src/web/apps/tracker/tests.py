@@ -4218,7 +4218,7 @@ class InterviewRoundTests(TestCase):
         from tracker.templatetags.jobs_extras import markdownify
         a = "001-grafana-labs-alex-rivera"
         cases = {
-            "`jobs/notes/search/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "`jobs/notes/search/direction/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
             "`ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
             "see <DATA>/jobs/companies/grafana-labs.md now": 'href="/companies/grafana-labs/"',
             "`stocktake.md` §7": '<a href="/profile/"><code>stocktake.md</code></a>',
@@ -4230,7 +4230,7 @@ class InterviewRoundTests(TestCase):
                 'href="/applications/1/#cv-developer-advocacy-2026-09-15"',
             f"`{a}-study-plugin-architecture-2026-09-19.md`":
                 f'href="/applications/1/#file-{a}-study-plugin-architecture-2026-09-19-md"',
-            "[the note](jobs/notes/search/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
+            "[the note](jobs/notes/search/direction/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
         }
         for md, expected in cases.items():
             with self.subTest(md=md):

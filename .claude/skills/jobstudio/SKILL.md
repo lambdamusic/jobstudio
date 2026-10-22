@@ -183,8 +183,9 @@ pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 `<DATA>/jobs/notes/` has three subfolders. `search/` is a tab on the Notes page;
 `interviewing/` and `topics/` share the "Interviewing & topics" tab, one section per folder:
 
-- `search/` — direction, reflection and leads, including `ideal-job-notes.md`
-  (which `scan` scoring reads in full).
+- `search/` — direction, reflection and leads, in subfolders of its own (`direction/`,
+  `new-areas/`, …). `search/direction/ideal-job-notes.md` is read by path: `scan` scoring
+  reads it in full, and `stocktake` and `interview` draw on it, so it stays exactly there.
 - `interviewing/` — **about me**, shown as **Me: answers and my work**:
   `interview-technique.md`, the answer bank `interview` reads and appends to, plus
   reference notes on what I built (how a product or pipeline worked, my role, the

@@ -8,7 +8,7 @@ only ever turned into a link that works, never into a guess.
 
 Forms resolved, relative to the data root (a leading `<DATA>/` is dropped):
 
-    jobs/notes/[<group>/]<slug>.md        ->  /notes/<slug>/
+    jobs/notes/[<folder>/...]<slug>.md    ->  /notes/<slug>/   (at any depth)
     jobs/companies/<slug>.md              ->  /companies/<slug>/
     jobs/profile/stocktake.md             ->  /profile/
     jobs/cv/base/<slug>.md                ->  /cvs/base/<slug>/
@@ -74,8 +74,10 @@ def _resolve_path(rel: str) -> str | None:
     """A data-root-relative path to its page, or None."""
     root = _data_root()
     parts = rel.split("/")
-    # A note may sit in a group subfolder; its URL is the filename alone either way.
-    if parts[:2] == ["jobs", "notes"] and len(parts) in (3, 4):
+    # A note may sit at any depth (`search/direction/`, `topics/product/`, 2026-10-22: two
+    # levels was the old ceiling, and nested notes stayed text); its URL is the filename
+    # alone either way, as the Notes page serves it.
+    if parts[:2] == ["jobs", "notes"] and len(parts) >= 3:
         return f"/notes/{Path(parts[-1]).stem}/" if (root / rel).is_file() else None
     if parts[:2] == ["jobs", "companies"] and len(parts) == 3:
         from .models import Company
@@ -98,8 +100,7 @@ def _resolve_bare(name: str) -> str | None:
     candidates = [f"jobs/companies/{name}", f"jobs/profile/{name}", f"jobs/cv/base/{name}"]
     notes = _data_root() / "jobs" / "notes"
     if notes.is_dir():
-        candidates += [p.relative_to(_data_root()).as_posix() for p in notes.rglob(name)
-                       if len(p.relative_to(notes).parts) <= 2]
+        candidates += [p.relative_to(_data_root()).as_posix() for p in notes.rglob(name)]
     # A file named by the folder convention starts with its folder's name.
     m = re.match(r"(\d{3}-[a-z0-9-]+?)-", name)
     if m:

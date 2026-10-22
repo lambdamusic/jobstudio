@@ -4,6 +4,10 @@ Dated entries, newest first.
 
 ## 2026-10-22
 
+- **`ideal-job-notes.md` lives in `jobs/notes/search/direction/`.** `scan`, `stocktake` and
+  `interview` read it there, and the example data matches. A path to a note in a nested
+  folder now becomes a link as well: the linker used to stop two folders down, so a
+  reference to `search/direction/…` or `topics/product/…` was left as plain text.
 - **The "Interviewing & topics" tab splits "about me" from "about the subject".**
   `interviewing/` (shown as "Me: answers and my work") holds the answer bank and reference
   notes on what you built; `topics/` holds general knowledge in four subfolders: product,
