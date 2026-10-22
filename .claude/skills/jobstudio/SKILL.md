@@ -187,10 +187,11 @@ pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
   `new-areas/`, …). `search/direction/ideal-job-notes.md` is read by path: `scan` scoring
   reads it in full, and `stocktake` and `interview` draw on it, so it stays exactly there.
 - `interviewing/` — **about me**, shown as **Me: answers and my work**:
-  `interview-technique.md`, the answer bank `interview` reads and appends to, plus
-  reference notes on what I built (how a product or pipeline worked, my role, the
-  figures). Each story is told once, in the answer bank; the reference notes hold the
-  detail behind it.
+  `interview-technique.md`, the answer bank for questions about *me* (who I am, why this
+  role, why I left, and the emotional-intelligence questions), which `interview` reads
+  and appends to; plus reference notes on what I built (how a product or pipeline worked,
+  my role, the figures). A story about a piece of work is told once, in the reference
+  note on that work, as a `### Story: …` heading next to the detail behind it.
 - `topics/` — **about the subject**: general, reusable prep, in one of four subfolders:
   - `topics/product/` — **Product**: product practice (discovery, strategy, delivery).
   - `topics/data-architecture/` — **Data architecture**: system design, APIs, platforms,
@@ -199,8 +200,9 @@ pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
     graph data.
   - `topics/other/` — **Other**: sector landscapes and anything else.
 
-  A topic note doesn't retell my stories; it says what a story shows and links to it in
-  the answer bank (`/notes/interview-technique/#…`) or to the reference note.
+  A topic note carries the answers to questions about its subject, each a `###` under
+  `## Questions and answers`. It doesn't retell my stories; it says what a story shows
+  and links to it in the reference note (`/notes/<slug>/#…`).
 
 **Study material that would serve another application goes to `topics/<subfolder>/`, not
 into the application folder.** Name it for the topic (`topics/data-architecture/api-security.md`),

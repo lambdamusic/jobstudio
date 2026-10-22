@@ -11,7 +11,7 @@ Two modes:
   concerns]` — full prep pack for one round, written as **its own file** in that
   application's folder (one file per round, since 2026-09-24 — see Step 4).
 - **Bank mode**: `/jobstudio interview --practice [topic]` (no company) — practise
-  answers against `<DATA>/jobs/notes/interviewing/interview-technique.md` and `stocktake.md` directly,
+  answers against the reusable answers in `<DATA>/jobs/notes/` (below) and `stocktake.md` directly,
   with nothing written to an application folder. Use this when there's no specific
   interview lined up yet, or the user just wants to rehearse.
 
@@ -32,7 +32,7 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 | `<DATA>/jobs/companies/<slug>.md` | Culture signals, "Fit with my mission" — feeds both the "why this role" answer and the questions-to-ask-them list |
 | `<DATA>/jobs/profile/stocktake.md` §1–§3, §7 | §1 orgs/cultures enjoyed & disliked (relationships/culture answers) · §2 six achievements + areas of less success and lessons (behavioural + weakness answers) · §3 anchors/values (keeps "why this role" authentic, not generic) · §7 narratives to have ready |
 | `<DATA>/jobs/profile/criteria.yaml` | `weighted_motivators` and `bonus_signals` — ground "why this role/company" in what actually matters to them, not flattery |
-| `<DATA>/jobs/notes/interviewing/interview-technique.md` | The reusable answer bank — **check this before drafting anything new**; reuse verbatim where a question matches |
+| `<DATA>/jobs/notes/interviewing/interview-technique.md`, plus the `## Questions and answers` and `### Story: …` sections of the other notes | The reusable answers — **check these before drafting anything new**; reuse verbatim where a question matches. Questions about *me* (background, why this role, why I left, emotional intelligence) are in the answer bank; questions about a *subject* are in the note on that subject (`topics/…`), and stories about my work are in the reference note on that work (`interviewing/…`) |
 | `<DATA>/extras/career-coach/materials/emotional-intelligence.md` | The 5-tip framework the EI question set is built from (read in full each time — short file) |
 
 ---
@@ -50,11 +50,13 @@ questions; a final/panel round leans both plus seniority/comp).
 A prior round's `## Outcome` outranks the JD wherever they disagree: it is what the
 company said about itself, to this candidate, out loud.
 
-**Bank mode:** skip the above; read `stocktake.md` and `interview-technique.md`
-directly, and ask what topic or question type to focus on if not given.
+**Bank mode:** skip the above; read `stocktake.md`, `interview-technique.md` and the
+notes on the topic in question directly, and ask what topic or question type to focus on
+if not given.
 
-Read `<DATA>/jobs/notes/interviewing/interview-technique.md` in full either way — the point of the bank
-is to stop re-deriving answers that already work.
+Read `<DATA>/jobs/notes/interviewing/interview-technique.md` in full either way, and the
+Questions-and-answers and Story sections of every note whose subject the round touches —
+the point of the reusable answers is to stop re-deriving ones that already work.
 
 ---
 
@@ -327,15 +329,26 @@ back what actually worked), ask whether any answer is good enough to reuse verba
 next time — same test as an existing "why did you leave <employer>" entry: it
 worked in a real interview and doesn't need role-specific rewriting.
 
-For each one the user confirms, add it to `<DATA>/jobs/notes/interviewing/interview-technique.md`
-as a `###` under the `##` category it belongs to (About me, Research analytics, Product
-management, Technical and architecture…), creating a category only when none fits. Never
-append it at the end of the file: the categories are what make the bank findable. Same
-shape as the existing entries: the question as the heading, then a *Tested* line (which
+For each one the user confirms, file it where its subject lives:
+
+- **About me** (background, why this role or company, why I left, a step down) and
+  **emotional intelligence** (setbacks, weaknesses, teams, life outside work): in
+  `<DATA>/jobs/notes/interviewing/interview-technique.md`, as a `###` under the `##`
+  category it belongs to. Never append it at the end of the file: the categories are
+  what make the bank findable.
+- **A story about a piece of my work:** in the reference note on that work under
+  `<DATA>/jobs/notes/interviewing/`, as a `### Story: …` next to the detail behind it.
+- **A question about a subject** (product practice, architecture, knowledge graphs, a
+  sector): in the topic note on that subject, as a `###` under its
+  `## Questions and answers` section (create the section if the note has none). If no
+  note fits, start one under `topics/<subfolder>/`, following "Notes and their groups" in
+  `SKILL.md`.
+
+Same shape as the existing entries, wherever it goes: the question as the heading, then a *Tested* line (which
 interview, the application number, the date, how it went), a few lines on why the
-phrasing matters, then the answer verbatim in a blockquote. An answer already in the bank
+phrasing matters, then the answer verbatim in a blockquote. An answer already filed
 that has now worked gets its *Tested* line updated rather than a second entry. Prefer this over
-drafting a fresh version of the same answer next time — check the bank in Step 1
+drafting a fresh version of the same answer next time — check the answers in Step 1
 before ever redrafting something that's already there.
 
 ---
