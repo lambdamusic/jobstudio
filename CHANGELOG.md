@@ -4,6 +4,10 @@ Dated entries, newest first.
 
 ## 2026-10-22
 
+- **Notes not filed in a subfolder read "Other notes", and come last.** Once a tab's folder
+  has a subfolder (`search/recruiter-leads/`, say), that subfolder becomes a section named
+  after it. The notes left straight in the folder are now headed "Other notes", after every
+  subfolder, instead of "Other search" or "Other topics".
 - **The sidebar collapses to an icon rail (`#96`).** A button next to the logo shrinks
   the sidebar to a narrow strip of icons, giving long pages the full width. Each
   top-level entry keeps its icon as a link, with its label as a tooltip. A group

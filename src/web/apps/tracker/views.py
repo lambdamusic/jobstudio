@@ -1192,14 +1192,17 @@ def note_list(request):
 
 def _sections(notes) -> list[dict]:
     """A tab's notes split by folder: the known sections first, in NOTE_SECTIONS order, then
-    any other folder by name. A tab whose notes share one unlisted folder gets a single
+    any other subfolder by name, and last the notes straight in the tab's own folder, as
+    "Other notes" (2026-10-22). A tab whose notes share one unlisted folder gets a single
     section with no heading — it renders as the flat list it always was."""
     known = {key: (label, blurb) for key, label, blurb in NOTE_SECTIONS}
     order = [key for key, _, _ in NOTE_SECTIONS]
     by_key: dict[str, list] = {}
     for note in notes:
         by_key.setdefault(note["section"], []).append(note)
-    keys = [k for k in order if k in by_key] + sorted(k for k in by_key if k not in known)
+    unknown = [k for k in by_key if k not in known]
+    keys = ([k for k in order if k in by_key] + sorted(k for k in unknown if "/" in k)
+            + sorted(k for k in unknown if "/" not in k))
     if len(keys) == 1 and keys[0] not in known:
         keys_labels = [(keys[0], "", "")]
     else:
@@ -1210,10 +1213,11 @@ def _sections(notes) -> list[dict]:
 
 
 def _folder_label(key: str) -> str:
-    """A section for a folder NOTE_SECTIONS does not name: `topics` alone reads as "Other
-    topics" (a note not yet sorted into a subfolder), anything deeper by its last part."""
+    """A section for a folder NOTE_SECTIONS does not name. A tab's own folder (`search`,
+    `topics`) holds the notes not sorted into a subfolder, so it reads "Other notes" — it
+    used to read "Other search", which says nothing. Anything deeper goes by its last part."""
     if "/" not in key:
-        return f"Other {key.replace('-', ' ')}" if key else "Other"
+        return "Other notes"
     return key.rsplit("/", 1)[1].replace("-", " ").capitalize()
 
 

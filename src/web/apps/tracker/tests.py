@@ -797,6 +797,9 @@ class ViewTests(TestCase):
         (notes / "interviewing" / "answer-bank.md").write_text("# Answer bank\n\nAnswers.\n")
         (notes / "topics" / "domain").mkdir()
         (notes / "topics" / "domain" / "energy-markets.md").write_text("# Energy markets\n\nX.\n")
+        (notes / "search" / "recruiter-leads").mkdir(parents=True)
+        (notes / "search" / "recruiter-leads" / "agencies.md").write_text("# Agencies\n\nY.\n")
+        (notes / "search" / "aims.md").write_text("# Aims\n\nZ.\n")
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
         (folder / "notes.md").write_text("# Test\n\nSee [graph basics](/notes/graph-basics/).\n")
@@ -812,11 +815,19 @@ class ViewTests(TestCase):
             panel = listed[listed.index('data-panel="topics"'):]
             panel = panel[:panel.index("</section>")]
             # Sections by subfolder: the named ones in order, a note straight in topics/
-            # last as "Other topics"; nested notes keep the flat URL.
+            # last as "Other notes"; nested notes keep the flat URL.
             order = [panel.index(x) for x in (">Technique ", 'href="/notes/answer-bank/"',
                                               ">Domain ", 'href="/notes/energy-markets/"',
-                                              ">Other topics ", 'href="/notes/graph-basics/"')]
+                                              ">Other notes ", 'href="/notes/graph-basics/"')]
             self.assertEqual(order, sorted(order))
+            # An unlisted subfolder of search/ is a section named after it; the notes
+            # straight in search/ come after it, as "Other notes" (2026-10-22).
+            search = listed[listed.index('data-panel="search"'):]
+            search = search[:search.index("</section>")]
+            order = [search.index(x) for x in (">Recruiter leads ", 'href="/notes/agencies/"',
+                                               ">Other notes ", 'href="/notes/aims/"')]
+            self.assertEqual(order, sorted(order))
+            self.assertNotIn("Other search", search)
             self.assertEqual(self.client.get("/notes/energy-markets/").status_code, 200)
             self.assertIn("Started for a round; kept for the next.", listed)
             self.assertIn(f'href="/applications/{app.num}/"', listed)

@@ -203,7 +203,7 @@ under `## My notes` (or in the round file, if it is prep for one round), never i
 separate study or research file that only says "see the note" plus a few lines. Nor
 does the note get a list of the applications it served: the Notes page works that out
 from the links. When a note straddles two subfolders, file it by what it mostly
-teaches; a note left straight in `topics/` still shows, under "Other topics", until it is
+teaches; a note left straight in `topics/` still shows, under "Other notes", until it is
 sorted. The Notes page lists every application whose folder links a note, so that link is
 also how the note keeps its context. The URL is the filename alone, so a note's name must
 be unique across all the folders, and moving a note never breaks a `/notes/<slug>/` link —
