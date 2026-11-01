@@ -3753,13 +3753,12 @@ class InterviewRoundTests(TestCase):
     # wrote about it, what you sent, then who you spoke to — with History closing it
     # (`#67`). Interviews sat third until 2026-10-01, on the argument that live rounds
     # are what gets reread; that is served by linking to a round, not by tab position.
-    TAB_ORDER = ("record", "job", "notes", "cv", "letters", "files",
-                 "interviews", "history", "siblings")
+    TAB_ORDER = ("record", "job", "interviews", "notes", "cv", "letters", "files",
+                 "history", "siblings")
 
-    def test_interviews_tab_sits_last_before_history(self):
-        """Interviews comes after everything you produced for the application and
-        immediately before History. Asserted on the panel order too: with JS off the
-        panels are the reading order."""
+    def test_interviews_tab_sits_straight_after_the_job_description(self):
+        """Rounds are what gets reread once a process is live. Asserted on the panel order
+        too: with JS off the panels are the reading order."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         for attr in ("data-tab", "data-panel"):
@@ -3767,8 +3766,8 @@ class InterviewRoundTests(TestCase):
                 positions = {t: html.index(f'{attr}="{t}"')
                              for t in self.TAB_ORDER if f'{attr}="{t}"' in html}
                 self.assertIn("interviews", positions)
-                self.assertLess(positions["files"], positions["interviews"])
-                self.assertLess(positions["interviews"], positions["history"])
+                self.assertLess(positions["job"], positions["interviews"])
+                self.assertLess(positions["interviews"], positions["notes"])
 
     def test_tab_order_and_panel_order_agree(self):
         """The one invariant that makes moving a tab a two-part edit: tabs.js hides
@@ -4285,6 +4284,72 @@ class InterviewRoundTests(TestCase):
         # the round's page, where the tagged tasks are gathered.
         self.assertIn('href="/applications/1/rounds/round-hr-screen-2026-09-18/'
                       '#notes--hr-screen-2026-09-18"', html)
+
+    def test_documents_index_lists_every_document_of_the_application(self):
+        """#97: the application's files, rounds and company, on the page and in the static
+        build's terms: page links and tab anchors, every one of them landing somewhere. It sits
+        after the last tab panel, so it shows whichever tab is open."""
+        html = self.client.get("/applications/1/").content.decode()
+        record = html[html.index('class="index-box"'):html.index('class="company-cta"')]
+        self.assertGreater(html.index('class="index-box"'), html.rindex('class="tabpanel"'))
+        self.assertIn(">Documents index</h2>", record)
+        self.assertIn('href="#job"', record)
+        self.assertIn('href="#notes"', record)
+        self.assertIn('href="#letters"', record)
+        self.assertIn('href="#cv-developer-advocacy-2026-09-15"', record)
+        self.assertIn('href="#file-001-grafana-labs-alex-rivera-study-plugin-architecture-2026-09-19-md"', record)
+        self.assertIn('href="/applications/1/rounds/round-hr-screen-2026-09-18/"', record)
+        self.assertIn('href="/companies/grafana-labs/"', record)
+        self.assertEqual(self.client.get("/applications/1/rounds/round-hr-screen-2026-09-18/").status_code, 200)
+        self.assertEqual(self.client.get("/companies/grafana-labs/").status_code, 200)
+
+    def test_documents_list_the_notes_the_folder_links_once_by_title(self):
+        """#97: a note counts if a file in the folder links it, as a page link or a file
+        reference. Folder names in a path, external URLs and dead links are not notes."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "topics" / "other").mkdir(parents=True)
+        (notes / "topics" / "other" / "graph-basics.md").write_text("# Graph basics\n\nX.\n")
+        (notes / "topics" / "other" / "api-security.md").write_text("# API security\n\nX.\n")
+        (notes / "topics" / "other" / "unlinked.md").write_text("# Unlinked\n\nX.\n")
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text(
+            "# Test\n\nSee [basics](/notes/graph-basics/#one) and [again](/notes/graph-basics/).\n"
+            "Also [gone](/notes/no-such-note/), [elsewhere](https://example.org/notes/unlinked/)\n"
+            "<!-- [hidden](/notes/unlinked/) -->\n")
+        (folder / "900-test-co-alex-rivera-interview-panel-2026-11-02.md").write_text(
+            "# Panel\n\nRead `jobs/notes/topics/other/api-security.md`.\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            self.assertEqual(app.linked_notes, [
+                {"label": "API security", "href": "/notes/api-security/"},
+                {"label": "Graph basics", "href": "/notes/graph-basics/"},
+            ])
+
+    def test_a_note_page_ends_with_an_index_of_all_the_notes(self):
+        """Grouped as on the Notes page; the note being read is named but not linked."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "search" / "direction").mkdir(parents=True)
+        (notes / "topics" / "product").mkdir(parents=True)
+        (notes / "search" / "direction" / "aims.md").write_text("# Aims\n\nX.\n")
+        (notes / "topics" / "product" / "discovery.md").write_text("# Discovery\n\nX.\n")
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            html = self.client.get("/notes/aims/").content.decode()
+        box = html[html.index('class="index-box"'):]
+        self.assertIn(">My search</h3>", box)
+        self.assertIn(">Interviewing &amp; topics</h3>", box)
+        self.assertIn(">Product</h4>", box)
+        self.assertIn('<a href="/notes/discovery/">Discovery</a>', box)
+        self.assertIn('aria-current="page">Aims</span>', box)
+        self.assertNotIn('href="/notes/aims/"', box)
 
     def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
         import tempfile

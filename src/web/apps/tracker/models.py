@@ -20,6 +20,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -668,6 +669,69 @@ class Application(models.Model):
                 f["doc"] = sectioned(f["body_md"], f["anchor"], self.glossary,
                                      source=_task_source(f["path"]))
         return out
+
+    @property
+    def linked_notes(self) -> list[dict]:
+        """The notes this application's own files link to, by title (`#97`).
+
+        Scanned from `notes.md`, the interview rounds and the other markdown files in the
+        folder, so nothing is curated by hand: to add a note here, link it from one of them.
+        A link to a note that doesn't exist is ignored.
+        """
+        folder = self.folder_path
+        if folder is None:
+            return []
+        from .filelinks import linked_note_slugs
+        from .parsers import first_heading
+
+        sources = [self.notes_md] + [r["body_md"] for r in self.interview_files]
+        sources += [f["body_md"] for f in self.extra_files if f["is_md"]]
+        slugs = set().union(*(linked_note_slugs(text) for text in sources))
+
+        notes_dir = Path(settings.NOTES_DIR)
+        out = []
+        for slug in slugs:
+            # Sorted so that a duplicated filename resolves as `_notes_files()` serves it.
+            path = next((p for p in sorted(notes_dir.rglob(f"{slug}.md"))
+                         if not any(part.startswith(".")
+                                    for part in p.relative_to(notes_dir).parts)), None)
+            if path is not None:
+                title = first_heading(_read(path)) or slug.replace("-", " ").capitalize()
+                out.append({"label": title, "href": f"/notes/{slug}/"})
+        return sorted(out, key=lambda n: n["label"].lower())
+
+    @property
+    def documents(self) -> list[dict]:
+        """Every page that belongs to this application, grouped, for the Record tab (`#97`).
+
+        An item's `href` is a page or a tab anchor, so it holds on the published site.
+        `open_path` is a file to open locally, which the template shows only there.
+        Empty groups are left out.
+        """
+        own = []
+        if self.job_md:
+            own.append({"label": "Job description", "href": "#job"})
+        if self.notes_md:
+            own.append({"label": "My notes", "href": "#notes"})
+        for cv in self.cv_files:
+            own.append({"label": f"CV: {cv['label']}", "href": f"#{cv['anchor']}",
+                        "date": cv["date"], "open_path": cv["docx"]})
+        for letter in self.cover_letter_files:
+            own.append({"label": "Cover letter", "href": "#letters",
+                        "date": letter["date"], "open_path": letter["docx_path"]})
+        for f in self.extra_files:
+            own.append({"label": f["rel"], "href": f"#{f['anchor']}",
+                        "open_path": None if f["is_md"] else f["path"]})
+
+        rounds = [{"label": r["label"], "date": r["date"],
+                   "href": reverse("tracker:interview_round", args=[self.num, r["anchor"]])}
+                  for r in self.interview_files]
+        company = ([{"label": self.company.name,
+                     "href": reverse("tracker:company_detail", args=[self.company.slug])}]
+                   if self.company_id else [])
+        groups = [("This application", own), ("Interview rounds", rounds),
+                  ("Company", company), ("Notes", self.linked_notes)]
+        return [{"label": label, "items": items} for label, items in groups if items]
 
 
 class ApplicationStatusChange(models.Model):

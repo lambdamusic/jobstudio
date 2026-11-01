@@ -543,6 +543,29 @@ tr.is-stale td { background: #fffdf5; }
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 
+/* ---------- the index boxes: an application's documents (#97), and all the notes ---------- */
+
+.index-box {
+  margin: 28px 0 0; padding: 18px 20px;
+  background: #eef8f9; border: 1px solid #c5e5e8; border-left: 4px solid var(--scan-yes);
+  border-radius: var(--radius);
+}
+.index-box-kicker {
+  margin: 0 0 12px; font-size: 11.5px; font-weight: 400; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--scan-yes-ink);
+}
+.index-box-groups { columns: 2 320px; column-gap: 32px; }
+.index-box-group { break-inside: avoid; margin-bottom: 16px; }
+.index-box-group:last-child { margin-bottom: 0; }
+.index-box h3, .index-box h4 { margin: 0 0 6px; font-size: 13px; color: var(--scan-yes-ink); font-weight: 600; }
+.index-box h3.index-box-title { font-size: 15px; margin: 0 0 10px; break-after: avoid; }
+.index-box-group + .index-box-title { margin-top: 20px; }
+.index-box-current { font-size: 14px; font-weight: 600; }
+.index-box ul { margin: 0; padding: 0; list-style: none; }
+.index-box li { font-size: 14px; padding: 2px 0; overflow-wrap: anywhere; }
+.index-box-date { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.index-box-open { font-size: 12.5px; margin-left: 4px; }
+
 /* ---------- the notes page (#73) ---------- */
 
 /* Each note's own title plus the link to its standalone page. The title is here rather

@@ -855,6 +855,7 @@ def application_detail(request, num):
         # Both are computed by scanning the folder, so resolve each once here
         # rather than letting the template re-walk it per access.
         "interviews": app.interview_files,
+        "documents": app.documents,
         # The status menu offers every status except the one it is already in.
         "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],
         "siblings": (Application.objects.filter(company_name=app.company_name)
@@ -1171,15 +1172,8 @@ def _coach():
             "folders": [{"name": k, "files": folders[k]} for k in sorted(folders)]}
 
 
-def note_list(request):
-    """The notes, one tab per group (subfolder of jobs/notes/), each an index of its notes,
-    plus the career-coach folder (2026-10-08).
-
-    Until then this was one tab per note (`#73`), which stopped scaling at a dozen: the
-    notes started to include study material carried over from applications, one per round
-    prepared. Each index line links the note's own page at `/notes/<slug>/`, which carries
-    the note's Contents and is what `build_static` publishes.
-    """
+def _note_groups() -> list[dict]:
+    """Every note, as the Notes page organises them: by group, then by section."""
     by_group: dict[str, list] = {}
     for path in _notes_files():
         by_group.setdefault(_note_group(path), []).append(_note_entry(path))
@@ -1191,8 +1185,20 @@ def note_list(request):
                for g in sorted(by_group) if g not in known]
     for group in groups:
         group["sections"] = _sections(group["notes"])
+    return groups
+
+
+def note_list(request):
+    """The notes, one tab per group (subfolder of jobs/notes/), each an index of its notes,
+    plus the career-coach folder (2026-10-08).
+
+    Until then this was one tab per note (`#73`), which stopped scaling at a dozen: the
+    notes started to include study material carried over from applications, one per round
+    prepared. Each index line links the note's own page at `/notes/<slug>/`, which carries
+    the note's Contents and is what `build_static` publishes.
+    """
     return render(request, "tracker/note_list.html",
-                  {"page": "notes", "groups": groups, "coach": _coach()})
+                  {"page": "notes", "groups": _note_groups(), "coach": _coach()})
 
 
 def _sections(notes) -> list[dict]:
@@ -1231,7 +1237,7 @@ def note_detail(request, slug):
     if match is None:
         raise Http404("No such note")
     return render(request, "tracker/note_detail.html",
-                  {"page": "notes", "note": _note(match)})
+                  {"page": "notes", "note": _note(match), "note_groups": _note_groups()})
 
 
 # What a note may show inline. Images only: the route serves files from the data root.

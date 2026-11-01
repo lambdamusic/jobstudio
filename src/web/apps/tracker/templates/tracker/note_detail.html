@@ -23,4 +23,27 @@ link stays unique wherever the note is shown.
   {% include "tracker/_doc_sections.html" with sections=note.doc.sections %}
   {% include "tracker/_doc_body.html" with doc=note.doc qa=False open=True %}
 </div>
+
+{% comment %}
+Every note, organised as on the Notes page, so the next one is a click away from the
+bottom of this one. The same box as an application's documents index (`#97`).
+{% endcomment %}
+<section class="index-box" aria-label="Notes index">
+  <h2 class="index-box-kicker">Notes index</h2>
+  <div class="index-box-groups">
+    {% for g in note_groups %}
+      <h3 class="index-box-title">{{ g.label }}</h3>
+      {% for sec in g.sections %}
+        <div class="index-box-group">
+          {% if sec.label %}<h4>{{ sec.label }}</h4>{% endif %}
+          <ul>
+            {% for n in sec.notes %}
+              <li>{% if n.slug == note.slug %}<span class="index-box-current" aria-current="page">{{ n.title }}</span>{% else %}<a href="/notes/{{ n.slug }}/">{{ n.title }}</a>{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

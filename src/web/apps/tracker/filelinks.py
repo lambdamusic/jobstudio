@@ -39,6 +39,8 @@ _CODE = re.compile(r"<code>([^<]+)</code>")
 _HREF = re.compile(r'(<a\s[^>]*?href=")([^"#]+\.md)(#[^"]*)?(")')
 # Text between tags, and the tags whose content is never touched: an existing link, a
 # code block, and the bracketed `<code>` spans handled on their own.
+# A link to a note's page, as a markdown file writes it: `/notes/<slug>/`, maybe with an anchor.
+_NOTE_LINK = re.compile(r"(?<![\w./-])/notes/([\w-]+)/")
 _SKIP = re.compile(r"(<a\b.*?</a>|<pre\b.*?</pre>|<code>.*?</code>|<[^>]+>)", re.S | re.I)
 
 
@@ -118,6 +120,22 @@ def resolve(ref: str) -> str | None:
     if not ref.endswith(".md") or ".." in ref.split("/"):
         return None
     return _resolve_path(ref) if "/" in ref else _resolve_bare(ref)
+
+
+def linked_note_slugs(text: str) -> set[str]:
+    """The notes a markdown file points at, as a page link or as a file reference (`#97`).
+
+    The lookbehind keeps out a `jobs/notes/topics/` path, whose folder is not a note, and
+    an external URL that happens to contain `/notes/`. A slug may still name no note; the
+    caller decides that when it looks the note up.
+    """
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    slugs = set(_NOTE_LINK.findall(text))
+    for m in _REF.finditer(text):
+        url = resolve(m.group(0))
+        if url and url.startswith("/notes/"):
+            slugs.add(url.split("/")[2])
+    return slugs
 
 
 def link_file_refs(rendered: str) -> str:

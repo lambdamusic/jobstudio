@@ -2,6 +2,20 @@
 
 Dated entries, newest first.
 
+## 2026-11-01
+
+- **An application's page has a documents index.** A new box below the tabs, shown on every tab, links
+  everything that belongs to the application: its job description, notes, CVs, cover
+  letters and other files, its interview rounds, its company page, and the notes its files
+  link to. The notes are found from the links in `notes.md`, the rounds and any other
+  markdown in the folder, so to add one, link it from one of those. Locally, an "Open file"
+  link sits beside anything that exists as a file.
+- **Every note page ends with a notes index.** The same kind of box lists all the notes,
+  organised as on the Notes page, with the one you are reading marked. Career coach files
+  aren't included, since they aren't notes with pages of their own.
+- **Interviews moved up the application tabs.** The order is now Record, Job description,
+  Interviews, My notes, CV, Cover letters, Other files, History, then "Also at".
+
 ## 2026-10-22
 
 - **`ideal-job-notes.md` lives in `jobs/notes/search/direction/`.** `scan`, `stocktake` and
