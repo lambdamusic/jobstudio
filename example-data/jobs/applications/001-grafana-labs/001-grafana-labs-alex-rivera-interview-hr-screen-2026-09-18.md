@@ -28,9 +28,9 @@ engineering job rather than a marketing one.
 
 ## To do
 
-→ [This round's tasks](#notes--hr-screen-2026-09-18) — the tasks in My notes tagged
+→ [This round's tasks](#todo--hr-screen-2026-09-18) — the tasks in To do tagged
 `@hr-screen`, gathered on this round's page. They are not copies: each is one line in
-notes.md, so ticking it here or on My notes ticks the same task.
+todo.md, so ticking it here or on To do ticks the same task.
 
 ## Outcome
 

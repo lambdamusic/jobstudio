@@ -4,6 +4,11 @@ Dated entries, newest first.
 
 ## 2026-11-01
 
+- **An application's to-dos have their own file and tab.** They moved from the `## To do`
+  section of `notes.md` to `todo.md` in the application folder, shown on a new To do tab
+  after Job description, with a count of open tasks. Ticks and highlights write to the new
+  file, and a round's page gathers its tagged tasks from it as before. Existing folders move
+  with `manage.py split_todo_files`, which shows its plan until given `--apply`.
 - **An application's page has a documents index.** A new box below the tabs, shown on every tab, links
   everything that belongs to the application: its job description, notes, CVs, cover
   letters and other files, its interview rounds, its company page, and the notes its files

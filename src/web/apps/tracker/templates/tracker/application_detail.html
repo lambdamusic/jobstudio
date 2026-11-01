@@ -61,6 +61,10 @@
     {% if app.job_md %}
       <button class="tab" data-tab="job" role="tab" type="button">Job description</button>
     {% endif %}
+    {% if app.todo_md %}
+      <button class="tab" data-tab="todo" role="tab" type="button">
+        To do{% if app.open_tasks %} <span class="tab-n">{{ app.open_tasks }}</span>{% endif %}</button>
+    {% endif %}
     {% if interviews %}
       <button class="tab" data-tab="interviews" role="tab" type="button">
         Interviews <span class="tab-n">{{ interviews|length }}</span></button>
@@ -132,11 +136,26 @@
 
 
   {% comment %}
+  Every task for the application, from its own file, straight after Job description. Open
+  like My notes: it is a list to read and tick, and the pills jump between themes. Ticks and
+  highlights write back to todo.md, as on a round's page.
+  {% endcomment %}
+  {% if app.todo_md %}
+    <section class="tabpanel" data-panel="todo" role="tabpanel">
+      <h2 class="panel-heading">To do</h2>
+      <div class="panel prose">
+        {% include "tracker/_doc_sections.html" with sections=app.todo_doc.sections %}
+        {% include "tracker/_doc_body.html" with doc=app.todo_doc qa=False open=True %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% comment %}
   One panel, rounds stacked newest first, the same shape as Cover letters. A tab per round
   would grow without bound across a long process; a stack stays readable and keeps the
   most recent round, which is the one being prepped for, at the top.
 
-  Sits straight after Job description since 2026-11-01: rounds are
+  Sits just after Job description and To do since 2026-11-01: rounds are
   what gets reread once a process is live. It sat last before History from 2026-10-01
   (`#67`). A direct link to a round (`#round-<slug>`) works at any position, because
   activateContaining() finds the panel holding the id.

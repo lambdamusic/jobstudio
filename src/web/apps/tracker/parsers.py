@@ -456,14 +456,26 @@ def split_sections(body_md: str) -> dict:
     return {"preamble": text, "blocks": blocks}
 
 
+def demote_headings(text: str) -> str:
+    """Every `##` to `#####` heading down a level, outside code fences."""
+    out, in_fence = [], False
+    for line in text.split("\n"):
+        if _is_fence(line.strip()):
+            in_fence = not in_fence
+        elif not in_fence and re.match(r"^#{2,5} ", line):
+            line = "#" + line
+        out.append(line)
+    return "\n".join(out)
+
+
 def subsection_md(block_md: str, slug: str) -> str | None:
     """The body of the `###` subsection whose heading slugs to `slug`, from one block's
     markdown — the lines after that heading, up to the next `###` or the block's end.
     None when there is no such heading. Fence-aware, like `split_sections`.
 
     For pulling one part of a document onto another page: a round's tasks out of
-    `notes.md`'s `## To do` (`#84`). Feed it a block already through `sectioned()`, so a
-    task checkbox keeps the file-wide index that writes the tick back to the right line.
+    `todo.md` (`#84`). Feed it text already through `sectioned()`, so a task checkbox keeps
+    the file-wide index that writes the tick back to the right line.
     """
     out: list[str] | None = None
     in_fence = False
@@ -486,7 +498,7 @@ def subsection_md(block_md: str, slug: str) -> str | None:
 # it — so an indented `@decorator` in a code sample is left alone. Shown as a badge.
 _TASK_TAG = re.compile(r"(?<=\S[ \t])@([a-z][a-z0-9-]*)[ \t]*$", re.M)
 
-# The "How this list works" paragraph that opens `## To do` (`TODO_GUIDE` in
+# The "How this list works" paragraph that opens `todo.md` (`TODO_GUIDE` in
 # `src/appfolder.py`). It explains the file to whoever edits it by hand, so on the page it
 # is classed as a muted how-to note (`howto-note`, shared with the answer bank's intros)
 # rather than read as part of the list.
@@ -498,12 +510,12 @@ _ITEM = re.compile(r"^(?:[-*+]|\d+[.)])[ \t]+")
 
 def tagged_md(block_md: str, tag: str) -> str | None:
     """The list items in one block that carry `@<tag>`, still under their `###` theme
-    headings — the tag layout of `## To do`, where themes are the headings and the round
+    headings — the tag layout of `todo.md`, where themes are the headings and the round
     is a marker on the task. None when no item carries the tag.
 
     Like `subsection_md`, feed it a block already through `sectioned()`, so each checkbox
-    keeps its file-wide index: the same task shown here and on My notes is one line in
-    notes.md, and ticking it on either page writes that line.
+    keeps its file-wide index: the same task shown here and on the To do tab is one line in
+    todo.md, and ticking it on either page writes that line.
     """
     mark = re.compile(rf"(?<![\w@])@{re.escape(tag)}(?![\w-])", re.I)
     themes: list[tuple[str | None, list[str]]] = [(None, [])]

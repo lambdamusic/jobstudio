@@ -125,17 +125,17 @@ it just isn't numbered. One task per item; detail can follow on indented lines.
 Lists that are not to-dos — questions, pros and cons, gaps, drafted answers — stay plain
 bullets.
 
-**An application's to-dos all live in one place: the `## To do` section of its
-`notes.md`**, first in the file (TODO `#84`), grouped by **theme**, with the interview
-round as a **tag** on the task (TODO `#91`):
+**An application's to-dos all live in one place: its own `todo.md`** in the application
+folder (TODO `#84`), shown on the To do tab, grouped by **theme**, with the interview round
+as a **tag** on the task (TODO `#91`):
 
-- The section opens with the short "How this list works" paragraph (`TODO_GUIDE` in
-  `src/appfolder.py`, which `notes_stub()` writes) — the file explains itself to whoever
+- The file opens with the short "How this list works" paragraph (`TODO_GUIDE` in
+  `src/appfolder.py`, which `todo_stub()` writes) — the file explains itself to whoever
   edits it by hand. Keep it; add it if an older file lacks it.
-- The `###` headings are four fixed themes, always in this order: **Domain**,
+- The `##` headings are four fixed themes, always in this order: **Domain**,
   **Stories & positions**, **Tech & Data**, **Questions & Practicalities**
   (`TODO_THEMES`). Put a new task under the closest one; do not invent others, and do not
-  add `### <Round> — <date>` headings.
+  add `## <Round> — <date>` headings.
 - Every task is `- [ ] **Short title.** Longer description.` — a bold title the eye can
   scan, then the detail, on indented lines if it runs on.
 - A task meant for one interview round ends its description with that round's tag,
@@ -147,12 +147,12 @@ round as a **tag** on the task (TODO `#91`):
   (`    - => answered in [interview prep](#round-…)`). Leave those alone.
 
 The round's focus page gathers the tasks tagged for it, under their themes. They are not
-copies: each checkbox is one line in `notes.md`, so a tick on either page is the same
-tick. No other checklist of the application's tasks is written anywhere else: not
-elsewhere in `notes.md`, not in a round file.
+copies: each checkbox is one line in `todo.md`, so a tick on either page is the same
+tick. No other checklist of the application's tasks is written anywhere else: not in
+`notes.md`, not in a round file.
 
-Older files may still use the earlier layout (`### Application` then one
-`### <Round label> — <YYYY-MM-DD>` per round). The app reads both, so do not migrate one
+Older files may still use the earlier layout (`## Application` then one
+`## <Round label> — <YYYY-MM-DD>` per round). The app reads both, so do not migrate one
 unasked — but when adding to such a file, ask whether to convert it rather than mixing
 the two layouts.
 
@@ -225,7 +225,7 @@ Write the path, in backticks: `` `jobs/notes/interviewing/interview-technique.md
 `` `jobs/companies/<slug>.md` ``, or a file in an application folder by its full name. The
 web app turns any reference to a file that has a page into a link to that page (TODO
 `#78`), so there is no need to write a markdown link or to work out a URL. Use the
-`jobs/...` form, not `<DATA>/...`, and not a bare `notes.md` or `job.md` — every
+`jobs/...` form, not `<DATA>/...`, and not a bare `notes.md`, `todo.md` or `job.md` — every
 application folder has one, so on its own it cannot be linked.
 
 ---

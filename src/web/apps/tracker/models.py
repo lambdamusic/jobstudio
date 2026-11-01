@@ -373,6 +373,17 @@ class Application(models.Model):
     def notes_md(self) -> str:
         return _read(self._folder_file("notes.md"))
 
+    @cached_property
+    def todo_md(self) -> str:
+        return _read(self._folder_file("todo.md"))
+
+    @property
+    def open_tasks(self) -> int:
+        """Unticked tasks in todo.md, for the count on the To do tab."""
+        from .parsers import task_spans
+
+        return sum(not checked for _, _, checked in task_spans(self.todo_md))
+
     @property
     def cv_snapshots(self) -> list[Path]:
         folder = self.folder_path
@@ -521,21 +532,21 @@ class Application(models.Model):
         # scoped by the round's own anchor because the Interviews tab stacks every round
         # into one page — two rounds both carrying "## Outcome" would otherwise collide,
         # and the browser would send every "Outcome" link to whichever came first.
-        # A link to a round's tasks names its subsection on My notes. In the tag layout
-        # there is no such subsection — the tasks are gathered only on the round's focus
+        # A link to a round's tasks names its section on the To do tab. In the tag layout
+        # there is no such section — the tasks are gathered only on the round's focus
         # page — so point the link there, where the panel carries the same id.
-        on_notes = {s["anchor"] for b in (self.notes_doc or {}).get("blocks", [])
-                    for s in [b, *b["subsections"]]}
+        on_todo = {s["anchor"] for b in (self.todo_doc or {}).get("blocks", [])
+                   for s in [b, *b["subsections"]]}
         retarget = {}
         for round_ in out:
             todo = self.round_todo(round_)
-            if todo and todo["anchor"] not in on_notes:
+            if todo and todo["anchor"] not in on_todo:
                 retarget[todo["anchor"]] = (f"/applications/{self.num}/rounds/"
                                             f"{round_['anchor']}/#{todo['anchor']}")
         for round_ in out:
             if retarget:
                 round_["body_md"] = re.sub(
-                    r"\]\(#(notes--[\w-]+)\)",
+                    r"\]\(#(todo--[\w-]+)\)",
                     lambda m: f"]({retarget.get(m[1], '#' + m[1])})", round_["body_md"])
             round_.update(sectioned(round_["body_md"], round_["anchor"], self.glossary,
                                     source=_task_source(round_["path"])))
@@ -558,43 +569,57 @@ class Application(models.Model):
                           source=_task_source(self._folder_file("notes.md")))
                 if body and body.strip() else None)
 
+    @cached_property
+    def todo_doc(self) -> dict | None:
+        """`todo.md` as a sectioned document, for the To do tab. Cached for the same reason
+        as `notes_doc`."""
+        from .parsers import sectioned
+
+        body = self.todo_md
+        return (sectioned(body, "todo", self.glossary,
+                          source=_task_source(self._folder_file("todo.md")))
+                if body and body.strip() else None)
+
     def round_todo(self, round_: dict) -> dict | None:
-        """One round's tasks, from `notes.md`'s `## To do` (`#84`), for the round's focus
-        view: the page open during prep is the round's, but its tasks live in notes.md.
+        """One round's tasks, from `todo.md` (`#84`), for the round's focus view: the page
+        open during prep is the round's, but its tasks live in todo.md.
 
         Two layouts. The standard one since `#91` groups tasks under theme headings and
         marks a round's with `@<stage>` — those are gathered by `tagged_md()`. The earlier
         one gives each round a dated `###` subsection, looked up first, as below.
 
-        The subsection is found by name, not position. The skill writes it as
+        The section is found by name, not position. The skill writes it as
         `### <Round label> — <YYYY-MM-DD>`, the label the Interviews tab shows, which for
         most stages slugs to the round's own anchor minus its `round-` prefix. Two labels
         do not ("Final round" for `final`, "Informal chat" for `informal`), so both
-        spellings are tried. Returns the anchor the matched subsection carries on My
-        notes, so the round file's link to it resolves on either page.
+        spellings are tried. Returns the anchor the matched section carries on the To do
+        tab, so the round file's link to it resolves on either page.
+
+        The file's `##` headings go down a level first: the panel on the round's page has
+        its own `##` title, and they sit beneath it.
         """
-        doc = self.notes_doc
-        block = next((b for b in (doc or {}).get("blocks", [])
-                      if b["anchor"] == "notes--to-do"), None)
-        if block is None:
+        doc = self.todo_doc
+        if doc is None:
             return None
-        from .parsers import section_slug, subsection_md, tagged_md
+        from .parsers import demote_headings, section_slug, subsection_md, tagged_md
+
+        tasks = demote_headings(doc["body_md"])
 
         candidates = [section_slug(f"{round_['label']} {round_['date'].isoformat()}")
                       if round_["date"] else section_slug(round_["label"]),
                       round_["anchor"].removeprefix("round-")]
         for slug in dict.fromkeys(candidates):
-            body = subsection_md(block["body_md"], slug)
+            body = subsection_md(tasks, slug)
             if body is not None:
-                return {"anchor": f"notes--{slug}", "body_md": body}
+                return {"anchor": f"todo--{slug}", "body_md": body}
 
         # The tag layout (trial): `###` headings are themes, and a task names its round
         # with `@<label>` — `@hiring-manager`, or the stage itself. The anchor stays the
         # dated one, so a round file's "this round's tasks" link still lands here.
         for tag in dict.fromkeys([section_slug(round_["label"]), round_["stage"] or ""]):
-            body = tag and tagged_md(block["body_md"], tag)
+            body = tag and tagged_md(tasks, tag)
             if body:
-                return {"anchor": f"notes--{candidates[0]}", "body_md": body}
+                return {"anchor": f"todo--{candidates[0]}", "body_md": body}
         return None
 
     @property
@@ -605,7 +630,7 @@ class Application(models.Model):
 
     @property
     def extra_files(self) -> list[dict]:
-        """Anything in the folder not already surfaced by another tab — job.md, notes.md,
+        """Anything in the folder not already surfaced by another tab — job.md, notes.md, todo.md,
         CV snapshots, cover letters, or interview rounds (any .docx export included). Markdown
         files render inline; anything else is listed with a local open link, so nothing
         saved into an application folder goes invisible on the page."""
@@ -619,7 +644,7 @@ class Application(models.Model):
         # Resolved, because `exported_file()` builds its answer from appfolder.APPS_DIR
         # while everything here is rooted at settings.DATA_ROOT — two spellings of the
         # same directory would compare unequal and let every export through.
-        known: set[Path] = {(folder / "job.md").resolve(), (folder / "notes.md").resolve()}
+        known: set[Path] = {(folder / name).resolve() for name in ("job.md", "notes.md", "todo.md")}
 
         def claim(md: Path) -> None:
             known.add(md.resolve())
@@ -674,7 +699,7 @@ class Application(models.Model):
     def linked_notes(self) -> list[dict]:
         """The notes this application's own files link to, by title (`#97`).
 
-        Scanned from `notes.md`, the interview rounds and the other markdown files in the
+        Scanned from `notes.md`, `todo.md`, the interview rounds and the other markdown files in the
         folder, so nothing is curated by hand: to add a note here, link it from one of them.
         A link to a note that doesn't exist is ignored.
         """
@@ -684,7 +709,7 @@ class Application(models.Model):
         from .filelinks import linked_note_slugs
         from .parsers import first_heading
 
-        sources = [self.notes_md] + [r["body_md"] for r in self.interview_files]
+        sources = [self.notes_md, self.todo_md] + [r["body_md"] for r in self.interview_files]
         sources += [f["body_md"] for f in self.extra_files if f["is_md"]]
         slugs = set().union(*(linked_note_slugs(text) for text in sources))
 
@@ -711,6 +736,8 @@ class Application(models.Model):
         own = []
         if self.job_md:
             own.append({"label": "Job description", "href": "#job"})
+        if self.todo_md:
+            own.append({"label": "To do", "href": "#todo"})
         if self.notes_md:
             own.append({"label": "My notes", "href": "#notes"})
         for cv in self.cv_files:

@@ -14,7 +14,7 @@ actually builds. Not to be confused with **[career-stocktake-profile.md](career-
 
 | Source | Feeds |
 |---|---|
-| `job.md` + `notes.md` (Fit check, CV gaps, and the tasks in `## To do`) in the application folder | Role/technical questions, and honest bridging answers for already-identified gaps |
+| `job.md` + `notes.md` (Fit check, CV gaps) and `todo.md` (the tasks) in the application folder | Role/technical questions, and honest bridging answers for already-identified gaps |
 | The tailored CV, else `jobs/cv/base/cv_functional.md` | Concrete achievements to answer from |
 | `jobs/companies/<slug>.md` | Culture signals — feeds "why this company" and the questions-to-ask-them list |
 | `jobs/profile/stocktake.md` §1–§3, §7 | Behavioural and emotional-intelligence material — see below |
@@ -69,24 +69,24 @@ Stages: `hr-screen`, `hiring-manager`, `technical`, `panel`, `final`, `informal`
 | `## Who I'm meeting` | research on the interviewer |
 | `## Prep` | the drafted Q&A pack |
 | `## Questions to ask them` | |
-| `## To do` | one line linking this round's tasks, gathered from `notes.md` by tag |
+| `## To do` | one line linking this round's tasks, gathered from `todo.md` by tag |
 | `## Private — not for the call` | |
 | `## Outcome` | filled in afterwards — what was asked, what landed, next step |
 
 `## Outcome` is what makes a round self-closing, and it is the first thing the next
 round's prep reads.
 
-**A round's tasks live in `notes.md`, not in the round file** (2026-10-08, TODO `#84`).
-What to study or do for the round goes into the `## To do` section that opens `notes.md`.
+**A round's tasks live in `todo.md`, not in the round file** (TODO `#84`; its own file
+since 2026-11-01). What to study or do for the round goes there.
 One place then answers "what is left for this application", and a task done once is not
 left unticked in a second file.
 
-Since 2026-10-13 (TODO `#91`) that section is grouped by **theme** — four fixed `###`
+Since 2026-10-13 (TODO `#91`) it is grouped by **theme** — four fixed `##`
 headings: Domain, Stories & positions, Tech & Data, Questions & Practicalities — and a
 task meant for one round ends with that round's **tag**, `@<stage>`:
 
 ```markdown
-### Tech & Data
+## Tech & Data
 
 - [ ] **Learn the plugin architecture.** Enough to follow a technical conversation. @hr-screen
     - => written up in [study notes](#file-…)
@@ -95,14 +95,14 @@ task meant for one round ends with that round's **tag**, `@<stage>`:
 Every task opens with a bold short title; a note on how it went is an indented
 sub-bullet. The round's focus page gathers the tasks tagged for it, under their themes,
 and the round file's `## To do` link lands there. They are views of one line, not copies:
-each checkbox carries its index in `notes.md`, so a tick on either page writes the same
-line. On My notes the tag shows as a small pill.
+each checkbox carries its index in `todo.md`, so a tick on either page writes the same
+line. On the To do tab the tag shows as a small pill.
 
 Themes beat stages because the same kind of preparation (domain reading, a story to
 rehearse) recurs across rounds; grouping by stage split each across three or four
-headings. The earlier layout — `### Application` then `### <Round label> — <date>` per
-round, which `manage.py migrate_todos` produced from the older `### Preparation steps` and
-`## Study before` lists — is still read: the round page tries the dated heading first.
+headings. The earlier layout — `## Application` then `## <Round label> — <date>` per
+round, from the older `### Preparation steps` and `## Study before` lists — is still read:
+the round page tries the dated heading first.
 
 **Why one file per round** (decided 2026-09-24): all of this used to live under a
 single `## Interview prep` heading in `notes.md`, which put a round's prep, its

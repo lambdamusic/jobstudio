@@ -162,7 +162,7 @@ tools/py src/appfolder.py ensure <row-num>
 ```
 
 This idempotently creates the folder `<DATA>/jobs/applications/NNN-company-name/`,
-writes `notes.md` if it doesn't exist, installs the application's own copy of the CV if
+writes `notes.md` and `todo.md` if they don't exist, installs the application's own copy of the CV if
 the folder has none, and creates an **empty** cover-letter file as a placeholder. Print
 the folder path.
 
@@ -242,10 +242,9 @@ For each gap that is fixable now:
 - **Suggested text**: the actual revised or new text to use — draw on `stocktake.md`
   §2 (achievements, USPs) and §6 (the positioning block for this area)
 
-### Preparation steps → `## To do`, under its themes
-Not under `## My notes`: these are written into `## To do`, the first section of
-`notes.md`, each under the closest of its four theme headings (create the section from
-`notes_stub()`'s skeleton if missing — see "Lists of things to do are checklists" in
+### Preparation steps → `todo.md`, under its themes
+Not in `notes.md`: these are written into the application's `todo.md`, each under the
+closest of its four theme headings (the file comes from `todo_stub()`'s skeleton — see "Lists of things to do are checklists" in
 `SKILL.md`, which is where every task for the application goes, and in what form). Each
 item is `- [ ] **Short title.** Longer description.`, untagged — there is no round yet —
 most important first within its theme, prioritised for this specific role:

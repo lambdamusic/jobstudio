@@ -61,6 +61,8 @@ def _app_target(folder_rel: str, name: str) -> str | None:
     rel_name = Path(name).name
     if name == "notes.md":
         return base + "#notes"
+    if name == "todo.md":
+        return base + "#todo"
     if name == "job.md":
         return base + "#job"
     if "/" not in name and is_interview_filename(rel_name):
@@ -97,7 +99,7 @@ def _resolve_path(rel: str) -> str | None:
 
 def _resolve_bare(name: str) -> str | None:
     """A filename with no directory, when exactly one place holds it."""
-    if name in ("notes.md", "job.md"):
+    if name in ("notes.md", "todo.md", "job.md"):
         return None
     candidates = [f"jobs/companies/{name}", f"jobs/profile/{name}", f"jobs/cv/base/{name}"]
     notes = _data_root() / "jobs" / "notes"

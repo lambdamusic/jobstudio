@@ -3753,12 +3753,12 @@ class InterviewRoundTests(TestCase):
     # wrote about it, what you sent, then who you spoke to — with History closing it
     # (`#67`). Interviews sat third until 2026-10-01, on the argument that live rounds
     # are what gets reread; that is served by linking to a round, not by tab position.
-    TAB_ORDER = ("record", "job", "interviews", "notes", "cv", "letters", "files",
+    TAB_ORDER = ("record", "job", "todo", "interviews", "notes", "cv", "letters", "files",
                  "history", "siblings")
 
-    def test_interviews_tab_sits_straight_after_the_job_description(self):
-        """Rounds are what gets reread once a process is live. Asserted on the panel order
-        too: with JS off the panels are the reading order."""
+    def test_to_do_and_interviews_tabs_follow_the_job_description(self):
+        """Tasks and rounds are what gets reread once a process is live. Asserted on the
+        panel order too: with JS off the panels are the reading order."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         for attr in ("data-tab", "data-panel"):
@@ -3766,7 +3766,8 @@ class InterviewRoundTests(TestCase):
                 positions = {t: html.index(f'{attr}="{t}"')
                              for t in self.TAB_ORDER if f'{attr}="{t}"' in html}
                 self.assertIn("interviews", positions)
-                self.assertLess(positions["job"], positions["interviews"])
+                self.assertLess(positions["job"], positions["todo"])
+                self.assertLess(positions["todo"], positions["interviews"])
                 self.assertLess(positions["interviews"], positions["notes"])
 
     def test_tab_order_and_panel_order_agree(self):
@@ -3890,19 +3891,20 @@ class InterviewRoundTests(TestCase):
         self.assertIsNone(P.subsection_md(block, "panel-2026-10-10"))
 
     def test_focus_view_shows_the_rounds_tasks_from_notes(self):
-        """`#84`: an application's tasks live in notes.md's `## To do`, one `###` per
+        """`#84`: an application's tasks live in todo.md, in this older layout one `##` per
         round, and the round's focus view — the page open during prep — shows its own.
         Checked for a stage whose label slugs back to the stage (Hiring manager) and one
-        that does not (`final` → "Final round"). Ticks must still point at notes.md."""
+        that does not (`final` → "Final round"). Ticks must still point at todo.md."""
         from django.test import override_settings
 
         root = Path(tempfile.mkdtemp())
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
-        (folder / "notes.md").write_text(
-            "# Test Co\n\n## To do\n\n### Application\n\n- [x] read the posting\n\n"
-            "### Hiring manager — 2026-09-24\n\n- [ ] HM-TASK-ONE\n- [ ] HM-TASK-TWO\n\n"
-            "### Final round — 2026-10-10\n\n- [ ] FINAL-TASK\n\n## My notes\n\nPlain.\n")
+        (folder / "notes.md").write_text("# Test Co\n\n## My notes\n\nPlain.\n")
+        (folder / "todo.md").write_text(
+            "# To do\n\n## Application\n\n- [x] read the posting\n\n"
+            "## Hiring manager — 2026-09-24\n\n- [ ] HM-TASK-ONE\n- [ ] HM-TASK-TWO\n\n"
+            "## Final round — 2026-10-10\n\n- [ ] FINAL-TASK\n")
         for stage, date in (("hiring-manager", "2026-09-24"), ("final", "2026-10-10"),
                             ("panel", "2026-10-01")):
             (folder / f"900-test-co-alex-rivera-interview-{stage}-{date}.md").write_text(
@@ -3917,16 +3919,16 @@ class InterviewRoundTests(TestCase):
                     f"/applications/{app.num}/rounds/{anchor}/").content.decode()
 
             hm = page("round-hiring-manager-2026-09-24")
-            self.assertIn('id="notes--hiring-manager-2026-09-24"', hm)
+            self.assertIn('id="todo--hiring-manager-2026-09-24"', hm)
             self.assertIn("HM-TASK-TWO", hm)
             self.assertNotIn("FINAL-TASK", hm)
             self.assertNotIn("read the posting", hm, "Application tasks are not a round's")
-            # File-wide index: HM-TASK-ONE is notes.md's second task, so data-task="1".
+            # File-wide index: HM-TASK-ONE is todo.md's second task, so data-task="1".
             self.assertRegex(hm, r'data-task="1"[^>]*>\s*HM-TASK-ONE')
-            self.assertIn('data-source="jobs/applications/900-test-co/notes.md"', hm)
+            self.assertIn('data-source="jobs/applications/900-test-co/todo.md"', hm)
 
             final = page("round-final-2026-10-10")
-            self.assertIn('id="notes--final-round-2026-10-10"', final)
+            self.assertIn('id="todo--final-round-2026-10-10"', final)
             self.assertIn("FINAL-TASK", final)
 
             self.assertNotIn("To do for this round", page("round-panel-2026-10-01"),
@@ -3958,19 +3960,49 @@ class InterviewRoundTests(TestCase):
         self.assertNotIn("### Tech & Data", P.tagged_md(block, "hr-screen").split("TECH-HR")[1])
         self.assertIsNone(P.tagged_md(block, "final"))
 
+    def test_split_todo_files_moves_the_section_and_its_links(self):
+        """The one-off: the section's text moves unchanged bar its heading levels, the rest
+        of notes.md stays byte for byte, and links to a moved heading follow it, while a
+        link to a heading that stayed does not."""
+        from tracker.management.commands.split_todo_files import (
+            plan_folder, retarget_round, rewrite_links)
+
+        folder = Path(tempfile.mkdtemp())
+        (folder / "notes.md").write_text(
+            "# Co\n\n## To do\n\n*How this list works.* Hi.\n\n### Domain\n\n"
+            "- [x] DONE ==marked==\n    - => see [fit](#notes--fit-check)\n```\n### fenced\n```\n\n"
+            "## My notes\n\n### Fit check\n\nText.\n\n## Timeline\n")
+        plan = plan_folder(folder)
+        self.assertEqual(plan["notes"], "# Co\n\n## My notes\n\n### Fit check\n\nText.\n\n## Timeline\n")
+        self.assertEqual(plan["todo"],
+            "# To do\n\n*How this list works.* Hi.\n\n## Domain\n\n"
+            "- [x] DONE ==marked==\n    - => see [fit](#notes--fit-check)\n```\n### fenced\n```\n")
+        self.assertFalse(plan["drifted"])
+        self.assertEqual(rewrite_links("[a](#notes--domain) [b](#notes--fit-check) [c](#notes--to-do)",
+                                       plan["mapping"], ""),
+                         "[a](#todo--domain) [b](#notes--fit-check) [c](#todo)")
+        self.assertEqual(retarget_round(
+            "## To do\n\n→ [This round's tasks, in My notes](#notes--hr-2026-01-01) — tagged in\n"
+            "notes.md, on My notes.\n\n## Outcome\n\nMy notes.\n"),
+            "## To do\n\n→ [This round's tasks](#todo--hr-2026-01-01) — tagged in\n"
+            "todo.md, on To do.\n\n## Outcome\n\nMy notes.\n")
+        (folder / "todo.md").write_text("x")
+        self.assertIsNone(plan_folder(folder), "already split: left alone")
+
     def test_focus_view_collects_tagged_tasks_when_headings_are_themes(self):
-        """Trial layout: `###` under `## To do` are themes, a task names its round with
-        `@<label>`. The round page gathers them, one checkbox per notes.md line."""
+        """`##` headings in todo.md are themes, a task names its round with `@<label>`. The
+        round page gathers them, one checkbox per todo.md line."""
         from django.test import override_settings
 
         root = Path(tempfile.mkdtemp())
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
-        (folder / "notes.md").write_text(
-            "# Test Co\n\n## To do\n\n### Domain\n\n- [ ] GENERAL\n- [ ] HM-ONE @hiring-manager\n\n"
-            "### Questions & Practicalities\n\n- [ ] HM-TWO @hiring-manager\n\n## My notes\n\nPlain.\n")
+        (folder / "notes.md").write_text("# Test Co\n\n## My notes\n\nPlain.\n")
+        (folder / "todo.md").write_text(
+            "# To do\n\n## Domain\n\n- [ ] GENERAL\n- [ ] HM-ONE @hiring-manager\n\n"
+            "## Questions & Practicalities\n\n- [ ] HM-TWO @hiring-manager\n")
         (folder / "900-test-co-alex-rivera-interview-hiring-manager-2026-09-24.md").write_text(
-            "# HM\n\n## To do\n\n→ [This round's tasks, in My notes](#notes--hiring-manager-2026-09-24)\n\n"
+            "# HM\n\n## To do\n\n→ [This round's tasks](#todo--hiring-manager-2026-09-24)\n\n"
             "## Prep\n\n- **Q:** why?\n  **A:** because.\n")
         app = Application.objects.get(num=1)
         app.folder = "jobs/applications/900-test-co"
@@ -3979,10 +4011,10 @@ class InterviewRoundTests(TestCase):
             hm = self.client.get(
                 f"/applications/{app.num}/rounds/round-hiring-manager-2026-09-24/").content.decode()
             full = self.client.get(f"/applications/{app.num}/").content.decode()
-        # No such subsection on My notes, so the round file's link goes to the focus page.
+        # No such section on the To do tab, so the round file's link goes to the focus page.
         self.assertIn(f'href="/applications/{app.num}/rounds/round-hiring-manager-2026-09-24/'
-                      f'#notes--hiring-manager-2026-09-24"', full)
-        self.assertIn('id="notes--hiring-manager-2026-09-24"', hm)
+                      f'#todo--hiring-manager-2026-09-24"', full)
+        self.assertIn('id="todo--hiring-manager-2026-09-24"', hm)
         self.assertIn("Questions &amp; Practicalities", hm)
         self.assertNotIn("GENERAL", hm)
         self.assertRegex(hm, r'data-task="1"[^>]*>\s*HM-ONE')
@@ -4267,23 +4299,26 @@ class InterviewRoundTests(TestCase):
         with self.assertRaises(IndexError):
             set_task(text, 3, True)
 
-    def test_the_to_do_section_in_application_notes_is_checkboxes(self):
-        """An application's tasks are `- [ ]` lists in notes.md's `## To do` (SKILL.md,
-        "Lists of things to do are checklists"; `#84`, which replaced the gap analysis's
-        `### Preparation steps`), so they reach the page as checkboxes — and the section
-        comes first, so the first box on the page is the file's first task."""
+    def test_the_to_do_file_reaches_its_tab_as_checkboxes(self):
+        """An application's tasks are `- [ ]` lists in todo.md (SKILL.md, "Lists of things
+        to do are checklists"), so they reach the To do tab as checkboxes, and My notes no
+        longer carries them."""
         app = Application.objects.get(num=1)
-        self.assertEqual(app.notes_doc["blocks"][0]["anchor"], "notes--to-do")
+        self.assertEqual(app.todo_doc["blocks"][0]["anchor"], "todo--domain")
+        self.assertNotIn("notes--to-do", [b["anchor"] for b in app.notes_doc["blocks"]])
+        self.assertNotIn("todo.md", [f["name"] for f in app.extra_files])
+        self.assertGreater(app.open_tasks, 0)
         html = self.client.get("/applications/1/").content.decode()
-        todo = html[html.index('data-section="notes--to-do"'):]
+        self.assertRegex(html, rf'To do <span class="tab-n">{app.open_tasks}</span>')
+        todo = html[html.index('data-panel="todo"'):html.index('data-panel="interviews"')]
         self.assertIn('class="task-box" data-task="0"', todo)
         self.assertIn('data-task="1"', todo)
         self.assertIn('<span class="task-tag">@hr-screen</span>', todo,
                       "a task's round tag is drawn as a pill (#91)")
-        # The round file's link has no subsection to land on in My notes, so it goes to
+        # The round file's link has no section to land on in the To do tab, so it goes to
         # the round's page, where the tagged tasks are gathered.
         self.assertIn('href="/applications/1/rounds/round-hr-screen-2026-09-18/'
-                      '#notes--hr-screen-2026-09-18"', html)
+                      '#todo--hr-screen-2026-09-18"', html)
 
     def test_documents_index_lists_every_document_of_the_application(self):
         """#97: the application's files, rounds and company, on the page and in the static
@@ -4294,6 +4329,7 @@ class InterviewRoundTests(TestCase):
         self.assertGreater(html.index('class="index-box"'), html.rindex('class="tabpanel"'))
         self.assertIn(">Documents index</h2>", record)
         self.assertIn('href="#job"', record)
+        self.assertIn('href="#todo"', record)
         self.assertIn('href="#notes"', record)
         self.assertIn('href="#letters"', record)
         self.assertIn('href="#cv-developer-advocacy-2026-09-15"', record)
@@ -4568,24 +4604,29 @@ class InterviewRoundTests(TestCase):
 
         stub = appfolder.notes_stub({"company": "Test Co", "role": "Architect"})
         self.assertNotIn("## Interview prep", stub)
-        for heading in ("## To do", "## My notes", "## Contacts", "## Timeline"):
+        self.assertNotIn("## To do", stub)
+        for heading in ("## My notes", "## Contacts", "## Timeline"):
             self.assertIn(heading, stub)
-        # `#91`: the to-do section explains itself, then the four themes in their order.
+
+    def test_todo_stub_explains_itself_then_gives_the_themes_in_order(self):
+        """`#91`: the file says how to use it, then the four themes."""
+        import appfolder
+
+        stub = appfolder.todo_stub()
         self.assertIn(appfolder.TODO_GUIDE, stub)
-        positions = [stub.index(f"### {t}\n") for t in appfolder.TODO_THEMES]
+        positions = [stub.index(f"## {t}\n") for t in appfolder.TODO_THEMES]
         self.assertEqual(positions, sorted(positions))
-        self.assertNotIn("### Application", stub)
         from tracker.parsers import _TASK_TAG
         self.assertIsNone(_TASK_TAG.search(appfolder.TODO_GUIDE),
                           "no line of the guide may end in something drawn as a tag")
 
     def test_todo_guide_is_classed_as_a_how_to_note(self):
-        """The guide is for whoever edits notes.md by hand: on the page it is styled
+        """The guide is for whoever edits todo.md by hand: on the page it is styled
         apart from the tasks, and the paragraph after it is left alone."""
         import appfolder
         from tracker.templatetags.jobs_extras import markdownify
 
-        doc = P.sectioned(f"## To do\n\n{appfolder.TODO_GUIDE}\n\nPlain para.\n", "notes")
+        doc = P.sectioned(f"# To do\n\n{appfolder.TODO_GUIDE}\n\nPlain para.\n", "todo")
         html = markdownify(doc["body_md"])
         self.assertIn('<p class="howto-note"><em>How this list works.</em>', html)
         self.assertIn("<p>Plain para.</p>", html)
