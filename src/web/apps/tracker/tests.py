@@ -774,7 +774,7 @@ class ViewTests(TestCase):
         paths = _notes_files()
         self.assertTrue(paths, "no notes in the example data")
         for path in paths:
-            group = _note_group(path) or "other"
+            group = _note_group(path)
             with self.subTest(slug=path.stem):
                 self.assertIn(f'data-tab="{group}"', html)
                 panel = html[html.index(f'data-panel="{group}"'):]
@@ -808,20 +808,26 @@ class ViewTests(TestCase):
         app.save()
         with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
             listed = self.client.get("/notes/").content.decode()
-            self.assertIn('data-tab="topics"', listed)
-            self.assertIn('data-tab="other"', listed)
-            # interviewing/ has no tab of its own: it opens the Topics tab (2026-10-13).
-            self.assertNotIn('data-tab="interviewing"', listed)
+            # A tab per top-level folder, by name, then the loose notes as "Other notes"
+            # (2026-11-06: read from the folders, interviewing/ no longer joins topics/).
+            tabs = [listed.index(f'data-tab="{t}"')
+                    for t in ("interviewing", "search", "topics", "other-notes")]
+            self.assertEqual(tabs, sorted(tabs))
+            nav = [listed.index(f'data-tab-link="{t}"')
+                   for t in ("interviewing", "search", "topics", "other-notes")]
+            self.assertEqual(nav, sorted(nav))
+            # A folder with no subfolders is a flat list: no section heading.
+            interviewing = listed[listed.index('data-panel="interviewing"'):]
+            interviewing = interviewing[:interviewing.index("</section>")]
+            self.assertIn('href="/notes/answer-bank/"', interviewing)
+            self.assertNotIn("note-section-heading", interviewing)
             panel = listed[listed.index('data-panel="topics"'):]
             panel = panel[:panel.index("</section>")]
-            # Sections by subfolder: the named ones in order, a note straight in topics/
-            # last as "Other notes"; nested notes keep the flat URL.
-            order = [panel.index(x) for x in (">Me: answers and my work ", 'href="/notes/answer-bank/"',
-                                              ">Data architecture ", 'href="/notes/energy-markets/"',
+            # Sections by subfolder, named after it, a note straight in topics/ last as
+            # "Other notes"; nested notes keep the flat URL.
+            order = [panel.index(x) for x in (">Data architecture ", 'href="/notes/energy-markets/"',
                                               ">Other notes ", 'href="/notes/graph-basics/"')]
             self.assertEqual(order, sorted(order))
-            # An unlisted subfolder of search/ is a section named after it; the notes
-            # straight in search/ come after it, as "Other notes" (2026-10-22).
             search = listed[listed.index('data-panel="search"'):]
             search = search[:search.index("</section>")]
             order = [search.index(x) for x in (">Recruiter leads ", 'href="/notes/agencies/"',
@@ -2972,8 +2978,10 @@ class DefaultActiveListTests(TestCase):
     def test_notes_sub_items_are_the_notes_tabs(self):
         html = self.client.get("/").content.decode()
         group = html[html.index('data-fold="notes"'):html.index('data-fold="scans"')]
+        # One per folder under jobs/notes/ — example-data has only search/ — and no
+        # entry for a folder that is not there (2026-11-06).
         self.assertIn('href="/notes/#search"', group)
-        self.assertIn('href="/notes/#topics"', group)
+        self.assertNotIn('href="/notes/#topics"', group)
         # Each carries its count, matching the Notes page's own tab counts.
         notes_page = self.client.get("/notes/").content.decode()
         for slug, count in re.findall(
@@ -4380,8 +4388,8 @@ class InterviewRoundTests(TestCase):
         with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
             html = self.client.get("/notes/aims/").content.decode()
         box = html[html.index('class="index-box"'):]
-        self.assertIn(">My search</h3>", box)
-        self.assertIn(">Interviewing &amp; topics</h3>", box)
+        self.assertIn(">Search</h3>", box)
+        self.assertIn(">Topics</h3>", box)
         self.assertIn(">Product</h4>", box)
         self.assertIn('<a href="/notes/discovery/">Discovery</a>', box)
         self.assertIn('aria-current="page">Aims</span>', box)

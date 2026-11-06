@@ -41,15 +41,15 @@ def site_context(request):
 
 
 def _nav_notes() -> list[dict]:
-    """The Notes page's tabs, as the sidebar's sub-items under Notes (`#94`): one per known
-    group, then Career coach when its folder exists, each with its count. Each links `/notes/#<slug>`, which
-    `tabs.js` opens. Groups the page invents for unknown subfolders are left out: the
-    sidebar lists the fixed places, the page shows everything."""
-    from .views import COACH_TAB, NOTE_GROUPS, nav_note_counts
+    """The Notes page's tabs, as the sidebar's sub-items under Notes (`#94`): one per
+    folder under jobs/notes/ (and "Other notes" for any outside one), then Career coach
+    when its folder exists, each with its count. Each links `/notes/#<slug>`, which
+    `tabs.js` opens. The same tabs as the page, since both come from the folders."""
+    from .views import COACH_TAB, _group_label, nav_note_counts, note_tabs
 
     counts = nav_note_counts()
-    items = [{"slug": slug, "label": label, "count": counts.get(slug, 0)}
-             for slug, label, _, _ in NOTE_GROUPS]
+    items = [{"slug": slug, "label": _group_label(slug), "count": counts[slug]}
+             for slug in note_tabs(k for k in counts if k != COACH_TAB)]
     if Path(settings.COACH_DIR).is_dir():
         items.append({"slug": COACH_TAB, "label": "Career coach",
                       "count": counts.get(COACH_TAB, 0)})

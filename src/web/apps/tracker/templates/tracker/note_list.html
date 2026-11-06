@@ -4,8 +4,8 @@
 <div class="page-head">
   <h1>Notes</h1>
   <p class="lede">
-    The notes behind the search, from <code>jobs/notes/</code>, one tab per subfolder:
-    where I am aiming, how I interview, and the topics I have prepared. Plus a Career coach
+    The notes behind the search, from <code>jobs/notes/</code>: one tab per folder, one
+    section per folder inside it, and an Other notes tab for any outside a folder. Plus a Career coach
     tab from <code>extras/career-coach/</code>; the career stocktake has its own page at
     <a href="/profile/">Profile</a>.
   </p>
@@ -14,9 +14,8 @@
 {% comment %}
 One tab per group, each an index of its notes (2026-10-08; a group can span folders since 2026-10-13). It was one tab per note
 (`#73`) until study material carried over from applications took it past a dozen tabs.
-A group is a subfolder of jobs/notes/ (`views.NOTE_GROUPS` gives the known ones their
-names and order); within a tab, the folder a note sits in is its section
-(`views.NOTE_SECTIONS`, 2026-10-13). Each line links the note's own page, which has its Contents list.
+A tab is a folder straight under jobs/notes/, and a section the folder inside it, both
+named after the folder (read from the tree since 2026-11-06; named by hand before). Each line links the note's own page, which has its Contents list.
 
 "First written for" names the application a note was started for, read from the note's
 own opening line (`_note_origin`) — only that one, since a topic note is reused across
@@ -40,11 +39,9 @@ one — the same bargain `tabs.js` makes everywhere.
       <section class="tabpanel" data-panel="{{ g.slug }}" role="tabpanel">
         <div class="panel">
           <h2 class="panel-heading">{{ g.label }}</h2>
-          {% if g.blurb %}<p class="note-group-blurb">{{ g.blurb }}</p>{% endif %}
           {% for sec in g.sections %}
             {% if sec.label %}
               <h3 class="note-section-heading">{{ sec.label }} <span class="tab-count">{{ sec.notes|length }}</span></h3>
-              {% if sec.blurb %}<p class="note-group-blurb">{{ sec.blurb }}</p>{% endif %}
             {% endif %}
             <ul class="note-index">
               {% for n in sec.notes %}

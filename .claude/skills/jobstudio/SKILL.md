@@ -180,25 +180,26 @@ pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 
 ## Notes and their groups
 
-`<DATA>/jobs/notes/` has three subfolders. `search/` is a tab on the Notes page;
-`interviewing/` and `topics/` share the "Interviewing & topics" tab, one section per folder:
+`<DATA>/jobs/notes/` has three subfolders. The Notes page reads the folder tree as it
+stands: each folder straight under `notes/` is a tab (and a sidebar entry), each folder
+inside that is a section of the tab, both named after the folder; a note in no folder
+goes to an "Other notes" tab, and one straight in a tab's folder to its "Other notes"
+section. A new folder is a new tab or section, with no code to change:
 
 - `search/` — direction, reflection and leads, in subfolders of its own (`direction/`,
   `new-areas/`, …). `search/direction/ideal-job-notes.md` is read by path: `scan` scoring
   reads it in full, and `stocktake` and `interview` draw on it, so it stays exactly there.
-- `interviewing/` — **about me**, shown as **Me: answers and my work**:
+- `interviewing/` — **about me**:
   `interview-technique.md`, the answer bank for questions about *me* (who I am, why this
   role, why I left, and the emotional-intelligence questions), which `interview` reads
   and appends to; plus reference notes on what I built (how a product or pipeline worked,
   my role, the figures). A story about a piece of work is told once, in the reference
   note on that work, as a `### Story: …` heading next to the detail behind it.
 - `topics/` — **about the subject**: general, reusable prep, in one of four subfolders:
-  - `topics/product/` — **Product**: product practice (discovery, strategy, delivery).
-  - `topics/data-architecture/` — **Data architecture**: system design, APIs, platforms,
-    security.
-  - `topics/knowledge-graphs/` — **Knowledge graphs**: entity resolution, ontologies,
-    graph data.
-  - `topics/other/` — **Other**: sector landscapes and anything else.
+  - `topics/product/` — product practice (discovery, strategy, delivery).
+  - `topics/data-architecture/` — system design, APIs, platforms, security.
+  - `topics/knowledge-graphs/` — entity resolution, ontologies, graph data.
+  - `topics/other/` — sector landscapes and anything else.
 
   A topic note carries the answers to questions about its subject, each a `###` under
   `## Questions and answers`. It doesn't retell my stories; it says what a story shows

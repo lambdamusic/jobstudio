@@ -2,6 +2,16 @@
 
 Dated entries, newest first.
 
+## 2026-11-06
+
+- **The Notes page follows the folders in `jobs/notes/`.** Each folder there is a tab and
+  an entry under Notes in the sidebar, and each folder inside it is a section of that tab,
+  both named after the folder and listed alphabetically. A note outside any folder goes to
+  an "Other notes" tab, shown last. A new folder appears on the next page load, with no
+  code to change. The hand-set tab names and descriptions are gone, and `interviewing/` is
+  now a tab of its own rather than sharing one with `topics/`. Folders more than two
+  levels down are listed in the section above them.
+
 ## 2026-11-01
 
 - **An application's to-dos have their own file and tab.** They moved from the `## To do`

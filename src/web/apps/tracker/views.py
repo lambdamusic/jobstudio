@@ -960,39 +960,20 @@ def area_list(request):
 # File-backed pages — no DB rows, just markdown on disk
 # ---------------------------------------------------------------------------
 
-# The note groups, as subfolders of jobs/notes/, in the order /notes/ shows them. A note in
-# any other subfolder still shows, under that folder's name; one at the top level of
-# jobs/notes/, under "Other". Grouping is the folder, never a list kept in step by hand.
+# The Notes page is the folder tree, read as it stands (2026-11-06): each folder straight
+# under jobs/notes/ is a tab, named after it, and each folder inside that is a section of
+# the tab. Nothing is listed by hand, so a new folder is a new tab the next time the page
+# loads. Until then the tabs and sections were named here (NOTE_GROUPS, NOTE_SECTIONS),
+# and interviewing/ shared a tab with topics/; every new folder meant an edit here first.
 #
-# A tab can gather more than one folder (2026-10-13): interviewing/ held one file, the
-# answer bank, and sat beside topics/ as a tab of its own; both are prep for a round, so
-# they share one. The folders stay apart on disk — the skill writes to the answer bank by
-# its path — and the tab keeps the `topics` slug, so links to it still land.
-NOTE_GROUPS = [
-    ("search", "My search", "Direction, reflection and leads: what I am aiming at, and why.",
-     ["search"]),
-    ("topics", "Interviewing & topics",
-     "Prep that outlives one application: how to answer, and what to know.",
-     ["interviewing", "topics"]),
-]
-_FOLDER_TAB = {folder: slug for slug, _, _, folders in NOTE_GROUPS for folder in folders}
+# The tab for notes straight in jobs/notes/, in no folder. Not `other`, so it cannot
+# merge with a folder of that name.
+LOOSE_NOTES_TAB = "other-notes"
 
-# Sections within a tab, by the folder a note sits in, in the order the tab shows them
-# (2026-10-13). The tab splits "about me" from "about the subject" (2026-10-22):
-# interviewing/ holds the answers and the detail of my own work, each story told once;
-# topics/ holds general knowledge, which links to those stories rather than retelling
-# them. A note straight in topics/, or in a subfolder not listed here, still shows: after
-# these, under its folder's name, with the loose ones last as "Other notes".
-NOTE_SECTIONS = [
-    ("interviewing", "Me: answers and my work",
-     "The answer bank, and the detail of what I built, to say aloud and to draw on."),
-    ("topics/product", "Product", "Product practice: discovery, strategy, delivery."),
-    ("topics/data-architecture", "Data architecture",
-     "System design, APIs, platforms and security."),
-    ("topics/knowledge-graphs", "Knowledge graphs",
-     "Entity resolution, ontologies, graph data and who uses it."),
-    ("topics/other", "Other", "Sector landscapes and anything else worth keeping."),
-]
+
+def _folder_name(folder: str) -> str:
+    """A folder as a tab or section reads it: `new-areas` is "New areas"."""
+    return folder.replace("-", " ").replace("_", " ").capitalize()
 
 
 def _notes_files():
@@ -1015,22 +996,31 @@ def _notes_files():
     return out
 
 
-def _note_folder(path) -> str:
-    """The note's top-level folder under jobs/notes/ — its tab — or "" at the top level."""
-    rel = path.relative_to(Path(settings.NOTES_DIR))
-    return rel.parts[0] if len(rel.parts) > 1 else ""
-
-
-def _note_section(path) -> str:
-    """The folder the note sits in, relative to jobs/notes/ — its section within the tab."""
-    rel = path.parent.relative_to(Path(settings.NOTES_DIR)).as_posix()
-    return "" if rel == "." else rel
+def _note_parts(path) -> tuple:
+    """The folders between jobs/notes/ and the note."""
+    return path.parent.relative_to(Path(settings.NOTES_DIR)).parts
 
 
 def _note_group(path) -> str:
-    """The tab a note shows under: its folder, or the tab that gathers that folder."""
-    folder = _note_folder(path)
-    return _FOLDER_TAB.get(folder, folder)
+    """The tab a note shows under: its top-level folder, or LOOSE_NOTES_TAB in none."""
+    parts = _note_parts(path)
+    return parts[0] if parts else LOOSE_NOTES_TAB
+
+
+def _note_section(path) -> str:
+    """The section within its tab: the folder below the tab's, or "" straight in it. Any
+    deeper folder folds into its section rather than nesting a third level of headings."""
+    parts = _note_parts(path)
+    return parts[1] if len(parts) > 1 else ""
+
+
+def _group_label(slug: str) -> str:
+    return "Other notes" if slug == LOOSE_NOTES_TAB else _folder_name(slug)
+
+
+def note_tabs(slugs) -> list[str]:
+    """Tabs in the order the page shows them: by folder name, the loose notes last."""
+    return sorted(set(slugs), key=lambda g: (g == LOOSE_NOTES_TAB, g))
 
 
 def _note_summary(body: str) -> str:
@@ -1081,8 +1071,7 @@ def _note(path):
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     group = _note_group(path)
     return {"slug": path.stem, "title": title, "short": P.short_title(title),
-            "group": group, "group_label": dict((g, l) for g, l, _, _ in NOTE_GROUPS).get(
-                group, group.replace("-", " ").capitalize() if group else "Other"),
+            "group": group, "group_label": _group_label(group),
             "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path)),
             "origin": _note_origin(body)}
 
@@ -1173,19 +1162,12 @@ def _coach():
 
 
 def _note_groups() -> list[dict]:
-    """Every note, as the Notes page organises them: by group, then by section."""
+    """Every note, as the Notes page organises them: by tab, then by section."""
     by_group: dict[str, list] = {}
     for path in _notes_files():
         by_group.setdefault(_note_group(path), []).append(_note_entry(path))
-    known = [g for g, _, _, _ in NOTE_GROUPS]
-    groups = [{"slug": g, "label": label, "blurb": blurb, "notes": by_group[g]}
-              for g, label, blurb, _ in NOTE_GROUPS if by_group.get(g)]
-    groups += [{"slug": g or "other", "label": g.replace("-", " ").capitalize() if g else "Other",
-                "blurb": "", "notes": by_group[g]}
-               for g in sorted(by_group) if g not in known]
-    for group in groups:
-        group["sections"] = _sections(group["notes"])
-    return groups
+    return [{"slug": g, "label": _group_label(g), "notes": by_group[g],
+             "sections": _sections(by_group[g])} for g in note_tabs(by_group)]
 
 
 def note_list(request):
@@ -1202,34 +1184,17 @@ def note_list(request):
 
 
 def _sections(notes) -> list[dict]:
-    """A tab's notes split by folder: the known sections first, in NOTE_SECTIONS order, then
-    any other subfolder by name, and last the notes straight in the tab's own folder, as
-    "Other notes" (2026-10-22). A tab whose notes share one unlisted folder gets a single
-    section with no heading — it renders as the flat list it always was."""
-    known = {key: (label, blurb) for key, label, blurb in NOTE_SECTIONS}
-    order = [key for key, _, _ in NOTE_SECTIONS]
+    """A tab's notes split by subfolder, by name, then the notes straight in the tab's own
+    folder last, as "Other notes" (2026-10-22). A tab with no subfolders gets a single
+    section with no heading — it renders as a flat list."""
     by_key: dict[str, list] = {}
     for note in notes:
         by_key.setdefault(note["section"], []).append(note)
-    unknown = [k for k in by_key if k not in known]
-    keys = ([k for k in order if k in by_key] + sorted(k for k in unknown if "/" in k)
-            + sorted(k for k in unknown if "/" not in k))
-    if len(keys) == 1 and keys[0] not in known:
-        keys_labels = [(keys[0], "", "")]
-    else:
-        keys_labels = [(k, *known.get(k, (_folder_label(k), ""))) for k in keys]
-    return [{"key": k, "label": label, "blurb": blurb,
+    keys = sorted(by_key, key=lambda k: (k == "", k))
+    return [{"key": k,
+             "label": "" if keys == [""] else (_folder_name(k) if k else "Other notes"),
              "notes": sorted(by_key[k], key=lambda n: n["title"].lower())}
-            for k, label, blurb in keys_labels]
-
-
-def _folder_label(key: str) -> str:
-    """A section for a folder NOTE_SECTIONS does not name. A tab's own folder (`search`,
-    `topics`) holds the notes not sorted into a subfolder, so it reads "Other notes" — it
-    used to read "Other search", which says nothing. Anything deeper goes by its last part."""
-    if "/" not in key:
-        return "Other notes"
-    return key.rsplit("/", 1)[1].replace("-", " ").capitalize()
+            for k in keys]
 
 
 def note_detail(request, slug):
