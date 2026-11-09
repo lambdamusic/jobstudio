@@ -8,7 +8,8 @@ Dated entries, newest first.
   `/jobstudio dossier #1` (or `manage.py dossier 1`) writes the job description, the CV
   and cover letter as sent, the other files in the folder, notes, to-dos, interview rounds,
   the company page and every linked note into one `.docx`, one section per page, in the
-  application's `export/` folder; `--out` sends it somewhere else. The contents list and
+  application's `export/` folder; `--out` sends it somewhere else. The filename ends in
+  the time of the export, to the minute, so a rerun never overwrites an earlier one. The contents list and
   every link between the documents jump within the file, and still do once it is opened
   in Google Docs. It covers what the Documents index lists, so a note gets in by being
   linked from the folder.

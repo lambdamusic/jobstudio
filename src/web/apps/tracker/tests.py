@@ -4420,6 +4420,13 @@ class InterviewRoundTests(TestCase):
         hr = next(i for i, t in enumerate(titles, 1) if t.startswith("Interview: HR screen"))
         self.assertIn(f"s{hr:02d}", anchors[len(titles):])
 
+    def test_the_dossier_command_names_the_file_to_the_minute(self):
+        """#98: the export time ends the filename, so a second run never overwrites the first."""
+        out = Path(tempfile.mkdtemp())
+        call_command("dossier", "#1", "--out", str(out), stdout=StringIO())
+        [made] = out.iterdir()
+        self.assertRegex(made.name, r"^001-grafana-labs-.+-dossier-\d{4}-\d{2}-\d{2}-\d{4}\.docx$")
+
     def test_the_dossier_copies_a_sent_docx_with_its_links_and_styles(self):
         """#98: the CV and cover letter go in as sent. A hyperlink's relationship has to be
         re-made in the dossier's own package or Word reports the file as damaged, and the

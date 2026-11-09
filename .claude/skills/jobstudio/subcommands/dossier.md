@@ -22,9 +22,9 @@ Arguments:
    tools/py src/web/manage.py dossier 1 4 [--out <folder>]
    ```
 
-   One file per application, named like the folder's other documents
-   (`001-grafana-labs-<you>-dossier-2026-11-09.docx`). A second run on the same day
-   replaces the first.
+   One file per application, named like the folder's other documents with the time of
+   the export added (`001-grafana-labs-<you>-dossier-2026-11-09-1042.docx`), so a rerun
+   never overwrites an earlier dossier.
 
 3. Report each output path with its section list, as the command prints it.
 

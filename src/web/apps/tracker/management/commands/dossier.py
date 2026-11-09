@@ -3,13 +3,15 @@
     manage.py dossier 1                   # into the application's export/ folder
     manage.py dossier 1 4 --out ~/tmp     # one file each, somewhere else
 
-The file is named like the folder's other documents
-(`001-grafana-labs-<you>-dossier-2026-11-09.docx`), so a rerun the same day replaces it.
+The file is named like the folder's other documents, with the time of the export
+added (`001-grafana-labs-<you>-dossier-2026-11-09-1042.docx`), so a rerun never
+overwrites an earlier dossier.
 See `tracker/dossier.py` for what goes in.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
@@ -36,7 +38,9 @@ class Command(BaseCommand):
             if folder is None:
                 raise CommandError(f"{app} has no folder")
             out_dir = Path(options["out"]).expanduser() if options["out"] else appfolder.export_dir(folder)
-            out = out_dir / appfolder.app_filename(folder, "dossier", "docx")
+            now = datetime.now()
+            name = appfolder.app_filename(folder, "dossier", "docx", when=now.date())
+            out = out_dir / name.replace(".docx", f"-{now:%H%M}.docx")
             titles = dossier.build(app, out)
             self.stdout.write(f"{out} ({len(titles)} sections)")
             for title in titles:
