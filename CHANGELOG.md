@@ -4,6 +4,12 @@ Dated entries, newest first.
 
 ## 2026-11-09
 
+- **An application has a People tab**, right after Interviews. It shows one card per
+  person in `notes.md`'s `## Contacts`: the name links to their profile, then their role,
+  and the interview rounds that mention them, linking into the Interviews tab. The
+  section leaves My notes when the tab shows it. Write Contacts as one bullet per person,
+  name first.
+
 - **A note's images live in one folder, `jobs/notes/img/`.** A note embeds one as
   `img/<name>.png` and the app looks for it there rather than beside the note, so moving
   a note between folders no longer breaks its images. One still beside its note is found

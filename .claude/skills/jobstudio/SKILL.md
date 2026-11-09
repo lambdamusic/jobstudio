@@ -180,6 +180,12 @@ full name, linked, and their role in the process — so a profile is found once 
 application. How a link is found when `## Contacts` lacks one, and the check it must
 pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 
+`## Contacts` is also what the application page's **People** tab shows, so keep its
+shape: one top-level bullet per person, the name first (`- **[Full Name](url):** role,
+part in the process, dates`), anything longer indented beneath. A bullet that does not
+open with a name (an application email, a portal link) is shown under the cards as a
+note, not as a person.
+
 ## Notes and their groups
 
 `<DATA>/jobs/notes/` has three subfolders. The Notes page reads the folder tree as it
