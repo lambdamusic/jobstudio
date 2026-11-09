@@ -93,7 +93,7 @@ _MARKUP = re.compile(r"(<a\b.*?</a>|<[^>]+>)", re.S | re.I)
 # with a sentence and go straight into bullets, `> Start there:` then `> - …`. The blank
 # line has to be a quoted one, `>`, or it would end the quote.
 _TIGHT_QUOTED_LIST = re.compile(
-    r"""(?m)^(?P<prev>(?P<q>[ \t]*>)[ \t]?    # a quoted line...
+    r"""(?m)^(?P<prev>(?P<q>[ \t]*>)[ \t]*    # a quoted line, indented or not...
                       (?![-*+][ \t])(?!\d+[.)][ \t])(?!>)\S.*?)  # ...with text, not an item
         [ \t]*\n
         (?=(?P=q)[ \t]*(?:[-*+]|\d+[.)])[ \t])""", re.X)

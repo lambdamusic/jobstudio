@@ -4809,6 +4809,12 @@ class InterviewRoundTests(TestCase):
                         "    > Start at entry:\n    > - *Identifiers*\n    > - Pre-fill\n")
         self.assertRegex(points, r"<blockquote>\s*<p>Start at entry:</p>\s*<ul>\s*<li><em>Identifiers")
 
+        # A continuation paragraph inside a quoted item, then the next item: still a list.
+        cont = render("- **Q:** Product?\n  **A:** Brainstorm.\n\n"
+                      "    > - One\n    >     - sub\n    >\n    >     More on one.\n"
+                      "    > - Two\n")
+        self.assertNotIn("- Two", cont)
+
     def test_filename_is_built_from_the_shared_convention(self):
         """app_filename() stays the single implementation — and the date is the date of
         the interview, not the day the file was written."""
