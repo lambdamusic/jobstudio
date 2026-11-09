@@ -847,14 +847,16 @@ def application_list(request, status=None, area=None, active=False, show_all=Fal
 def application_detail(request, num):
     app = get_object_or_404(
         Application.objects.select_related("company", "area"), num=num)
+    # Both are computed by scanning the folder, so resolve each once here
+    # rather than letting the template re-walk it per access.
+    interviews = app.interview_files
     return render(request, "tracker/application_detail.html", {
         "page": "applications",
         "nav_apps": "applications",
         "app": app,
         "cover_letters": app.cover_letter_files,
-        # Both are computed by scanning the folder, so resolve each once here
-        # rather than letting the template re-walk it per access.
-        "interviews": app.interview_files,
+        "interviews": interviews,
+        "people": app.people(interviews),
         "documents": app.documents,
         # The status menu offers every status except the one it is already in.
         "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],

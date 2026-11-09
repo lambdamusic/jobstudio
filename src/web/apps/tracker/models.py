@@ -564,10 +564,27 @@ class Application(models.Model):
         """
         from .parsers import sectioned
 
-        body = self.notes_md
+        # Contacts moves to the People tab when it names anyone; shown once, there.
+        body = self.contacts["notes_md"] if self.contacts else self.notes_md
         return (sectioned(body, "notes", self.glossary,
                           source=_task_source(self._folder_file("notes.md")))
                 if body and body.strip() else None)
+
+    @cached_property
+    def contacts(self) -> dict | None:
+        """`notes.md`'s `## Contacts`, split into people for the People tab — see
+        `parsers.people_of()`. None when it names nobody."""
+        from .parsers import people_of
+
+        return people_of(self.notes_md)
+
+    def people(self, rounds: list[dict]) -> list[dict]:
+        """The People tab's cards: each contact, with the interview rounds that mention
+        them by name, newest first, as `rounds` (the Interviews tab's list) has them."""
+        if not self.contacts:
+            return []
+        return [{**p, "rounds": [r for r in rounds if p["key"] and p["key"] in r["body_md"]]}
+                for p in self.contacts["people"]]
 
     @cached_property
     def todo_doc(self) -> dict | None:

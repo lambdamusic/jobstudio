@@ -18,7 +18,9 @@
 
 ## Contacts
 
-None yet.
+- **Dana Okonkwo:** technical recruiter. Ran the HR screen on 2026-09-18.
+- **[Sam Ortiz](https://www.linkedin.com/in/example-sam-ortiz/):** Head of Developer
+  Advocacy; the hiring manager, if the screen goes well. Not met yet.
 
 ## Timeline
 

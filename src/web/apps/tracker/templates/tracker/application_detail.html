@@ -69,6 +69,10 @@
       <button class="tab" data-tab="interviews" role="tab" type="button">
         Interviews <span class="tab-n">{{ interviews|length }}</span></button>
     {% endif %}
+    {% if people %}
+      <button class="tab" data-tab="people" role="tab" type="button">
+        People <span class="tab-n">{{ people|length }}</span></button>
+    {% endif %}
     {% if app.notes_md %}
       <button class="tab" data-tab="notes" role="tab" type="button">My notes</button>
     {% endif %}
@@ -204,6 +208,32 @@
     </section>
   {% endif %}
 
+
+  {% comment %}
+  Everyone who had a hand in the application — interviewers, recruiters, whoever referred
+  me — from `## Contacts` in notes.md, which stays the one place they are written down
+  (the section leaves My notes when this tab shows it). Next to Interviews because that is
+  when you come here: "who is this person again?" before or after a round. Each card lists
+  the rounds that name the person, linking into the Interviews tab.
+  {% endcomment %}
+  {% if people %}
+    <section class="tabpanel" data-panel="people" role="tabpanel">
+      <h2 class="panel-heading">People</h2>
+      {% if app.contact %}<p class="people-contact">Application contact: {{ app.contact|urlize }}</p>{% endif %}
+      <div class="people">
+        {% for p in people %}
+          <div class="panel person" id="{{ p.anchor }}">
+            <h3 class="person-name">{% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</h3>
+            {% if p.body_md %}<div class="prose">{{ p.body_md|markdown|blank_links }}</div>{% endif %}
+            {% if p.rounds %}
+              <p class="person-rounds">In {% for r in p.rounds %}<a href="#{{ r.anchor }}">{{ r.label }}{% if r.date %} · {{ r.date|date:"j M Y" }}{% endif %}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      {% if app.contacts.other_md %}<div class="panel prose">{{ app.contacts.other_md|markdown|blank_links }}</div>{% endif %}
+    </section>
+  {% endif %}
 
   {% if app.notes_md %}
     <section class="tabpanel" data-panel="notes" role="tabpanel">

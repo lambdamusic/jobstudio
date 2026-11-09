@@ -543,6 +543,17 @@ tr.is-stale td { background: #fffdf5; }
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 
+/* ---------- People tab ---------- */
+
+.people { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.people .person { margin-bottom: 0; }
+.person-name { margin: 0 0 6px; font-size: 16px; }
+.person .prose { font-size: 14px; }
+.person .prose > :first-child { margin-top: 0; }
+.person .prose > :last-child { margin-bottom: 0; }
+.person-rounds { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.people-contact { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+
 /* ---------- the index boxes: an application's documents (#97), and all the notes ---------- */
 
 .index-box {

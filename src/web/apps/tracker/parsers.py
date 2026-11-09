@@ -859,6 +859,88 @@ def _slugify(text: str) -> str:
     return _SLUG_RE.sub("-", text.lower()).strip("-")
 
 
+# A Contacts bullet that opens with a name, in any of the four ways the notes write one:
+# `**Name**`, `**[Name](url)**`, `[**Name**](url)` or `[Name](url)`. A colon may sit
+# inside the bold (`**Peter:**`, `**[Julian](url):**`). Anything else — `⚠️ **Application email: …**`,
+# `Recruiter: name not yet known` — is a note about contacting them, not a person.
+_PERSON_LEAD = re.compile(
+    r"^(?:\*\*\[(?P<a>[^\]\n]+)\]\((?P<au>[^)\s]+)\):?\*\*"
+    r"|\[\*\*(?P<b>[^*\]\n]+)\*\*\]\((?P<bu>[^)\s]+)\)"
+    r"|\*\*(?P<c>[^*\n]+?)\*\*"
+    r"|\[(?P<d>[^\]\n]+)\]\((?P<du>[^)\s]+)\))")
+_PERSON_SEP = re.compile(r"^\s*(?:[:—–-]\s*)?")
+_LINKEDIN = re.compile(r"https?://(?:[a-z]{2,3}\.)?linkedin\.com/in/[^)\s>]+")
+
+
+def people_of(notes_md: str) -> dict | None:
+    """The people in `notes.md`'s `## Contacts`, for the People tab.
+
+    The section stays the one place a person is written down: one top-level bullet each,
+    name first, then their role and part in the process, continuation lines and
+    sub-bullets indented beneath. Returns `people` (each with `name`, `url` — the link
+    on the name, if any — `key` for matching them in round files, `anchor`, and `body_md`,
+    the bullet minus its name), `other_md` (whatever in the section is not a person, so
+    the tab still shows it), and `notes_md` with the section removed, since the tab
+    replaces it on My notes. None when the section names nobody: then it stays where it
+    is and there is no tab.
+    """
+    m = re.search(r"(?m)^## Contacts[ \t]*\n", notes_md or "")
+    if not m:
+        return None
+    end = re.search(r"(?m)^## ", notes_md[m.end():])
+    stop = m.end() + end.start() if end else len(notes_md)
+    section = notes_md[m.end():stop]
+
+    items: list[list[str]] = []  # top-level bullets, each with its continuation lines
+    other: list[str] = []
+    for line in section.splitlines():
+        if line.startswith(("- ", "* ")):
+            items.append([line[2:]])
+        elif items and (line.startswith((" ", "\t")) or not line.strip()):
+            items[-1].append(line)
+        else:
+            other.append(line)
+
+    people, seen = [], set()
+    for item in items:
+        lead = _PERSON_LEAD.match(item[0])
+        if not lead:
+            other.append("- " + "\n".join(item).rstrip())
+            continue
+        name = next(lead[k] for k in "abcd" if lead[k]).strip().rstrip(":").strip()
+        first = _PERSON_SEP.sub("", item[0][lead.end():], count=1)
+        rest = [ln[2:] if ln.startswith("  ") else ln.lstrip("\t") for ln in item[1:]]
+        # The name's own link, else a LinkedIn profile given further on
+        # (`… [LinkedIn](url)`), so the name is a link whenever there is a profile.
+        url = (lead["au"] or lead["bu"] or lead["du"]
+               or next(iter(_LINKEDIN.findall("\n".join([first, *rest]))), None))
+        key = _TRAILING_PAREN_RE.sub("", name).strip()
+        anchor = base = f"person-{_slugify(key)}"
+        n = 1
+        while anchor in seen:
+            n += 1
+            anchor = f"{base}-{n}"
+        seen.add(anchor)
+        people.append({
+            "name": name,
+            "url": url,
+            # One-word names ("Peter (surname not given)") would match every round
+            # that mentions anyone called Peter, so they are not looked for.
+            "key": key if len(key.split()) > 1 else "",
+            "anchor": anchor,
+            # A blank line before sub-bullets, or Markdown runs them into the paragraph.
+            "body_md": "\n".join([first, *([""] if rest and _ITEM.match(rest[0].lstrip()) else []),
+                                  *rest]).strip(),
+        })
+    if not people:
+        return None
+    return {
+        "people": people,
+        "other_md": "\n".join(other).strip(),
+        "notes_md": (notes_md[:m.start()] + notes_md[stop:]).rstrip() + "\n",
+    }
+
+
 # "### Company" or "### Company (12)" — the per-company subheadings scan-portals.py
 # emits for Strong/Other matches and the two before-scoring exclusion buckets.
 _COMPANY_HEADING_RE = re.compile(r"(?m)^### (?P<name>.+?)(?:\s+\((?P<count>\d+)\))?\s*$")

@@ -4855,6 +4855,53 @@ class InterviewRoundTests(TestCase):
         self.assertIn('class="qa-q"', r.content.decode())
 
 
+class PeopleTabTests(TestCase):
+    """The People tab: everyone in `## Contacts`, one card each, with the rounds that
+    name them. The section stays the source and leaves My notes when the tab shows it."""
+
+    fixtures = FIXTURE
+
+    def test_each_way_of_writing_a_name_is_a_person(self):
+        md = ("# Notes\n\n## Contacts\n\n"
+              "- **Ana Lima** — recruiter. [LinkedIn](https://www.linkedin.com/in/ana/)\n"
+              "- **[Bo Chen](https://example.org/bo):** hiring manager,\n"
+              "  on two lines.\n"
+              "- [**Cy Dee**](https://example.org/cy): panel.\n"
+              "- [Di Ek](https://example.org/di): referred me.\n"
+              "- **Ed (surname not given):** HR.\n"
+              "  - Ran the screen.\n"
+              "- ⚠️ **Application email: me@example.org**\n\n"
+              "## Timeline\n\n- 2026-09-12 — saved\n")
+        out = P.people_of(md)
+        self.assertEqual([p["name"] for p in out["people"]],
+                         ["Ana Lima", "Bo Chen", "Cy Dee", "Di Ek", "Ed (surname not given)"])
+        self.assertEqual([p["url"] for p in out["people"]],
+                         ["https://www.linkedin.com/in/ana/", "https://example.org/bo",
+                          "https://example.org/cy", "https://example.org/di", None])
+        self.assertEqual(out["people"][1]["body_md"], "hiring manager,\non two lines.")
+        self.assertEqual(out["people"][4]["body_md"], "HR.\n\n- Ran the screen.")
+        self.assertEqual(out["people"][4]["key"], "")      # one word: never matched
+        self.assertIn("Application email", out["other_md"])  # not a person, still shown
+        self.assertNotIn("## Contacts", out["notes_md"])
+        self.assertIn("## Timeline", out["notes_md"])
+
+    def test_no_people_no_tab(self):
+        self.assertIsNone(P.people_of("## Contacts\n\nNone yet.\n\n## Timeline\n"))
+        self.assertIsNone(P.people_of("## Timeline\n"))
+
+    def test_the_tab_follows_interviews_and_links_each_person_to_their_rounds(self):
+        html = self.client.get("/applications/1/").content.decode()
+        self.assertIn('People <span class="tab-n">2</span>', html)
+        self.assertLess(html.index('data-tab="interviews"'), html.index('data-tab="people"'))
+        self.assertLess(html.index('data-tab="people"'), html.index('data-tab="notes"'))
+        app = Application.objects.get(num=1)
+        dana = next(p for p in app.people(app.interview_files) if p["name"] == "Dana Okonkwo")
+        self.assertEqual(len(dana["rounds"]), 1)
+        self.assertIn(f'href="#{dana["rounds"][0]["anchor"]}"', html)
+        self.assertIn('href="https://www.linkedin.com/in/example-sam-ortiz/"', html)
+        self.assertNotIn("notes--contacts", [b["anchor"] for b in app.notes_doc["blocks"]])
+
+
 class CreateFolderActionTests(TestCase):
     """The application page's "Create folder" action (added 2026-09-09, for applications
     logged without one) — appfolder.ensure_folder() run through the view. Writes to the
