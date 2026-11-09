@@ -4778,6 +4778,32 @@ class InterviewRoundTests(TestCase):
         unquoted = render('### "Why this role?"\n\nA plain answer, no quote.\n')
         self.assertNotIn("howto-note", unquoted)
 
+    def test_a_quoted_answer_sits_beside_its_advice_with_the_bank_source_marked(self):
+        """In a round, the quote under `**A:**` is the answer proper and the rest is advice
+        (site.css styles the two apart). The quote stays a direct child of the answer box,
+        where the CSS looks for it; a copied bank answer's source line gets its class; and
+        an `A:` left on its own line, with nothing but the quote after it, goes."""
+        from tracker.templatetags.jobs_extras import markdownify, mark_qa, qa_items
+
+        def render(body):
+            doc = P.sectioned(f"## Prep\n\n{body}", "r")
+            block = doc["blocks"][0]
+            return str(qa_items(markdownify(mark_qa(block["body_md"], True)), block))
+
+        html = render("- **Q:** Tell me about yourself.\n"
+                      "  **A:** Forty-five seconds; stop on the last line.\n\n"
+                      "    > My career has run along three threads.\n"
+                      "    >\n"
+                      "    > *From the bank: [Tell me about yourself](/notes/interview-technique/), "
+                      "copied 2026-11-09*\n")
+        self.assertRegex(html, r'<div class="qa-a"><p><strong>A:</strong> Forty-five seconds;'
+                               r'[^<]*</p>\s*<blockquote>')
+        self.assertIn('<p class="from-bank"><em>From the bank: <a href="/notes/interview-technique/">',
+                      html)
+
+        bare = render("- **Q:** Why us?\n  **A:**\n\n    > Because of the data.\n")
+        self.assertRegex(bare, r'<div class="qa-a">\s*<blockquote>')
+
     def test_filename_is_built_from_the_shared_convention(self):
         """app_filename() stays the single implementation — and the date is the date of
         the interview, not the day the file was written."""

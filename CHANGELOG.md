@@ -4,6 +4,11 @@ Dated entries, newest first.
 
 ## 2026-11-09
 
+- **An interview answer tells the words to say from the advice on saying them.** The
+  quote under `**A:**` is the answer proper, shown under an "Answer" label; the rest is
+  advice, dimmed under "How to answer". A bank answer is now copied into the round, ending
+  with a `*From the bank: [link], copied <date>*` line, so a round reads as one document.
+
 - **An application has a People tab**, right after Interviews. It shows one card per
   person in `notes.md`'s `## Contacts`: the name links to their profile, then their role,
   and the interview rounds that mention them, linking into the Interviews tab. The

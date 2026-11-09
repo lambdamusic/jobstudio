@@ -224,7 +224,9 @@ Structure:
 
 ### Role / technical
 - **Q:** …
-  **A:** …
+  **A:** …advice on giving it: what to lead with, what to avoid, what to ask back…
+
+    > …the answer proper: the words to say, or its talking points…
 
 ### Behavioural
 - **Q:** …
@@ -289,6 +291,34 @@ coloured. An answer with its own bullets or bold sub-headings under it must inde
 **four spaces** (two more than the `**A:**` line): at two spaces they end the list item,
 and render as loose bullets after the question instead of inside its answer. STAR sub-markers (`**S:**`, `**T:**`, `**A:**`, `**R:**`) sit inside an answer and
 are left plain.
+
+**Every answer has two parts, and the quote marks which is which** (2026-11-09). The
+**answer proper** — the words to say, or the talking points to say them from — goes in a
+blockquote under the `**A:**` line, indented four spaces like any part of the answer
+(`    > …`, bullets inside it as `    > - …`). **Advice on giving it** — how long, what to
+lead with, what to avoid, the question to ask back, a framing to watch with this
+interviewer — is plain text on the `**A:**` line or after the quote. The site shows the
+quote as the answer, under an "Answer" label, and dims the advice under "How to answer",
+so you can read straight down the answers mid-call. Keep the advice short; anything you
+would actually say belongs in the quote. Pure advice with nothing to say (a "use the same
+story as last round" pointer) can stay unquoted, but then copy that story in (below).
+
+**A bank answer is copied in, not only pointed to.** When an answer comes from the
+answer bank or a note's `## Questions and answers` or `### Story: …`, put its text in this
+round's quote, adapted to this interviewer if it needs to be, and end the quote with its
+source:
+
+```markdown
+    > …the answer…
+    >
+    > *From the bank: [Tell me about yourself](/notes/interview-technique/#…), copied 2026-11-09*
+```
+
+The line has to start `*From the bank:` for the site to set it as a source line. The round
+then reads as one document, on the page, in the focus view and in the dossier, with the
+original one click away. The date says how old the copy is: if the bank answer changes
+later, the round keeps the version prepared for it. Link a note as `/notes/<slug>/`, never
+as a `jobs/notes/…` path in backticks, which is not a link.
 
 Then **add one line to `## Timeline` in `notes.md`** linking the new file, so the
 folder still reads as one process:

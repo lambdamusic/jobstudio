@@ -414,6 +414,22 @@ def _box_intro(answer: str) -> str:
     return f'<div class="howto-note">{answer[:pos]}</div>{answer[pos:]}'
 
 
+# An answer's source line when it was copied from the bank: `> *From the bank: [..](..),
+# copied <date>*`, the last line of its quote.
+_FROM_BANK = re.compile(r"<p>(?=<em>From the bank:)")
+# `**A:**` on its own line, before an answer that is all quote: nothing left once the
+# marker is hidden, so drop the empty paragraph rather than leave its margin.
+_BARE_A = re.compile(r"^\s*<p>\s*<strong>A:</strong>\s*</p>")
+
+
+def _qa_answer(answer: str) -> str:
+    """The `.qa-a` box for one answer. Its quote is the answer proper and the rest is
+    advice on giving it, styled apart in site.css (2026-11-09); here only the bank's
+    source line gets its class, and a bare `A:` paragraph goes."""
+    answer = _FROM_BANK.sub('<p class="from-bank">', _BARE_A.sub("", answer))
+    return f'<div class="qa-a">{answer}</div>'
+
+
 @register.filter(name="qa_items")
 def qa_items(html, block):
     """Turn each question and its answer into a numbered block that opens and closes
@@ -456,7 +472,7 @@ def qa_items(html, block):
             else:
                 answer = _strip_br(html[span_end:inner_end])
             html = (html[:m.start()] + f'<li class="qa-li"><details class="qa"{attrs} open>'
-                    + summary + f'<div class="qa-a">{answer}</div></details></li>'
+                    + summary + _qa_answer(answer) + '</details></li>'
                     + html[li_end:])
         else:
             p_end = html.index("</p>", span_end) + len("</p>")
@@ -465,7 +481,7 @@ def qa_items(html, block):
             end = stop.start() if stop else len(html)
             answer = (f"<p>{first}</p>" if first.strip() else "") + html[p_end:end]
             html = (html[:m.start()] + f'<details class="qa"{attrs} open>' + summary
-                    + f'<div class="qa-a">{answer}</div></details>' + html[end:])
+                    + _qa_answer(answer) + '</details>' + html[end:])
 
     # Headings that ask: h4 first, so an h3's answer can contain them already folded.
     for level in ("4", "3"):
