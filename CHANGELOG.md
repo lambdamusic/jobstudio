@@ -4,6 +4,16 @@ Dated entries, newest first.
 
 ## 2026-11-09
 
+- **A note's images live in one folder, `jobs/notes/img/`.** A note embeds one as
+  `img/<name>.png` and the app looks for it there rather than beside the note, so moving
+  a note between folders no longer breaks its images. One still beside its note is found
+  as a fallback.
+
+- **Lists nested by two spaces keep their second level.** Python-Markdown only nests a
+  list indented by four, so a sub-bullet written with two (as most editors do) came out as
+  one more item of the list above it. The markdown filter now re-indents nested items
+  before rendering, on every page, leaving code fences as written.
+
 - **A note's page has an Open folder button**, as a company page does: on the local app it
   shows the note's `.md` in Finder, selected, so it can be opened and edited.
 

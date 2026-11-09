@@ -98,6 +98,38 @@ def _loosen_lists(text: str) -> str:
     return "".join(chunks)
 
 
+_LIST_ITEM = re.compile(r"^( *)([-*+]|\d+[.)]) ")
+
+
+def _nest_lists(text: str) -> str:
+    """Re-indent nested list items to the four spaces Python-Markdown needs, outside code fences.
+
+    Hand-written notes nest with two spaces (or three, under `1.`), as most editors and
+    CommonMark do. Python-Markdown wants four, so it read the sub-bullets as more items of
+    the same list and the page lost the second level. An item's depth is read from how far
+    it is indented relative to the items above it, then written back as four spaces a level.
+    Only item lines move; a continuation line joins its item either way.
+    """
+    chunks = re.split(r"(```.*?```)", text, flags=re.S)
+    for i, chunk in enumerate(chunks):
+        if chunk.startswith("```"):
+            continue
+        lines, indents = chunk.split("\n"), []  # the indents of the open items, outermost first
+        for j, line in enumerate(lines):
+            m = _LIST_ITEM.match(line)
+            if not m:
+                if line.strip() and not line.startswith(" "):
+                    indents = []  # back at the margin with something that is not a list
+                continue
+            indent = len(m.group(1))
+            while indents and indent <= indents[-1]:
+                indents.pop()  # a sibling or a shallower item closes the deeper ones
+            lines[j] = " " * (4 * len(indents)) + line[indent:]
+            indents.append(indent)
+        chunks[i] = "\n".join(lines)
+    return "".join(chunks)
+
+
 # Sentence boundary: a terminator, whitespace, then something that starts a sentence.
 _SENTENCE_END = re.compile(r'(?<=[.!?])\s+(?=["\u201c(\[]?[A-Z0-9])')
 
@@ -181,7 +213,8 @@ def markdownify(text):
     # `==text==` as <mark>, for markdown that did not come through `sectioned()` (which
     # has already turned its own into numbered marks the page can remove).
     text = render_marks(text, None)
-    html = md_lib.markdown(_loosen_lists(_paragraphize(_unwrap(text))), extensions=MD_EXTENSIONS)
+    html = md_lib.markdown(_nest_lists(_loosen_lists(_paragraphize(_unwrap(text)))),
+                          extensions=MD_EXTENSIONS)
     # After _autolink, so a URL ending in .md is already a link and left alone.
     return mark_safe(link_file_refs(_autolink(html)))
 

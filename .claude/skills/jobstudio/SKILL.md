@@ -222,6 +222,13 @@ also how the note keeps its context. The URL is the filename alone, so a note's 
 be unique across all the folders, and moving a note never breaks a `/notes/<slug>/` link —
 only a written path to it, which must then be updated.
 
+**Every note's images live in one folder, `<DATA>/jobs/notes/img/`**, and a note embeds one
+as `![What it shows](img/<name>.png)` wherever the note itself sits (2026-11-09). The app
+resolves `img/…` against `jobs/notes/`, not the note's folder, so moving a note never
+breaks an image, the same as a `/notes/<slug>/` link. Name an image for what it shows,
+date first (`2023-11-looker-deployment-architecture.png`), since all of them share the
+folder. An editor's markdown preview won't find them from a subfolder; the app will.
+
 ## Referring to another file
 
 Write the path, in backticks: `` `jobs/notes/interviewing/interview-technique.md` ``,

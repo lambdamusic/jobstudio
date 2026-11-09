@@ -847,25 +847,32 @@ class ViewTests(TestCase):
                           markdownify_path("`jobs/notes/topics/graph-basics.md`"))
             self.assertIn('href="/notes/graph-basics/"', markdownify_path("`graph-basics.md`"))
 
-    def test_note_images_are_served_from_beside_the_note_and_nowhere_else(self):
-        """A relative image path in a note resolves against the note's folder. Only
-        images, and only inside jobs/notes/: no markdown, no climbing out with `..`."""
+    def test_note_images_are_served_from_the_notes_image_folder_and_nowhere_else(self):
+        """`img/…` in a note resolves against jobs/notes/, so every note's images live in
+        jobs/notes/img/ and moving the note never breaks one. A file still beside its note
+        is found as a fallback. Only images, and only inside jobs/notes/: no markdown, no
+        climbing out with `..`."""
         from django.test import override_settings
 
         root = Path(tempfile.mkdtemp())
         notes = root / "jobs" / "notes"
-        (notes / "topics" / "img").mkdir(parents=True)
-        (notes / "topics" / "graph-basics.md").write_text(
-            "# Graph basics\n\n![diagram](img/arch.png)\n")
-        (notes / "topics" / "img" / "arch.png").write_bytes(b"\x89PNG\r\n")
+        (notes / "img").mkdir(parents=True)
+        (notes / "topics" / "deep" / "img").mkdir(parents=True)
+        (notes / "topics" / "deep" / "graph-basics.md").write_text(
+            "# Graph basics\n\n![diagram](img/arch.png)\n![old](img/beside.png)\n")
+        (notes / "img" / "arch.png").write_bytes(b"\x89PNG\r\n")
+        (notes / "topics" / "deep" / "img" / "beside.png").write_bytes(b"\x89PNG\r\n")
         (root / "secret.png").write_bytes(b"\x89PNG\r\n")
         with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
             page = self.client.get("/notes/graph-basics/").content.decode()
             self.assertIn('src="img/arch.png"', page)
             self.assertEqual(self.client.get("/notes/graph-basics/img/arch.png").status_code, 200)
+            self.assertEqual(self.client.get("/notes/graph-basics/img/beside.png").status_code, 200)
             self.assertEqual(self.client.get("/notes/graph-basics/graph-basics.md").status_code, 404)
             self.assertEqual(self.client.get("/notes/graph-basics/../../../secret.png").status_code, 404)
             self.assertEqual(self.client.get("/notes/graph-basics/img/missing.png").status_code, 404)
+            # An image folder holds no notes, so it is not a tab on the Notes page.
+            self.assertNotIn('data-tab="img"', self.client.get("/notes/").content.decode())
 
     def test_note_titles_come_from_the_file_not_the_filename(self):
         """`ai-safety-pivot`.title() is "Ai Safety Pivot". The file says what it is called;
@@ -3471,6 +3478,24 @@ class HighlightTests(TestCase):
                     self.assertIn(attr, self.client.get(url).content.decode())
                 with override_settings(ENVIRONMENT="publish"):
                     self.assertNotIn("data-hl-source", self.client.get(url).content.decode())
+
+
+class NestedListTests(TestCase):
+    """A list nested by two spaces keeps its second level (2026-11-09). Python-Markdown wants
+    four, and read two as more items of the same list, so the page lost the nesting."""
+
+    def test_two_and_four_space_nesting_both_render_as_a_second_level(self):
+        from tracker.templatetags.jobs_extras import markdownify
+        for indent in ("  ", "    "):
+            with self.subTest(indent=len(indent)):
+                html = markdownify(f"- **Before.** Two examples:\n{indent}- Honda\n{indent}- Springer\n- After\n")
+                self.assertRegex(html, r"Two examples:\s*<ul>\s*<li>Honda</li>\s*<li>Springer</li>\s*</ul>\s*</li>\s*<li>After")
+
+    def test_three_levels_ordered_lists_and_fences(self):
+        from tracker.templatetags.jobs_extras import markdownify
+        html = markdownify("1. One\n   - sub\n     - subsub\n2. Two\n\n```\n- a\n  - b\n```\n")
+        self.assertRegex(html, r"<li>One\s*<ul>\s*<li>sub\s*<ul>\s*<li>subsub</li>")
+        self.assertIn("- a\n  - b", html, "a code fence is left exactly as written")
 
 
 class UnwrapTests(TestCase):
