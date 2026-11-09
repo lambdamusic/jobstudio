@@ -4,6 +4,9 @@ Dated entries, newest first.
 
 ## 2026-11-09
 
+- **A note's page has an Open folder button**, as a company page does: on the local app it
+  shows the note's `.md` in Finder, selected, so it can be opened and edited.
+
 - **`dossier`: everything for one application, as a single Word file to read.**
   `/jobstudio dossier #1` (or `manage.py dossier 1`) writes the job description, the CV
   and cover letter as sent, the other files in the folder, notes, to-dos, interview rounds,

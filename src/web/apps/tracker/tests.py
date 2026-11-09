@@ -4470,6 +4470,22 @@ class InterviewRoundTests(TestCase):
         self.assertIn('aria-current="page">Aims</span>', box)
         self.assertNotIn('href="/notes/aims/"', box)
 
+    def test_a_note_page_opens_its_folder_with_the_note_selected(self):
+        """Like a company page's "Open folder": Finder shows the note's .md, ready to edit."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "topics" / "product").mkdir(parents=True)
+        (notes / "topics" / "product" / "discovery.md").write_text("# Discovery\n\nX.\n")
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            html = self.client.get("/notes/discovery/").content.decode()
+            self.assertIn('href="/actions/reveal-note/discovery/">Open folder</a>', html)
+            with mock.patch("tracker.views._open_locally") as opened:
+                self.assertEqual(self.client.get("/actions/reveal-note/discovery/").status_code, 302)
+                self.assertEqual(self.client.get("/actions/reveal-note/no-such-note/").status_code, 404)
+            opened.assert_called_once_with(notes / "topics" / "product" / "discovery.md", reveal=True)
+
     def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
         import tempfile
         from pathlib import Path

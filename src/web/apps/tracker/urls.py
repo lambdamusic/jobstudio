@@ -46,4 +46,5 @@ urlpatterns = [
     path("actions/set-status/<int:num>/<slug:status>/", views.set_status, name="set_status"),
     path("actions/open-file/", views.open_file, name="open_file"),
     path("actions/reveal-company/<slug:slug>/", views.reveal_company_notes, name="reveal_company_notes"),
+    path("actions/reveal-note/<slug:slug>/", views.reveal_note, name="reveal_note"),
 ]

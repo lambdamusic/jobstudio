@@ -1576,3 +1576,16 @@ def reveal_company_notes(request, slug):
 
     _open_locally(path, reveal=True)
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/companies/{slug}/"))
+
+
+def reveal_note(request, slug):
+    """Local-only: reveal a note's .md, selected, in Finder, to edit it — as a company page does."""
+    if settings.ENVIRONMENT != "local":
+        raise Http404("Local only")
+
+    match = next((p for p in _notes_files() if p.stem == slug), None)
+    if match is None:
+        raise Http404("No such note")
+
+    _open_locally(match, reveal=True)
+    return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/notes/{slug}/"))
