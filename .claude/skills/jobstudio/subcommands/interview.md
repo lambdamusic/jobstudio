@@ -314,7 +314,9 @@ source:
     > *From the bank: [Tell me about yourself](/notes/interview-technique/#…), copied 2026-11-09*
 ```
 
-The line has to start `*From the bank:` for the site to set it as a source line. The round
+The line has to start `*From the bank:` for the site to set it as a source line; an
+answer carried over from an earlier round of the same process starts `*From the last
+round:` instead, linking the round (`#round-<stage>-<date>`). The round
 then reads as one document, on the page, in the focus view and in the dossier, with the
 original one click away. The date says how old the copy is: if the bank answer changes
 later, the round keeps the version prepared for it. Link a note as `/notes/<slug>/`, never

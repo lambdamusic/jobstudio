@@ -89,12 +89,23 @@ _BARE_URL = re.compile(r"""(?<![\w"'=/>])(https?://[^\s<>"'\)\]]+)""")
 _MARKUP = re.compile(r"(<a\b.*?</a>|<[^>]+>)", re.S | re.I)
 
 
+# The same inside a quote: an interview answer's quoted talking points (2026-11-09) open
+# with a sentence and go straight into bullets, `> Start there:` then `> - …`. The blank
+# line has to be a quoted one, `>`, or it would end the quote.
+_TIGHT_QUOTED_LIST = re.compile(
+    r"""(?m)^(?P<prev>(?P<q>[ \t]*>)[ \t]?    # a quoted line...
+                      (?![-*+][ \t])(?!\d+[.)][ \t])(?!>)\S.*?)  # ...with text, not an item
+        [ \t]*\n
+        (?=(?P=q)[ \t]*(?:[-*+]|\d+[.)])[ \t])""", re.X)
+
+
 def _loosen_lists(text: str) -> str:
     """Insert the blank line Python-Markdown needs before a list, outside code fences."""
     chunks = re.split(r"(```.*?```)", text, flags=re.S)
     for i, chunk in enumerate(chunks):
         if not chunk.startswith("```"):
-            chunks[i] = _TIGHT_LIST.sub(r"\g<prev>\n\n", chunk)
+            chunk = _TIGHT_LIST.sub(r"\g<prev>\n\n", chunk)
+            chunks[i] = _TIGHT_QUOTED_LIST.sub(r"\g<prev>\n\g<q>\n", chunk)
     return "".join(chunks)
 
 
@@ -414,9 +425,10 @@ def _box_intro(answer: str) -> str:
     return f'<div class="howto-note">{answer[:pos]}</div>{answer[pos:]}'
 
 
-# An answer's source line when it was copied from the bank: `> *From the bank: [..](..),
-# copied <date>*`, the last line of its quote.
-_FROM_BANK = re.compile(r"<p>(?=<em>From the bank:)")
+# An answer's source line when it was copied from the bank or an earlier round:
+# `> *From the bank: [..](..), copied <date>*` (or `From the last round:`), the last line
+# of its quote.
+_FROM_BANK = re.compile(r"<p>(?=<em>From the (?:bank|last round):)")
 # `**A:**` on its own line, before an answer that is all quote: nothing left once the
 # marker is hidden, so drop the empty paragraph rather than leave its margin.
 _BARE_A = re.compile(r"^\s*<p>\s*<strong>A:</strong>\s*</p>")

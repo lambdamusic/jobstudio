@@ -4804,6 +4804,11 @@ class InterviewRoundTests(TestCase):
         bare = render("- **Q:** Why us?\n  **A:**\n\n    > Because of the data.\n")
         self.assertRegex(bare, r'<div class="qa-a">\s*<blockquote>')
 
+        # Talking points: a quoted sentence straight into quoted bullets is a list.
+        points = render("- **Q:** Data entry?\n  **A:** Then ask.\n\n"
+                        "    > Start at entry:\n    > - *Identifiers*\n    > - Pre-fill\n")
+        self.assertRegex(points, r"<blockquote>\s*<p>Start at entry:</p>\s*<ul>\s*<li><em>Identifiers")
+
     def test_filename_is_built_from_the_shared_convention(self):
         """app_filename() stays the single implementation — and the date is the date of
         the interview, not the day the file was written."""
