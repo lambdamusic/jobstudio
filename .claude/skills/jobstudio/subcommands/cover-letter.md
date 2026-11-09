@@ -42,6 +42,17 @@ subcommand over it is how it gets replaced with a real letter.
 
 5. **Read `references/cover-letter-structures.md`**, then draft in the chosen structure. Start from the file skeleton there — the `# Cover letter — …` label line, the letterhead block (**{{full_name}}** / {{location}} / {{email}} / date, long form), the `---` rule, then the body. Targets: Standard 1 ~280–320 words in 4 paragraphs; Standard 2 ~220–260 words in 4 more compressed paragraphs. The numbered beats are scaffold only — **never print them as headings**. Every variant opens with a direct one-line job identification (role name + req number) — Standard 1 as its own short paragraph, Standard 2 folded into the opening paragraph (see the reference file). Mirror the job description's wording for the work. Use the close guidance in the reference file (default = no call-to-action, plain sign-off) — it applies to **all three** structures.
 
+   **Then run the draft through a humanizer pass** (added 2026-11-06), every structure
+   including the thin draft. If a humanizer skill is installed (`humanizer:humanizer`),
+   invoke it on the letter in file mode; otherwise apply the same edit by hand. Either
+   way it touches the body only: the label line, letterhead, the job-ID opening line,
+   and the "Yours sincerely" close stay as they are, and it may not add a fact the
+   draft did not have. The pass removes the staging moves drafts drift into: a
+   "not X but Y" contrast, a one-line closer that restates the paragraph, an aphorism
+   standing in for a claim, a reflexive triad, dashes used as connectors (a number
+   range such as 20–30% is not one). What gets shown in step 6 is the humanized
+   version.
+
 6. **Show the draft** to the user for review, naming which structure you used and why. Ask: "Happy with this, or any changes?"
 
 7. **On confirmation**, ensure the application folder exists:
@@ -75,7 +86,8 @@ is worse than a flat one, because they are the one who has to send it.
 
 Steps 1 and 2 only (the application entry, `job.md`, and the CV in the folder for the
 one fit line). **Skip step 3** — no company research, no stocktake positioning, no
-bonus signals; a role that earns that research earns a Standard 1 instead. Save it the
+bonus signals; a role that earns that research earns a Standard 1 instead. The
+humanizer pass at the end of step 5 still applies. Save it the
 same way (step 7) into the empty stub `appfolder.ensure_folder()` already created —
 but **don't render the `.docx`**: nothing is going out in this state, and `render` is
 there for when it is. Say in one line that it is a thin draft to refine, and that
