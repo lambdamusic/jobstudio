@@ -4375,6 +4375,74 @@ class InterviewRoundTests(TestCase):
                 {"label": "Graph basics", "href": "/notes/graph-basics/"},
             ])
 
+    def test_the_dossier_holds_every_document_in_reading_order(self):
+        """#98: one .docx with a page-broken section per document, the markdown written
+        as Word headings, lists and task boxes rather than as raw text."""
+        from docx import Document
+        from tracker import dossier
+
+        app = Application.objects.get(num=1)
+        out = Path(tempfile.mkdtemp()) / "dossier.docx"
+        titles = dossier.build(app, out)
+        self.assertEqual(titles[:2], ["Overview", "Job description"])
+        self.assertTrue(titles[2].startswith("CV as sent: "))
+        self.assertIn("My notes", titles)
+        self.assertTrue(any(t.startswith("Interview: ") for t in titles))
+        self.assertEqual(titles[-1], "Company: Grafana Labs")
+        doc = Document(out)
+        h1 = [p for p in doc.paragraphs if p.style.name == "Heading 1"]
+        self.assertEqual([p.text for p in h1], titles)
+        self.assertTrue(doc.styles["Heading 1"].paragraph_format.page_break_before)
+        texts = {p.text: p.style.name for p in doc.paragraphs}
+        # A file's own `#` title gives way to the section's; its `##` stay as they are.
+        self.assertNotIn("Senior Developer Advocate — Grafana Labs", texts)
+        self.assertEqual(texts["Contacts"], "Heading 2")
+        self.assertIn("List Bullet", {s for t, s in texts.items() if "observability" in t})
+        self.assertTrue(any(t.startswith("☐ Know the LGTM stack.") for t in texts))
+
+    def test_the_dossier_links_its_contents_and_its_documents_inside_the_file(self):
+        """#98: the contents list, and a link from one document to another, are jumps to a
+        bookmark, which Google Docs keeps where it would drop a Word TOC field. A link that
+        leads out of the dossier's documents stays a web link or plain text, never broken."""
+        from docx import Document
+        from docx.oxml.ns import qn
+        from tracker import dossier
+
+        app = Application.objects.get(num=1)
+        out = Path(tempfile.mkdtemp()) / "dossier.docx"
+        titles = dossier.build(app, out)
+        body = Document(out).element.body
+        marks = {b.get(qn("w:name")) for b in body.iter(qn("w:bookmarkStart"))}
+        anchors = [h.get(qn("w:anchor")) for h in body.iter(qn("w:hyperlink")) if h.get(qn("w:anchor"))]
+        self.assertEqual(anchors[:len(titles)], [f"s{i:02d}" for i in range(1, len(titles) + 1)])
+        self.assertTrue(all(a in marks for a in anchors))
+        # notes.md links the HR-screen round by its anchor on the application page.
+        hr = next(i for i, t in enumerate(titles, 1) if t.startswith("Interview: HR screen"))
+        self.assertIn(f"s{hr:02d}", anchors[len(titles):])
+
+    def test_the_dossier_copies_a_sent_docx_with_its_links_and_styles(self):
+        """#98: the CV and cover letter go in as sent. A hyperlink's relationship has to be
+        re-made in the dossier's own package or Word reports the file as damaged, and the
+        styles come under a prefix so the CV keeps its look without restyling the rest."""
+        from docx import Document
+        from docx.oxml.ns import qn
+        from cv_docx import _add_hyperlink
+        from tracker.dossier import _Dossier
+
+        tmp = Path(tempfile.mkdtemp())
+        sent = Document()
+        sent.add_paragraph("Summary", style="Heading 2")
+        _add_hyperlink(sent.add_paragraph("See "), "https://example.org/cv", "my site")
+        sent.save(tmp / "sent.docx")
+        dossier = _Dossier(Application.objects.get(num=1), [])
+        dossier._import_docx(tmp / "sent.docx")
+        dossier.doc.save(tmp / "out.docx")
+        doc = Document(tmp / "out.docx")
+        self.assertEqual(doc.paragraphs[-2].style.name, "D1_Heading2")
+        self.assertEqual(doc.paragraphs[-1].text, "See my site")
+        rid = doc.paragraphs[-1]._p.findall(qn("w:hyperlink"))[0].get(qn("r:id"))
+        self.assertEqual(doc.part.rels[rid].target_ref, "https://example.org/cv")
+
     def test_a_note_page_ends_with_an_index_of_all_the_notes(self):
         """Grouped as on the Notes page; the note being read is named but not linked."""
         from django.test import override_settings

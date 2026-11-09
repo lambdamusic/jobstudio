@@ -2,6 +2,17 @@
 
 Dated entries, newest first.
 
+## 2026-11-09
+
+- **`dossier`: everything for one application, as a single Word file to read.**
+  `/jobstudio dossier #1` (or `manage.py dossier 1`) writes the job description, the CV
+  and cover letter as sent, the other files in the folder, notes, to-dos, interview rounds,
+  the company page and every linked note into one `.docx`, one section per page, in the
+  application's `export/` folder; `--out` sends it somewhere else. The contents list and
+  every link between the documents jump within the file, and still do once it is opened
+  in Google Docs. It covers what the Documents index lists, so a note gets in by being
+  linked from the folder.
+
 ## 2026-11-06
 
 - **The Notes page follows the folders in `jobs/notes/`.** Each folder there is a tab and

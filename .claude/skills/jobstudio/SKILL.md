@@ -34,6 +34,7 @@ When the argument is `help` or no argument is given, output ONLY the following a
 | `status` | Dashboard summary of companies and applications |
 | `scan` | Rescan tracked companies for new open roles, score matches, report for review |
 | `render` | Render an application's CV/cover letter to .docx (no API call) |
+| `dossier` | Put everything an application has gathered into one .docx to read |
 
 **Usage examples:**
 
@@ -65,6 +66,7 @@ Each subcommand has its own instruction file under `subcommands/`:
 | `status` | Dashboard: application counts by status/area, active applications, companies by category and fit |
 | `scan` | Run `python src/scan-portals.py` (mechanical fetch), then score live (agent-native, no API call); render with `python src/scan_report.py`; summarize the report: top matches, unscored roles, not-scanned companies |
 | `render` | Render a specific application's CV and cover letter to .docx, no API call |
+| `dossier [company or #N …] [--out <folder>]` | Everything in an application's Documents index (job description, the CV and cover letter as sent, notes, to-dos, interview rounds, company page, linked notes) as one .docx for reading, one file per application. No API call |
 
 **To execute a subcommand**: read the corresponding file in `subcommands/` and follow its instructions exactly.
 
@@ -250,5 +252,7 @@ Invoke `application` (refresh mode) when the user says: "refresh this applicatio
 Invoke `scan` when the user says: "scan portals", "check for new postings", "run a portal scan", "any new roles at my tracked companies?", or similar.
 
 Invoke `stocktake` when the user says: "taking stock", "work out what's next", "run the stocktake", "build my career profile", "career anchors", "what am I looking for in my next role", or references Step 1 of the career-transition process.
+
+Invoke `dossier` when the user says: "export everything for #N", "put it all in one Word file", "something to read on the train/plane", "dossier for X".
 
 Invoke `interview` when the user says: "prep me for the interview", "help me prepare for X interview", "what will they ask me", "practice interview questions", "emotional intelligence questions", "STAR answers", "I have an interview with X", or references preparing for an actual interview (as opposed to the stocktake).

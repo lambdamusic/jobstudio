@@ -703,6 +703,11 @@ class Application(models.Model):
         folder, so nothing is curated by hand: to add a note here, link it from one of them.
         A link to a note that doesn't exist is ignored.
         """
+        return [{"label": n["label"], "href": n["href"]} for n in self.linked_note_files]
+
+    @property
+    def linked_note_files(self) -> list[dict]:
+        """`linked_notes` with each note's file as `path`, for the dossier (`#98`)."""
         folder = self.folder_path
         if folder is None:
             return []
@@ -722,7 +727,7 @@ class Application(models.Model):
                                     for part in p.relative_to(notes_dir).parts)), None)
             if path is not None:
                 title = first_heading(_read(path)) or slug.replace("-", " ").capitalize()
-                out.append({"label": title, "href": f"/notes/{slug}/"})
+                out.append({"label": title, "href": f"/notes/{slug}/", "path": path})
         return sorted(out, key=lambda n: n["label"].lower())
 
     @property
