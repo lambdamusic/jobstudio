@@ -2,6 +2,15 @@
 
 Dated entries, newest first.
 
+## 2026-11-10
+
+- **`scan` reads Jibe career sites.** Jibe is iCIMS's front end on a company's own
+  domain: the board looks bespoke, and its apply links go to an iCIMS login. The new
+  `jibe` fetcher pages through the `/api/jobs` JSON the search page calls and links each
+  posting's page on the careers site. A company needs a `jibe: {domain}` entry in
+  `company_overrides`, since the URL alone does not say what is underneath; spot one by
+  `data-jibe-search-version` in the page source.
+
 ## 2026-11-09
 
 - **An interview answer tells the words to say from the advice on saying them.** The

@@ -4,8 +4,8 @@ scan-portals.py
 
 Rescan tracked companies (from the tracker database) for new open roles via public
 ATS APIs (Greenhouse, Lever, Workable, Workday, Ashby, SmartRecruiters, Teamtailor,
-Rippling ATS, BambooHR, Pinpoint, Recruitee, UKG, Hireserve), the feeds behind SuccessFactors and
-Radancy career sites, a sitemap + JSON-LD fallback, and a generic first-party-JSON fetcher. Purely mechanical — fetch,
+Rippling ATS, BambooHR, Pinpoint, Recruitee, UKG, Hireserve), the feeds behind SuccessFactors,
+Radancy and Jibe career sites, a sitemap + JSON-LD fallback, and a generic first-party-JSON fetcher. Purely mechanical — fetch,
 dedup, keyword + location pre-filter, classify not-scanned companies. Never imports
 `anthropic` and never calls any model.
 
@@ -623,6 +623,35 @@ def fetch_jobs(source: dict, role_target: str, client: httpx.Client) -> tuple[li
                     out.add(html.unescape(title.group(1)).strip() if title else None,
                             f"https://{domain}{href}" if href.startswith("/") else href,
                             html.unescape(loc.group(1)).strip() if loc else None)
+                page += 1
+                if (isinstance(total, int) and len(out.jobs) + out.unusable >= total) \
+                        or len(out.jobs) >= MAX_RESULTS_PER_COMPANY:
+                    break
+            return out.done(total)
+
+        if platform == "jibe":
+            # Jibe (iCIMS's candidate-facing career sites, on the company's own domain):
+            # the JSON the search page itself calls. Applying goes to an iCIMS login page,
+            # so the link is the posting's page on the careers site, keyed on its `slug`.
+            domain = source["domain"]
+            out = _Postings(f"jibe/{domain}")
+            total = None
+            page = 1
+            while True:
+                resp = client.get(f"https://{domain}/api/jobs",
+                                  params={"page": page, "limit": 100}, timeout=HTTP_TIMEOUT)
+                resp.raise_for_status()
+                data = resp.json()
+                total = data.get("totalCount", total)
+                rows = data.get("jobs") or []
+                if not rows:
+                    break
+                for row in rows:
+                    j = row.get("data") or {}
+                    slug, lang = j.get("slug"), j.get("language") or "en-us"
+                    out.add(j.get("title"),
+                            f"https://{domain}/jobs/{slug}?lang={lang}" if slug else None,
+                            j.get("full_location") or j.get("country"))
                 page += 1
                 if (isinstance(total, int) and len(out.jobs) + out.unusable >= total) \
                         or len(out.jobs) >= MAX_RESULTS_PER_COMPANY:

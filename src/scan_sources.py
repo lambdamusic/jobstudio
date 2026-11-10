@@ -33,7 +33,7 @@ import scan_config
 # Workday genuinely still needs an override (tenant + site + host all vary), and so does
 # Rippling (the token is not in the URL at all). So do the platforms added 2026-10-08
 # other than Pinpoint: UKG needs two path segments, and SuccessFactors, Hireserve,
-# Radancy and the sitemap fallback all run on the company's own domain, where the URL
+# Radancy, Jibe (added 2026-11-10) and the sitemap fallback all run on the company's own domain, where the URL
 # says nothing about what is underneath.
 # Each entry is (platform, pattern, param) — `param` is the key the fetcher in
 # scan-portals.py reads the captured group back out of. It is not always "token":

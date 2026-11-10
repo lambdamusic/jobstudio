@@ -28,6 +28,7 @@ category_to_area:
 #   hireserve:   {platform, domain, site_id}
 #   successfactors: {platform, domain, filter (optional), locale (optional)}
 #   radancy:     {platform, domain, locale (optional)}
+#   jibe:        {platform, domain}
 #   sitemap:     {platform, sitemap, path}
 # The full list, with where to find each value: .claude/skills/jobstudio/subcommands/scan.md
 company_overrides:

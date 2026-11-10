@@ -5256,7 +5256,8 @@ class ScanConfigTests(TestCase):
 
 class PlatformFetcherTests(TestCase):
     """The fetchers added for `#10` on 2026-10-08 — Pinpoint, SuccessFactors career-site
-    RSS, Hireserve, UKG, Radancy, and the sitemap + JSON-LD fallback.
+    RSS, Hireserve, UKG, Radancy, and the sitemap + JSON-LD fallback — plus Jibe, added
+    for `#99` on 2026-11-10.
 
     Each response below is trimmed from a live board, keeping only the fields the
     fetcher reads, plus one row it must skip rather than fail on (`#63`). No network.
@@ -5428,6 +5429,22 @@ class PlatformFetcherTests(TestCase):
         self.assertEqual(jobs[0]["location"], "London, England")
         self.assertEqual(len(client.calls), 2, "stops at the reported total, not on an empty page")
         self.assertEqual(client.calls[0][2]["Keywords"], "Head")
+
+    def test_jibe_pages_the_api_and_links_the_careers_site(self):
+        sp = self._scan_portals()
+        def row(slug, title, where):
+            return {"data": {"slug": slug, "language": "en-us", "title": title, "full_location": where,
+                             "apply_url": f"https://careers-acme.icims.com/jobs/{slug}/login"}}
+        pages = {1: [row("101", "Head of Data", "London, United Kingdom"), row("102", None, "India")],
+                 2: [row("103", "Product Lead", "India; Brazil")]}
+        client = self._client(lambda url, p, j, R: R({"totalCount": 3, "jobs": pages.get(p["page"], [])}))
+        jobs, _ = sp.fetch_jobs({"platform": "jibe", "domain": "jobs.acme.example"}, "Head of Data", client)
+        self.assertEqual([j["title"] for j in jobs], ["Head of Data", "Product Lead"])
+        self.assertEqual(jobs[0]["url"], "https://jobs.acme.example/jobs/101?lang=en-us",
+                         "the posting page, not the iCIMS login the apply link goes to")
+        self.assertEqual(jobs[0]["location"], "London, United Kingdom")
+        self.assertEqual(sp._normalize(jobs[0]["url"]), "101")
+        self.assertEqual(len(client.calls), 2, "stops at totalCount, counting the skipped row")
 
     def test_sitemap_reads_each_postings_json_ld(self):
         sp = self._scan_portals()
