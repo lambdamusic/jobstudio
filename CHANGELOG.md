@@ -4,6 +4,13 @@ Dated entries, newest first.
 
 ## 2026-11-11
 
+- **Set status takes a note.** The menu on an application page is now a small form: pick
+  a status, optionally say why. The note becomes a dated line in `notes.md`'s
+  `## Timeline` (`status → closed. <note>`), which Record shows just above the status
+  history, and, ticked by default, the Next action too. The current status is offered as
+  well, so a note can be added without a change. With no note it behaves as before. The
+  form POSTs to `/actions/set-status/<num>/`; the one-link-per-status GET URLs are gone.
+
 - **The History tab is gone: Record now ends with the Timeline and the status history.**
   `notes.md`'s `## Timeline` moves from My notes to Record, as Contacts moved to People: it
   stays written in notes.md and is shown once, on Record. Both are the application's story

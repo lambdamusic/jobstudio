@@ -19,7 +19,7 @@ import config
 from django.conf import settings
 from django.db.models import Count, F, Max, Q
 from django.utils import timezone
-from django.http import FileResponse, Http404, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, Http404, HttpResponseNotAllowed, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
@@ -859,7 +859,7 @@ def application_detail(request, num):
         "people": app.people(interviews),
         "documents": app.documents,
         # The status menu offers every status except the one it is already in.
-        "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],
+        "all_statuses": STATUS_SORT_ORDER,
         "siblings": (Application.objects.filter(company_name=app.company_name)
                      .exclude(pk=app.pk).order_by(*BROWSE_ORDER)),
     })
@@ -1523,28 +1523,52 @@ def create_folder(request, num):
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
 
 
-def set_status(request, num, status):
-    """Local-only: move an application to any status from the detail page's status menu,
-    without a trip to the admin change form.
+def update_status(request, num):
+    """Local-only: the status menu's form. POST `status`, an optional `note` and `as_next`.
 
-    Replaced a hardcoded one-click bump to 'reviewing' (2026-09-23) — the other six
-    transitions were just as common and all of them meant opening the admin. `status` is
-    checked against STATUS_SORT_ORDER rather than trusted: it arrives from the URL, so an
-    unknown value must 404 rather than write a status nothing else in the app understands.
-    `Application.save()` handles `status_order` and the status-change log (models.py's
-    post_save signal) the same as any other save.
+    The note is written where the reason for a status change already lives: a dated line in
+    `notes.md`'s `## Timeline`, which the Record tab shows just above the status history.
+    Not a field on the status-change row, which would put reasons in two places and hide
+    one copy from the files the skill reads. With `as_next` the note also becomes the Next
+    action. No note: the status changes and nothing is written.
+
+    Replaced the one-link-per-status GET menu (2026-09-23, `#28`), which could change the
+    status but not say why.
+    The current status is a valid choice, so a note can be added without a change.
     """
     if settings.ENVIRONMENT != "local":
         raise Http404("Local only")
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    status = request.POST.get("status", "")
     if status not in STATUS_SORT_ORDER:
         raise Http404(f"Unknown status: {status}")
-
     app = get_object_or_404(Application, num=num)
-    if app.status != status:
-        app.status = status
-        app.save(update_fields=["status"])
-    return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
+    # One line in the Timeline, whatever was typed into the box.
+    note = " ".join(request.POST.get("note", "").split())
 
+    fields = []
+    if status != app.status:
+        fields.append("status")
+        changed = True
+    else:
+        changed = False
+    app.status = status
+    if note and request.POST.get("as_next"):
+        app.next_action = note
+        fields.append("next_action")
+    if fields:
+        app.save(update_fields=fields)
+
+    folder = app.folder_path
+    if note and folder is not None:
+        from .parsers import with_timeline_line
+
+        text = f"status → {status}. {note}" if changed else note
+        path = folder / "notes.md"
+        current = path.read_text() if path.is_file() else ""
+        path.write_text(with_timeline_line(current, f"- **{dt.date.today().isoformat()}:** {text}"))
+    return HttpResponseRedirect(f"/applications/{num}/")
 
 # What `open_file` will hand to the desktop: documents, never anything it would run.
 OPENABLE_SUFFIXES = {".docx", ".doc", ".pdf", ".xlsx", ".xls", ".csv", ".pptx",

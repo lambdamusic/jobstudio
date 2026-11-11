@@ -425,6 +425,18 @@ a.badge:hover { text-decoration: none; filter: brightness(0.96); }
 .menu-body a { padding: 3px 6px; border-radius: 4px; }
 .menu-body a:hover { background: var(--bg-sunk); text-decoration: none; }
 
+/* The status form inside the menu: statuses as a radio list, then the note. */
+.status-form { width: 320px; gap: 8px; padding: 10px; }
+.status-choices { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.status-choices label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.status-form textarea {
+  width: 100%; font: inherit; font-size: 13.5px; padding: 6px 8px; resize: vertical;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg);
+}
+.status-hint { margin: -4px 0 0; font-size: 12px; color: var(--faint); }
+.status-next { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.status-form button { align-self: flex-end; }
+
 .notice {
   border-left: 3px solid var(--gold); background: #fffdf5;
   padding: 9px 13px; border-radius: 3px; font-size: 13px; margin-bottom: 16px;

@@ -959,6 +959,22 @@ def timeline_of(notes_md: str) -> dict | None:
     return {"timeline_md": body,
             "notes_md": (notes_md[:m.start()] + notes_md[stop:]).rstrip() + "\n"}
 
+
+def with_timeline_line(notes_md: str, line: str) -> str:
+    """`notes_md` with `line` (one `- **date:** …` bullet) appended to its `## Timeline`,
+    after the last entry and before the next section. A file with no Timeline gets one at
+    the end: that is where `timeline_of()` looks, and where the skill writes too."""
+    notes_md = notes_md or ""
+    m = re.search(r"(?m)^## Timeline[ \t]*\n", notes_md)
+    if not m:
+        return (notes_md.rstrip() + "\n\n" if notes_md.strip() else "") + f"## Timeline\n\n{line}\n"
+    end = re.search(r"(?m)^## ", notes_md[m.end():])
+    stop = m.end() + end.start() if end else len(notes_md)
+    body = notes_md[m.end():stop].strip()
+    body = f"{body}\n{line}" if body else line
+    tail = notes_md[stop:]
+    return notes_md[:m.end()] + "\n" + body + "\n" + ("\n" + tail if tail else "")
+
 # "### Company" or "### Company (12)" — the per-company subheadings scan-portals.py
 # emits for Strong/Other matches and the two before-scoring exclusion buckets.
 _COMPANY_HEADING_RE = re.compile(r"(?m)^### (?P<name>.+?)(?:\s+\((?P<count>\d+)\))?\s*$")

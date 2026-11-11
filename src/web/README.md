@@ -122,11 +122,13 @@ Rendered only when `ENVIRONMENT=local`, and never present in the published mirro
   `/actions/open-file/?path=…`, which opens the document in the default app the same
   way. Documents only — a fixed list of suffixes, never anything executable. No "Open in VS Code" link anywhere: a
   `vscode://` URL can take over an open VS Code window and its Claude sessions (`#81`)
-- **Set status** → a `<details>` menu on the application detail page listing every status
-  except the current one, each linking to `/actions/set-status/<num>/<status>/`. The
-  status is validated against `STATUS_SORT_ORDER` rather than trusted, since it arrives
-  from the URL. Saving goes through `Application.save()`, so `status_order` and the
-  Status history log are maintained exactly as they are for an admin edit.
+- **Set status** → a `<details>` menu on the application detail page holding a small
+  form, POSTed to `/actions/set-status/<num>/`: every status as a radio (the current one
+  chosen), an optional note, and "Also set it as the Next action". The note is appended
+  to `notes.md`'s `## Timeline` as a dated line. The status is validated against
+  `STATUS_SORT_ORDER` rather than trusted, since it arrives from the form. Saving goes
+  through `Application.save()`, so `status_order` and the Status history log are
+  maintained exactly as they are for an admin edit.
 
 The admin change forms carry Django's **View on site** button (from `get_absolute_url()`),
 linking back to the public page.

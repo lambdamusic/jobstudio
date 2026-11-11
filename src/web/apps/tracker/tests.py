@@ -648,46 +648,87 @@ class ScanCoverageTests(TestCase):
 
 
 class StatusActionTests(TestCase):
-    """The local-only status menu on the application detail page (`#28`, 2026-09-23).
+    """The local-only status menu on the application detail page (`#28`, 2026-09-23; a
+    form with a note since 2026-11-11).
 
-    Replaced a single hardcoded "Mark reviewing" link; these guard the two things that
-    replacement could get wrong — accepting a status the rest of the app doesn't know,
-    and losing the History log that the post_save signal writes.
+    These guard accepting a status the rest of the app doesn't know, losing the status
+    log the post_save signal writes, and where the note goes: a dated line in notes.md's
+    Timeline, and the Next action when asked.
     """
 
     fixtures = FIXTURE
 
-    def test_every_status_can_be_set_from_the_url(self):
+    def setUp(self):
+        from django.test import override_settings
+
+        self.root = Path(tempfile.mkdtemp())
+        self.folder = self.root / "jobs" / "applications" / "900-test-co"
+        self.folder.mkdir(parents=True)
+        override = override_settings(DATA_ROOT=str(self.root))
+        override.enable()
+        self.addCleanup(override.disable)
+        self.app = Application.objects.get(num=1)
+        self.app.folder = "jobs/applications/900-test-co"
+        self.app.save()
+
+    def post(self, **data):
+        return self.client.post(f"/actions/set-status/{self.app.num}/", data)
+
+    def test_every_status_can_be_set(self):
         for status in STATUS_SORT_ORDER:
             with self.subTest(status=status):
-                r = self.client.get(f"/actions/set-status/1/{status}/")
-                self.assertEqual(r.status_code, 302)
+                self.assertEqual(self.post(status=status).status_code, 302)
                 self.assertEqual(Application.objects.get(num=1).status, status)
 
     def test_an_unknown_status_404s_rather_than_being_written(self):
-        """The status arrives from the URL, so it is input, not a given."""
-        before = Application.objects.get(num=1).status
-        self.assertEqual(self.client.get("/actions/set-status/1/banana/").status_code, 404)
+        """The status arrives from the form, so it is input, not a given."""
+        before = self.app.status
+        self.assertEqual(self.post(status="banana").status_code, 404)
         self.assertEqual(Application.objects.get(num=1).status, before)
 
-    def test_setting_a_status_keeps_status_order_and_logs_the_change(self):
-        app = Application.objects.get(num=1)
-        self.client.get(f"/actions/set-status/{app.num}/interviewing/")
-        app.refresh_from_db()
-        self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
-        self.assertTrue(ApplicationStatusChange.objects.filter(
-            application=app, to_status="interviewing").exists())
+    def test_a_get_changes_nothing(self):
+        self.assertEqual(self.client.get(f"/actions/set-status/{self.app.num}/").status_code, 405)
 
-    def test_the_menu_offers_every_status_except_the_current_one(self):
-        app = Application.objects.get(num=1)
-        html = self.client.get(f"/applications/{app.num}/").content.decode()
+    def test_setting_a_status_keeps_status_order_and_logs_the_change(self):
+        self.post(status="interviewing")
+        self.app.refresh_from_db()
+        self.assertEqual(self.app.status_order, STATUS_SORT_ORDER.index("interviewing"))
+        self.assertTrue(ApplicationStatusChange.objects.filter(
+            application=self.app, to_status="interviewing").exists())
+
+    def test_no_note_writes_nothing(self):
+        self.post(status="closed", as_next="on")
+        self.assertFalse((self.folder / "notes.md").exists())
+        self.app.refresh_from_db()
+        self.assertNotEqual(self.app.next_action, "")
+
+    def test_a_note_goes_to_the_timeline_and_the_next_action(self):
+        (self.folder / "notes.md").write_text(
+            "## My notes\n\nx\n\n## Timeline\n\n- **2026-01-01:** logged\n\n## Later\n\ny\n")
+        self.post(status="closed", note="Role filled\n internally.", as_next="on")
+        text = (self.folder / "notes.md").read_text()
+        today = dt.date.today().isoformat()
+        self.assertIn(f"- **2026-01-01:** logged\n- **{today}:** status → closed. Role filled internally.\n\n## Later", text)
+        self.app.refresh_from_db()
+        self.assertEqual(self.app.status, "closed")
+        self.assertEqual(self.app.next_action, "Role filled internally.")
+
+    def test_a_note_without_a_change_is_just_the_note_and_can_leave_next_action(self):
+        before = self.app.next_action
+        self.post(status=self.app.status, note="Chased by email.")
+        text = (self.folder / "notes.md").read_text()
+        self.assertIn(f"- **{dt.date.today().isoformat()}:** Chased by email.\n", text)
+        self.assertIn("## Timeline", text, "a notes.md is created with its Timeline")
+        self.app.refresh_from_db()
+        self.assertEqual(self.app.next_action, before)
+
+    def test_the_menu_offers_every_status_with_the_current_one_chosen(self):
+        html = self.client.get(f"/applications/{self.app.num}/").content.decode()
+        self.assertIn(f'action="/actions/set-status/{self.app.num}/"', html)
         for status in STATUS_SORT_ORDER:
             with self.subTest(status=status):
-                link = f"/actions/set-status/{app.num}/{status}/"
-                if status == app.status:
-                    self.assertNotIn(link, html)
-                else:
-                    self.assertIn(link, html)
+                checked = " checked" if status == self.app.status else ""
+                self.assertIn(f'name="status" value="{status}"{checked}>', html)
 
 
 def markdownify_path(md):
