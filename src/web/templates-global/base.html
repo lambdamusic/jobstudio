@@ -162,12 +162,14 @@ one — the head, the stylesheet and the title convention all stay shared.
     nav-group, so the collapsed rail treats it like any nav item; chat.js stops the jump
     and adds the ⌘K shortcut the hint advertises.
     {% endcomment %}
+    {% if chat_enabled %}
     <div class="nav-group nav-ask">
       <a href="#chat" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel"
          title="Ask Claude (⌘K)">
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chat"/></svg><span>Ask Claude</span>
         <span class="nav-kbd" aria-hidden="true">⌘K</span></a>
     </div>
+    {% endif %}
 
     <div class="nav-group">
       <div class="nav-label">Tracker</div>
@@ -260,6 +262,7 @@ one — the head, the stylesheet and the title convention all stay shared.
 </div>
 
 {% block chat %}
+{% if chat_enabled %}
 <aside id="chat-panel" class="chat-panel" aria-label="Chat with Claude">
   <div class="chat-resize" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
   <header class="chat-head">
@@ -276,6 +279,7 @@ one — the head, the stylesheet and the title convention all stay shared.
     <button type="submit">Send</button>
   </form>
 </aside>
+{% endif %}
 {% endblock %}
 </body>
 </html>

@@ -4,6 +4,26 @@ Dated entries, newest first.
 
 ## 2026-11-11
 
+- **Ask Claude: a chat panel in the web app.** A button at the top of the sidebar (or
+  ⌘K / Ctrl+K) opens a drawer that talks to Claude Code with the same context as a
+  terminal session in the repo: the `jobstudio` skill, `CLAUDE.md`, the global
+  `~/.claude` config and memory, and the data root. No API key: each message runs one
+  headless `claude -p` turn on the terminal's sign-in, chained with `--resume`, so a
+  conversation can also be picked up in a terminal. Each message Claude writes is its own
+  bubble, rendered as the site renders markdown, with its tool calls between them. A
+  headless run cannot prompt, so refused tools come back as a card with the narrowest
+  rule that allows them; **Allow & retry** grants it for that conversation only, never
+  in a settings file. The default permission mode is `default`, so edits to the data
+  come back to be allowed too; `CHAT_PERMISSION_MODE = "acceptEdits"` lets them through.
+  A bar under the header shows the context size, the plan's five-hour and weekly usage,
+  and the conversation's API-price equivalent. The panel is 480px and resizable by
+  dragging its edge. Off where `claude` is not installed (`CHAT_ENABLED`), loopback only,
+  one reply at a time per conversation. `docs/chat-panel.md` has the details.
+
+- **Static URLs carry a version (`?v=<mtime>`).** An edited stylesheet or script is
+  fetched on the next page load instead of needing a hard reload. A small storage class
+  (`tracker/storage.py`) over the plain one: no collectstatic, no manifest.
+
 - **No more local-versus-published split.** With the static export gone, the app only runs
   on its owner's machine, so the machinery for hiding things from a published copy goes
   too: the `ENVIRONMENT` setting and its seven "Local only" guards on the action views,

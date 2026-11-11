@@ -22,6 +22,8 @@ def site_context(request):
         "nav_notes": _nav_notes(),
         "owner_name": who.full_name if who else "",
         "APP_NAME": settings.APP_NAME,
+        # The chat panel and its sidebar button exist only where `claude` is installed.
+        "chat_enabled": settings.CHAT_ENABLED,
         "nav_counts": {
             "applications": Application.objects.count(),
             "active": Application.objects.filter(status__in=ACTIVE_STATUSES).count(),

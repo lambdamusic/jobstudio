@@ -1,4 +1,4 @@
-"""A chat panel that talks to Claude Code running headless (prototype, branch `chat-panel`).
+"""A chat panel that talks to Claude Code running headless (docs/chat-panel.md).
 
 No API key and no SDK: each message spawns `claude -p` as a subprocess, so it runs on
 whatever account the terminal's `claude` is logged into, and sees what a terminal
@@ -25,7 +25,7 @@ and passes on as NDJSON, one object per line:
 
 Headless Claude cannot ask for permission, so anything not already allowed by the
 settings files is refused rather than prompted. `CHAT_PERMISSION_MODE` (default
-`acceptEdits`) decides how much it may do without asking. What it was refused comes
+`default`, so edits are refused too) decides how much it may do without asking. What it was refused comes
 back as `denied`, each with the rule that would allow it; the panel offers to allow
 it, and sends the rules it has collected with every later turn as `allow` — they last
 as long as the conversation in the panel, and are never written to a settings file.
@@ -35,6 +35,7 @@ import json
 import os
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 
 from django.conf import settings
@@ -43,7 +44,11 @@ from django.http import HttpResponseNotAllowed, JsonResponse, StreamingHttpRespo
 from .templatetags.jobs_extras import markdownify
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-PERMISSION_MODE = getattr(settings, "CHAT_PERMISSION_MODE", "acceptEdits")
+
+# Sessions with a turn in flight. Two tabs on one conversation would otherwise run two
+# `--resume` turns on the same session at once, and both would write its transcript.
+_running = set()
+_running_lock = threading.Lock()
 
 # Appended to Claude Code's system prompt on every turn. The URL guide is there because
 # the page path is all the panel sends, and without it Claude read /applications/66/ as
@@ -161,7 +166,24 @@ def _events(proc):
             yield {"t": "done", "cost": msg.get("total_cost_usd"), "ms": msg.get("duration_ms")}
 
 
-def _stream(cmd, prompt, env):
+def _stream(cmd, prompt, env, session=""):
+    # Claimed here, not in the view: a generator's `finally` only runs once it has
+    # started, so this is the one place a claim is certain to be released.
+    if session:
+        with _running_lock:
+            if session in _running:
+                yield json.dumps({"t": "error", "d": "this conversation already has a reply "
+                                  "in progress (another tab?) — wait for it, or start a new one"}) + "\n"
+                return
+            _running.add(session)
+    try:
+        yield from _run(cmd, prompt, env)
+    finally:
+        with _running_lock:
+            _running.discard(session)
+
+
+def _run(cmd, prompt, env):
     proc = subprocess.Popen(cmd, cwd=REPO_ROOT, env=env, text=True,
                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
@@ -183,6 +205,8 @@ def _stream(cmd, prompt, env):
 def chat_send(request):
     """POST `message`, optional `session` (to continue), `page` (the URL being viewed)
     and any number of `allow` (permission rules the user granted from the panel)."""
+    if not settings.CHAT_ENABLED:
+        return JsonResponse({"ok": False, "error": "the chat panel is off (CHAT_ENABLED)"}, status=404)
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     # This hands a shell-capable agent to whoever can reach the server: loopback only.
@@ -202,7 +226,7 @@ def chat_send(request):
         prompt = f"[Sent from the Job Studio web app; the user is viewing {page}]\n\n{message}"
 
     cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
-           "--include-partial-messages", "--permission-mode", PERMISSION_MODE,
+           "--include-partial-messages", "--permission-mode", settings.CHAT_PERMISSION_MODE,
            "--add-dir", str(settings.DATA_ROOT),
            # The server has already resolved <DATA>; saying so spares a lookup that a
            # headless run would need a permission for and cannot ask for.
@@ -214,7 +238,7 @@ def chat_send(request):
     # server at scratch data points the chat there too.
     env = {**os.environ, "JOBSTUDIO_DATA": str(settings.DATA_ROOT)}
 
-    resp = StreamingHttpResponse(_stream(cmd, prompt, env), content_type="application/x-ndjson")
+    resp = StreamingHttpResponse(_stream(cmd, prompt, env, session), content_type="application/x-ndjson")
     resp["Cache-Control"] = "no-cache"
     resp["X-Accel-Buffering"] = "no"
     return resp
