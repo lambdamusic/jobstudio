@@ -1,0 +1,138 @@
+"""A chat panel that talks to Claude Code running headless (prototype, branch `chat-panel`).
+
+No API key and no SDK: each message spawns `claude -p` as a subprocess, so it runs on
+whatever account the terminal's `claude` is logged into, and sees what a terminal
+session sees — this repo's CLAUDE.md and `.claude/skills/` (the cwd is the repo root),
+the user's global ~/.claude config and memory, and the data root via `--add-dir`.
+
+One subprocess per turn, chained with `--resume <session_id>`: the session lives in
+Claude Code's own transcript store, so the conversation survives a page change, a
+server restart, and can be picked up in the terminal with `claude --resume <id>`.
+
+The output is `stream-json`, which this view boils down to a handful of event types
+and passes on as NDJSON, one object per line:
+
+    {"t": "session", "id": "..."}            once, as soon as the session is known
+    {"t": "text", "d": "..."}                a chunk of the reply
+    {"t": "tool", "name": "...", "d": "..."} a tool call, with a one-line summary
+    {"t": "done", "cost": 0.12, "ms": 3400}  the turn finished
+    {"t": "error", "d": "..."}               something went wrong
+
+Headless Claude cannot ask for permission, so anything not already allowed by the
+settings files is refused rather than prompted. `CHAT_PERMISSION_MODE` (default
+`acceptEdits`) decides how much it may do without asking.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+from django.conf import settings
+from django.http import HttpResponseNotAllowed, JsonResponse, StreamingHttpResponse
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+PERMISSION_MODE = getattr(settings, "CHAT_PERMISSION_MODE", "acceptEdits")
+
+
+def _tool_summary(name: str, args: dict) -> str:
+    """one line for a tool call: the argument that says what it is doing."""
+    for key in ("command", "file_path", "pattern", "skill", "url", "query", "description"):
+        if args.get(key):
+            return str(args[key]).splitlines()[0][:160]
+    return ""
+
+
+def _events(proc):
+    """translate Claude Code's stream-json into the panel's event lines."""
+    sent_session = False
+    for raw in proc.stdout:
+        try:
+            msg = json.loads(raw)
+        except ValueError:
+            continue
+        sid = msg.get("session_id")
+        if sid and not sent_session:
+            sent_session = True
+            yield {"t": "session", "id": sid}
+        kind = msg.get("type")
+        # Top-level text only: a subagent's stream carries a parent_tool_use_id.
+        if kind == "stream_event" and not msg.get("parent_tool_use_id"):
+            ev = msg["event"]
+            delta = ev.get("delta", {})
+            if ev.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
+                yield {"t": "text", "d": delta["text"]}
+            elif ev.get("type") == "message_start":
+                # Each new assistant message after a tool call starts on a fresh paragraph.
+                yield {"t": "text", "d": "\n\n"}
+        elif kind == "assistant":
+            for block in msg["message"].get("content", []):
+                if block.get("type") == "tool_use":
+                    yield {"t": "tool", "name": block["name"],
+                           "d": _tool_summary(block["name"], block.get("input", {}))}
+        elif kind == "result":
+            if msg.get("is_error"):
+                yield {"t": "error", "d": msg.get("result") or msg.get("subtype", "error")}
+            yield {"t": "done", "cost": msg.get("total_cost_usd"), "ms": msg.get("duration_ms")}
+
+
+def _stream(cmd, prompt, env):
+    proc = subprocess.Popen(cmd, cwd=REPO_ROOT, env=env, text=True,
+                            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    proc.stdin.write(prompt)
+    proc.stdin.close()
+    try:
+        for ev in _events(proc):
+            yield json.dumps(ev) + "\n"
+        proc.wait()
+        if proc.returncode:
+            err = proc.stderr.read().strip()[-500:]
+            yield json.dumps({"t": "error", "d": err or f"claude exited {proc.returncode}"}) + "\n"
+    finally:
+        # The browser went away mid-turn (closed the panel, reloaded): stop the run.
+        if proc.poll() is None:
+            proc.terminate()
+
+
+def chat_send(request):
+    """POST `message`, optional `session` (to continue) and `page` (the URL being viewed)."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    # This hands a shell-capable agent to whoever can reach the server: loopback only.
+    if request.META.get("REMOTE_ADDR") not in ("127.0.0.1", "::1"):
+        return JsonResponse({"ok": False, "error": "local only"}, status=403)
+    message = request.POST.get("message", "").strip()
+    if not message:
+        return JsonResponse({"ok": False, "error": "empty message"}, status=400)
+    claude = shutil.which("claude")
+    if not claude:
+        return JsonResponse({"ok": False, "error": "`claude` is not on the server's PATH"}, status=500)
+
+    session = request.POST.get("session", "").strip()
+    page = request.POST.get("page", "").strip()
+    prompt = message
+    if page:
+        prompt = f"[Sent from the Job Studio web app; the user is viewing {page}]\n\n{message}"
+
+    cmd = [claude, "-p", "--output-format", "stream-json", "--verbose",
+           "--include-partial-messages", "--permission-mode", PERMISSION_MODE,
+           "--add-dir", str(settings.DATA_ROOT),
+           # The server has already resolved <DATA>; saying so spares a lookup that a
+           # headless run would need a permission for and cannot ask for.
+           "--append-system-prompt",
+           f"This session is driven from the Job Studio web app's chat panel. <DATA> is "
+           f"already resolved: {settings.DATA_ROOT}. There is no terminal: nobody can "
+           f"approve a permission prompt, so prefer tools that are already allowed.",
+           "--allowedTools", "Bash(tools/py:*)"]
+    if session:
+        cmd += ["--resume", session]
+    # Same data root as the app, whatever the layering resolved it to — so pointing the
+    # server at scratch data points the chat there too.
+    env = {**os.environ, "JOBSTUDIO_DATA": str(settings.DATA_ROOT)}
+
+    resp = StreamingHttpResponse(_stream(cmd, prompt, env), content_type="application/x-ndjson")
+    resp["Cache-Control"] = "no-cache"
+    resp["X-Accel-Buffering"] = "no"
+    return resp
