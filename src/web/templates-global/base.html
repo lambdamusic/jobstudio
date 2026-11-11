@@ -104,6 +104,10 @@ one — the head, the stylesheet and the title convention all stay shared.
       <g id="i-side">
         <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>
       </g>
+      <g id="i-chat">
+        <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1z"/>
+        <path d="M8 10h8M8 13h5"/>
+      </g>
       <g id="i-admin">
         <path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h8M16 17h4"/>
         <circle cx="16" cy="7" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="17" r="2"/>
@@ -213,6 +217,17 @@ one — the head, the stylesheet and the title convention all stay shared.
       </details>
     </div>
 
+    {% comment %}
+    The chat panel's toggle lives in the nav, not floating in a corner: the bottom-right
+    corner already belongs to the highlighter's button (highlight.js). A link, so it
+    takes the nav's styles and the collapsed rail for free; chat.js stops the jump.
+    {% endcomment %}
+    <div class="nav-group">
+      <div class="nav-label">Claude</div>
+      <a href="#chat" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chat"/></svg><span>Ask Claude</span></a>
+    </div>
+
     <div class="nav-group">
       <div class="nav-label">Help</div>
       <a href="/help/" class="{% if page == 'help' %}active{% endif %}">
@@ -242,8 +257,6 @@ one — the head, the stylesheet and the title convention all stay shared.
 </div>
 
 {% block chat %}
-<button type="button" id="chat-toggle" class="chat-toggle" aria-expanded="false"
-        aria-controls="chat-panel" title="Ask Claude">Ask Claude</button>
 <aside id="chat-panel" class="chat-panel" aria-label="Chat with Claude">
   <header class="chat-head">
     <strong>Claude</strong>

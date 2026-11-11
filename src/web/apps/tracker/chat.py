@@ -13,9 +13,10 @@ The output is `stream-json`, which this view boils down to a handful of event ty
 and passes on as NDJSON, one object per line:
 
     {"t": "session", "id": "..."}            once, as soon as the session is known
-    {"t": "text", "d": "..."}                a chunk of the reply
+    {"t": "message"}                         a new assistant message with text begins
+    {"t": "text", "d": "..."}                a chunk of that message's text
+    {"t": "html", "d": "..."}                the message finished, rendered like the site's markdown
     {"t": "tool", "name": "...", "d": "..."} a tool call, with a one-line summary
-    {"t": "html", "d": "..."}                the whole reply, rendered like the site's markdown
     {"t": "denied", "items": [...]}          tool calls refused for want of a permission
     {"t": "usage", "context": n, "window": n, "cost": 0.12}   context size after the turn
     {"t": "limits", "five_hour": {...}, "seven_day": {...}}  plan usage, as `/usage` shows it
@@ -103,8 +104,13 @@ def _usage(result: dict) -> dict:
 def _events(proc):
     """translate Claude Code's stream-json into the panel's event lines."""
     sent_session = False
-    reply = []
-    fresh = False
+    text = []      # the current assistant message's text so far
+
+    def finish():
+        done = "".join(text).strip()
+        text.clear()
+        return {"t": "html", "d": str(markdownify(done))} if done else None
+
     for raw in proc.stdout:
         try:
             msg = json.loads(raw)
@@ -119,18 +125,16 @@ def _events(proc):
         if kind == "stream_event" and not msg.get("parent_tool_use_id"):
             ev = msg["event"]
             delta = ev.get("delta", {})
+            # One bubble per assistant message, opened by its first text rather than
+            # by message_start: mid-task most messages are a bare tool call, and an
+            # empty bubble for each would stack up as blank space.
             if ev.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
-                text = delta["text"]
-                # A new assistant message starts a fresh paragraph — but only once it
-                # has text: most messages mid-task are a bare tool call, and a break
-                # for each of those stacked up as blank space in the reply.
-                if fresh and reply:
-                    text = "\n\n" + text.lstrip("\n")
-                fresh = False
-                reply.append(text)
-                yield {"t": "text", "d": text}
-            elif ev.get("type") == "message_start":
-                fresh = True
+                if not text:
+                    yield {"t": "message"}
+                text.append(delta["text"])
+                yield {"t": "text", "d": delta["text"]}
+            elif ev.get("type") == "message_stop" and (html := finish()):
+                yield html
         elif kind == "assistant":
             for block in msg["message"].get("content", []):
                 if block.get("type") == "tool_use":
@@ -142,10 +146,10 @@ def _events(proc):
                 name: {"pct": round(w.get("utilization", 0) * 100), "resets": w.get("resetsAt")}
                 for name, w in windows.items()}}
         elif kind == "result":
+            # A message the stream never closed (a run cut short) still gets rendered.
+            if html := finish():
+                yield html
             yield _usage(msg)
-            text = "".join(reply).strip()
-            if text:
-                yield {"t": "html", "d": str(markdownify(text))}
             denied = [{"name": d["tool_name"],
                        "d": _tool_summary(d["tool_name"], d.get("tool_input", {})),
                        "rule": _rule(d["tool_name"], d.get("tool_input", {}))}

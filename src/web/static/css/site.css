@@ -1084,15 +1084,10 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
 
 
 /* The chat panel (prototype, branch `chat-panel`): a right-hand drawer over the page,
-   opened from a floating button. When open, the content leaves room for it on wide
+   opened from "Ask Claude" in the sidebar. When open, the content leaves room for it on wide
    screens instead of sitting underneath. */
-.chat-toggle {
-  position: fixed; right: 20px; bottom: 20px; z-index: 40;
-  padding: 9px 16px; border: 0; border-radius: 20px; cursor: pointer;
-  background: var(--navy); color: #fff; font: inherit; font-size: 14px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.18);
-}
-.chat-open .chat-toggle { display: none; }
+/* The highlighter's corner button and its note move clear of the open panel. */
+.chat-open .hl-toggle, .chat-open .hl-note { right: calc(min(440px, 100vw) + 18px); }
 .chat-panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
   width: min(440px, 100vw); display: none; flex-direction: column;
@@ -1118,7 +1113,7 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
 }
 .chat-user { align-self: flex-end; background: var(--navy); color: #fff; }
 .chat-assistant { align-self: flex-start; background: var(--bg-sunk); border: 1px solid var(--line); }
-.chat-assistant.pending:empty::after { content: "thinking…"; color: var(--faint); }
+.chat-working { align-self: flex-start; font-size: 12px; color: var(--faint); font-style: italic; }
 .chat-tool {
   align-self: flex-start; font-size: 12px; color: var(--muted);
   font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden;

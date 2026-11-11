@@ -153,10 +153,11 @@
   function setOpen(open) {
     document.documentElement.classList.toggle("chat-open", open);
     toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    toggle.classList.toggle("active", open);
     state.open = open; save();
     if (open) input.focus();
   }
-  toggle.addEventListener("click", function () { setOpen(!state.open); });
+  toggle.addEventListener("click", function (e) { e.preventDefault(); setOpen(!state.open); });
   panel.querySelector(".chat-close").addEventListener("click", function () { setOpen(false); });
   panel.querySelector(".chat-new").addEventListener("click", function () {
     if (busy) return;
@@ -176,14 +177,44 @@
     send(text);
   });
 
-  function push(t) { state.turns.push(t); save(); return draw(t); }
+  // Shown at the foot of the log while a turn runs, so a long task between bubbles
+  // still looks alive. Not part of the transcript.
+  var working = document.createElement("div");
+  working.className = "chat-working";
+  working.textContent = "working…";
+
+  // Record a turn and draw it at the end of the log, above the indicator.
+  function add(t) {
+    state.turns.push(t); save();
+    var el = draw(t);
+    if (working.parentNode) log.appendChild(working);
+    scroll();
+    return el;
+  }
 
   function send(text) {
     busy = true; sendBtn.disabled = true;
-    push({ role: "user", text: text });
-    var out = draw({ role: "assistant", text: "" });
-    out.classList.add("pending");
-    var reply = "", html = "", denied = null;
+    add({ role: "user", text: text });
+    log.appendChild(working); scroll();
+    var cur = null, curEl = null, denied = null;
+
+    // The message in progress. It is recorded as it opens, so the tool calls it makes
+    // land after it on a reload, and finished when its html arrives — or kept as plain
+    // text if the stream stops first.
+    function close() {
+      if (!cur) return;
+      if (!cur.html) cur.text = cur.text.trim();
+      if (!cur.html && !cur.text) {
+        state.turns.splice(state.turns.indexOf(cur), 1);
+        curEl.remove();
+      }
+      save();
+      cur = curEl = null;
+    }
+    function fail(msg) {
+      close();
+      add({ role: "assistant", text: "[error] " + msg });
+    }
 
     var body = new FormData();
     body.append("message", text);
@@ -193,18 +224,19 @@
 
     function handle(ev) {
       if (ev.t === "session") { state.session = ev.id; save(); showSid(); }
-      else if (ev.t === "text") {
-        reply += ev.d;
-        out.textContent = reply.replace(/^\s+/, "");
+      else if (ev.t === "message") {
+        close();
+        cur = { role: "assistant", text: "" };
+        curEl = add(cur);
+      } else if (ev.t === "text" && cur) {
+        cur.text += ev.d; save();
+        curEl.textContent = cur.text.replace(/^\s+/, "");
+      } else if (ev.t === "html" && cur) {
+        cur.html = ev.d; delete cur.text;
+        curEl.innerHTML = ev.d; curEl.classList.add("prose");
+        close();
       } else if (ev.t === "tool") {
-        // Tool lines are recorded before the reply they belong to, so a reload draws
-        // them in the order they happened.
-        var t = { role: "tool", text: "⚙ " + ev.name + (ev.d ? " · " + ev.d : "") };
-        state.turns.push(t); save();
-        log.insertBefore(draw(t), out);
-      } else if (ev.t === "html") {
-        html = ev.d;
-        out.innerHTML = html; out.classList.add("prose");
+        add({ role: "tool", text: "⚙ " + ev.name + (ev.d ? " · " + ev.d : "") });
       } else if (ev.t === "usage") {
         state.usage = ev;
         state.cost = (state.cost || 0) + (ev.cost || 0);
@@ -214,13 +246,7 @@
       } else if (ev.t === "denied") {
         denied = ev.items;
       } else if (ev.t === "error") {
-        reply += "\n\n[error] " + ev.d;
-        html = "";
-        out.classList.remove("prose");
-        out.textContent = reply.trim();
-      } else if (ev.t === "done") {
-        out.title = (ev.ms ? (ev.ms / 1000).toFixed(1) + "s" : "") +
-                    (ev.cost != null ? " · ~$" + ev.cost.toFixed(3) + " equiv." : "");
+        fail(ev.d);
       }
       scroll();
     }
@@ -245,16 +271,11 @@
       }
       return pump();
     }).catch(function (err) {
-      reply += "\n\n[error] " + err.message;
-      html = "";
-      out.classList.remove("prose");
-      out.textContent = reply.trim();
+      fail(err.message);
     }).then(function () {
-      out.classList.remove("pending");
-      state.turns.push(html ? { role: "assistant", html: html }
-                            : { role: "assistant", text: reply.trim() });
-      save();
-      if (denied) push({ role: "denied", items: denied });
+      close();
+      working.remove();
+      if (denied) add({ role: "denied", items: denied });
       busy = false; sendBtn.disabled = false;
       input.focus();
     });
