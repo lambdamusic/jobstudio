@@ -543,6 +543,13 @@ tr.is-stale td { background: #fffdf5; }
   color: var(--faint); font-size: 12.5px; font-variant-numeric: tabular-nums;
 }
 
+/* Other files: paths are long and alike, so run together inline they read as one string.
+   One per line instead; two columns broke most of them mid-name. */
+.file-index ol { flex-direction: column; gap: 5px; }
+.file-index li { min-width: 0; }
+.file-index a { overflow-wrap: anywhere; }
+.file-index .round-index-date { white-space: nowrap; }
+
 /* ---------- People tab ---------- */
 
 .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 14px; }

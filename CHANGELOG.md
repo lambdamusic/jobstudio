@@ -2,6 +2,16 @@
 
 Dated entries, newest first.
 
+## 2026-11-11
+
+- **Other files lists one file per line.** The index at the top of the tab ran the paths
+  together inline, and long, similar names read as one string. Two columns were tried and
+  broke most names mid-word.
+- **Other files runs newest first, with a date on every line.** Sorted by modification
+  time rather than path, so a file in `export/` or a subfolder no longer sinks to the bottom
+  however recent it is. Creation time was ruled out: macOS-only, and Dropbox resets it.
+  Every line shows its date; non-markdown files add their size, since markdown renders below.
+
 ## 2026-11-10
 
 - **`scan` reads Jibe career sites.** Jibe is iCIMS's front end on a company's own

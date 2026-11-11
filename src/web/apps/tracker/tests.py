@@ -4693,6 +4693,34 @@ class InterviewRoundTests(TestCase):
                     self.assertIn(f'href="#{f["anchor"]}"', index)
             self.assertIn("2 KB", index, "a non-markdown file shows its size")
 
+    def test_other_files_run_newest_first_and_every_one_shows_its_date(self):
+        """By modification time, newest first, not alphabetical: a subfolder's files sank to
+        the bottom however recent. Every line shows its date, and a size only where the
+        file is not rendered below."""
+        import os
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        (folder / "export").mkdir(parents=True)
+        old = folder / "a-old-note.md"
+        new = folder / "export" / "z-new-report.pdf"
+        old.write_text("# Old\n")
+        new.write_bytes(b"x" * 2048)
+        os.utime(old, (1_700_000_000, 1_700_000_000))   # 14 Nov 2023
+        os.utime(new, (1_760_000_000, 1_760_000_000))   # 9 Oct 2025
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        label = 'aria-label="Files in this folder"'
+        with override_settings(DATA_ROOT=str(root)):
+            self.assertEqual([f["rel"] for f in app.extra_files], ["export/z-new-report.pdf", "a-old-note.md"])
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+        index = html[html.index(label):html.index("</nav>", html.index(label))]
+        self.assertIn("14 Nov 2023</span>", index, "a markdown file shows its date, no size")
+        self.assertIn("9 Oct 2025 · 2 KB", index)
+
     def test_no_folder_markdown_links_a_bare_md_file(self):
         """Regression, twice over. A relative `.md` link inside an application folder
         resolves to nothing in the web view and fails build_static's link checker — the

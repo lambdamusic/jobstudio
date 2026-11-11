@@ -16,6 +16,7 @@ convention (`is_cv_filename` / `is_cover_letter_filename`) at request time.
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 
 from django.conf import settings
@@ -691,6 +692,15 @@ class Application(models.Model):
                 out.append({"rel": str(rel), "name": path.name, "path": path,
                            "is_md": False,
                            "size_kb": max(1, path.stat().st_size // 1024)})
+
+        # Newest first, by modification time: this tab collects whatever arrived last
+        # (an email draft, a PDF someone sent), and alphabetical order buried subfolders
+        # at the bottom. Not creation time, which is macOS-only and which Dropbox resets
+        # on a sync or restore. Path breaks ties, so the order is stable.
+        for f in out:
+            f["modified"] = datetime.fromtimestamp(f["path"].stat().st_mtime)
+        out.sort(key=lambda f: f["rel"])
+        out.sort(key=lambda f: f["modified"], reverse=True)
 
         # An id per file, so prose elsewhere in the folder can link a specific one —
         # `#file-<slug>`, resolved by tabs.js the same way a round anchor is. Without it
