@@ -104,6 +104,7 @@ def _events(proc):
     """translate Claude Code's stream-json into the panel's event lines."""
     sent_session = False
     reply = []
+    fresh = False
     for raw in proc.stdout:
         try:
             msg = json.loads(raw)
@@ -119,12 +120,17 @@ def _events(proc):
             ev = msg["event"]
             delta = ev.get("delta", {})
             if ev.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
-                reply.append(delta["text"])
-                yield {"t": "text", "d": delta["text"]}
+                text = delta["text"]
+                # A new assistant message starts a fresh paragraph — but only once it
+                # has text: most messages mid-task are a bare tool call, and a break
+                # for each of those stacked up as blank space in the reply.
+                if fresh and reply:
+                    text = "\n\n" + text.lstrip("\n")
+                fresh = False
+                reply.append(text)
+                yield {"t": "text", "d": text}
             elif ev.get("type") == "message_start":
-                # Each new assistant message after a tool call starts on a fresh paragraph.
-                reply.append("\n\n")
-                yield {"t": "text", "d": "\n\n"}
+                fresh = True
         elif kind == "assistant":
             for block in msg["message"].get("content", []):
                 if block.get("type") == "tool_use":
