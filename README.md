@@ -16,12 +16,7 @@ brings up this same thing in one command, without touching a data root of your o
 
 - **It is yours to change.** Almost everything deciding *how* this behaves is prose you
   edit, not code you fork — how a CV gets tailored, how a posting is scored, what a
-  cover letter sounds like, which questions an interview prep asks. Each is a markdown
-  file written in English, mostly under `.claude/skills/jobstudio/`, that you are meant
-  to open and argue with. If the scoring rubric is wrong for your field, rewrite it
-  (`src/prompts/scan_score_rubric.md`); if the letters read like someone else, change
-  the structure file (`references/cover-letter-structures.md`). Nobody else gets to
-  decide what "a good match" means for your search.
+  cover letter sounds like, which questions an interview prep asks. 
 - **No API key needed.** Every workflow runs inside your Claude Code session — CV
   tailoring and scan scoring included. There is nothing to bill and no key to hold.
 - **Your data is yours, and separate.** Your CVs, applications, research and tracker
