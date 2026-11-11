@@ -1087,15 +1087,29 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
    opened from "Ask Claude" at the top of the sidebar, or with ⌘K. When open, the content leaves room for it on wide
    screens instead of sitting underneath. */
 /* The highlighter's corner button and its note move clear of the open panel. */
-.chat-open .hl-toggle, .chat-open .hl-note { right: calc(min(440px, 100vw) + 18px); }
+.chat-open .hl-toggle, .chat-open .hl-note { right: calc(min(var(--chat-w), 100vw) + 18px); }
 .chat-panel {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
-  width: min(440px, 100vw); display: none; flex-direction: column;
+  width: min(var(--chat-w), 100vw); display: none; flex-direction: column;
   background: var(--bg); border-left: 1px solid var(--line);
   box-shadow: -4px 0 16px rgba(0,0,0,.06);
 }
 .chat-open .chat-panel { display: flex; }
-@media (min-width: 1100px) { .chat-open .content { margin-right: 440px; } }
+@media (min-width: 1100px) { .chat-open .content { margin-right: var(--chat-w); } }
+/* The panel's width: 480px unless dragged, in which case chat.js sets --chat-w on
+   <html> and remembers it. One variable, so the panel, the content's margin and the
+   highlighter's offset all move together. */
+:root { --chat-w: 480px; }
+/* The drag handle on the panel's left edge: a 7px strip, with a gold line on hover. */
+.chat-resize {
+  position: absolute; left: -4px; top: 0; bottom: 0; width: 7px; z-index: 1;
+  cursor: col-resize; touch-action: none;
+}
+.chat-resize:hover, .chat-resizing .chat-resize {
+  background: linear-gradient(to right, transparent 3px, var(--gold) 3px, var(--gold) 4px, transparent 4px);
+}
+.chat-resizing, .chat-resizing * { cursor: col-resize !important; user-select: none; }
+@media (max-width: 700px) { .chat-resize { display: none; } }
 .chat-head {
   display: flex; align-items: center; gap: 8px; padding: 12px 14px;
   border-bottom: 1px solid var(--line); background: var(--bg-side);

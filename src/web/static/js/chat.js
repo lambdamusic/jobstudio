@@ -4,7 +4,8 @@
  * streams NDJSON back (event types in apps/tracker/chat.py). The reply streams in as
  * plain text and is swapped for the server's rendered markdown when the turn ends.
  *
- * Opened from "Ask Claude" at the top of the sidebar, or ⌘K / Ctrl+K anywhere.
+ * Opened from "Ask Claude" at the top of the sidebar, or ⌘K / Ctrl+K anywhere; drag
+ * its left edge to resize it.
  *
  * A bar under the header shows how full the context is, the plan's five-hour and weekly
  * usage, and the conversation's API-price equivalent, updated after every turn.
@@ -161,6 +162,36 @@
   }
   toggle.addEventListener("click", function (e) { e.preventDefault(); setOpen(!state.open); });
   panel.querySelector(".chat-close").addEventListener("click", function () { setOpen(false); });
+  // Drag the left edge to resize. The width is a CSS variable on <html>, remembered in
+  // localStorage (it is a preference, not part of the conversation), and kept between
+  // 360px and 60% of the window. Double-click puts it back to the stylesheet's default.
+  var WIDTH_KEY = "jobstudio.chat.width";
+  var root = document.documentElement;
+  function clampWidth(w) { return Math.round(Math.max(360, Math.min(w, innerWidth * 0.6))); }
+  function setWidth(w) {
+    if (w) root.style.setProperty("--chat-w", clampWidth(w) + "px");
+    else root.style.removeProperty("--chat-w");
+  }
+  try { setWidth(+localStorage.getItem(WIDTH_KEY) || 0); } catch (e) {}
+  var handle = panel.querySelector(".chat-resize");
+  handle.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    root.classList.add("chat-resizing");
+  });
+  handle.addEventListener("pointermove", function (e) {
+    if (handle.hasPointerCapture(e.pointerId)) setWidth(innerWidth - e.clientX);
+  });
+  handle.addEventListener("pointerup", function (e) {
+    handle.releasePointerCapture(e.pointerId);
+    root.classList.remove("chat-resizing");
+    try { localStorage.setItem(WIDTH_KEY, String(clampWidth(innerWidth - e.clientX))); } catch (err) {}
+  });
+  handle.addEventListener("dblclick", function () {
+    setWidth(0);
+    try { localStorage.removeItem(WIDTH_KEY); } catch (e) {}
+  });
+
   // ⌘K (Ctrl+K off a Mac) opens and closes the panel from anywhere, inputs included;
   // Escape closes it while focus is inside.
   document.addEventListener("keydown", function (e) {
