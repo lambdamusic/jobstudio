@@ -7,7 +7,9 @@ Everything here is the **example data set** that ships with the repo: Alex River
 fictional job-seeker, and every company, note, interview and number below is synthetic.
 You can bring this exact app up yourself with `tools/run-demo` (see
 [under-the-hood.md](under-the-hood.md#the-web-app)) — it serves `example-data/` from a
-throwaway copy, so it touches nothing of your own.
+throwaway copy, so it touches nothing of your own. The pictures themselves are
+regenerated from it by `tools/record-screenshots` and `tools/record-intro`, so they can
+be retaken after any change to the UI.
 
 The app is read-mostly by design. The agent writes the files, `import_jobs` turns them
 into rows, and these pages are where you *look* at the result and nudge a status.
@@ -54,11 +56,14 @@ aspirational"* is a question for the next call, not a weakness.
 
 ### An application — the interviews
 
-![The interviews tab of an application, showing a hiring-manager round as question-and-answer pairs followed by a what-to-do-differently section](images/application-interviews.png)
+![The interviews tab of an application: a jump list of rounds, then each round with a contents index of its questions and sections, folded until opened](images/application-interviews.png)
 
 Every round against the same application, each one a file in the application folder.
-Questions are rendered in red and answers in black — the colouring keys off the
-`- **Q:**` / `**A:**` markers, so a round file that uses them gets this layout for free.
+Each round opens with a contents index of its sections and questions, and its sections
+start folded, so a long round is a list to jump through rather than a wall of text;
+**Focus view** opens one round on a page of its own for reading during a call. Questions
+are rendered in red and answers in black — the colouring keys off the `- **Q:**` /
+`**A:**` markers, so a round file that uses them gets this layout for free.
 
 Each round ends with **what to do differently**, which is the part that compounds: by
 round three you are reading your own notes on what landed, not reconstructing them.
@@ -121,7 +126,7 @@ will not tell you which.
 
 ### Status over time
 
-![A stacked step chart of where every application sat each week, from mid-July to late September](images/stats-status-over-time.png)
+![A stacked step chart of where every application sat each week, from mid-July onwards](images/stats-status-over-time.png)
 
 **Stock, not events** — the complement to the dashboard's activity chart. This counts
 where everything *was* each week, so the top of the pile is the size of the tracker and

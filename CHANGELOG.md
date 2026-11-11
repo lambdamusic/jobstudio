@@ -4,6 +4,41 @@ Dated entries, newest first.
 
 ## 2026-11-11
 
+- **The screenshots and the intro GIF are retaken, and can be again in one command.**
+  `tools/record-screenshots` brings up the demo app (`run-demo`, on its own port and in
+  its own throwaway root) and drives headless Chrome through each page in
+  `tools/recording/screenshots.mjs`. It writes every still in `docs/images/` at a fixed
+  window size and framing, then takes the app down. `tools/record-intro` does the same
+  for `quick-intro.gif`, stepping through the README's tour a frame at a time instead of
+  screen-recording it. Every frame is sharp, there is no browser chrome or pointer, and
+  at 128 colours the charts keep theirs (the old 64-colour recording turned the
+  Activity chart's green bars grey). The GIF is 1.9 MB and 48s, against 5.3 MB and 80s.
+  No Puppeteer or Playwright: Node 22's built-in WebSocket talks to Chrome's DevTools
+  protocol directly (`tools/recording/cdp.mjs`). The companies shot is now wide enough
+  that its last columns are no longer cut off. Two captions in `docs/screenshots.md`
+  described the old pictures and are rewritten: the interviews tab now opens with a
+  contents index, and status-over-time runs past September.
+
+- **Ask Claude: a chat panel in the web app.** A button at the top of the sidebar (or
+  ⌘K / Ctrl+K) opens a drawer that talks to Claude Code with the same context as a
+  terminal session in the repo: the `jobstudio` skill, `CLAUDE.md`, the global
+  `~/.claude` config and memory, and the data root. No API key: each message runs one
+  headless `claude -p` turn on the terminal's sign-in, chained with `--resume`, so a
+  conversation can also be picked up in a terminal. Each message Claude writes is its own
+  bubble, rendered as the site renders markdown, with its tool calls between them. A
+  headless run cannot prompt, so refused tools come back as a card with the narrowest
+  rule that allows them; **Allow & retry** grants it for that conversation only, never
+  in a settings file. The default permission mode is `default`, so edits to the data
+  come back to be allowed too; `CHAT_PERMISSION_MODE = "acceptEdits"` lets them through.
+  A bar under the header shows the context size, the plan's five-hour and weekly usage,
+  and the conversation's API-price equivalent. The panel is 480px and resizable by
+  dragging its edge. Off where `claude` is not installed (`CHAT_ENABLED`), loopback only,
+  one reply at a time per conversation. `docs/chat-panel.md` has the details.
+
+- **Static URLs carry a version (`?v=<mtime>`).** An edited stylesheet or script is
+  fetched on the next page load instead of needing a hard reload. A small storage class
+  (`tracker/storage.py`) over the plain one: no collectstatic, no manifest.
+
 - **No more local-versus-published split.** With the static export gone, the app only runs
   on its owner's machine, so the machinery for hiding things from a published copy goes
   too: the `ENVIRONMENT` setting and its seven "Local only" guards on the action views,

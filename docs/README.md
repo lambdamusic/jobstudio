@@ -48,6 +48,9 @@ means, where a profile gets used downstream.
   reusable answers are filed (the answer bank for about-me questions, the notes for subjects).
 - **[dashboard-status.md](dashboard-status.md)** — what the web dashboard shows, and
   how `/jobstudio status` mirrors it in the terminal from the same queries.
+- **[chat-panel.md](chat-panel.md)** — the web app's **Ask Claude** panel: how it runs
+  a headless Claude Code session against your data, how refused tools are allowed from
+  the panel, and what the usage bar measures.
 
 ## Under the hood
 

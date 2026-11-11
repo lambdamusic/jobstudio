@@ -128,6 +128,13 @@ they were hidden from a static export; with the export gone they always show:
   through `Application.save()`, so `status_order` and the Status history log are
   maintained exactly as they are for an admin edit.
 
+- **Ask Claude** → the chat panel, POSTing each message to `/actions/chat/`, which runs
+  one headless `claude -p` turn from the repo root and streams its events back as NDJSON
+  (`apps/tracker/chat.py`; the user-facing guide is `docs/chat-panel.md`). The most
+  powerful action here, so the most fenced: loopback only, CSRF like any POST, off
+  unless `claude` is installed (`CHAT_ENABLED`), and in the `default` permission mode
+  every edit comes back to the panel to be allowed.
+
 The admin change forms carry Django's **View on site** button (from `get_absolute_url()`),
 linking back to the public page.
 

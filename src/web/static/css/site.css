@@ -1082,3 +1082,109 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
    readable by opening it on its own. */
 .prose img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; }
 
+
+/* The chat panel (prototype, branch `chat-panel`): a right-hand drawer over the page,
+   opened from "Ask Claude" at the top of the sidebar, or with ⌘K. When open, the content leaves room for it on wide
+   screens instead of sitting underneath. */
+/* The highlighter's corner button and its note move clear of the open panel. */
+.chat-open .hl-toggle, .chat-open .hl-note { right: calc(min(var(--chat-w), 100vw) + 18px); }
+.chat-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 50;
+  width: min(var(--chat-w), 100vw); display: none; flex-direction: column;
+  background: var(--bg); border-left: 1px solid var(--line);
+  box-shadow: -4px 0 16px rgba(0,0,0,.06);
+}
+.chat-open .chat-panel { display: flex; }
+@media (min-width: 1100px) { .chat-open .content { margin-right: var(--chat-w); } }
+/* The panel's width: 480px unless dragged, in which case chat.js sets --chat-w on
+   <html> and remembers it. One variable, so the panel, the content's margin and the
+   highlighter's offset all move together. */
+:root { --chat-w: 480px; }
+/* The drag handle on the panel's left edge: a 7px strip, with a gold line on hover. */
+.chat-resize {
+  position: absolute; left: -4px; top: 0; bottom: 0; width: 7px; z-index: 1;
+  cursor: col-resize; touch-action: none;
+}
+.chat-resize:hover, .chat-resizing .chat-resize {
+  background: linear-gradient(to right, transparent 3px, var(--gold) 3px, var(--gold) 4px, transparent 4px);
+}
+.chat-resizing, .chat-resizing * { cursor: col-resize !important; user-select: none; }
+@media (max-width: 700px) { .chat-resize { display: none; } }
+.chat-head {
+  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  border-bottom: 1px solid var(--line); background: var(--bg-side);
+}
+.chat-head strong { color: var(--navy); }
+.chat-sid { flex: 1; color: var(--faint); font-size: 12px; font-family: ui-monospace, monospace; }
+.chat-head button {
+  border: 1px solid var(--line); background: var(--bg); border-radius: 5px;
+  padding: 2px 9px; cursor: pointer; font: inherit; font-size: 13px; color: var(--muted);
+}
+.chat-log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.chat-msg {
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5;
+  padding: 8px 11px; border-radius: var(--radius); max-width: 92%;
+}
+.chat-user { align-self: flex-end; background: var(--navy); color: #fff; }
+.chat-assistant { align-self: flex-start; background: var(--bg-sunk); border: 1px solid var(--line); }
+.chat-working { align-self: flex-start; font-size: 12px; color: var(--faint); font-style: italic; }
+.chat-tool {
+  align-self: flex-start; font-size: 12px; color: var(--muted);
+  font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; max-width: 100%;
+}
+.chat-form { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.chat-form textarea {
+  flex: 1; min-width: 0; resize: none; font: inherit; font-size: 14px; padding: 7px 9px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.chat-form button {
+  flex: none; align-self: flex-end; padding: 7px 14px; border: 0; border-radius: var(--radius);
+  background: var(--navy); color: #fff; cursor: pointer; font: inherit;
+}
+.chat-form button:disabled { opacity: .5; cursor: wait; }
+/* Rendered replies keep the site's prose styles, at the panel's smaller size. */
+.chat-msg.prose { white-space: normal; font-size: 14px; line-height: 1.55; }
+.chat-msg.prose > :first-child { margin-top: 0; }
+.chat-msg.prose > :last-child { margin-bottom: 0; }
+.chat-msg.prose h1, .chat-msg.prose h2, .chat-msg.prose h3 { font-size: 15px; margin: .9em 0 .4em; }
+.chat-msg.prose ul, .chat-msg.prose ol { padding-left: 1.3em; margin: .4em 0 .8em; }
+.chat-msg.prose pre { overflow-x: auto; font-size: 12.5px; }
+.chat-msg.prose table { font-size: 13px; display: block; overflow-x: auto; }
+/* A turn's refused tool calls, with the button that allows them. */
+.chat-denied {
+  align-self: stretch; display: flex; flex-direction: column; gap: 5px;
+  padding: 9px 11px; border: 1px solid var(--gold); border-radius: var(--radius);
+  background: #fdf8ea; font-size: 13px;
+}
+.chat-denied code { font-size: 12px; overflow-wrap: anywhere; }
+.chat-denied button {
+  align-self: flex-start; margin-top: 3px; padding: 4px 11px; border: 0;
+  border-radius: 5px; background: var(--gold); color: #fff; cursor: pointer; font: inherit;
+}
+.chat-denied-note { color: var(--muted); font-size: 12px; }
+/* The usage bar: context, plan limits, cost so far. Gold once a figure passes 80%. */
+.chat-usage {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px;
+  border-bottom: 1px solid var(--line); background: var(--bg-sunk);
+  font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.chat-usage[hidden] { display: none; }
+.chat-meter b { font-weight: 600; color: var(--faint); }
+.chat-meter.high, .chat-meter.high b { color: var(--scan-no-url-ink); }
+/* "Ask Claude" at the top of the sidebar: drawn as a button, not one more plain link,
+   since it opens a panel rather than going to a page — in a pale tint of the logo's
+   gold, so it stays apart from the active link's navy tint without pulling the eye. The ⌘K hint goes
+   with the label when the rail collapses (`.nav-group a > span`). */
+.nav-ask { margin-bottom: 16px; }
+.nav-group.nav-ask a, .nav-group.nav-ask a.active {
+  background: #fbf6e8; color: var(--navy); font-weight: 500;
+  box-shadow: inset 0 0 0 1px #ecdcb0;
+}
+.nav-group.nav-ask a:hover { background: #f6edd4; }
+.nav-group.nav-ask .ico { opacity: 1; color: var(--gold); }
+.nav-kbd {
+  margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 4px;
+  background: #fff; color: var(--scan-no-url-ink); box-shadow: inset 0 0 0 1px #ecdcb0;
+  font-variant-numeric: tabular-nums;
+}

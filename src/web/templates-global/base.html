@@ -33,6 +33,8 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
   <script src="{% static 'js/tasks.js' %}" defer></script>
   <script src="{% static 'js/highlight.js' %}" defer></script>
+  {# The chat panel (prototype): talks to a headless Claude Code session — see apps/tracker/chat.py. #}
+  <script src="{% static 'js/chat.js' %}" defer></script>
   <script src="{% static 'js/diagrams.js' %}" data-mermaid="{% static 'vendor/mermaid-12.1.0.min.js' %}" defer></script>
   {% comment %}
   The charts on /stats/ and the library they need. Both are deferred and both are
@@ -102,6 +104,10 @@ one — the head, the stylesheet and the title convention all stay shared.
       <g id="i-side">
         <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>
       </g>
+      <g id="i-chat">
+        <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4V6a1 1 0 0 1 1-1z"/>
+        <path d="M8 10h8M8 13h5"/>
+      </g>
       <g id="i-admin">
         <path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h8M16 17h4"/>
         <circle cx="16" cy="7" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="14" cy="17" r="2"/>
@@ -148,6 +154,22 @@ one — the head, the stylesheet and the title convention all stay shared.
       </div>
       <span>{{ owner_name }}{% if owner_name %} · {% endif %}{% now 'Y' %}</span>
     </div>
+
+    {% comment %}
+    The chat panel's toggle: first under the brand and drawn as a button, since it opens
+    a panel rather than going to a page — and the bottom-right corner, the usual spot,
+    already belongs to the highlighter's button (highlight.js). A link inside a
+    nav-group, so the collapsed rail treats it like any nav item; chat.js stops the jump
+    and adds the ⌘K shortcut the hint advertises.
+    {% endcomment %}
+    {% if chat_enabled %}
+    <div class="nav-group nav-ask">
+      <a href="#chat" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel"
+         title="Ask Claude (⌘K)">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chat"/></svg><span>Ask Claude</span>
+        <span class="nav-kbd" aria-hidden="true">⌘K</span></a>
+    </div>
+    {% endif %}
 
     <div class="nav-group">
       <div class="nav-label">Tracker</div>
@@ -238,5 +260,26 @@ one — the head, the stylesheet and the title convention all stay shared.
   </main>
 
 </div>
+
+{% block chat %}
+{% if chat_enabled %}
+<aside id="chat-panel" class="chat-panel" aria-label="Chat with Claude">
+  <div class="chat-resize" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
+  <header class="chat-head">
+    <strong>Claude</strong>
+    <span class="chat-sid"></span>
+    <button type="button" class="chat-new" title="Start a new conversation">New</button>
+    <button type="button" class="chat-close" aria-label="Close">×</button>
+  </header>
+  {# Filled by chat.js after the first turn: context size, plan limits, cost so far. #}
+  <div class="chat-usage" hidden></div>
+  <div class="chat-log" aria-live="polite"></div>
+  <form class="chat-form">
+    <textarea rows="3" placeholder="Ask about this page, or run a /jobstudio subcommand…  (Enter to send, Shift+Enter for a new line)"></textarea>
+    <button type="submit">Send</button>
+  </form>
+</aside>
+{% endif %}
+{% endblock %}
 </body>
 </html>

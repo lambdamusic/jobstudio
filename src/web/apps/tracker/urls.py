@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import chat, views
 
 app_name = "tracker"
 
@@ -47,4 +47,6 @@ urlpatterns = [
     path("actions/open-file/", views.open_file, name="open_file"),
     path("actions/reveal-company/<slug:slug>/", views.reveal_company_notes, name="reveal_company_notes"),
     path("actions/reveal-note/<slug:slug>/", views.reveal_note, name="reveal_note"),
+    # The chat panel (prototype): one headless `claude -p` turn per POST, streamed back.
+    path("actions/chat/", chat.chat_send, name="chat_send"),
 ]

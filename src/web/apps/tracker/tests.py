@@ -1028,7 +1028,10 @@ class ViewTests(TestCase):
             html = self.client.get(url).content.decode()
             hrefs = re.findall(r'href="([^"]+)"', html)
             with self.subTest(url=url):
-                self.assertEqual([h for h in hrefs if "?" in h and not h.startswith("http")], [])
+                # Static assets are exempt: their `?v=` is a cache-buster on a file, not
+                # a page addressed by querystring (STORAGES in settings.py).
+                self.assertEqual([h for h in hrefs if "?" in h and not h.startswith("http")
+                                  and not h.startswith(settings.STATIC_URL)], [])
 
     def test_markdown_is_rendered_not_escaped(self):
         app = Application.objects.exclude(folder="").first()
@@ -4358,7 +4361,7 @@ class InterviewRoundTests(TestCase):
         self.assertIn('<code class="language-mermaid">flowchart LR\n', html)
         self.assertIn("A[&quot;x&lt;br/&gt;y&quot;] --&gt; B", html)
         page = self.client.get("/").content.decode()
-        self.assertIn('js/diagrams.js" data-mermaid="', page)
+        self.assertRegex(page, r'js/diagrams\.js(\?v=\d+)?" data-mermaid="')
 
     def test_a_reference_to_a_markdown_file_links_to_its_page(self):
         """#78: a path in prose, in backticks or not, links to the page that renders the

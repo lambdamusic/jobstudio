@@ -1298,6 +1298,17 @@ HELP_FAQ = [
          "Need a PDF anyway? Open the .docx in Word or Pages and export one — a single "
          "step, and a better PDF than the toolkit ever produced.",
      ]},
+    {"question": "What is Ask Claude, and what does it cost?",
+     "answer": [
+         "The button at the top of the sidebar (or ⌘K) opens a chat with the same Claude "
+         "Code you would run in a terminal here: same skill, same data. Each message runs "
+         "one headless claude turn on the account the terminal is signed into, so on a "
+         "Claude plan it counts against the plan's usage, shown in the bar under the "
+         "panel's header, not against an API bill.",
+         "It cannot ask you for permission mid-turn, so anything not already allowed, "
+         "edits to your files included, comes back as a card: Allow & retry grants it "
+         "for the rest of that conversation. docs/chat-panel.md has the details.",
+     ]},
 ]
 
 

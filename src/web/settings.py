@@ -10,7 +10,7 @@ already holds the pipeline scripts (render.py, appfolder.py, ...). src/ itself i
 sys.path-appended so this app can reuse those parsers instead of duplicating them.
 """
 
-import os, sys
+import os, shutil, sys
 
 # ---------------------------------------------------------------------------
 # Tests run against the example data root, never against a real job search.
@@ -116,6 +116,22 @@ FIXTURE_DIRS = [os.path.join(SITE_ROOT, "example-data", "backups", "django")]
 # Two words with a space is the DISPLAY form only; the package, repo and command stay
 # `jobstudio`, unhyphenated (plan §2e).
 APP_NAME = "Job Studio"
+
+# Every static URL carries the file's mtime (`?v=…`), so an edited stylesheet or script
+# is fetched on the next page load instead of needing a hard reload. A plain
+# StaticFilesStorage otherwise: no collectstatic, no manifest.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "tracker.storage.VersionedStaticFilesStorage"},
+}
+
+# The chat panel (apps/tracker/chat.py, docs/chat-panel.md) drives Claude Code's own
+# `claude` command, so it is on only where that command is installed. A
+# local_settings.py may set either value. The permission mode is Claude Code's: in
+# "default", anything the settings files do not already allow — edits included — comes
+# back to the panel as a card to allow; "acceptEdits" lets file edits through unasked.
+CHAT_ENABLED = globals().get("CHAT_ENABLED", shutil.which("claude") is not None)
+CHAT_PERMISSION_MODE = globals().get("CHAT_PERMISSION_MODE", "default")
 
 # ---------------------------------------------------------------------------
 # Project-specific paths — the markdown/data tree this app reads from.
