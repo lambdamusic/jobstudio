@@ -1,19 +1,25 @@
 {% extends "base.html" %}{% load jobs_extras %}
 {% block title %}{{ note.title }}{% endblock %}
 {% block content %}
-<div class="crumb"><a href="/notes/">Notes</a> / <a href="/notes/#{{ note.group|default:'other' }}">{{ note.group_label }}</a> / {{ note.short }}</div>
+<div class="crumb"><a href="/notes/">Notes</a> / <a href="/notes/#{{ note.group }}">{{ note.group_label }}</a> / {{ note.short }}</div>
 <div class="page-head">
   <h1>{{ note.title }}</h1>
   {% comment %}
-  The applications whose folders link here, worked out from the links (`_note_backlinks`):
-  what a note was written for, and where else it has been used, without upkeep.
+  The application the note was first written for, read from its own opening line
+  (`_note_origin`). Only the first: a topic note is reused across many applications, and
+  a list of all of them only grew without saying more.
   {% endcomment %}
-  {% if note.used_in %}
-    <p class="note-used-in">Used in
-      {% for a in note.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }} — {{ a.role }}</a>{% endfor %}
+  {% if note.origin %}
+    <p class="note-used-in">First written for
+      <a href="/applications/{{ note.origin.num }}/">#{{ note.origin.num }} {{ note.origin.company_name }} — {{ note.origin.role }}</a>
     </p>
   {% endif %}
 </div>
+{% if IS_LOCAL %}
+  <div class="actions">
+    <a class="btn local-only" href="/actions/reveal-note/{{ note.slug }}/">Open folder</a>
+  </div>
+{% endif %}
 {% comment %}
 One note on its own page, with its Contents list. Anchors are slug-prefixed, so a section
 link stays unique wherever the note is shown.
@@ -22,4 +28,27 @@ link stays unique wherever the note is shown.
   {% include "tracker/_doc_sections.html" with sections=note.doc.sections %}
   {% include "tracker/_doc_body.html" with doc=note.doc qa=False open=True %}
 </div>
+
+{% comment %}
+Every note, organised as on the Notes page, so the next one is a click away from the
+bottom of this one. The same box as an application's documents index (`#97`).
+{% endcomment %}
+<section class="index-box" aria-label="Notes index">
+  <h2 class="index-box-kicker">Notes index</h2>
+  <div class="index-box-groups">
+    {% for g in note_groups %}
+      <h3 class="index-box-title">{{ g.label }}</h3>
+      {% for sec in g.sections %}
+        <div class="index-box-group">
+          {% if sec.label %}<h4>{{ sec.label }}</h4>{% endif %}
+          <ul>
+            {% for n in sec.notes %}
+              <li>{% if n.slug == note.slug %}<span class="index-box-current" aria-current="page">{{ n.title }}</span>{% else %}<a href="/notes/{{ n.slug }}/">{{ n.title }}</a>{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}

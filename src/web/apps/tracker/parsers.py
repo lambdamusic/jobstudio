@@ -288,8 +288,80 @@ def section_label(raw: str) -> str:
     return out.strip()
 
 
+# The Q/A convention of interview files, and of any note or study file that borrows it: a
+# line opening `**Q:** …`, optionally as a bullet. Only the five markers the prep template
+# uses (Q and A, plus STAR). Shared with `mark_qa`, which colours what this finds — the two
+# have to agree on what a question is, because the page numbers questions by position.
+QA_OPENER = re.compile(r"^(?P<lead>[ \t]*(?:[-*+][ \t]+)?)\*\*(?P<who>Q|A|S|T|R):\*\*")
+# Anything that ends a wrapped question: a blank line, a heading, or a new list item.
+QA_BREAK = re.compile(r"^(?:[ \t]*$|[ \t]*#|[ \t]*(?:[-*+]|\d+[.)])[ \t])")
+
+# A heading that is itself the question. Rounds written before the `**Q:**` convention
+# (2026-09-24) did this — `#### Why do you want to leave?`, `### A1. "Walk me through a
+# platform you architected."` — and so does the answer bank, `### "Tell me about
+# yourself"`. Loose for interview rounds, where a heading that asks or quotes anything is
+# a question. Strict everywhere else (2026-10-15), where headings are topics and a quoted
+# product name is common: the heading has to open with the quote, after an optional
+# `A1.`-style label, or end with a question mark.
+QUESTION_HEADING = re.compile(r'\?|"[^"]+"|\u201c[^\u201d]+\u201d')
+QUESTION_HEADING_STRICT = re.compile(r'^(?:[A-Z]?\d+[.)][ \t]*)?["\u201c]|\?[ \t]*$')
+
+
+def is_question_heading(label: str, loose: bool = False) -> bool:
+    """Whether a heading's text asks the question its section answers."""
+    return bool((QUESTION_HEADING if loose else QUESTION_HEADING_STRICT).search(label))
+
+
 def _is_fence(line: str) -> bool:
     return line.startswith("```") or line.startswith("~~~")
+
+
+def _unique_sub_anchor(slug: str, block: dict, blocks: list[dict]) -> str:
+    """A `###` anchor no other heading in the document already uses (2026-10-14).
+
+    A note that gives every `##` the same subheadings — What it is, Stack, Scale — minted
+    the same id once per section, and every pill and link landed on the first. The first
+    use keeps the bare slug, so links written before this still resolve; a repeat is
+    scoped by its section's slug, and numbered only if that is taken too. Every `###`
+    gets an entry, which `number_sections` relies on: it stamps ids by position.
+    """
+    used = {b["anchor"] for b in blocks} | {s["anchor"] for b in blocks for s in b["subsections"]}
+    if slug not in used:
+        return slug
+    candidate, n = f"{block['anchor']}-{slug}", 2
+    while candidate in used:
+        candidate, n = f"{block['anchor']}-{slug}-{n}", n + 1
+    return candidate
+
+
+def _add_question(block: dict, text: str) -> None:
+    """Record one `**Q:**` question under the heading it sits beneath: the last `###` so
+    far, or the `##` itself when it comes before any. Numbered later, once the block is
+    complete (see `_number_questions`)."""
+    sub = block["subsections"][-1] if block["subsections"] else None
+    block["questions"].append({"label": section_label(text), "sub": sub})
+
+
+def _number_questions(block: dict) -> None:
+    """Number and anchor a block's questions, now that its headings are all known (2026-10-15).
+
+    A question is numbered under its heading: the third under `3.1` is `3.1.3`. One that
+    comes before the first `###` takes `3.0.n` when the block has subsections, so it can't
+    be mistaken for the `3.1` below it, and plain `3.n` when it has none. The anchor
+    extends the heading's, so a link to a question survives the section being renumbered.
+    """
+    counts: dict[str, int] = {}
+    for q in block["questions"]:
+        sub = q.pop("sub")
+        if sub is not None:
+            head, anchor = sub["number"], sub["anchor"]
+        else:
+            head = f"{block['number']}.0" if block["subsections"] else block["number"]
+            anchor = block["anchor"]
+        counts[anchor] = counts.get(anchor, 0) + 1
+        q["number"] = f"{head}.{counts[anchor]}"
+        q["anchor"] = f"{anchor}--q{counts[anchor]}"
+        q["parent"] = anchor
 
 
 def split_sections(body_md: str) -> dict:
@@ -317,13 +389,29 @@ def split_sections(body_md: str) -> dict:
     preamble: list[str] = []
     blocks: list[dict] = []
     in_fence = False
+    question: list[str] | None = None  # the lines of a `**Q:**` still being read
+
+    def end_question():
+        nonlocal question
+        if question is not None and blocks:
+            _add_question(blocks[-1], " ".join(question))
+        question = None
 
     for raw in lines:
         line = raw.strip()
+        if question is not None:
+            opener = QA_OPENER.match(raw)
+            if opener or QA_BREAK.match(raw) or _is_fence(line):
+                end_question()
+            else:
+                question.append(line)
         if _is_fence(line):
             in_fence = not in_fence
         is_h2 = not in_fence and line.startswith("## ") and not line.startswith("### ")
         is_h3 = not in_fence and line.startswith("### ") and not line.startswith("#### ")
+        opener = None if in_fence else QA_OPENER.match(raw)
+        if opener and opener.group("who") == "Q" and blocks and not is_h2:
+            question = [raw[opener.end():].strip()]
 
         if is_h2:
             label = section_label(line[3:].rstrip("#"))
@@ -335,6 +423,7 @@ def split_sections(body_md: str) -> dict:
                 "private": slug.startswith(PRIVATE_SECTION_PREFIX),
                 "lines": [],
                 "subsections": [],
+                "questions": [],
             })
             continue
 
@@ -345,19 +434,18 @@ def split_sections(body_md: str) -> dict:
         block = blocks[-1]
         if is_h3:
             label = section_label(line[4:].rstrip("#"))
-            slug = section_slug(label)
-            # A repeated subheading inside one block is indexed once — a second pill
-            # would be an anchor pointing at the first, which is worse than no pill.
-            if slug not in {s["anchor"] for s in block["subsections"]}:
-                block["subsections"].append({
-                    "number": f"{block['number']}.{len(block['subsections']) + 1}",
-                    "label": label,
-                    "anchor": slug,
-                })
+            block["subsections"].append({
+                "number": f"{block['number']}.{len(block['subsections']) + 1}",
+                "label": label,
+                "anchor": _unique_sub_anchor(section_slug(label), block, blocks),
+                "question": is_question_heading(label),
+            })
         block["lines"].append(raw)
+    end_question()
 
     for block in blocks:
         block["body_md"] = "\n".join(block.pop("lines")).strip("\n")
+        _number_questions(block)
 
     # The leading `# Title` is dropped here rather than by `strip_h1` in the template:
     # every round file opens with one, the page renders the title itself, and leaving it
@@ -368,14 +456,26 @@ def split_sections(body_md: str) -> dict:
     return {"preamble": text, "blocks": blocks}
 
 
+def demote_headings(text: str) -> str:
+    """Every `##` to `#####` heading down a level, outside code fences."""
+    out, in_fence = [], False
+    for line in text.split("\n"):
+        if _is_fence(line.strip()):
+            in_fence = not in_fence
+        elif not in_fence and re.match(r"^#{2,5} ", line):
+            line = "#" + line
+        out.append(line)
+    return "\n".join(out)
+
+
 def subsection_md(block_md: str, slug: str) -> str | None:
     """The body of the `###` subsection whose heading slugs to `slug`, from one block's
     markdown — the lines after that heading, up to the next `###` or the block's end.
     None when there is no such heading. Fence-aware, like `split_sections`.
 
     For pulling one part of a document onto another page: a round's tasks out of
-    `notes.md`'s `## To do` (`#84`). Feed it a block already through `sectioned()`, so a
-    task checkbox keeps the file-wide index that writes the tick back to the right line.
+    `todo.md` (`#84`). Feed it text already through `sectioned()`, so a task checkbox keeps
+    the file-wide index that writes the tick back to the right line.
     """
     out: list[str] | None = None
     in_fence = False
@@ -394,17 +494,89 @@ def subsection_md(block_md: str, slug: str) -> str | None:
     return "\n".join(out).strip("\n") if out is not None else None
 
 
+# A task's round tag, `@hiring-manager`, as the last word of a line that has text before
+# it — so an indented `@decorator` in a code sample is left alone. Shown as a badge.
+_TASK_TAG = re.compile(r"(?<=\S[ \t])@([a-z][a-z0-9-]*)[ \t]*$", re.M)
+
+# The "How this list works" paragraph that opens `todo.md` (`TODO_GUIDE` in
+# `src/appfolder.py`). It explains the file to whoever edits it by hand, so on the page it
+# is classed as a muted how-to note (`howto-note`, shared with the answer bank's intros)
+# rather than read as part of the list.
+_TODO_GUIDE = re.compile(r"(?m)^\*How this list works\.\*(?:.+\n?)+")
+
+# A top-level list item, which runs until the next line that is neither blank nor indented.
+_ITEM = re.compile(r"^(?:[-*+]|\d+[.)])[ \t]+")
+
+
+def tagged_md(block_md: str, tag: str) -> str | None:
+    """The list items in one block that carry `@<tag>`, still under their `###` theme
+    headings — the tag layout of `todo.md`, where themes are the headings and the round
+    is a marker on the task. None when no item carries the tag.
+
+    Like `subsection_md`, feed it a block already through `sectioned()`, so each checkbox
+    keeps its file-wide index: the same task shown here and on the To do tab is one line in
+    todo.md, and ticking it on either page writes that line.
+    """
+    mark = re.compile(rf"(?<![\w@])@{re.escape(tag)}(?![\w-])", re.I)
+    themes: list[tuple[str | None, list[str]]] = [(None, [])]
+    item: list[str] | None = None
+    in_fence = False
+
+    def close():
+        if item and mark.search("\n".join(item)):
+            themes[-1][1].append("\n".join(item).rstrip())
+
+    for raw in block_md.splitlines():
+        line = raw.strip()
+        if _is_fence(line):
+            in_fence = not in_fence
+            if raw[:1] not in " \t":  # an unindented fence is not part of any item
+                close()
+                item = None
+                continue
+        if not in_fence and line.startswith("### ") and not line.startswith("#### "):
+            close()
+            item = None
+            themes.append((raw, []))
+            continue
+        if not in_fence and _ITEM.match(raw):
+            close()
+            item = [raw]
+        elif item is not None and (not line or raw[:1] in " \t" or in_fence):
+            item.append(raw)
+        else:
+            close()
+            item = None
+    close()
+    parts = [(f"{h}\n\n" if h else "") + "\n".join(items)
+             for h, items in themes if items]
+    return "\n\n".join(parts) if parts else None
+
+
 def section_index(blocks: list[dict]) -> list[dict]:
-    """The flat pill row: every block and subsection, in page order, with its number."""
+    """The contents: every block and subsection, in page order, with its number — and
+    since 2026-10-15 every `**Q:**` question under the heading it sits beneath (level 4),
+    so a question can be found without scrolling the answers."""
     out = []
     for block in blocks:
+        questions = block.get("questions", [])
+
+        def under(anchor):
+            return [{"number": q["number"], "label": q["label"], "anchor": q["anchor"],
+                     "level": 4, "question": True, "private": block["private"],
+                     "parent": block["anchor"]}
+                    for q in questions if q["parent"] == anchor]
+
         out.append({"number": block["number"], "label": block["label"],
                     "anchor": block["anchor"], "level": 2,
                     "private": block["private"], "parent": block["anchor"]})
+        out += under(block["anchor"])
         for sub in block["subsections"]:
             out.append({"number": sub["number"], "label": sub["label"],
                         "anchor": sub["anchor"], "level": 3,
+                        "question": sub.get("question", False),
                         "private": block["private"], "parent": block["anchor"]})
+            out += under(sub["anchor"])
     return out
 
 
@@ -607,13 +779,18 @@ def sectioned(body_md: str, prefix: str, glossary: list[dict] | None = None,
 
     # Marks before tasks, and both before splitting: each is counted across the whole
     # file, so an index on the page is an index into the file.
-    body_md = render_tasks(render_marks(body_md, source), source)
+    body_md = _TASK_TAG.sub(r'<span class="task-tag">@\1</span>',
+                            render_tasks(render_marks(body_md, source), source))
+    body_md = _TODO_GUIDE.sub(lambda m: m[0].rstrip("\n") + "\n{: .howto-note }\n", body_md)
     split = split_sections(body_md)
     blocks = [
         {**b,
          "anchor": f"{prefix}--{b['anchor']}",
          "subsections": [{**sub, "anchor": f"{prefix}--{sub['anchor']}"}
-                         for sub in b["subsections"]]}
+                         for sub in b["subsections"]],
+         "questions": [{**q, "anchor": f"{prefix}--{q['anchor']}",
+                        "parent": f"{prefix}--{q['parent']}"}
+                       for q in b["questions"]]}
         for b in split["blocks"]
     ]
     preamble = link_glossary(blocks, split["preamble"], prefix, glossary)
@@ -681,6 +858,122 @@ _COUNTABLE_RE = re.compile(r"(?m)^(?:\| \*\*|\| \[|- \*\*|- \[)")
 def _slugify(text: str) -> str:
     return _SLUG_RE.sub("-", text.lower()).strip("-")
 
+
+# A Contacts bullet that opens with a name, in any of the four ways the notes write one:
+# `**Name**`, `**[Name](url)**`, `[**Name**](url)` or `[Name](url)`. A colon may sit
+# inside the bold (`**Peter:**`, `**[Julian](url):**`). Anything else — `⚠️ **Application email: …**`,
+# `Recruiter: name not yet known` — is a note about contacting them, not a person.
+_PERSON_LEAD = re.compile(
+    r"^(?:\*\*\[(?P<a>[^\]\n]+)\]\((?P<au>[^)\s]+)\):?\*\*"
+    r"|\[\*\*(?P<b>[^*\]\n]+)\*\*\]\((?P<bu>[^)\s]+)\)"
+    r"|\*\*(?P<c>[^*\n]+?)\*\*"
+    r"|\[(?P<d>[^\]\n]+)\]\((?P<du>[^)\s]+)\))")
+_PERSON_SEP = re.compile(r"^\s*(?:[:—–-]\s*)?")
+_LINKEDIN = re.compile(r"https?://(?:[a-z]{2,3}\.)?linkedin\.com/in/[^)\s>]+")
+
+
+def people_of(notes_md: str) -> dict | None:
+    """The people in `notes.md`'s `## Contacts`, for the People tab.
+
+    The section stays the one place a person is written down: one top-level bullet each,
+    name first, then their role and part in the process, continuation lines and
+    sub-bullets indented beneath. Returns `people` (each with `name`, `url` — the link
+    on the name, if any — `key` for matching them in round files, `anchor`, and `body_md`,
+    the bullet minus its name), `other_md` (whatever in the section is not a person, so
+    the tab still shows it), and `notes_md` with the section removed, since the tab
+    replaces it on My notes. None when the section names nobody: then it stays where it
+    is and there is no tab.
+    """
+    m = re.search(r"(?m)^## Contacts[ \t]*\n", notes_md or "")
+    if not m:
+        return None
+    end = re.search(r"(?m)^## ", notes_md[m.end():])
+    stop = m.end() + end.start() if end else len(notes_md)
+    section = notes_md[m.end():stop]
+
+    items: list[list[str]] = []  # top-level bullets, each with its continuation lines
+    other: list[str] = []
+    for line in section.splitlines():
+        if line.startswith(("- ", "* ")):
+            items.append([line[2:]])
+        elif items and (line.startswith((" ", "\t")) or not line.strip()):
+            items[-1].append(line)
+        else:
+            other.append(line)
+
+    people, seen = [], set()
+    for item in items:
+        lead = _PERSON_LEAD.match(item[0])
+        if not lead:
+            other.append("- " + "\n".join(item).rstrip())
+            continue
+        name = next(lead[k] for k in "abcd" if lead[k]).strip().rstrip(":").strip()
+        first = _PERSON_SEP.sub("", item[0][lead.end():], count=1)
+        rest = [ln[2:] if ln.startswith("  ") else ln.lstrip("\t") for ln in item[1:]]
+        # The name's own link, else a LinkedIn profile given further on
+        # (`… [LinkedIn](url)`), so the name is a link whenever there is a profile.
+        url = (lead["au"] or lead["bu"] or lead["du"]
+               or next(iter(_LINKEDIN.findall("\n".join([first, *rest]))), None))
+        key = _TRAILING_PAREN_RE.sub("", name).strip()
+        anchor = base = f"person-{_slugify(key)}"
+        n = 1
+        while anchor in seen:
+            n += 1
+            anchor = f"{base}-{n}"
+        seen.add(anchor)
+        people.append({
+            "name": name,
+            "url": url,
+            # One-word names ("Peter (surname not given)") would match every round
+            # that mentions anyone called Peter, so they are not looked for.
+            "key": key if len(key.split()) > 1 else "",
+            "anchor": anchor,
+            # A blank line before sub-bullets, or Markdown runs them into the paragraph.
+            "body_md": "\n".join([first, *([""] if rest and _ITEM.match(rest[0].lstrip()) else []),
+                                  *rest]).strip(),
+        })
+    if not people:
+        return None
+    return {
+        "people": people,
+        "other_md": "\n".join(other).strip(),
+        "notes_md": (notes_md[:m.start()] + notes_md[stop:]).rstrip() + "\n",
+    }
+
+
+
+def timeline_of(notes_md: str) -> dict | None:
+    """`notes.md`'s `## Timeline`, for the Record tab: `timeline_md`, the section's body, and
+    `notes_md` with the section removed, since Record shows it instead of My notes. The
+    skill appends a dated line here at every step, so it is the application's history in
+    prose, and it reads best beside the status changes rather than among working notes.
+    None when there is no section, or it is empty: then My notes is left alone."""
+    m = re.search(r"(?m)^## Timeline[ \t]*\n", notes_md or "")
+    if not m:
+        return None
+    end = re.search(r"(?m)^## ", notes_md[m.end():])
+    stop = m.end() + end.start() if end else len(notes_md)
+    body = notes_md[m.end():stop].strip()
+    if not body:
+        return None
+    return {"timeline_md": body,
+            "notes_md": (notes_md[:m.start()] + notes_md[stop:]).rstrip() + "\n"}
+
+
+def with_timeline_line(notes_md: str, line: str) -> str:
+    """`notes_md` with `line` (one `- **date:** …` bullet) appended to its `## Timeline`,
+    after the last entry and before the next section. A file with no Timeline gets one at
+    the end: that is where `timeline_of()` looks, and where the skill writes too."""
+    notes_md = notes_md or ""
+    m = re.search(r"(?m)^## Timeline[ \t]*\n", notes_md)
+    if not m:
+        return (notes_md.rstrip() + "\n\n" if notes_md.strip() else "") + f"## Timeline\n\n{line}\n"
+    end = re.search(r"(?m)^## ", notes_md[m.end():])
+    stop = m.end() + end.start() if end else len(notes_md)
+    body = notes_md[m.end():stop].strip()
+    body = f"{body}\n{line}" if body else line
+    tail = notes_md[stop:]
+    return notes_md[:m.end()] + "\n" + body + "\n" + ("\n" + tail if tail else "")
 
 # "### Company" or "### Company (12)" — the per-company subheadings scan-portals.py
 # emits for Strong/Other matches and the two before-scoring exclusion buckets.

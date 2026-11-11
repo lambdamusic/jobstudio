@@ -28,6 +28,7 @@ urlpatterns = [
     path("areas/", views.area_list, name="area_list"),
     path("notes/", views.note_list, name="note_list"),
     path("notes/<slug:slug>/", views.note_detail, name="note_detail"),
+    path("notes/<slug:slug>/<path:rel>", views.note_image, name="note_image"),
     path("profile/", views.profile_view, name="profile"),
     path("help/", views.help_view, name="help"),
     # Bare path defaults to the latest report (day-to-day view); "all" is the dated
@@ -42,7 +43,8 @@ urlpatterns = [
     path("actions/task/", views.toggle_task, name="toggle_task"),
     path("actions/highlight/", views.highlight, name="highlight"),
     path("actions/create-folder/<int:num>/", views.create_folder, name="create_folder"),
-    path("actions/set-status/<int:num>/<slug:status>/", views.set_status, name="set_status"),
+    path("actions/set-status/<int:num>/", views.update_status, name="update_status"),
     path("actions/open-file/", views.open_file, name="open_file"),
     path("actions/reveal-company/<slug:slug>/", views.reveal_company_notes, name="reveal_company_notes"),
+    path("actions/reveal-note/<slug:slug>/", views.reveal_note, name="reveal_note"),
 ]

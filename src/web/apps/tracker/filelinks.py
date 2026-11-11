@@ -8,7 +8,7 @@ only ever turned into a link that works, never into a guess.
 
 Forms resolved, relative to the data root (a leading `<DATA>/` is dropped):
 
-    jobs/notes/[<group>/]<slug>.md        ->  /notes/<slug>/
+    jobs/notes/[<folder>/...]<slug>.md    ->  /notes/<slug>/   (at any depth)
     jobs/companies/<slug>.md              ->  /companies/<slug>/
     jobs/profile/stocktake.md             ->  /profile/
     jobs/cv/base/<slug>.md                ->  /cvs/base/<slug>/
@@ -39,6 +39,8 @@ _CODE = re.compile(r"<code>([^<]+)</code>")
 _HREF = re.compile(r'(<a\s[^>]*?href=")([^"#]+\.md)(#[^"]*)?(")')
 # Text between tags, and the tags whose content is never touched: an existing link, a
 # code block, and the bracketed `<code>` spans handled on their own.
+# A link to a note's page, as a markdown file writes it: `/notes/<slug>/`, maybe with an anchor.
+_NOTE_LINK = re.compile(r"(?<![\w./-])/notes/([\w-]+)/")
 _SKIP = re.compile(r"(<a\b.*?</a>|<pre\b.*?</pre>|<code>.*?</code>|<[^>]+>)", re.S | re.I)
 
 
@@ -59,6 +61,8 @@ def _app_target(folder_rel: str, name: str) -> str | None:
     rel_name = Path(name).name
     if name == "notes.md":
         return base + "#notes"
+    if name == "todo.md":
+        return base + "#todo"
     if name == "job.md":
         return base + "#job"
     if "/" not in name and is_interview_filename(rel_name):
@@ -74,8 +78,10 @@ def _resolve_path(rel: str) -> str | None:
     """A data-root-relative path to its page, or None."""
     root = _data_root()
     parts = rel.split("/")
-    # A note may sit in a group subfolder; its URL is the filename alone either way.
-    if parts[:2] == ["jobs", "notes"] and len(parts) in (3, 4):
+    # A note may sit at any depth (`search/direction/`, `topics/product/`, 2026-10-22: two
+    # levels was the old ceiling, and nested notes stayed text); its URL is the filename
+    # alone either way, as the Notes page serves it.
+    if parts[:2] == ["jobs", "notes"] and len(parts) >= 3:
         return f"/notes/{Path(parts[-1]).stem}/" if (root / rel).is_file() else None
     if parts[:2] == ["jobs", "companies"] and len(parts) == 3:
         from .models import Company
@@ -93,13 +99,12 @@ def _resolve_path(rel: str) -> str | None:
 
 def _resolve_bare(name: str) -> str | None:
     """A filename with no directory, when exactly one place holds it."""
-    if name in ("notes.md", "job.md"):
+    if name in ("notes.md", "todo.md", "job.md"):
         return None
     candidates = [f"jobs/companies/{name}", f"jobs/profile/{name}", f"jobs/cv/base/{name}"]
     notes = _data_root() / "jobs" / "notes"
     if notes.is_dir():
-        candidates += [p.relative_to(_data_root()).as_posix() for p in notes.rglob(name)
-                       if len(p.relative_to(notes).parts) <= 2]
+        candidates += [p.relative_to(_data_root()).as_posix() for p in notes.rglob(name)]
     # A file named by the folder convention starts with its folder's name.
     m = re.match(r"(\d{3}-[a-z0-9-]+?)-", name)
     if m:
@@ -117,6 +122,22 @@ def resolve(ref: str) -> str | None:
     if not ref.endswith(".md") or ".." in ref.split("/"):
         return None
     return _resolve_path(ref) if "/" in ref else _resolve_bare(ref)
+
+
+def linked_note_slugs(text: str) -> set[str]:
+    """The notes a markdown file points at, as a page link or as a file reference (`#97`).
+
+    The lookbehind keeps out a `jobs/notes/topics/` path, whose folder is not a note, and
+    an external URL that happens to contain `/notes/`. A slug may still name no note; the
+    caller decides that when it looks the note up.
+    """
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
+    slugs = set(_NOTE_LINK.findall(text))
+    for m in _REF.finditer(text):
+        url = resolve(m.group(0))
+        if url and url.startswith("/notes/"):
+            slugs.add(url.split("/")[2])
+    return slugs
 
 
 def link_file_refs(rendered: str) -> str:

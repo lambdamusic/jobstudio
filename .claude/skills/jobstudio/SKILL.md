@@ -34,6 +34,7 @@ When the argument is `help` or no argument is given, output ONLY the following a
 | `status` | Dashboard summary of companies and applications |
 | `scan` | Rescan tracked companies for new open roles, score matches, report for review |
 | `render` | Render an application's CV/cover letter to .docx (no API call) |
+| `dossier` | Put everything an application has gathered into one .docx to read |
 
 **Usage examples:**
 
@@ -65,6 +66,7 @@ Each subcommand has its own instruction file under `subcommands/`:
 | `status` | Dashboard: application counts by status/area, active applications, companies by category and fit |
 | `scan` | Run `python src/scan-portals.py` (mechanical fetch), then score live (agent-native, no API call); render with `python src/scan_report.py`; summarize the report: top matches, unscored roles, not-scanned companies |
 | `render` | Render a specific application's CV and cover letter to .docx, no API call |
+| `dossier [company or #N …] [--out <folder>]` | Everything in an application's Documents index (job description, the CV and cover letter as sent, notes, to-dos, interview rounds, company page, linked notes) as one .docx for reading, one file per application. No API call |
 
 **To execute a subcommand**: read the corresponding file in `subcommands/` and follow its instructions exactly.
 
@@ -125,17 +127,36 @@ it just isn't numbered. One task per item; detail can follow on indented lines.
 Lists that are not to-dos — questions, pros and cons, gaps, drafted answers — stay plain
 bullets.
 
-**An application's to-dos all live in one place: the `## To do` section of its
-`notes.md`**, first in the file, split by stage (TODO `#84`). `### Application` holds what
-comes before any interview; each round adds `### <Round label> — <YYYY-MM-DD>`, using the
-label the Interviews tab shows for the round (`HR screen`, `Hiring manager`, `Technical`,
-`Panel`, `Final round`, `Informal chat`, else the stage de-slugified) and the round's date.
-That pattern is fixed, not freehand: the round file links to its subsection by anchor
-(`#notes--<label-slug>-<date>`, e.g. `#notes--hiring-manager-2026-09-24`), and the round's
-focus page finds its tasks by the same name. Tasks that come *after* a call — a follow-up,
-a sample to send — go in that round's subsection too. No other checklist of the
-application's tasks is written anywhere else: not elsewhere in `notes.md`, not in a round
-file.
+**An application's to-dos all live in one place: its own `todo.md`** in the application
+folder (TODO `#84`), shown on the To do tab, grouped by **theme**, with the interview round
+as a **tag** on the task (TODO `#91`):
+
+- The file opens with the short "How this list works" paragraph (`TODO_GUIDE` in
+  `src/appfolder.py`, which `todo_stub()` writes) — the file explains itself to whoever
+  edits it by hand. Keep it; add it if an older file lacks it.
+- The `##` headings are four fixed themes, always in this order: **Domain**,
+  **Stories & positions**, **Tech & Data**, **Questions & Practicalities**
+  (`TODO_THEMES`). Put a new task under the closest one; do not invent others, and do not
+  add `## <Round> — <date>` headings.
+- Every task is `- [ ] **Short title.** Longer description.` — a bold title the eye can
+  scan, then the detail, on indented lines if it runs on.
+- A task meant for one interview round ends its description with that round's tag,
+  `@<stage>`: `@hr-screen`, `@hiring-manager`, `@technical`, `@panel`, `@final`,
+  `@informal` (the stage slug from the round file's name). An untagged task is general
+  prep. Tasks that come *after* a call — a follow-up, a sample to send — carry that
+  round's tag too.
+- A note on how a task went is an indented sub-bullet under it, written by the user
+  (`    - => answered in [interview prep](#round-…)`). Leave those alone.
+
+The round's focus page gathers the tasks tagged for it, under their themes. They are not
+copies: each checkbox is one line in `todo.md`, so a tick on either page is the same
+tick. No other checklist of the application's tasks is written anywhere else: not in
+`notes.md`, not in a round file.
+
+Older files may still use the earlier layout (`## Application` then one
+`## <Round label> — <YYYY-MM-DD>` per round). The app reads both, so do not migrate one
+unasked — but when adding to such a file, ask whether to convert it rather than mixing
+the two layouts.
 
 ## Highlights are the user's — keep them
 
@@ -159,23 +180,60 @@ full name, linked, and their role in the process — so a profile is found once 
 application. How a link is found when `## Contacts` lacks one, and the check it must
 pass before it is used, is in `subcommands/interview.md` (TODO `#85`).
 
+`## Contacts` is also what the application page's **People** tab shows, so keep its
+shape: one top-level bullet per person, the name first (`- **[Full Name](url):** role,
+part in the process, dates`), anything longer indented beneath. A bullet that does not
+open with a name (an application email, a portal link) is shown under the cards as a
+note, not as a person.
+
 ## Notes and their groups
 
-`<DATA>/jobs/notes/` has three subfolders, one tab each on the Notes page:
+`<DATA>/jobs/notes/` has three subfolders. The Notes page reads the folder tree as it
+stands: each folder straight under `notes/` is a tab (and a sidebar entry), each folder
+inside that is a section of the tab, both named after the folder; a note in no folder
+goes to an "Other notes" tab, and one straight in a tab's folder to its "Other notes"
+section. A new folder is a new tab or section, with no code to change:
 
-- `search/` — direction, reflection and leads, including `ideal-job-notes.md`
-  (which `scan` scoring reads in full).
-- `interviewing/` — `interview-technique.md`, with the answer bank `interview` reads and
-  appends to.
-- `topics/` — reusable prep: a technical subject or a sector landscape.
+- `search/` — direction, reflection and leads, in subfolders of its own (`direction/`,
+  `new-areas/`, …). `search/direction/ideal-job-notes.md` is read by path: `scan` scoring
+  reads it in full, and `stocktake` and `interview` draw on it, so it stays exactly there.
+- `interviewing/` — **about me**:
+  `interview-technique.md`, the answer bank for questions about *me* (who I am, why this
+  role, why I left, and the emotional-intelligence questions), which `interview` reads
+  and appends to; plus reference notes on what I built (how a product or pipeline worked,
+  my role, the figures). A story about a piece of work is told once, in the reference
+  note on that work, as a `### Story: …` heading next to the detail behind it.
+- `topics/` — **about the subject**: general, reusable prep, in one of four subfolders:
+  - `topics/product/` — product practice (discovery, strategy, delivery).
+  - `topics/data-architecture/` — system design, APIs, platforms, security.
+  - `topics/knowledge-graphs/` — entity resolution, ontologies, graph data.
+  - `topics/other/` — sector landscapes and anything else.
 
-**Study material that would serve another application goes to `topics/`, not into the
-application folder.** Name it for the topic (`topics/api-security.md`), open it with one
-italic line saying which application it started for and when, and keep only what is
-specific to that company or round in the application folder, linking the note as
-`/notes/<slug>/`. The Notes page lists every application whose folder links a note, so
-that link is also how the note keeps its context. The URL is the filename alone, so a
-note's name must be unique across the three folders.
+  A topic note carries the answers to questions about its subject, each a `###` under
+  `## Questions and answers`. It doesn't retell my stories; it says what a story shows
+  and links to it in the reference note (`/notes/<slug>/#…`).
+
+**Study material that would serve another application goes to `topics/<subfolder>/`, not
+into the application folder.** Name it for the topic (`topics/data-architecture/api-security.md`),
+open it with one italic line saying which application it started for and when, and keep
+only what is specific to that company or round in the application folder, linking the
+note as `/notes/<slug>/`. That company-specific part goes **in `notes.md`**, as a section
+under `## My notes` (or in the round file, if it is prep for one round), never in a
+separate study or research file that only says "see the note" plus a few lines. Nor
+does the note get a list of the applications it served: the Notes page works that out
+from the links. When a note straddles two subfolders, file it by what it mostly
+teaches; a note left straight in `topics/` still shows, under "Other notes", until it is
+sorted. The Notes page lists every application whose folder links a note, so that link is
+also how the note keeps its context. The URL is the filename alone, so a note's name must
+be unique across all the folders, and moving a note never breaks a `/notes/<slug>/` link —
+only a written path to it, which must then be updated.
+
+**Every note's images live in one folder, `<DATA>/jobs/notes/img/`**, and a note embeds one
+as `![What it shows](img/<name>.png)` wherever the note itself sits (2026-11-09). The app
+resolves `img/…` against `jobs/notes/`, not the note's folder, so moving a note never
+breaks an image, the same as a `/notes/<slug>/` link. Name an image for what it shows,
+date first (`2023-11-looker-deployment-architecture.png`), since all of them share the
+folder. An editor's markdown preview won't find them from a subfolder; the app will.
 
 ## Referring to another file
 
@@ -183,7 +241,7 @@ Write the path, in backticks: `` `jobs/notes/interviewing/interview-technique.md
 `` `jobs/companies/<slug>.md` ``, or a file in an application folder by its full name. The
 web app turns any reference to a file that has a page into a link to that page (TODO
 `#78`), so there is no need to write a markdown link or to work out a URL. Use the
-`jobs/...` form, not `<DATA>/...`, and not a bare `notes.md` or `job.md` — every
+`jobs/...` form, not `<DATA>/...`, and not a bare `notes.md`, `todo.md` or `job.md` — every
 application folder has one, so on its own it cannot be linked.
 
 ---
@@ -207,5 +265,7 @@ Invoke `application` (refresh mode) when the user says: "refresh this applicatio
 Invoke `scan` when the user says: "scan portals", "check for new postings", "run a portal scan", "any new roles at my tracked companies?", or similar.
 
 Invoke `stocktake` when the user says: "taking stock", "work out what's next", "run the stocktake", "build my career profile", "career anchors", "what am I looking for in my next role", or references Step 1 of the career-transition process.
+
+Invoke `dossier` when the user says: "export everything for #N", "put it all in one Word file", "something to read on the train/plane", "dossier for X".
 
 Invoke `interview` when the user says: "prep me for the interview", "help me prepare for X interview", "what will they ask me", "practice interview questions", "emotional intelligence questions", "STAR answers", "I have an interview with X", or references preparing for an actual interview (as opposed to the stocktake).

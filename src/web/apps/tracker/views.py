@@ -19,7 +19,7 @@ import config
 from django.conf import settings
 from django.db.models import Count, F, Max, Q
 from django.utils import timezone
-from django.http import Http404, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, Http404, HttpResponseNotAllowed, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from appfolder import COMPANY_STATUSES, STATUS_SORT_ORDER
@@ -847,16 +847,19 @@ def application_list(request, status=None, area=None, active=False, show_all=Fal
 def application_detail(request, num):
     app = get_object_or_404(
         Application.objects.select_related("company", "area"), num=num)
+    # Both are computed by scanning the folder, so resolve each once here
+    # rather than letting the template re-walk it per access.
+    interviews = app.interview_files
     return render(request, "tracker/application_detail.html", {
         "page": "applications",
         "nav_apps": "applications",
         "app": app,
         "cover_letters": app.cover_letter_files,
-        # Both are computed by scanning the folder, so resolve each once here
-        # rather than letting the template re-walk it per access.
-        "interviews": app.interview_files,
+        "interviews": interviews,
+        "people": app.people(interviews),
+        "documents": app.documents,
         # The status menu offers every status except the one it is already in.
-        "other_statuses": [s for s in STATUS_SORT_ORDER if s != app.status],
+        "all_statuses": STATUS_SORT_ORDER,
         "siblings": (Application.objects.filter(company_name=app.company_name)
                      .exclude(pk=app.pk).order_by(*BROWSE_ORDER)),
     })
@@ -959,15 +962,20 @@ def area_list(request):
 # File-backed pages — no DB rows, just markdown on disk
 # ---------------------------------------------------------------------------
 
-# The note groups, as subfolders of jobs/notes/, in the order /notes/ shows them. A note in
-# any other subfolder still shows, under that folder's name; one at the top level of
-# jobs/notes/, under "Other". Grouping is the folder, never a list kept in step by hand.
-NOTE_GROUPS = [
-    ("search", "My search", "Direction, reflection and leads: what I am aiming at, and why."),
-    ("interviewing", "Interviewing", "Technique, and the answer bank that interview prep draws on."),
-    ("topics", "Topics", "Reusable prep: technical subjects and sector landscapes, each started "
-                         "for one application and kept for the next."),
-]
+# The Notes page is the folder tree, read as it stands (2026-11-06): each folder straight
+# under jobs/notes/ is a tab, named after it, and each folder inside that is a section of
+# the tab. Nothing is listed by hand, so a new folder is a new tab the next time the page
+# loads. Until then the tabs and sections were named here (NOTE_GROUPS, NOTE_SECTIONS),
+# and interviewing/ shared a tab with topics/; every new folder meant an edit here first.
+#
+# The tab for notes straight in jobs/notes/, in no folder. Not `other`, so it cannot
+# merge with a folder of that name.
+LOOSE_NOTES_TAB = "other-notes"
+
+
+def _folder_name(folder: str) -> str:
+    """A folder as a tab or section reads it: `new-areas` is "New areas"."""
+    return folder.replace("-", " ").replace("_", " ").capitalize()
 
 
 def _notes_files():
@@ -990,9 +998,31 @@ def _notes_files():
     return out
 
 
+def _note_parts(path) -> tuple:
+    """The folders between jobs/notes/ and the note."""
+    return path.parent.relative_to(Path(settings.NOTES_DIR)).parts
+
+
 def _note_group(path) -> str:
-    rel = path.relative_to(Path(settings.NOTES_DIR))
-    return rel.parts[0] if len(rel.parts) > 1 else ""
+    """The tab a note shows under: its top-level folder, or LOOSE_NOTES_TAB in none."""
+    parts = _note_parts(path)
+    return parts[0] if parts else LOOSE_NOTES_TAB
+
+
+def _note_section(path) -> str:
+    """The section within its tab: the folder below the tab's, or "" straight in it. Any
+    deeper folder folds into its section rather than nesting a third level of headings."""
+    parts = _note_parts(path)
+    return parts[1] if len(parts) > 1 else ""
+
+
+def _group_label(slug: str) -> str:
+    return "Other notes" if slug == LOOSE_NOTES_TAB else _folder_name(slug)
+
+
+def note_tabs(slugs) -> list[str]:
+    """Tabs in the order the page shows them: by folder name, the loose notes last."""
+    return sorted(set(slugs), key=lambda g: (g == LOOSE_NOTES_TAB, g))
 
 
 def _note_summary(body: str) -> str:
@@ -1008,31 +1038,31 @@ def _note_summary(body: str) -> str:
     return text
 
 
-def _note_backlinks() -> dict[str, list]:
-    """slug → the applications whose folders link to that note (`/notes/<slug>/`, or the
-    file's path or bare filename), newest first. Computed from the links, so it needs no
-    upkeep: what a note was written for is whatever points at it."""
+# An application link — `/applications/58/` — as a note's opening lines write it.
+_APP_LINK = re.compile(r"/applications/(\d+)/")
+
+
+def _note_origin(body: str):
+    """The application a note was first written for, or None (2026-10-15).
+
+    Read from the note's own opening — everything before its first `##` — where a note
+    started for an application says so: *Started 2026-10-07, preparing a hiring-manager
+    round ([application 058](/applications/58/))*. The first application linked there is
+    the one.
+
+    This replaced a "Used in" line built from every application folder that links to the
+    note. A topic note is reused across many applications, so that list only grew, and it
+    said less than the one fact that stays fixed: what the note was started for. A note
+    started as general prep links none, and shows nothing.
+    """
     from .models import Application
 
-    slugs = [p.stem for p in _notes_files()]
-    if not slugs:
-        return {}
-    pattern = re.compile(r"(?:/notes/|notes/(?:[\w-]+/)?|\b)(" + "|".join(map(re.escape, slugs))
-                         + r")(?:/|\.md\b)")
-    out: dict[str, list] = {}
-    for app in Application.objects.exclude(folder="").order_by("-num"):
-        folder = app.folder_path
-        if folder is None:
-            continue
-        found = set()
-        for md in folder.rglob("*.md"):
-            found.update(pattern.findall(md.read_text(errors="ignore")))
-        for slug in found:
-            out.setdefault(slug, []).append(app)
-    return out
+    opening = re.split(r"(?m)^##\s", body, maxsplit=1)[0]
+    m = _APP_LINK.search(opening)
+    return Application.objects.filter(num=int(m.group(1))).first() if m else None
 
 
-def _note(path, backlinks=None):
+def _note(path):
     """One note, ready to render: its own title, and its sections (`#73`).
 
     The anchor prefix is the slug, which keeps a note's section ids distinct from any
@@ -1043,22 +1073,22 @@ def _note(path, backlinks=None):
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     group = _note_group(path)
     return {"slug": path.stem, "title": title, "short": P.short_title(title),
-            "group": group, "group_label": dict((g, l) for g, l, _ in NOTE_GROUPS).get(
-                group, group.replace("-", " ").capitalize() if group else "Other"),
+            "group": group, "group_label": _group_label(group),
             "body": body, "doc": P.sectioned(body, path.stem, source=_task_source(path)),
-            "used_in": (backlinks or {}).get(path.stem, [])}
+            "origin": _note_origin(body)}
 
 
-def _note_entry(path, backlinks) -> dict:
+def _note_entry(path) -> dict:
     """A note as the index lists it — no sectioning, which only its own page needs."""
     from datetime import date as _date
 
     body = path.read_text()
     title = P.first_heading(body) or path.stem.replace("-", " ").title()
     return {"slug": path.stem, "title": title, "summary": _note_summary(body),
+            "section": _note_section(path),
             "words": len(body.split()),
             "modified": _date.fromtimestamp(path.stat().st_mtime),
-            "used_in": backlinks.get(path.stem, [])}
+            "origin": _note_origin(body)}
 
 
 # The Career coach tab's name on /notes/, and the prefix on everything it anchors. Not a
@@ -1071,6 +1101,36 @@ def _size(path: Path) -> int:
     if path.is_dir():
         return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
     return path.stat().st_size
+
+
+def _coach_paths(root: Path) -> list[Path]:
+    """Every document in the career-coach folder, as the person would count them: hidden
+    files skipped, folders not counted, and an iWork document that is a folder on disk
+    counted once, as the one file it is to them."""
+    out = []
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root)
+        if any(part.startswith(".") for part in rel.parts):
+            continue
+        if any(Path(part).suffix in PACKAGE_SUFFIXES for part in rel.parts[:-1]):
+            continue
+        if path.is_dir() and path.suffix not in PACKAGE_SUFFIXES:
+            continue
+        out.append(path)
+    return out
+
+
+def nav_note_counts() -> dict[str, int]:
+    """How many notes each Notes tab holds, for the sidebar's sub-items (`#94`): notes per
+    group as the Notes page counts them, and the Career coach tab's documents."""
+    counts: dict[str, int] = {}
+    for path in _notes_files():
+        group = _note_group(path)
+        counts[group] = counts.get(group, 0) + 1
+    root = Path(settings.COACH_DIR)
+    if root.is_dir():
+        counts[COACH_TAB] = len(_coach_paths(root))
+    return counts
 
 
 def _coach():
@@ -1086,15 +1146,8 @@ def _coach():
     if not root.is_dir():
         return None
     top, nested, folders = [], [], {}
-    for path in sorted(root.rglob("*")):
+    for path in _coach_paths(root):
         rel = path.relative_to(root)
-        if any(part.startswith(".") for part in rel.parts):
-            continue
-        # An iWork document can be a folder on disk; it is one file to the person.
-        if any(Path(part).suffix in PACKAGE_SUFFIXES for part in rel.parts[:-1]):
-            continue
-        if path.is_dir() and path.suffix not in PACKAGE_SUFFIXES:
-            continue
         anchor = f"{COACH_TAB}--" + re.sub(r"[^a-z0-9]+", "-", rel.with_suffix("").as_posix().lower()).strip("-")
         if path.suffix == ".md":
             body = path.read_text()
@@ -1110,6 +1163,15 @@ def _coach():
             "folders": [{"name": k, "files": folders[k]} for k in sorted(folders)]}
 
 
+def _note_groups() -> list[dict]:
+    """Every note, as the Notes page organises them: by tab, then by section."""
+    by_group: dict[str, list] = {}
+    for path in _notes_files():
+        by_group.setdefault(_note_group(path), []).append(_note_entry(path))
+    return [{"slug": g, "label": _group_label(g), "notes": by_group[g],
+             "sections": _sections(by_group[g])} for g in note_tabs(by_group)]
+
+
 def note_list(request):
     """The notes, one tab per group (subfolder of jobs/notes/), each an index of its notes,
     plus the career-coach folder (2026-10-08).
@@ -1119,19 +1181,22 @@ def note_list(request):
     prepared. Each index line links the note's own page at `/notes/<slug>/`, which carries
     the note's Contents and is what `build_static` publishes.
     """
-    backlinks = _note_backlinks()
-    by_group: dict[str, list] = {}
-    for path in _notes_files():
-        by_group.setdefault(_note_group(path), []).append(_note_entry(path, backlinks))
-    known = [g for g, _, _ in NOTE_GROUPS]
-    groups = [{"slug": g, "label": label, "blurb": blurb,
-               "notes": sorted(by_group.get(g, []), key=lambda n: n["title"].lower())}
-              for g, label, blurb in NOTE_GROUPS if by_group.get(g)]
-    groups += [{"slug": g or "other", "label": g.replace("-", " ").capitalize() if g else "Other",
-                "blurb": "", "notes": sorted(by_group[g], key=lambda n: n["title"].lower())}
-               for g in sorted(by_group) if g not in known]
     return render(request, "tracker/note_list.html",
-                  {"page": "notes", "groups": groups, "coach": _coach()})
+                  {"page": "notes", "groups": _note_groups(), "coach": _coach()})
+
+
+def _sections(notes) -> list[dict]:
+    """A tab's notes split by subfolder, by name, then the notes straight in the tab's own
+    folder last, as "Other notes" (2026-10-22). A tab with no subfolders gets a single
+    section with no heading — it renders as a flat list."""
+    by_key: dict[str, list] = {}
+    for note in notes:
+        by_key.setdefault(note["section"], []).append(note)
+    keys = sorted(by_key, key=lambda k: (k == "", k))
+    return [{"key": k,
+             "label": "" if keys == [""] else (_folder_name(k) if k else "Other notes"),
+             "notes": sorted(by_key[k], key=lambda n: n["title"].lower())}
+            for k in keys]
 
 
 def note_detail(request, slug):
@@ -1139,7 +1204,34 @@ def note_detail(request, slug):
     if match is None:
         raise Http404("No such note")
     return render(request, "tracker/note_detail.html",
-                  {"page": "notes", "note": _note(match, _note_backlinks())})
+                  {"page": "notes", "note": _note(match), "note_groups": _note_groups()})
+
+
+# What a note may show inline. Images only: the route serves files from the data root.
+NOTE_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp"}
+
+
+def note_image(request, slug, rel):
+    """An image a note embeds, from the one image folder for all notes (2026-11-09).
+
+    `![diagram](img/architecture.png)` in a note renders on /notes/<slug>/, so the browser
+    asks for /notes/<slug>/img/architecture.png. That resolves against `jobs/notes/` itself,
+    so every note's images live in `jobs/notes/img/`, and moving a note between folders
+    never breaks one, the same as a `/notes/<slug>/` link. Until 2026-11-09 it resolved
+    against the note's own folder, and the first reorganisation of the folders broke every
+    image in the moved notes; a file still beside its note is found as a fallback.
+    Images only, and never outside jobs/notes/, so a crafted path can't fetch anything else.
+    """
+    match = next((p for p in _notes_files() if p.stem == slug), None)
+    if match is None:
+        raise Http404("No such note")
+    notes_dir = Path(settings.NOTES_DIR).resolve()
+    for base in (notes_dir, match.parent):
+        target = (base / rel).resolve()
+        if (target.suffix.lower() in NOTE_IMAGE_SUFFIXES and target.is_file()
+                and notes_dir in target.parents):
+            return FileResponse(open(target, "rb"))
+    raise Http404("No such image")
 
 
 def profile_view(request):
@@ -1431,28 +1523,52 @@ def create_folder(request, num):
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
 
 
-def set_status(request, num, status):
-    """Local-only: move an application to any status from the detail page's status menu,
-    without a trip to the admin change form.
+def update_status(request, num):
+    """Local-only: the status menu's form. POST `status`, an optional `note` and `as_next`.
 
-    Replaced a hardcoded one-click bump to 'reviewing' (2026-09-23) — the other six
-    transitions were just as common and all of them meant opening the admin. `status` is
-    checked against STATUS_SORT_ORDER rather than trusted: it arrives from the URL, so an
-    unknown value must 404 rather than write a status nothing else in the app understands.
-    `Application.save()` handles `status_order` and the status-change log (models.py's
-    post_save signal) the same as any other save.
+    The note is written where the reason for a status change already lives: a dated line in
+    `notes.md`'s `## Timeline`, which the Record tab shows just above the status history.
+    Not a field on the status-change row, which would put reasons in two places and hide
+    one copy from the files the skill reads. With `as_next` the note also becomes the Next
+    action. No note: the status changes and nothing is written.
+
+    Replaced the one-link-per-status GET menu (2026-09-23, `#28`), which could change the
+    status but not say why.
+    The current status is a valid choice, so a note can be added without a change.
     """
     if settings.ENVIRONMENT != "local":
         raise Http404("Local only")
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    status = request.POST.get("status", "")
     if status not in STATUS_SORT_ORDER:
         raise Http404(f"Unknown status: {status}")
-
     app = get_object_or_404(Application, num=num)
-    if app.status != status:
-        app.status = status
-        app.save(update_fields=["status"])
-    return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
+    # One line in the Timeline, whatever was typed into the box.
+    note = " ".join(request.POST.get("note", "").split())
 
+    fields = []
+    if status != app.status:
+        fields.append("status")
+        changed = True
+    else:
+        changed = False
+    app.status = status
+    if note and request.POST.get("as_next"):
+        app.next_action = note
+        fields.append("next_action")
+    if fields:
+        app.save(update_fields=fields)
+
+    folder = app.folder_path
+    if note and folder is not None:
+        from .parsers import with_timeline_line
+
+        text = f"status → {status}. {note}" if changed else note
+        path = folder / "notes.md"
+        current = path.read_text() if path.is_file() else ""
+        path.write_text(with_timeline_line(current, f"- **{dt.date.today().isoformat()}:** {text}"))
+    return HttpResponseRedirect(f"/applications/{num}/")
 
 # What `open_file` will hand to the desktop: documents, never anything it would run.
 OPENABLE_SUFFIXES = {".docx", ".doc", ".pdf", ".xlsx", ".xls", ".csv", ".pptx",
@@ -1490,3 +1606,16 @@ def reveal_company_notes(request, slug):
 
     _open_locally(path, reveal=True)
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/companies/{slug}/"))
+
+
+def reveal_note(request, slug):
+    """Local-only: reveal a note's .md, selected, in Finder, to edit it — as a company page does."""
+    if settings.ENVIRONMENT != "local":
+        raise Http404("Local only")
+
+    match = next((p for p in _notes_files() if p.stem == slug), None)
+    if match is None:
+        raise Http404("No such note")
+
+    _open_locally(match, reveal=True)
+    return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/notes/{slug}/"))

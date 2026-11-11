@@ -27,7 +27,7 @@ empty YAML keys). This command fills them in through conversation.
 - **Their voice, not yours.** Match how the user writes and talks — this document gets
   read back to them for years, and prose in someone else's register reads as untrue even
   when the facts are right.
-  Match `<DATA>/jobs/notes/search/ideal-job-notes.md`.
+  Match `<DATA>/jobs/notes/search/direction/ideal-job-notes.md`.
 - **Stop when the user wants to stop.** This is long. It's fine to do two sections and
   resume another day — the files hold state.
 
@@ -37,7 +37,7 @@ empty YAML keys). This command fills them in through conversation.
 
 | Source | Feeds |
 |---|---|
-| `<DATA>/jobs/notes/search/ideal-job-notes.md` | section 1 (enjoyed/disliked), section 3 (anchors), motivators |
+| `<DATA>/jobs/notes/search/direction/ideal-job-notes.md` | section 1 (enjoyed/disliked), section 3 (anchors), motivators |
 | `<DATA>/jobs/cv/base/cv_functional.md` | section 2 (skills, achievements) |
 | existing `<DATA>/jobs/profile/stocktake.md` | anything already captured — this is a resumable re-fill, not a blank start |
 | `<DATA>/extras/career-coach/2026-09-02_career-coach-session-1-notes.md` | any section |

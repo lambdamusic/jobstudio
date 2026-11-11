@@ -347,6 +347,24 @@ def has_folder(row: dict) -> bool:
 # Folder creation
 # ---------------------------------------------------------------------------
 
+# An application's todo.md (`#91`, its own file since 2026-11-01): `##` headings are these
+# themes, always in this order, and a task meant for one interview round ends with that round's tag,
+# `@<stage>` from INTERVIEW_STAGES. The round's focus page gathers its tagged tasks; an
+# untagged task is general prep. The guide is the paragraph that opens the file, so
+# the file says how to use it to whoever edits it by hand. No line of it may end in a bare
+# `@word`, or the page would draw it as a tag.
+TODO_THEMES = ["Domain", "Stories & positions", "Tech & Data", "Questions & Practicalities"]
+TODO_GUIDE = (
+    "*How this list works.* Tasks are grouped by theme. To mark a task for an interview\n"
+    "round, end its description with that round's tag: `@hr-screen`, `@hiring-manager`,\n"
+    "`@technical`, `@panel`, `@final` or `@informal`. The round's page then gathers its\n"
+    "tagged tasks without copying them, so a tick on either page is the same tick. A task\n"
+    "with no tag is general prep. Add tasks by writing them straight into this file under\n"
+    "the right theme, as `- [ ] **Short title.** Longer description. @tag`; a note on how\n"
+    "it went can follow as an indented sub-bullet."
+)
+
+
 def notes_stub(row: dict) -> str:
     """Skeleton notes.md for a new application folder.
 
@@ -358,19 +376,22 @@ def notes_stub(row: dict) -> str:
     No `## Interview prep` heading either, since 2026-09-24: interview rounds are their
     own files (see the naming block above). What stays here is what is true of the *role*
     rather than of a meeting — the notes, the contacts, and a timeline that indexes the
-    round files.
-
-    `## To do` comes first (`#84`): every task for the application, split by stage —
-    `### Application`, then one `### <Round label> — <date>` per round, which the round
-    file links to. First because it is the part that changes day to day.
+    round files. The tasks are in todo.md.
     """
     return (
         f"# {row['company']} — {row['role']}\n\n"
-        "## To do\n\n### Application\n\n\n"
         "## My notes\n\n\n"
         "## Contacts\n\n\n"
         "## Timeline\n"
     )
+
+
+def todo_stub() -> str:
+    """Skeleton todo.md: every task for the application, under the fixed TODO_THEMES, a
+    task for one interview round tagged `@<stage>`. Its own file, and its own tab, because
+    it is the part of an application that changes day to day."""
+    themes = "".join(f"## {t}\n\n\n" for t in TODO_THEMES)
+    return f"# To do\n\n{TODO_GUIDE}\n\n{themes}".rstrip("\n") + "\n"
 
 
 FUNCTIONAL_CV = DATA_ROOT / "jobs" / "cv" / "base" / "cv_functional.md"
@@ -498,7 +519,7 @@ def is_untouched_copy(path: Path) -> bool:
 
 
 def ensure_folder(row: dict) -> Path:
-    """Create the application folder, notes.md, the per-application CV copy, and an
+    """Create the application folder, notes.md, todo.md, the per-application CV copy, and an
     empty cover-letter stub, for whatever doesn't already exist. Return the folder path.
 
     This is scaffolding, and since 2026-10-01 (TODO `#55`) it is also the whole of the
@@ -511,6 +532,8 @@ def ensure_folder(row: dict) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     if not (folder / "notes.md").exists():
         (folder / "notes.md").write_text(notes_stub(row))
+    if not (folder / "todo.md").exists():
+        (folder / "todo.md").write_text(todo_stub())
     copy_cv(row, folder)
     # Empty cover-letter stub — content is written later, on request
     if not any(is_cover_letter_filename(p.name) for p in folder.iterdir()):

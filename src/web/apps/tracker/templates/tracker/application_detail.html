@@ -25,16 +25,25 @@
     {% comment %}
     Status menu. <details> rather than a scripted dropdown: it opens and closes natively,
     so it still works with JavaScript off — same progressive-enhancement bargain tabs.js
-    makes. The current status is left out of the list by the view (`other_statuses`).
+    makes. A form since 2026-11-11: pick a status, optionally say why. The note becomes a
+    dated line in notes.md's Timeline (and, ticked, the Next action); see update_status.
+    The current status is offered too, preselected, so a note needs no change of status.
     {% endcomment %}
     <details class="menu local-only">
       <summary class="btn local-only">Set status ▾</summary>
-      <div class="menu-body">
-        {% for s in other_statuses %}
-          <a href="/actions/set-status/{{ app.num }}/{{ s }}/">
-            {% include "tracker/_status.html" with status=s %}</a>
-        {% endfor %}
-      </div>
+      <form class="menu-body status-form" method="post" action="/actions/set-status/{{ app.num }}/">
+        {% csrf_token %}
+        <div class="status-choices">
+          {% for s in all_statuses %}
+            <label><input type="radio" name="status" value="{{ s }}"{% if s == app.status %} checked{% endif %}>
+              {% include "tracker/_status.html" with status=s %}</label>
+          {% endfor %}
+        </div>
+        <textarea name="note" rows="3" placeholder="Note (optional): why, what happened…"></textarea>
+        <p class="status-hint">{% if app.folder %}Added to the Timeline in notes.md, dated today.{% else %}No folder, so the note can only become the Next action.{% endif %}</p>
+        <label class="status-next"><input type="checkbox" name="as_next" checked> Also set it as the Next action</label>
+        <button class="btn btn-primary" type="submit">Save</button>
+      </form>
     </details>
     <a class="btn local-only" href="/admin/tracker/application/{{ app.pk }}/change/"
        target="_blank" rel="noopener">Edit in admin</a>
@@ -55,11 +64,21 @@
 {# Sections become tabs when tabs.js loads; without it they stack as a plain document. #}
 <div data-tabs>
   <div class="tablist" role="tablist" aria-label="Application sections">
-    {% if app.notes or app.has_fit_summary %}
-      <button class="tab" data-tab="record" role="tab" type="button">Record</button>
-    {% endif %}
+    <button class="tab" data-tab="record" role="tab" type="button">Record</button>
     {% if app.job_md %}
       <button class="tab" data-tab="job" role="tab" type="button">Job description</button>
+    {% endif %}
+    {% if app.todo_md %}
+      <button class="tab" data-tab="todo" role="tab" type="button">
+        To do{% if app.open_tasks %} <span class="tab-n">{{ app.open_tasks }}</span>{% endif %}</button>
+    {% endif %}
+    {% if interviews %}
+      <button class="tab" data-tab="interviews" role="tab" type="button">
+        Interviews <span class="tab-n">{{ interviews|length }}</span></button>
+    {% endif %}
+    {% if people %}
+      <button class="tab" data-tab="people" role="tab" type="button">
+        People <span class="tab-n">{{ people|length }}</span></button>
     {% endif %}
     {% if app.notes_md %}
       <button class="tab" data-tab="notes" role="tab" type="button">My notes</button>
@@ -76,19 +95,19 @@
       <button class="tab" data-tab="files" role="tab" type="button">
         Other files <span class="tab-n">{{ app.extra_files|length }}</span></button>
     {% endif %}
-    {% if interviews %}
-      <button class="tab" data-tab="interviews" role="tab" type="button">
-        Interviews <span class="tab-n">{{ interviews|length }}</span></button>
-    {% endif %}
-    <button class="tab" data-tab="history" role="tab" type="button">History</button>
     {% if siblings %}
       <button class="tab" data-tab="siblings" role="tab" type="button">
         Also at {{ app.company_name }} <span class="tab-n">{{ siblings|length }}</span></button>
     {% endif %}
   </div>
 
-  {% if app.notes or app.has_fit_summary %}
-    <section class="tabpanel" data-panel="record" role="tabpanel">
+  {% comment %}
+  Always present: the status history at the bottom has at least a "logged as" entry for
+  every application. Timeline (from notes.md) and status history moved here on 2026-11-11,
+  replacing the History tab: both are the application's story over time, and they read
+  best together, after what the record says now.
+  {% endcomment %}
+  <section class="tabpanel" data-panel="record" role="tabpanel">
       <h2 class="panel-heading">Record</h2>
       {% if app.has_fit_summary %}
         {% with fit=app.fit_summary %}
@@ -120,8 +139,30 @@
         {% endwith %}
       {% endif %}
       {% if app.notes %}<div class="panel prose">{{ app.notes|markdown|blank_links }}</div>{% endif %}
-    </section>
-  {% endif %}
+
+      {% if app.timeline_md %}
+        {# `notes--timeline` is where the section lived on My notes; old links still land. #}
+        <h3 class="record-heading" id="timeline"><span id="notes--timeline"></span>Timeline</h3>
+        <div class="panel prose record-timeline">{{ app.timeline_md|markdown|blank_links }}</div>
+      {% endif %}
+
+      <h3 class="record-heading" id="status-history">Status history</h3>
+      <div class="panel">
+        {% for change in app.status_changes.all %}
+          <div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--line){% endif %}">
+            <span style="color:var(--faint);font-size:12.5px;white-space:nowrap">{{ change.changed_at|date:"j M Y" }}</span>
+            {% if change.from_status %}
+              {% include "tracker/_status.html" with status=change.from_status %} →
+            {% else %}
+              <span style="color:var(--faint)">logged as</span>
+            {% endif %}
+            {% include "tracker/_status.html" with status=change.to_status %}
+          </div>
+        {% empty %}
+          <p style="color:var(--faint);margin:0">No status history recorded yet.</p>
+        {% endfor %}
+      </div>
+  </section>
 
   {% if app.job_md %}
     <section class="tabpanel" data-panel="job" role="tabpanel">
@@ -130,6 +171,102 @@
     </section>
   {% endif %}
 
+
+  {% comment %}
+  Every task for the application, from its own file, straight after Job description. Open
+  like My notes: it is a list to read and tick, and the pills jump between themes. Ticks and
+  highlights write back to todo.md, as on a round's page.
+  {% endcomment %}
+  {% if app.todo_md %}
+    <section class="tabpanel" data-panel="todo" role="tabpanel">
+      <h2 class="panel-heading">To do</h2>
+      <div class="panel prose">
+        {% include "tracker/_doc_sections.html" with sections=app.todo_doc.sections %}
+        {% include "tracker/_doc_body.html" with doc=app.todo_doc qa=False open=True %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% comment %}
+  One panel, rounds stacked newest first, the same shape as Cover letters. A tab per round
+  would grow without bound across a long process; a stack stays readable and keeps the
+  most recent round, which is the one being prepped for, at the top.
+
+  Sits just after Job description and To do since 2026-11-01: rounds are
+  what gets reread once a process is live. It sat last before History from 2026-10-01
+  (`#67`). A direct link to a round (`#round-<slug>`) works at any position, because
+  activateContaining() finds the panel holding the id.
+
+  Panel order is load-bearing, not cosmetic: without tabs.js these sections stack as a
+  plain document in source order (see the `data-tabs` comment above), so this block stays
+  in step with the tab buttons.
+  {% endcomment %}
+  {% if interviews %}
+    <section class="tabpanel" data-panel="interviews" role="tabpanel">
+      <h2 class="panel-heading">Interviews</h2>
+      {% comment %}
+      Index only from two rounds up — a list of one is noise. The anchors are real ids on
+      the headings below; tabs.js resolves a hash naming one of them to this panel, so a
+      link straight to a single round survives a reload.
+      {% endcomment %}
+      {% if interviews|length > 1 %}
+        <nav class="panel round-index" aria-label="Interview rounds">
+          <ol>
+            {% for round in interviews %}
+              <li><a href="#{{ round.anchor }}">{{ round.label }}</a>
+                {% if round.date %}<span class="round-index-date">{{ round.date|date:"j M Y" }}</span>{% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+        </nav>
+      {% endif %}
+      {% for round in interviews %}
+        <div class="panel prose">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+            <h3 id="{{ round.anchor }}" style="margin-top:0">{{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}</h3>
+            <span>
+              <a href="/applications/{{ app.num }}/rounds/{{ round.anchor }}/">Focus view ↗</a>
+            </span>
+          </div>
+          {% comment %}
+          The numbered jump index and the collapsed sections (`#66`). A round is long
+          enough that finding a section by scrolling is slow, which is a problem exactly
+          when there is least time — mid-call. Both partials are shared with the focus
+          view so the two readings of a round cannot drift.
+          {% endcomment %}
+          {% include "tracker/_doc_sections.html" with sections=round.sections %}
+          {% include "tracker/_doc_body.html" with doc=round qa=True %}
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+
+  {% comment %}
+  Everyone who had a hand in the application — interviewers, recruiters, whoever referred
+  me — from `## Contacts` in notes.md, which stays the one place they are written down
+  (the section leaves My notes when this tab shows it). Next to Interviews because that is
+  when you come here: "who is this person again?" before or after a round. Each card lists
+  the rounds that name the person, linking into the Interviews tab.
+  {% endcomment %}
+  {% if people %}
+    <section class="tabpanel" data-panel="people" role="tabpanel">
+      <h2 class="panel-heading">People</h2>
+      {% if app.contact %}<p class="people-contact">Application contact: {{ app.contact|urlize }}</p>{% endif %}
+      <div class="people">
+        {% for p in people %}
+          <div class="panel person" id="{{ p.anchor }}">
+            <h3 class="person-name">{% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}</h3>
+            {% if p.body_md %}<div class="prose">{{ p.body_md|markdown|blank_links }}</div>{% endif %}
+            {% if p.rounds %}
+              <p class="person-rounds">In {% for r in p.rounds %}<a href="#{{ r.anchor }}">{{ r.label }}{% if r.date %} · {{ r.date|date:"j M Y" }}{% endif %}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      {% if app.contacts.other_md %}<div class="panel prose">{{ app.contacts.other_md|markdown|blank_links }}</div>{% endif %}
+    </section>
+  {% endif %}
 
   {% if app.notes_md %}
     <section class="tabpanel" data-panel="notes" role="tabpanel">
@@ -215,11 +352,11 @@
       anchors are the real ids on each path, which tabs.js resolves back to this panel.
       {% endcomment %}
       {% if app.extra_files|length > 1 %}
-        <nav class="panel round-index" aria-label="Files in this folder">
+        <nav class="panel round-index file-index" aria-label="Files in this folder">
           <ol>
             {% for f in app.extra_files %}
               <li><a href="#{{ f.anchor }}">{{ f.rel }}</a>
-                {% if not f.is_md %}<span class="round-index-date">{{ f.size_kb }} KB</span>{% endif %}
+                <span class="round-index-date">{{ f.modified|date:"j M Y" }}{% if not f.is_md %} · {{ f.size_kb }} KB{% endif %}</span>
               </li>
             {% endfor %}
           </ol>
@@ -256,84 +393,6 @@
     </section>
   {% endif %}
 
-  {% comment %}
-  One panel, rounds stacked newest first — same shape as Cover letters. A tab per round
-  would grow without bound across a long process; a stack stays readable and keeps the
-  most recent round, which is the one being prepped for, at the top.
-
-  Sits last before History (`#67`, replacing the `#18` ordering, which predates this
-  tab): the tabs run in the order the process does — what the role is, what you wrote
-  about it, what you sent, then who you spoke to — and History closes it. It sat third
-  until 2026-10-01 on the argument that live rounds are what gets reread.
-
-  Moving it costs nothing there. tabs.js opens tabs[0] when the URL carries no hash, so
-  position only decides the default tab, and Interviews was third — never the default
-  either way. The case that matters for a live round is a direct link to one
-  (`#round-<slug>`), and activateContaining() resolves that by finding the panel holding
-  the id, at any position in the strip.
-
-  Panel order is load-bearing, not cosmetic: without tabs.js these sections stack as a
-  plain document in source order (see the `data-tabs` comment above), so this block has
-  to move with its button or the no-JS reading order disagrees with the tab strip.
-  {% endcomment %}
-  {% if interviews %}
-    <section class="tabpanel" data-panel="interviews" role="tabpanel">
-      <h2 class="panel-heading">Interviews</h2>
-      {% comment %}
-      Index only from two rounds up — a list of one is noise. The anchors are real ids on
-      the headings below; tabs.js resolves a hash naming one of them to this panel, so a
-      link straight to a single round survives a reload.
-      {% endcomment %}
-      {% if interviews|length > 1 %}
-        <nav class="panel round-index" aria-label="Interview rounds">
-          <ol>
-            {% for round in interviews %}
-              <li><a href="#{{ round.anchor }}">{{ round.label }}</a>
-                {% if round.date %}<span class="round-index-date">{{ round.date|date:"j M Y" }}</span>{% endif %}
-              </li>
-            {% endfor %}
-          </ol>
-        </nav>
-      {% endif %}
-      {% for round in interviews %}
-        <div class="panel prose">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
-            <h3 id="{{ round.anchor }}" style="margin-top:0">{{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}</h3>
-            <span>
-              <a href="/applications/{{ app.num }}/rounds/{{ round.anchor }}/">Focus view ↗</a>
-            </span>
-          </div>
-          {% comment %}
-          The numbered jump index and the collapsed sections (`#66`). A round is long
-          enough that finding a section by scrolling is slow, which is a problem exactly
-          when there is least time — mid-call. Both partials are shared with the focus
-          view so the two readings of a round cannot drift.
-          {% endcomment %}
-          {% include "tracker/_doc_sections.html" with sections=round.sections %}
-          {% include "tracker/_doc_body.html" with doc=round qa=True %}
-        </div>
-      {% endfor %}
-    </section>
-  {% endif %}
-
-  <section class="tabpanel" data-panel="history" role="tabpanel">
-    <h2 class="panel-heading">History</h2>
-    <div class="panel">
-      {% for change in app.status_changes.all %}
-        <div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--line){% endif %}">
-          <span style="color:var(--faint);font-size:12.5px;white-space:nowrap">{{ change.changed_at|date:"j M Y" }}</span>
-          {% if change.from_status %}
-            {% include "tracker/_status.html" with status=change.from_status %} →
-          {% else %}
-            <span style="color:var(--faint)">logged as</span>
-          {% endif %}
-          {% include "tracker/_status.html" with status=change.to_status %}
-        </div>
-      {% empty %}
-        <p style="color:var(--faint);margin:0">No status history recorded yet.</p>
-      {% endfor %}
-    </div>
-  </section>
 
   {% if siblings %}
     <section class="tabpanel" data-panel="siblings" role="tabpanel">
@@ -342,6 +401,31 @@
     </section>
   {% endif %}
 </div>
+
+{% comment %}
+Every page that belongs to this application (`#97`). Below the tabs, like the company box
+under it, so it is there whichever tab is open.
+{% endcomment %}
+{% if documents %}
+  <section class="index-box" aria-label="Documents index">
+    <h2 class="index-box-kicker">Documents index</h2>
+    <div class="index-box-groups">
+      {% for group in documents %}
+        <div class="index-box-group">
+          <h3>{{ group.label }}</h3>
+          <ul>
+            {% for doc in group.items %}
+              <li><a href="{{ doc.href }}">{{ doc.label }}</a>
+                {% if doc.date %}<span class="index-box-date">{{ doc.date|date:"j M Y" }}</span>{% endif %}
+                {% if IS_LOCAL and doc.open_path %}<a class="index-box-open" href="/actions/open-file/?path={{ doc.open_path|data_rel|urlencode }}">Open file</a>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
 
 {% comment %}
 The way back to the company — always shown, below the tabs so it is there whichever tab

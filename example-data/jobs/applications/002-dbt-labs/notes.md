@@ -1,11 +1,5 @@
 # dbt Labs — Solutions Engineer
 
-## To do
-
-### Application
-
-- [ ] Re-read own package's issue tracker before any call — expect to be asked about it.
-
 ## My notes
 
 ### CV gaps

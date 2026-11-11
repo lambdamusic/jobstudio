@@ -1,13 +1,5 @@
 # Honeycomb — Developer Advocate
 
-## To do
-
-### Application
-
-- [ ] Get the talk count up: the local meetup circuit is the cheap route.
-- [ ] Keep the SLO story — it was the strongest part of the conversation and the part they
-  came back to twice.
-
 ## My notes
 
 ### Outcome

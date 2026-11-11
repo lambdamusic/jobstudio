@@ -69,7 +69,8 @@ Idempotent — creates whatever's missing:
 
 - `jobs/applications/NNN-company-slug/` (the folder name comes from `appfolder.slug()` —
   lowercase, non-word characters stripped, spaces/underscores collapsed to hyphens)
-- `notes.md`, from a bare skeleton (`## To do` with an empty `### Application`, `## My notes`, `## Contacts`, `## Timeline`) —
+- `todo.md`, from a skeleton: its how-to paragraph and four empty theme headings
+- `notes.md`, from a bare skeleton (`## My notes`, `## Contacts`, `## Timeline`) —
   deliberately carries no metadata header, since company/role/area/status live in the
   database and used to drift out of sync across three copies. No `## Interview prep`
   either, since 2026-09-24: interview rounds are their own files (see
@@ -111,10 +112,10 @@ read together and the JD is analysed against both, appended under `## My notes`:
 
 The fourth part, **preparation steps**, is a `- [ ]` checklist in role-specific order —
 company/team research, skills to brush up, talking points from `stocktake.md` §7,
-domain-gap mitigation if the area is a stretch. It is not written under `## My notes` but
-into `### Application`, under the `## To do` section that opens `notes.md`. Every task
-for the application lives there, split by stage, and each interview round adds its own
-subsection (see [interview-prep.md](interview-prep.md)).
+domain-gap mitigation if the area is a stretch. It is not written in `notes.md` but
+into the application's `todo.md`, each task under its theme heading.
+Every task for the application lives there; an interview round's tasks carry its
+`@<stage>` tag (see [interview-prep.md](interview-prep.md)).
 
 ### Fit summary — the structured half
 
@@ -158,7 +159,7 @@ API call:
 ```
 
 **What this did not change:** the gap analysis in §6. It is not part of tailoring — the
-Fit check, CV gaps and the preparation steps in `## To do` feed the fit summary on the application page
+Fit check, CV gaps and the preparation steps in `todo.md` feed the fit summary on the application page
 *and* are the main source for `interview`, so they still run on every log.
 
 See [cv-pipeline.md](cv-pipeline.md) and [cover-letters.md](cover-letters.md).
@@ -193,5 +194,5 @@ to `applied` automatically the moment one of its applications reaches `applied`,
 `interviewing`, or `rejected` (`refresh_company_status()`,
 `src/web/apps/tracker/models.py`) — a `saved`/`reviewing` placeholder doesn't count, and
 neither does `closed` or `discarded`. Every status change is also logged to
-`ApplicationStatusChange`, which powers the application page's History tab and the
+`ApplicationStatusChange`, which powers the Status history section of the application page's Record tab and the
 dashboard's weekly activity timeline — nothing to maintain by hand.

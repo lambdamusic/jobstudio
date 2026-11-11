@@ -1,16 +1,5 @@
 # Grafana Labs — Senior Developer Advocate
 
-## To do
-
-### Application
-
-- [ ] Read three of their RFCs and have an opinion on one.
-- [ ] Have the six-hours-to-35-minutes story ready in three minutes, not ten.
-
-### HR screen — 2026-09-18
-
-- [ ] Grafana's plugin architecture, enough to follow a technical conversation.
-
 ## My notes
 
 ### CV gaps
@@ -29,7 +18,9 @@
 
 ## Contacts
 
-None yet.
+- **Dana Okonkwo:** technical recruiter. Ran the HR screen on 2026-09-18.
+- **[Sam Ortiz](https://www.linkedin.com/in/example-sam-ortiz/):** Head of Developer
+  Advocacy; the hiring manager, if the screen goes well. Not met yet.
 
 ## Timeline
 

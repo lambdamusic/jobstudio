@@ -16,8 +16,9 @@ reading.
 
 Arguments:
   doc   `parsers.sectioned()` output — preamble_md, blocks, body_md.
-  qa    colour `**Q:**` lines. Interview rounds only: that marker is those files'
-        convention, not the site's (see `mark_qa`).
+  qa    true for an interview round. Questions are marked, numbered and folded in every
+        document (`**Q:**` lines, `qa_items`); this only makes the heading rule loose,
+        since a round's headings are mostly questions and a note's are topics (`mark_qa`).
   open  render the sections expanded. A judgement per tab, not a global default — see
         the note where each include passes it.
 {% endcomment %}
@@ -36,7 +37,7 @@ to. Set on the local app only, like the task checkboxes' `data-source`.
       <span class="sec-n">{{ block.number }}</span> {{ block.label }}
     </summary>
     <div class="doc-section-body">
-      {{ block.body_md|mark_qa:qa|markdown|blank_links|number_sections:block }}
+      {{ block.body_md|mark_qa:qa|markdown|blank_links|number_sections:block|qa_items:block }}
     </div>
   </details>
 {% empty %}

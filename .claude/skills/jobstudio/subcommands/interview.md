@@ -11,7 +11,7 @@ Two modes:
   concerns]` — full prep pack for one round, written as **its own file** in that
   application's folder (one file per round, since 2026-09-24 — see Step 4).
 - **Bank mode**: `/jobstudio interview --practice [topic]` (no company) — practise
-  answers against `<DATA>/jobs/notes/interviewing/interview-technique.md` and `stocktake.md` directly,
+  answers against the reusable answers in `<DATA>/jobs/notes/` (below) and `stocktake.md` directly,
   with nothing written to an application folder. Use this when there's no specific
   interview lined up yet, or the user just wants to rehearse.
 
@@ -26,13 +26,13 @@ offer to promote it into the reusable bank (see "Growing the bank" below).
 |---|---|
 | The tracker database (`src/jobsdb.py list`) | Role title, area, status |
 | `job.md` in the application folder | The actual JD — responsibilities/requirements drive the technical & gap questions |
-| `notes.md` in the application folder — **Fit check** and **CV gaps** sections, and `## To do` (its `### Application` tasks and any earlier round's) | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
+| `notes.md` in the application folder — **Fit check** and **CV gaps** sections, and `todo.md` (every task, by theme, with earlier rounds' tags) | Already-identified risk areas; turn each into a question + an honest bridging answer instead of redoing this analysis |
 | **Prior round files** in the folder (`*-interview-*.md`), newest first — their `## Outcome` above all | What was already asked, what landed, what the interviewer corrected or flagged. Never re-prep a round in ignorance of the one before it |
 | The tailored CV in the folder (`*cv-functional*.md`), else `<DATA>/jobs/cv/base/cv_functional.md` | Concrete achievements and phrasing to draw answers from |
 | `<DATA>/jobs/companies/<slug>.md` | Culture signals, "Fit with my mission" — feeds both the "why this role" answer and the questions-to-ask-them list |
 | `<DATA>/jobs/profile/stocktake.md` §1–§3, §7 | §1 orgs/cultures enjoyed & disliked (relationships/culture answers) · §2 six achievements + areas of less success and lessons (behavioural + weakness answers) · §3 anchors/values (keeps "why this role" authentic, not generic) · §7 narratives to have ready |
 | `<DATA>/jobs/profile/criteria.yaml` | `weighted_motivators` and `bonus_signals` — ground "why this role/company" in what actually matters to them, not flattery |
-| `<DATA>/jobs/notes/interviewing/interview-technique.md` | The reusable answer bank — **check this before drafting anything new**; reuse verbatim where a question matches |
+| `<DATA>/jobs/notes/interviewing/interview-technique.md`, plus the `## Questions and answers` and `### Story: …` sections of the other notes | The reusable answers — **check these before drafting anything new**; reuse verbatim where a question matches. Questions about *me* (background, why this role, why I left, emotional intelligence) are in the answer bank; questions about a *subject* are in the note on that subject (`topics/…`), and stories about my work are in the reference note on that work (`interviewing/…`) |
 | `<DATA>/extras/career-coach/materials/emotional-intelligence.md` | The 5-tip framework the EI question set is built from (read in full each time — short file) |
 
 ---
@@ -50,11 +50,13 @@ questions; a final/panel round leans both plus seniority/comp).
 A prior round's `## Outcome` outranks the JD wherever they disagree: it is what the
 company said about itself, to this candidate, out loud.
 
-**Bank mode:** skip the above; read `stocktake.md` and `interview-technique.md`
-directly, and ask what topic or question type to focus on if not given.
+**Bank mode:** skip the above; read `stocktake.md`, `interview-technique.md` and the
+notes on the topic in question directly, and ask what topic or question type to focus on
+if not given.
 
-Read `<DATA>/jobs/notes/interviewing/interview-technique.md` in full either way — the point of the bank
-is to stop re-deriving answers that already work.
+Read `<DATA>/jobs/notes/interviewing/interview-technique.md` in full either way, and the
+Questions-and-answers and Story sections of every note whose subject the round touches —
+the point of the reusable answers is to stop re-deriving ones that already work.
 
 ---
 
@@ -69,7 +71,7 @@ Pull directly from `job.md`'s responsibilities and requirements. For each
 requirement already flagged as a gap in `notes.md`'s **CV gaps** section, turn it
 into the question an interviewer would actually ask ("tell me about your experience
 with X") plus an honest bridging answer — translate adjacent real experience, never
-claim the gap doesn't exist. Where `notes.md`'s `## To do` already has a task
+claim the gap doesn't exist. Where `todo.md` already has a task
 ("brush up on Docker/Kubernetes"), that's a flag to *study*, not something to
 draft an answer for — list it as a to-do instead of manufacturing a fake answer.
 
@@ -91,7 +93,7 @@ question + one drafted answer per tip, using this mapping to source material:
 | 1. Highlight relationships | `stocktake.md` §1 (orgs/cultures worked well in) + §2 achievements with a team dimension | Give credit to others by name/role where the source material does — EI here is explicitly about crediting the team, not just "I did X" |
 | 2. Challenges & resilience | `stocktake.md` §2 "areas of less success, and lessons" | Frame as agility/learning, not just survival — what changed in how he works afterward |
 | 3. Weaknesses / self-awareness | Real, honest gap — check `notes.md` CV gaps first for one already identified for *this* role; otherwise **ask the user directly**, don't invent one | Pair the honest gap with the concrete thing being done about it. No cliché deflections ("I work too hard") |
-| 4. Passions / hobbies | `<DATA>/jobs/notes/search/ideal-job-notes.md` if it names outside interests; otherwise **ask directly** | Genuine energy > generic "I enjoy reading" — leadership/organising within a hobby counts |
+| 4. Passions / hobbies | `<DATA>/jobs/notes/search/direction/ideal-job-notes.md` if it names outside interests; otherwise **ask directly** | Genuine energy > generic "I enjoy reading" — leadership/organising within a hobby counts |
 | 5. Questions about culture | `<DATA>/jobs/companies/<slug>.md` (culture/tech notes) + `criteria.yaml` `preferences.culture` | Produce 3–5 actual questions to ask *them*, not answers — tailored to this company, not generic ("what's the culture like?") |
 
 Tips 3 and 4 are explicitly flagged in the source material as not derivable from
@@ -222,7 +224,9 @@ Structure:
 
 ### Role / technical
 - **Q:** …
-  **A:** …
+  **A:** …advice on giving it: what to lead with, what to avoid, what to ask back…
+
+    > …the answer proper: the words to say, or its talking points…
 
 ### Behavioural
 - **Q:** …
@@ -243,7 +247,9 @@ Structure:
 
 ## To do
 
-→ [This round's tasks, in My notes](#notes--<label-slug>-<date>)
+→ [This round's tasks](#todo--<label-slug>-<date>) — the tasks in To do tagged
+`@<stage>`, gathered on this round's page. They are not copies: each is one line in
+todo.md, so ticking it here or on To do ticks the same task.
 
 ## Private — not for the call
 
@@ -254,21 +260,26 @@ Structure:
 _(to fill in after the call — what was asked, what landed, what didn't, next step)_
 ```
 
-**The round's tasks are not written in the round file** (TODO `#84`). What to study or
-do before the call goes into `notes.md`, in a new `### <Round label> — <YYYY-MM-DD>`
-subsection at the end of `## To do` (create the section, first in the file, if it is
-missing). The heading follows the fixed pattern in "Lists of things to do are checklists"
-in `SKILL.md`: the label the Interviews tab shows for the round, an em dash, the round's
-date — `### Hiring manager — 2026-09-24`, `### Final round — 2026-10-10`. Every item a
-`- [ ]` task, one task per item, detail on indented lines. The round file's `## To do`
-is one line linking that subsection: `#notes--` plus the heading's slug
-(`#notes--hiring-manager-2026-09-24`, `#notes--final-round-2026-10-10`). On the
-application page it opens My notes at the subsection; on the round's focus page the
-round's tasks are shown above the round, under that same id.
+**The round's tasks are not written in the round file** (TODO `#84`, `#91`). What to
+study or do before the call goes into `todo.md`, each task under the closest
+of its four theme headings, ending with the round's tag — `@<stage>`, the stage slug from
+the round file's name (`@hiring-manager`, `@final`). Follow "Lists of things to do are
+checklists" in `SKILL.md`: every item `- [ ] **Short title.** Longer description. @<stage>`,
+one task per item. Before adding, read what is already there: an open task from an earlier
+round that still matters gets this round's tag in place of (or beside) its old one rather
+than a duplicate.
 
-**The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The Interviews tab
-colours every question red so the eye can find them without reading the answers between
-(`mark_qa` in `jobs_extras.py`). That only works on the markers, so write every question as
+The round file's `## To do` is the one line above. Its anchor is `#todo--` plus the slug
+of `<Round label> <date>` (`#todo--hiring-manager-2026-09-24`,
+`#todo--final-round-2026-10-10`, using the label the Interviews tab shows). The round's
+focus page shows the round's tasks under that id; on the application page the app sends
+the link to the focus page.
+
+**The `**Q:**` / `**A:**` markers are load-bearing, not decoration.** The site colours every
+question red, numbers it under its heading (`3.1.2`), lists it in the page's contents, and
+makes each question and its answer a block that opens and closes (`mark_qa` and `qa_items`
+in `jobs_extras.py`). That works on any page, not only rounds: the answer bank, study files
+and topic notes get the same treatment. It only works on the markers, so write every question as
 `- **Q:** …` with its `**A:**` beneath — never as a heading, a numbered list, or a bolded
 topic title. Four of the five rounds written before this convention each invented their own
 structure, and the result is a set of files that read differently from one another for no
@@ -276,8 +287,40 @@ reason. Use `###` for the four category headings only (Role / technical, Behavio
 Emotional intelligence, Why this role).
 
 A question hard-wrapped over several source lines is fine — the whole question stays
-coloured. STAR sub-markers (`**S:**`, `**T:**`, `**A:**`, `**R:**`) sit inside an answer and
+coloured. An answer with its own bullets or bold sub-headings under it must indent them
+**four spaces** (two more than the `**A:**` line): at two spaces they end the list item,
+and render as loose bullets after the question instead of inside its answer. STAR sub-markers (`**S:**`, `**T:**`, `**A:**`, `**R:**`) sit inside an answer and
 are left plain.
+
+**Every answer has two parts, and the quote marks which is which** (2026-11-09). The
+**answer proper** — the words to say, or the talking points to say them from — goes in a
+blockquote under the `**A:**` line, indented four spaces like any part of the answer
+(`    > …`, bullets inside it as `    > - …`). **Advice on giving it** — how long, what to
+lead with, what to avoid, the question to ask back, a framing to watch with this
+interviewer — is plain text on the `**A:**` line or after the quote. The site shows the
+quote as the answer, under an "Answer" label, and dims the advice under "How to answer",
+so you can read straight down the answers mid-call. Keep the advice short; anything you
+would actually say belongs in the quote. Pure advice with nothing to say (a "use the same
+story as last round" pointer) can stay unquoted, but then copy that story in (below).
+
+**A bank answer is copied in, not only pointed to.** When an answer comes from the
+answer bank or a note's `## Questions and answers` or `### Story: …`, put its text in this
+round's quote, adapted to this interviewer if it needs to be, and end the quote with its
+source:
+
+```markdown
+    > …the answer…
+    >
+    > *From the bank: [Tell me about yourself](/notes/interview-technique/#…), copied 2026-11-09*
+```
+
+The line has to start `*From the bank:` for the site to set it as a source line; an
+answer carried over from an earlier round of the same process starts `*From the last
+round:` instead, linking the round (`#round-<stage>-<date>`). The round
+then reads as one document, on the page, in the focus view and in the dossier, with the
+original one click away. The date says how old the copy is: if the bank answer changes
+later, the round keeps the version prepared for it. Link a note as `/notes/<slug>/`, never
+as a `jobs/notes/…` path in backticks, which is not a link.
 
 Then **add one line to `## Timeline` in `notes.md`** linking the new file, so the
 folder still reads as one process:
@@ -294,8 +337,8 @@ checker fails the build on it. `tabs.js` resolves a hash naming an element insid
 by opening that panel, so the anchor works on a fresh load too, not just in-session.
 
 `notes.md` itself keeps only what is true of the **role** rather than of a meeting —
-`## To do` (every task, by stage), `## My notes`, `## Contacts` (people recur across
-rounds), and that `## Timeline`.
+`## My notes`, `## Contacts` (people recur across
+rounds), and that `## Timeline`. Tasks are in `todo.md`.
 Background on the sector itself (what the domain is, how it works) is true of the
 company, not the role: it goes in the company page's `## The domain`, with its terms in
 the `## Glossary`, never in `notes.md`. Never re-create a `## Interview prep` heading there; it was retired
@@ -318,15 +361,26 @@ back what actually worked), ask whether any answer is good enough to reuse verba
 next time — same test as an existing "why did you leave <employer>" entry: it
 worked in a real interview and doesn't need role-specific rewriting.
 
-For each one the user confirms, add it to `<DATA>/jobs/notes/interviewing/interview-technique.md`
-as a `###` under the `##` category it belongs to (About me, Research analytics, Product
-management, Technical and architecture…), creating a category only when none fits. Never
-append it at the end of the file: the categories are what make the bank findable. Same
-shape as the existing entries: the question as the heading, then a *Tested* line (which
+For each one the user confirms, file it where its subject lives:
+
+- **About me** (background, why this role or company, why I left, a step down) and
+  **emotional intelligence** (setbacks, weaknesses, teams, life outside work): in
+  `<DATA>/jobs/notes/interviewing/interview-technique.md`, as a `###` under the `##`
+  category it belongs to. Never append it at the end of the file: the categories are
+  what make the bank findable.
+- **A story about a piece of my work:** in the reference note on that work under
+  `<DATA>/jobs/notes/interviewing/`, as a `### Story: …` next to the detail behind it.
+- **A question about a subject** (product practice, architecture, knowledge graphs, a
+  sector): in the topic note on that subject, as a `###` under its
+  `## Questions and answers` section (create the section if the note has none). If no
+  note fits, start one under `topics/<subfolder>/`, following "Notes and their groups" in
+  `SKILL.md`.
+
+Same shape as the existing entries, wherever it goes: the question as the heading, then a *Tested* line (which
 interview, the application number, the date, how it went), a few lines on why the
-phrasing matters, then the answer verbatim in a blockquote. An answer already in the bank
+phrasing matters, then the answer verbatim in a blockquote. An answer already filed
 that has now worked gets its *Tested* line updated rather than a second entry. Prefer this over
-drafting a fresh version of the same answer next time — check the bank in Step 1
+drafting a fresh version of the same answer next time — check the answers in Step 1
 before ever redrafting something that's already there.
 
 ---

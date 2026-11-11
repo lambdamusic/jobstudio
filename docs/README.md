@@ -45,7 +45,7 @@ means, where a profile gets used downstream.
   `/jobstudio stocktake` builds, and where the profile it produces gets used elsewhere.
 - **[interview-prep.md](interview-prep.md)** — how `/jobstudio interview` turns a job
   description and the career profile into likely questions and drafted answers, and how
-  the reusable answer bank works.
+  reusable answers are filed (the answer bank for about-me questions, the notes for subjects).
 - **[dashboard-status.md](dashboard-status.md)** — what the web dashboard shows, and
   how `/jobstudio status` mirrors it in the terminal from the same queries.
 

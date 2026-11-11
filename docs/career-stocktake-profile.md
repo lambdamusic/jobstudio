@@ -20,7 +20,7 @@ unless explicitly revisited.
 ## The interview's own rules
 
 - **Pre-fill, don't interrogate.** Before asking anything, it reads
-  `jobs/notes/search/ideal-job-notes.md`, `jobs/cv/base/cv_functional.md`, whatever's already
+  `jobs/notes/search/direction/ideal-job-notes.md`, `jobs/cv/base/cv_functional.md`, whatever's already
   in `stocktake.md`, and the `<DATA>/extras/career-coach/` session notes, and proposes a draft
   answer for each section — the user edits or confirms rather than starting from a blank
   box.

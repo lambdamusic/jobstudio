@@ -14,12 +14,12 @@ actually builds. Not to be confused with **[career-stocktake-profile.md](career-
 
 | Source | Feeds |
 |---|---|
-| `job.md` + `notes.md` (Fit check, CV gaps, and the tasks in `## To do`) in the application folder | Role/technical questions, and honest bridging answers for already-identified gaps |
+| `job.md` + `notes.md` (Fit check, CV gaps) and `todo.md` (the tasks) in the application folder | Role/technical questions, and honest bridging answers for already-identified gaps |
 | The tailored CV, else `jobs/cv/base/cv_functional.md` | Concrete achievements to answer from |
 | `jobs/companies/<slug>.md` | Culture signals — feeds "why this company" and the questions-to-ask-them list |
 | `jobs/profile/stocktake.md` §1–§3, §7 | Behavioural and emotional-intelligence material — see below |
 | `jobs/profile/criteria.yaml` | `weighted_motivators`/`bonus_signals` ground "why this role" in what actually matters, not flattery |
-| `jobs/notes/interviewing/interview-technique.md` | The reusable answer bank — checked before drafting anything new |
+| `jobs/notes/interviewing/interview-technique.md`, and the Q&A and Story sections of the other notes | The reusable answers — checked before drafting anything new: about-me and emotional-intelligence answers in the answer bank, subject answers in the note on that subject |
 | `<DATA>/extras/career-coach/materials/emotional-intelligence.md` (optional) | The 5-tip framework the EI question set is built from |
 
 ## Four question categories
@@ -42,7 +42,7 @@ actually builds. Not to be confused with **[career-stocktake-profile.md](career-
 ## Drafting rules
 
 - Every answer is grounded in real material already in the CV or `stocktake.md` — no invented numbers, employers, or outcomes, same non-invention constraint as CV tailoring and cover letters.
-- Check `jobs/notes/interviewing/interview-technique.md` before drafting anything — a question that's already been answered well in a real interview gets reused verbatim, not redrafted.
+- Check the reusable answers (the answer bank, and the Q&A in the notes) before drafting anything — a question that's already been answered well in a real interview gets reused verbatim, not redrafted.
 - Drafted as one full pack, not section-by-section like the stocktake — this is time-pressured prep, not a reflective exercise.
 
 ## Where it's written
@@ -69,23 +69,40 @@ Stages: `hr-screen`, `hiring-manager`, `technical`, `panel`, `final`, `informal`
 | `## Who I'm meeting` | research on the interviewer |
 | `## Prep` | the drafted Q&A pack |
 | `## Questions to ask them` | |
-| `## To do` | one line linking this round's tasks in `notes.md` |
+| `## To do` | one line linking this round's tasks, gathered from `todo.md` by tag |
 | `## Private — not for the call` | |
 | `## Outcome` | filled in afterwards — what was asked, what landed, next step |
 
 `## Outcome` is what makes a round self-closing, and it is the first thing the next
 round's prep reads.
 
-**A round's tasks live in `notes.md`, not in the round file** (2026-10-08, TODO `#84`).
-What to study or do for the round goes into a `### <Round label> — <date>` subsection of
-the `## To do` section that opens `notes.md` (`### Hiring manager — 2026-09-24`), next to
-the application's own `### Application` tasks. One place then answers "what is left for
-this application", and a task done once is not left unticked in a second file. The
-heading is a fixed pattern because the round file links to it by anchor
-(`#notes--hiring-manager-2026-09-24`). The round's focus page shows the same tasks above
-the round, under that same id, and ticks there write back to `notes.md`.
-`manage.py migrate_todos` moved the older `### Preparation steps` and `## Study before`
-lists into this shape.
+**A round's tasks live in `todo.md`, not in the round file** (TODO `#84`; its own file
+since 2026-11-01). What to study or do for the round goes there.
+One place then answers "what is left for this application", and a task done once is not
+left unticked in a second file.
+
+Since 2026-10-13 (TODO `#91`) it is grouped by **theme** — four fixed `##`
+headings: Domain, Stories & positions, Tech & Data, Questions & Practicalities — and a
+task meant for one round ends with that round's **tag**, `@<stage>`:
+
+```markdown
+## Tech & Data
+
+- [ ] **Learn the plugin architecture.** Enough to follow a technical conversation. @hr-screen
+    - => written up in [study notes](#file-…)
+```
+
+Every task opens with a bold short title; a note on how it went is an indented
+sub-bullet. The round's focus page gathers the tasks tagged for it, under their themes,
+and the round file's `## To do` link lands there. They are views of one line, not copies:
+each checkbox carries its index in `todo.md`, so a tick on either page writes the same
+line. On the To do tab the tag shows as a small pill.
+
+Themes beat stages because the same kind of preparation (domain reading, a story to
+rehearse) recurs across rounds; grouping by stage split each across three or four
+headings. The earlier layout — `## Application` then `## <Round label> — <date>` per
+round, from the older `### Preparation steps` and `## Study before` lists — is still read:
+the round page tries the dated heading first.
 
 **Why one file per round** (decided 2026-09-24): all of this used to live under a
 single `## Interview prep` heading in `notes.md`, which put a round's prep, its
@@ -116,11 +133,20 @@ no specific interview lined up yet.
 ## Growing the bank
 
 After a real interview, if an answer landed well and needs no role-specific
-rewriting, it goes into `jobs/notes/interviewing/interview-technique.md`, the answer bank.
-The bank is grouped by what a question is about (About me, Research analytics, Product
-management, Technical and architecture…), one `##` per category, and each answer is a
-`###` under its category: the question as the heading, a *Tested* line saying which
-interview validated it and when, a few lines on why the phrasing matters, then the answer
-verbatim. A new answer is filed under its category, never appended at the end, and a
-category is created only when an answer needs one. Restructured this way on 2026-10-08,
-when a flat list of answers had stopped being findable.
+rewriting, it is filed where its subject lives:
+
+- **About me and emotional intelligence** — background, why this role, why I left,
+  setbacks, weaknesses — go into `jobs/notes/interviewing/interview-technique.md`, the
+  answer bank, one `##` per category.
+- **A story about a piece of work** goes into the reference note on that work under
+  `jobs/notes/interviewing/`, as a `### Story: …` next to the detail behind it.
+- **A question about a subject** — product practice, architecture, knowledge graphs, a
+  sector — goes into the topic note on it, under `## Questions and answers`.
+
+Wherever it lands, each answer is a `###`: the question as the heading, a *Tested* line
+saying which interview validated it and when, a few lines on why the phrasing matters,
+then the answer verbatim. The bank was grouped into categories on 2026-10-08, when a flat
+list of answers had stopped being findable. On 2026-10-22 the subject answers moved out of
+it into the notes they are about, so that a note on a topic carries both the study
+material and the answers it supports, and the bank keeps only the answers about the
+person.

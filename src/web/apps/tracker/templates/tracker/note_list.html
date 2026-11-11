@@ -4,22 +4,22 @@
 <div class="page-head">
   <h1>Notes</h1>
   <p class="lede">
-    The notes behind the search, from <code>jobs/notes/</code>, one tab per subfolder:
-    where I am aiming, how I interview, and the topics I have prepared. Plus a Career coach
+    The notes behind the search, from <code>jobs/notes/</code>: one tab per folder, one
+    section per folder inside it, and an Other notes tab for any outside a folder. Plus a Career coach
     tab from <code>extras/career-coach/</code>; the career stocktake has its own page at
     <a href="/profile/">Profile</a>.
   </p>
 </div>
 
 {% comment %}
-One tab per group, each an index of its notes (2026-10-08). It was one tab per note
+One tab per group, each an index of its notes (2026-10-08; a group can span folders since 2026-10-13). It was one tab per note
 (`#73`) until study material carried over from applications took it past a dozen tabs.
-A group is a subfolder of jobs/notes/ (`views.NOTE_GROUPS` gives the known ones their
-names and order). Each line links the note's own page, which has its Contents list.
+A tab is a folder straight under jobs/notes/, and a section the folder inside it, both
+named after the folder (read from the tree since 2026-11-06; named by hand before). Each line links the note's own page, which has its Contents list.
 
-"Used in" lists the applications whose folders link to the note, worked out from the
-links themselves (`_note_backlinks`). It is what says which conversation a note served,
-without anyone keeping that up by hand.
+"First written for" names the application a note was started for, read from the note's
+own opening line (`_note_origin`) — only that one, since a topic note is reused across
+many and the full list only grew.
 
 Without JavaScript every panel renders, so this is one long page rather than a broken
 one — the same bargain `tabs.js` makes everywhere.
@@ -39,21 +39,25 @@ one — the same bargain `tabs.js` makes everywhere.
       <section class="tabpanel" data-panel="{{ g.slug }}" role="tabpanel">
         <div class="panel">
           <h2 class="panel-heading">{{ g.label }}</h2>
-          {% if g.blurb %}<p class="note-group-blurb">{{ g.blurb }}</p>{% endif %}
-          <ul class="note-index">
-            {% for n in g.notes %}
-              <li>
-                <a class="note-index-title" href="/notes/{{ n.slug }}/">{{ n.title }}</a>
-                {% if n.summary %}<p class="note-index-summary">{{ n.summary }}</p>{% endif %}
-                <p class="note-index-meta">
-                  {{ n.words }} words · updated {{ n.modified|date:"j M Y" }}
-                  {% if n.used_in %} · used in
-                    {% for a in n.used_in %}{% if not forloop.first %}, {% endif %}<a href="/applications/{{ a.num }}/">#{{ a.num }} {{ a.company_name }}</a>{% endfor %}
-                  {% endif %}
-                </p>
-              </li>
-            {% endfor %}
-          </ul>
+          {% for sec in g.sections %}
+            {% if sec.label %}
+              <h3 class="note-section-heading">{{ sec.label }} <span class="tab-count">{{ sec.notes|length }}</span></h3>
+            {% endif %}
+            <ul class="note-index">
+              {% for n in sec.notes %}
+                <li>
+                  <a class="note-index-title" href="/notes/{{ n.slug }}/">{{ n.title }}</a>
+                  {% if n.summary %}<p class="note-index-summary">{{ n.summary }}</p>{% endif %}
+                  <p class="note-index-meta">
+                    {{ n.words }} words · updated {{ n.modified|date:"j M Y" }}
+                    {% if n.origin %} · first written for
+                      <a href="/applications/{{ n.origin.num }}/">#{{ n.origin.num }} {{ n.origin.company_name }}</a>
+                    {% endif %}
+                  </p>
+                </li>
+              {% endfor %}
+            </ul>
+          {% endfor %}
         </div>
       </section>
     {% endfor %}

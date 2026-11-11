@@ -179,7 +179,7 @@ A company's derived status on the companies page is `applied` if it has any appl
 2. Confirms the extracted fields with you, then creates the application in the tracker database
 3. Creates `jobs/applications/NNN-company/`, copies the functional CV in — named for the application, with the bracketed roles stripped from the competencies and nothing else changed — and creates an **empty** cover-letter file as a placeholder
 4. Saves `job.md` with the full job description
-5. Generates a gap analysis (CV gaps, improvements, prep steps) appended to `notes.md`
+5. Generates a gap analysis (CV gaps and improvements appended to `notes.md`, prep steps into `todo.md`)
 
 **How each step actually works, and how the gap analysis is structured:** see
 **[applications-and-gap-analysis.md](applications-and-gap-analysis.md)**. For how a new
@@ -222,6 +222,7 @@ The application folder structure:
 jobs/applications/001-grafana-labs/
   job.md                                                            ← full job description
   notes.md                                                          ← JD detail + gap analysis + personal notes
+  todo.md                                                           ← every task for the application
   001-grafana-labs-<person-slug>-cv-functional-2026-09-08.md        ← this application's CV
   001-grafana-labs-<person-slug>-cover-letter-2026-09-08.md         ← this application's cover letter
   export/
@@ -244,7 +245,7 @@ truth for status; browse by status in the web app rather than by folder location
 
 ### Refine the notes and cover letter with Claude
 
-- **Gap analysis** lives under `## My notes` in `notes.md` (`### Fit check`, `### CV gaps`, `### CV improvements`) — ask Claude to revisit or expand it, or edit it directly. Its preparation steps go into `## To do` → `### Application`, the first section of `notes.md`, which holds every task for the application, split by stage.
+- **Gap analysis** lives under `## My notes` in `notes.md` (`### Fit check`, `### CV gaps`, `### CV improvements`) — ask Claude to revisit or expand it, or edit it directly. Its preparation steps go into `todo.md`, which holds every task for the application under four theme headings, with an interview round's tasks tagged `@<stage>`.
 - **Cover letter** — use `/jobstudio cover-letter [company or #N] [extra context]` to (re)draft it: 3 paragraphs (~300 words), hook → concrete achievements → close, in the user's casual-but-precise voice. Claude shows the draft for review before saving; pass free-text context (e.g. `--emphasise knowledge graphs`) to steer tone. **How structure selection and drafting actually work:** see **[cover-letters.md](cover-letters.md)**.
 - Both files are just markdown — hand-editing them directly is always fine; Claude only fills gaps, it never overwrites what's already there.
 

@@ -10,6 +10,7 @@ from django.utils.safestring import mark_safe
 
 from ..filelinks import link_file_refs
 from ..highlights import render_marks
+from ..parsers import QA_BREAK, QA_OPENER, is_question_heading
 
 register = template.Library()
 
@@ -88,12 +89,55 @@ _BARE_URL = re.compile(r"""(?<![\w"'=/>])(https?://[^\s<>"'\)\]]+)""")
 _MARKUP = re.compile(r"(<a\b.*?</a>|<[^>]+>)", re.S | re.I)
 
 
+# The same inside a quote: an interview answer's quoted talking points (2026-11-09) open
+# with a sentence and go straight into bullets, `> Start there:` then `> - …`. The blank
+# line has to be a quoted one, `>`, or it would end the quote.
+_TIGHT_QUOTED_LIST = re.compile(
+    r"""(?m)^(?P<prev>(?P<q>[ \t]*>)[ \t]*    # a quoted line, indented or not...
+                      (?![-*+][ \t])(?!\d+[.)][ \t])(?!>)\S.*?)  # ...with text, not an item
+        [ \t]*\n
+        (?=(?P=q)[ \t]*(?:[-*+]|\d+[.)])[ \t])""", re.X)
+
+
 def _loosen_lists(text: str) -> str:
     """Insert the blank line Python-Markdown needs before a list, outside code fences."""
     chunks = re.split(r"(```.*?```)", text, flags=re.S)
     for i, chunk in enumerate(chunks):
         if not chunk.startswith("```"):
-            chunks[i] = _TIGHT_LIST.sub(r"\g<prev>\n\n", chunk)
+            chunk = _TIGHT_LIST.sub(r"\g<prev>\n\n", chunk)
+            chunks[i] = _TIGHT_QUOTED_LIST.sub(r"\g<prev>\n\g<q>\n", chunk)
+    return "".join(chunks)
+
+
+_LIST_ITEM = re.compile(r"^( *)([-*+]|\d+[.)]) ")
+
+
+def _nest_lists(text: str) -> str:
+    """Re-indent nested list items to the four spaces Python-Markdown needs, outside code fences.
+
+    Hand-written notes nest with two spaces (or three, under `1.`), as most editors and
+    CommonMark do. Python-Markdown wants four, so it read the sub-bullets as more items of
+    the same list and the page lost the second level. An item's depth is read from how far
+    it is indented relative to the items above it, then written back as four spaces a level.
+    Only item lines move; a continuation line joins its item either way.
+    """
+    chunks = re.split(r"(```.*?```)", text, flags=re.S)
+    for i, chunk in enumerate(chunks):
+        if chunk.startswith("```"):
+            continue
+        lines, indents = chunk.split("\n"), []  # the indents of the open items, outermost first
+        for j, line in enumerate(lines):
+            m = _LIST_ITEM.match(line)
+            if not m:
+                if line.strip() and not line.startswith(" "):
+                    indents = []  # back at the margin with something that is not a list
+                continue
+            indent = len(m.group(1))
+            while indents and indent <= indents[-1]:
+                indents.pop()  # a sibling or a shallower item closes the deeper ones
+            lines[j] = " " * (4 * len(indents)) + line[indent:]
+            indents.append(indent)
+        chunks[i] = "\n".join(lines)
     return "".join(chunks)
 
 
@@ -180,7 +224,8 @@ def markdownify(text):
     # `==text==` as <mark>, for markdown that did not come through `sectioned()` (which
     # has already turned its own into numbered marks the page can remove).
     text = render_marks(text, None)
-    html = md_lib.markdown(_loosen_lists(_paragraphize(_unwrap(text))), extensions=MD_EXTENSIONS)
+    html = md_lib.markdown(_nest_lists(_loosen_lists(_paragraphize(_unwrap(text)))),
+                          extensions=MD_EXTENSIONS)
     # After _autolink, so a URL ending in .md is already a link and left alone.
     return mark_safe(link_file_refs(_autolink(html)))
 
@@ -235,24 +280,15 @@ def strip_h1(text):
     return re.sub(r"\A\s*#\s+.*?(?:\n|\Z)", "", text, count=1)
 
 
-# A line that opens a Q or an A in an interview prep file: `**Q:** …`, optionally as a
-# bullet. Only the five markers the prep template actually uses (Q and A, plus STAR).
-_QA_OPENER = re.compile(r"^(?P<lead>[ \t]*(?:[-*+][ \t]+)?)\*\*(?P<who>Q|A|S|T|R):\*\*")
-# Anything that ends a wrapped question: a blank line, a heading, or a new list item.
-_QA_BREAK = re.compile(r"^(?:[ \t]*$|[ \t]*#|[ \t]*(?:[-*+]|\d+[.)])[ \t])")
-
-# Rounds written before the `**Q:**` convention (2026-09-24) put the question in the heading
-# instead — `#### Why do you want to leave?`, or `### A1. "Walk me through a platform you
-# architected."`. Those are still questions and should still be coloured, so a heading counts
-# when it asks something or quotes what was asked. Deliberately narrow: a heading naming a
-# topic ("AWS — say it first", "Questions to ask them", "Why this role") has neither mark and
-# stays plain. The known false positive is a heading quoting a product name; it would only be
-# coloured, never broken.
+# What a question is — the `**Q:**` line, the break that ends one, and a heading that asks
+# — lives in parsers.py, because the contents lists the questions and the page numbers them
+# by position: the parser and this filter have to agree exactly.
+_QA_OPENER = QA_OPENER
+_QA_BREAK = QA_BREAK
 _HEADING = re.compile(r"^(?P<hashes>\#{2,6}[ \t]+)(?P<text>.+?)[ \t]*$")
-_QUESTION_HEADING = re.compile(r'\?|"[^"]+"|\u201c[^\u201d]+\u201d')
 
 
-def _wrap_questions(text: str) -> str:
+def _wrap_questions(text: str, loose: bool = True) -> str:
     """Put a span round each `**Q:** …` line, closing it where the question ends."""
     out: list[str] = []
     open_q = False
@@ -262,7 +298,7 @@ def _wrap_questions(text: str) -> str:
             out[-1] += "</span>"
             open_q = False
         heading = _HEADING.match(line)
-        if heading and _QUESTION_HEADING.search(heading.group("text")):
+        if heading and is_question_heading(heading.group("text"), loose):
             # Wrap the text only — the hashes have to stay at the line start to parse.
             out.append(f'{heading.group("hashes")}<span class="qa-q">'
                        f'{heading.group("text")}</span>')
@@ -279,26 +315,26 @@ def _wrap_questions(text: str) -> str:
 
 
 @register.filter(name="mark_qa")
-def mark_qa(text, enabled=True):
-    """Mark up the questions in an interview round so the Interviews tab can colour them
+def mark_qa(text, rounds=True):
+    """Mark up the questions in a document so the page can colour, number and fold them
     — the eye needs to find the questions without reading the answers between them.
 
-    Source-level, like `strip_h1`, and applied only to interview rounds: `**Q:**` is that
-    file's convention, not the site's. A question hard-wrapped over several source lines
-    stays inside one span — wrapped prose is the norm in these files, and a colour that
-    stopped at the first line would read as a rendering bug.
+    Source-level, like `strip_h1`. A question hard-wrapped over several source lines stays
+    inside one span — wrapped prose is the norm in these files, and a colour that stopped
+    at the first line would read as a rendering bug.
 
-    `enabled` exists so `_doc_body.html` can stay one template with one filter chain
-    (`#72`). My notes and Other files pass false: a `**Q:**` in a note is somebody's
-    prose, not this convention. Branching in the template instead would mean writing the
-    whole chain out twice, which is how the two copies drift.
+    On every document since 2026-10-15, not just interview rounds: the answer bank, study
+    files and topic notes use the same `**Q:**` convention, and the contents now lists
+    questions, which needs them marked wherever they are. What `rounds` still decides is
+    which *headings* count as questions — loosely in a round, where any heading that asks
+    or quotes is one; strictly elsewhere (see `parsers.QUESTION_HEADING_STRICT`).
     """
-    if not text or not enabled:
-        return text or ""
+    if not text:
+        return ""
     chunks = re.split(r"(```.*?```)", text, flags=re.S)
     for i, chunk in enumerate(chunks):
         if not chunk.startswith("```"):
-            chunks[i] = _wrap_questions(chunk)
+            chunks[i] = _wrap_questions(chunk, bool(rounds))
     return "".join(chunks)
 
 
@@ -332,6 +368,149 @@ def number_sections(html, block):
                 f'<span class="sec-n">{sub["number"]}</span> {m.group(2)}</h3>')
 
     return mark_safe(_H3_RE.sub(one, str(html)))
+
+
+# The pieces of rendered HTML `qa_items` works with. It only ever sees markdown's own output
+# for one block, so these are the few shapes that renderer produces, not HTML in general.
+_QA_SPAN = '<span class="qa-q">'
+_QA_ITEM_START = re.compile(r'(?P<li><li>\s*)?(?P<p><p>)?<span class="qa-q">')
+_SPAN_TAG = re.compile(r"<span\b|</span>")
+_LI_TAG = re.compile(r"<li\b|</li>")
+# Where the answer to a bare-paragraph question stops: the next question, list of
+# questions, heading or rule — or the end of whatever holds the paragraph, so an answer
+# never swallows a closing tag and breaks the nesting around it.
+_QA_P_END = re.compile(r'<h[1-6][\s>]|<details class="qa|<[uo]l>\s*<li class="qa-li"|<hr\b'
+                       r'|</li>|</[uo]l>|</blockquote>')
+_QA_HEADING = re.compile(r'<h(?P<n>[34])(?P<attrs>[^>]*)>(?P<inner>(?:(?!</h(?P=n)>).)*?'
+                         r'<span class="qa-q">.*?)</h(?P=n)>', re.S)
+
+
+def _close(html: str, start: int, tag_re: re.Pattern, open_prefix: str) -> int:
+    """Index just past the tag that closes the element opened at `start`, counting nested
+    tags of the same name. Falls back to the end of the string."""
+    depth = 0
+    for m in tag_re.finditer(html, start):
+        depth += 1 if m.group(0).startswith(open_prefix) else -1
+        if depth == 0:
+            return m.end()
+    return len(html)
+
+
+def _strip_br(fragment: str) -> str:
+    return re.sub(r"\A\s*<br\s*/?>\s*", "", fragment)
+
+
+# A paragraph at the start of a heading-question's answer, and what may follow the intro.
+_INTRO_P = re.compile(r"\s*<p>(?!\s*<strong>)(?:(?!</p>).)*</p>", re.S)
+_AFTER_INTRO = re.compile(r"\s*(?:<blockquote|<p>\s*<strong>)")
+
+
+def _box_intro(answer: str) -> str:
+    """Frame the note that introduces a heading-question's answer as a how-to box.
+
+    The answer bank's entries open with a word on when and how to use the answer ("A
+    third take, for…", "*Tested: …*") before the answer itself, which is quoted. Told
+    apart by shape, so the files need no marker: the plain paragraphs before the first
+    blockquote, stopping at one that opens in bold — "**Trend 1 — …**" or "**If asked…**"
+    is the start of the answer, not a note about it. Nothing is boxed unless the entry has
+    a quoted answer, so a round's prose answers are left alone.
+    """
+    if "<blockquote" not in answer:
+        return answer
+    pos = 0
+    while m := _INTRO_P.match(answer, pos):
+        pos = m.end()
+    if not pos or not _AFTER_INTRO.match(answer, pos):
+        return answer
+    return f'<div class="howto-note">{answer[:pos]}</div>{answer[pos:]}'
+
+
+# An answer's source line when it was copied from the bank or an earlier round:
+# `> *From the bank: [..](..), copied <date>*` (or `From the last round:`), the last line
+# of its quote.
+_FROM_BANK = re.compile(r"<p>(?=<em>From the (?:bank|last round):)")
+# `**A:**` on its own line, before an answer that is all quote: nothing left once the
+# marker is hidden, so drop the empty paragraph rather than leave its margin.
+_BARE_A = re.compile(r"^\s*<p>\s*<strong>A:</strong>\s*</p>")
+
+
+def _qa_answer(answer: str) -> str:
+    """The `.qa-a` box for one answer. Its quote is the answer proper and the rest is
+    advice on giving it, styled apart in site.css (2026-11-09); here only the bank's
+    source line gets its class, and a bare `A:` paragraph goes."""
+    answer = _FROM_BANK.sub('<p class="from-bank">', _BARE_A.sub("", answer))
+    return f'<div class="qa-a">{answer}</div>'
+
+
+@register.filter(name="qa_items")
+def qa_items(html, block):
+    """Turn each question and its answer into a numbered block that opens and closes
+    (2026-10-15). Runs after `number_sections`, on one block's rendered HTML.
+
+    A `**Q:**` question becomes `<details class="qa" open>`: the question is the summary,
+    the answer everything after it — the rest of its list item, or for a bare paragraph,
+    everything up to the next question or heading. Native `<details>`, like the sections,
+    so it folds with no script and the browser's find-in-page opens it. The number goes in
+    a `data-n` the CSS shows, not in the text: highlight.js matches a selection against
+    the file by its surrounding text, and a number that isn't in the file would break that.
+
+    Numbers and ids come from `block["questions"]`, **by position**, the way
+    `number_sections` stamps headings: the parser walked the same markdown in the same
+    order. A heading that is itself a question (the answer bank's `### "Tell me about
+    yourself"`) folds the same way, and keeps the number and id its heading already has.
+    """
+    if not html:
+        return ""
+    html = str(html)
+    questions = list((block or {}).get("questions") or [])
+
+    starts = [m for m in _QA_ITEM_START.finditer(html) if m.group("li") or m.group("p")]
+    for i in range(len(starts) - 1, -1, -1):  # from the end, so earlier offsets hold
+        m = starts[i]
+        q = questions[i] if i < len(questions) else None
+        span_at = m.end() - len(_QA_SPAN)
+        span_end = _close(html, span_at, _SPAN_TAG, "<span")
+        number = f' data-n="{q["number"]}"' if q else ""
+        summary = (f'<summary class="qa-sum"><span class="qa-q"{number}>'
+                   f'{html[m.end():span_end]}</summary>')
+        attrs = f' id="{q["anchor"]}"' if q else ""
+        if m.group("li"):
+            li_end = _close(html, m.start(), _LI_TAG, "<li")
+            inner_end = li_end - len("</li>")
+            if m.group("p"):
+                p_end = html.index("</p>", span_end) + len("</p>")
+                first = _strip_br(html[span_end:p_end - len("</p>")])
+                answer = (f"<p>{first}</p>" if first.strip() else "") + html[p_end:inner_end]
+            else:
+                answer = _strip_br(html[span_end:inner_end])
+            html = (html[:m.start()] + f'<li class="qa-li"><details class="qa"{attrs} open>'
+                    + summary + _qa_answer(answer) + '</details></li>'
+                    + html[li_end:])
+        else:
+            p_end = html.index("</p>", span_end) + len("</p>")
+            first = _strip_br(html[span_end:p_end - len("</p>")])
+            stop = _QA_P_END.search(html, p_end)
+            end = stop.start() if stop else len(html)
+            answer = (f"<p>{first}</p>" if first.strip() else "") + html[p_end:end]
+            html = (html[:m.start()] + f'<details class="qa"{attrs} open>' + summary
+                    + _qa_answer(answer) + '</details>' + html[end:])
+
+    # Headings that ask: h4 first, so an h3's answer can contain them already folded.
+    for level in ("4", "3"):
+        out, pos = [], 0
+        stop_re = re.compile(rf"<h[1-{level}][\s>]")
+        for m in _QA_HEADING.finditer(html):
+            if m.group("n") != level or m.start() < pos:
+                continue
+            stop = stop_re.search(html, m.end())
+            end = stop.start() if stop else len(html)
+            out += [html[pos:m.start()], '<details class="qa qa-h" open><summary class="qa-sum">',
+                    m.group(0), '</summary><div class="qa-a">', _box_intro(html[m.end():end]),
+                    "</div></details>"]
+            pos = end
+        out.append(html[pos:])
+        html = "".join(out)
+    return mark_safe(html)
 
 
 @register.filter

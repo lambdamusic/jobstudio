@@ -40,7 +40,7 @@ The candidate wrote these personal notes on what makes a job satisfying to them
 
 {ideal_job_notes}
 
-(Source: the full contents of `jobs/notes/search/ideal-job-notes.md`.)
+(Source: the full contents of `jobs/notes/search/direction/ideal-job-notes.md`.)
 
 Structured criteria from the candidate's career profile (`jobs/profile/criteria.yaml`):
 

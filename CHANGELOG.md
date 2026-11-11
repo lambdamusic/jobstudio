@@ -2,6 +2,185 @@
 
 Dated entries, newest first.
 
+## 2026-11-11
+
+- **Set status takes a note.** The menu on an application page is now a small form: pick
+  a status, optionally say why. The note becomes a dated line in `notes.md`'s
+  `## Timeline` (`status → closed. <note>`), which Record shows just above the status
+  history, and, ticked by default, the Next action too. The current status is offered as
+  well, so a note can be added without a change. With no note it behaves as before. The
+  form POSTs to `/actions/set-status/<num>/`; the one-link-per-status GET URLs are gone.
+
+- **The History tab is gone: Record now ends with the Timeline and the status history.**
+  `notes.md`'s `## Timeline` moves from My notes to Record, as Contacts moved to People: it
+  stays written in notes.md and is shown once, on Record. Both are the application's story
+  over time, so they sit together, each under its own labelled rule. Record is now always
+  present, since every application has a status history. Old `#notes--timeline` links
+  still land.
+
+- **Other files lists one file per line.** The index at the top of the tab ran the paths
+  together inline, and long, similar names read as one string. Two columns were tried and
+  broke most names mid-word.
+- **Other files runs newest first, with a date on every line.** Sorted by modification
+  time rather than path, so a file in `export/` or a subfolder no longer sinks to the bottom
+  however recent it is. Creation time was ruled out: macOS-only, and Dropbox resets it.
+  Every line shows its date; non-markdown files add their size, since markdown renders below.
+
+## 2026-11-10
+
+- **`scan` reads Jibe career sites.** Jibe is iCIMS's front end on a company's own
+  domain: the board looks bespoke, and its apply links go to an iCIMS login. The new
+  `jibe` fetcher pages through the `/api/jobs` JSON the search page calls and links each
+  posting's page on the careers site. A company needs a `jibe: {domain}` entry in
+  `company_overrides`, since the URL alone does not say what is underneath; spot one by
+  `data-jibe-search-version` in the page source.
+
+## 2026-11-09
+
+- **An interview answer tells the words to say from the advice on saying them.** The
+  quote under `**A:**` is the answer proper, shown under an "Answer" label; the rest is
+  advice, dimmed under "How to answer". A bank answer is now copied into the round, ending
+  with a `*From the bank: [link], copied <date>*` line, so a round reads as one document.
+
+- **An application has a People tab**, right after Interviews. It shows one card per
+  person in `notes.md`'s `## Contacts`: the name links to their profile, then their role,
+  and the interview rounds that mention them, linking into the Interviews tab. The
+  section leaves My notes when the tab shows it. Write Contacts as one bullet per person,
+  name first.
+
+- **A note's images live in one folder, `jobs/notes/img/`.** A note embeds one as
+  `img/<name>.png` and the app looks for it there rather than beside the note, so moving
+  a note between folders no longer breaks its images. One still beside its note is found
+  as a fallback.
+
+- **Lists nested by two spaces keep their second level.** Python-Markdown only nests a
+  list indented by four, so a sub-bullet written with two (as most editors do) came out as
+  one more item of the list above it. The markdown filter now re-indents nested items
+  before rendering, on every page, leaving code fences as written.
+
+- **A note's page has an Open folder button**, as a company page does: on the local app it
+  shows the note's `.md` in Finder, selected, so it can be opened and edited.
+
+- **`dossier`: everything for one application, as a single Word file to read.**
+  `/jobstudio dossier #1` (or `manage.py dossier 1`) writes the job description, the CV
+  and cover letter as sent, the other files in the folder, notes, to-dos, interview rounds,
+  the company page and every linked note into one `.docx`, one section per page, in the
+  application's `export/` folder; `--out` sends it somewhere else. The filename ends in
+  the time of the export, to the minute, so a rerun never overwrites an earlier one. The contents list and
+  every link between the documents jump within the file, and still do once it is opened
+  in Google Docs. It covers what the Documents index lists, so a note gets in by being
+  linked from the folder.
+
+## 2026-11-06
+
+- **The Notes page follows the folders in `jobs/notes/`.** Each folder there is a tab and
+  an entry under Notes in the sidebar, and each folder inside it is a section of that tab,
+  both named after the folder and listed alphabetically. A note outside any folder goes to
+  an "Other notes" tab, shown last. A new folder appears on the next page load, with no
+  code to change. The hand-set tab names and descriptions are gone, and `interviewing/` is
+  now a tab of its own rather than sharing one with `topics/`. Folders more than two
+  levels down are listed in the section above them.
+
+## 2026-11-01
+
+- **An application's to-dos have their own file and tab.** They moved from the `## To do`
+  section of `notes.md` to `todo.md` in the application folder, shown on a new To do tab
+  after Job description, with a count of open tasks. Ticks and highlights write to the new
+  file, and a round's page gathers its tagged tasks from it as before. Existing folders move
+  with `manage.py split_todo_files`, which shows its plan until given `--apply`.
+- **An application's page has a documents index.** A new box below the tabs, shown on every tab, links
+  everything that belongs to the application: its job description, notes, CVs, cover
+  letters and other files, its interview rounds, its company page, and the notes its files
+  link to. The notes are found from the links in `notes.md`, the rounds and any other
+  markdown in the folder, so to add one, link it from one of those. Locally, an "Open file"
+  link sits beside anything that exists as a file.
+- **Every note page ends with a notes index.** The same kind of box lists all the notes,
+  organised as on the Notes page, with the one you are reading marked. Career coach files
+  aren't included, since they aren't notes with pages of their own.
+- **Interviews moved up the application tabs.** The order is now Record, Job description,
+  Interviews, My notes, CV, Cover letters, Other files, History, then "Also at".
+
+## 2026-10-22
+
+- **`ideal-job-notes.md` lives in `jobs/notes/search/direction/`.** `scan`, `stocktake` and
+  `interview` read it there, and the example data matches. A path to a note in a nested
+  folder now becomes a link as well: the linker used to stop two folders down, so a
+  reference to `search/direction/…` or `topics/product/…` was left as plain text.
+- **The "Interviewing & topics" tab splits "about me" from "about the subject".**
+  `interviewing/` (shown as "Me: answers and my work") holds the answer bank and reference
+  notes on what you built; `topics/` holds general knowledge in four subfolders: product,
+  data architecture, knowledge graphs, and other. `init` creates the new folders, and the
+  skill now says that a topic note links to a story in the answer bank rather than
+  retelling it.
+- **Notes not filed in a subfolder read "Other notes", and come last.** Once a tab's folder
+  has a subfolder (`search/recruiter-leads/`, say), that subfolder becomes a section named
+  after it. The notes left straight in the folder are now headed "Other notes", after every
+  subfolder, instead of "Other search" or "Other topics".
+- **The sidebar collapses to an icon rail (`#96`).** A button next to the logo shrinks
+  the sidebar to a narrow strip of icons, giving long pages the full width. Each
+  top-level entry keeps its icon as a link, with its label as a tooltip. A group
+  heading (Applications, Notes, Portal scans) opens the full sidebar on that group. The
+  choice is remembered per browser and applied before the page draws, so it doesn't
+  flicker on load. At phone width the collapsed sidebar is one row of icons above the
+  page.
+
+## 2026-10-21
+
+- **Applications, Notes and Portal scans fold in the sidebar (`#94`).** Their headings
+  now open and close their sub-items instead of linking to a page. Notes' sub-items are
+  its tabs (My search, Interviewing & topics, Career coach), linking straight to each,
+  and the one in view is marked. The active-applications list the Applications heading
+  used to open is now its first sub-item, "Active". The group you are in is always open;
+  the others remember whether you left them open, per browser.
+- **The answer bank's notes on using an answer are boxed as how-tos (`#95`).** Under a
+  heading that asks a question, the plain paragraphs before the quoted answer ("A third
+  take, for…", "*Tested: …*") are a note on when and how to use it, so they now get the
+  same muted box as the "How this list works" guide in `## To do`. Told apart by shape, so
+  no file needs a marker: a paragraph that opens in bold is the answer starting, and an
+  entry with no quoted answer is left as it is. The box's class is now `howto-note`, one
+  class for both.
+
+## 2026-10-20
+
+- **The to-do guide reads as a how-to.** The "How this list works" paragraph that opens
+  `## To do` in notes.md is shown as a small, muted box with an info badge, set apart from
+  the tasks it explains. Existing files pick it up as they are; nothing to migrate.
+
+## 2026-10-15
+
+- **Notes say what they were first written for, not everywhere they were used.** The
+  "Used in" line under a note's title listed every application linking to it, and grew with
+  each one. It is now one link, "First written for #N", taken from the first application
+  link in the note's opening, before its first `##`. A note with none shows nothing.
+- **Questions are numbered, listed and foldable.** Every `**Q:**` question is numbered
+  under its heading (`3.1.1`, `3.1.2`), shown bold in red, and listed in the page's
+  contents under that heading, so a question can be found without scrolling the answers.
+  Each question and its answer is one block that opens and closes. A "Hide answers" link
+  on each heading folds them all to read the questions alone, "Expand all" opens them
+  again, and a link to a question opens it. This works on every page that uses the
+  convention, not only interview rounds: the answer bank, study files and topic notes too.
+  A heading that is itself the question, as in the answer bank, folds the same way.
+
+## 2026-10-13
+
+- **To-dos are grouped by theme, and tagged by round.** `## To do` in `notes.md` now has
+  four fixed headings (Domain, Stories & positions, Tech & Data, Questions &
+  Practicalities), and a task for one interview round ends with that round's tag, such as
+  `@hiring-manager`. The round's page gathers its tagged tasks. They are not copies, so a
+  tick on either page is the same tick. Tags show as pills, every task opens with a bold
+  short title, a note under a ticked task stays readable, and new `notes.md` files open
+  with a short paragraph explaining all this. Older files with one heading per round still
+  work. (`#91`)
+- **Notes: Interviewing and Topics are one tab, in sections.** The tab shows Technique
+  (the answer bank), then Product, Tech & Data and Domain. Each section is a subfolder
+  (`topics/product/`, `topics/tech-data/`, `topics/domain/`), so a note is filed by
+  moving it. Note URLs stay the filename alone, so `/notes/<slug>/` links survive the move.
+- **Repeated subheadings get their own anchors.** A document that uses the same `###`
+  under several `##` sections (What it is, Stack…) gave them one shared id, so every jump
+  link landed on the first. The first keeps its anchor; repeats are scoped by section.
+- **Notes can show images.** `![diagram](img/x.png)` in a note renders on its page: the
+  path resolves against the note's own folder, images only, never outside `jobs/notes/`.
+
 ## 2026-10-09
 
 - **Recruitee boards are scanned.** Read through the public JSON behind every Recruitee
@@ -642,7 +821,7 @@ Dated entries, newest first.
   title.
 
 Found by installing the toolkit on a second machine against an unfamiliar CV — the last
-outstanding piece of `#2`. Write-up in `log/2026-09-29-second-machine-findings.md`;
+outstanding piece of `#2`. Write-up in `backlog/log/2026-09-29-second-machine-findings.md`;
 `#46`–`#51` are the rest of what that run turned up.
 
 ## 2026-09-28

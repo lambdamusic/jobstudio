@@ -648,46 +648,87 @@ class ScanCoverageTests(TestCase):
 
 
 class StatusActionTests(TestCase):
-    """The local-only status menu on the application detail page (`#28`, 2026-09-23).
+    """The local-only status menu on the application detail page (`#28`, 2026-09-23; a
+    form with a note since 2026-11-11).
 
-    Replaced a single hardcoded "Mark reviewing" link; these guard the two things that
-    replacement could get wrong — accepting a status the rest of the app doesn't know,
-    and losing the History log that the post_save signal writes.
+    These guard accepting a status the rest of the app doesn't know, losing the status
+    log the post_save signal writes, and where the note goes: a dated line in notes.md's
+    Timeline, and the Next action when asked.
     """
 
     fixtures = FIXTURE
 
-    def test_every_status_can_be_set_from_the_url(self):
+    def setUp(self):
+        from django.test import override_settings
+
+        self.root = Path(tempfile.mkdtemp())
+        self.folder = self.root / "jobs" / "applications" / "900-test-co"
+        self.folder.mkdir(parents=True)
+        override = override_settings(DATA_ROOT=str(self.root))
+        override.enable()
+        self.addCleanup(override.disable)
+        self.app = Application.objects.get(num=1)
+        self.app.folder = "jobs/applications/900-test-co"
+        self.app.save()
+
+    def post(self, **data):
+        return self.client.post(f"/actions/set-status/{self.app.num}/", data)
+
+    def test_every_status_can_be_set(self):
         for status in STATUS_SORT_ORDER:
             with self.subTest(status=status):
-                r = self.client.get(f"/actions/set-status/1/{status}/")
-                self.assertEqual(r.status_code, 302)
+                self.assertEqual(self.post(status=status).status_code, 302)
                 self.assertEqual(Application.objects.get(num=1).status, status)
 
     def test_an_unknown_status_404s_rather_than_being_written(self):
-        """The status arrives from the URL, so it is input, not a given."""
-        before = Application.objects.get(num=1).status
-        self.assertEqual(self.client.get("/actions/set-status/1/banana/").status_code, 404)
+        """The status arrives from the form, so it is input, not a given."""
+        before = self.app.status
+        self.assertEqual(self.post(status="banana").status_code, 404)
         self.assertEqual(Application.objects.get(num=1).status, before)
 
-    def test_setting_a_status_keeps_status_order_and_logs_the_change(self):
-        app = Application.objects.get(num=1)
-        self.client.get(f"/actions/set-status/{app.num}/interviewing/")
-        app.refresh_from_db()
-        self.assertEqual(app.status_order, STATUS_SORT_ORDER.index("interviewing"))
-        self.assertTrue(ApplicationStatusChange.objects.filter(
-            application=app, to_status="interviewing").exists())
+    def test_a_get_changes_nothing(self):
+        self.assertEqual(self.client.get(f"/actions/set-status/{self.app.num}/").status_code, 405)
 
-    def test_the_menu_offers_every_status_except_the_current_one(self):
-        app = Application.objects.get(num=1)
-        html = self.client.get(f"/applications/{app.num}/").content.decode()
+    def test_setting_a_status_keeps_status_order_and_logs_the_change(self):
+        self.post(status="interviewing")
+        self.app.refresh_from_db()
+        self.assertEqual(self.app.status_order, STATUS_SORT_ORDER.index("interviewing"))
+        self.assertTrue(ApplicationStatusChange.objects.filter(
+            application=self.app, to_status="interviewing").exists())
+
+    def test_no_note_writes_nothing(self):
+        self.post(status="closed", as_next="on")
+        self.assertFalse((self.folder / "notes.md").exists())
+        self.app.refresh_from_db()
+        self.assertNotEqual(self.app.next_action, "")
+
+    def test_a_note_goes_to_the_timeline_and_the_next_action(self):
+        (self.folder / "notes.md").write_text(
+            "## My notes\n\nx\n\n## Timeline\n\n- **2026-01-01:** logged\n\n## Later\n\ny\n")
+        self.post(status="closed", note="Role filled\n internally.", as_next="on")
+        text = (self.folder / "notes.md").read_text()
+        today = dt.date.today().isoformat()
+        self.assertIn(f"- **2026-01-01:** logged\n- **{today}:** status → closed. Role filled internally.\n\n## Later", text)
+        self.app.refresh_from_db()
+        self.assertEqual(self.app.status, "closed")
+        self.assertEqual(self.app.next_action, "Role filled internally.")
+
+    def test_a_note_without_a_change_is_just_the_note_and_can_leave_next_action(self):
+        before = self.app.next_action
+        self.post(status=self.app.status, note="Chased by email.")
+        text = (self.folder / "notes.md").read_text()
+        self.assertIn(f"- **{dt.date.today().isoformat()}:** Chased by email.\n", text)
+        self.assertIn("## Timeline", text, "a notes.md is created with its Timeline")
+        self.app.refresh_from_db()
+        self.assertEqual(self.app.next_action, before)
+
+    def test_the_menu_offers_every_status_with_the_current_one_chosen(self):
+        html = self.client.get(f"/applications/{self.app.num}/").content.decode()
+        self.assertIn(f'action="/actions/set-status/{self.app.num}/"', html)
         for status in STATUS_SORT_ORDER:
             with self.subTest(status=status):
-                link = f"/actions/set-status/{app.num}/{status}/"
-                if status == app.status:
-                    self.assertNotIn(link, html)
-                else:
-                    self.assertIn(link, html)
+                checked = " checked" if status == self.app.status else ""
+                self.assertIn(f'name="status" value="{status}"{checked}>', html)
 
 
 def markdownify_path(md):
@@ -774,23 +815,32 @@ class ViewTests(TestCase):
         paths = _notes_files()
         self.assertTrue(paths, "no notes in the example data")
         for path in paths:
-            group = _note_group(path) or "other"
+            group = _note_group(path)
             with self.subTest(slug=path.stem):
                 self.assertIn(f'data-tab="{group}"', html)
                 panel = html[html.index(f'data-panel="{group}"'):]
                 self.assertIn(f'href="/notes/{path.stem}/"', panel[:panel.index("</section>")])
 
-    def test_notes_in_group_folders_keep_flat_urls_and_show_where_they_are_used(self):
+    def test_notes_in_group_folders_keep_flat_urls_and_show_what_they_were_written_for(self):
         """Grouping is the folder; the URL is the filename alone, so moving a note between
-        groups never breaks a link. "Used in" comes from links in application folders."""
+        groups never breaks a link. "First written for" is the first application the
+        note's own opening links — not every folder that links back, a list that only grew."""
         from django.test import override_settings
 
         root = Path(tempfile.mkdtemp())
         notes = root / "jobs" / "notes"
         (notes / "topics").mkdir(parents=True)
         (notes / "topics" / "graph-basics.md").write_text(
-            "# Graph basics\n\n*Started for a round; kept for the next.*\n\n## One\n\nText.\n")
+            "# Graph basics\n\n*Started for [a round](/applications/1/); kept for the next.*\n\n"
+            "## One\n\nAlso used in [another](/applications/2/).\n")
         (notes / "loose.md").write_text("# Loose note\n\nNo group.\n")
+        (notes / "interviewing").mkdir()
+        (notes / "interviewing" / "answer-bank.md").write_text("# Answer bank\n\nAnswers.\n")
+        (notes / "topics" / "data-architecture").mkdir()
+        (notes / "topics" / "data-architecture" / "energy-markets.md").write_text("# Energy markets\n\nX.\n")
+        (notes / "search" / "recruiter-leads").mkdir(parents=True)
+        (notes / "search" / "recruiter-leads" / "agencies.md").write_text("# Agencies\n\nY.\n")
+        (notes / "search" / "aims.md").write_text("# Aims\n\nZ.\n")
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
         (folder / "notes.md").write_text("# Test\n\nSee [graph basics](/notes/graph-basics/).\n")
@@ -799,16 +849,71 @@ class ViewTests(TestCase):
         app.save()
         with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
             listed = self.client.get("/notes/").content.decode()
-            self.assertIn('data-tab="topics"', listed)
-            self.assertIn('data-tab="other"', listed)
+            # A tab per top-level folder, by name, then the loose notes as "Other notes"
+            # (2026-11-06: read from the folders, interviewing/ no longer joins topics/).
+            tabs = [listed.index(f'data-tab="{t}"')
+                    for t in ("interviewing", "search", "topics", "other-notes")]
+            self.assertEqual(tabs, sorted(tabs))
+            nav = [listed.index(f'data-tab-link="{t}"')
+                   for t in ("interviewing", "search", "topics", "other-notes")]
+            self.assertEqual(nav, sorted(nav))
+            # A folder with no subfolders is a flat list: no section heading.
+            interviewing = listed[listed.index('data-panel="interviewing"'):]
+            interviewing = interviewing[:interviewing.index("</section>")]
+            self.assertIn('href="/notes/answer-bank/"', interviewing)
+            self.assertNotIn("note-section-heading", interviewing)
+            panel = listed[listed.index('data-panel="topics"'):]
+            panel = panel[:panel.index("</section>")]
+            # Sections by subfolder, named after it, a note straight in topics/ last as
+            # "Other notes"; nested notes keep the flat URL.
+            order = [panel.index(x) for x in (">Data architecture ", 'href="/notes/energy-markets/"',
+                                              ">Other notes ", 'href="/notes/graph-basics/"')]
+            self.assertEqual(order, sorted(order))
+            search = listed[listed.index('data-panel="search"'):]
+            search = search[:search.index("</section>")]
+            order = [search.index(x) for x in (">Recruiter leads ", 'href="/notes/agencies/"',
+                                               ">Other notes ", 'href="/notes/aims/"')]
+            self.assertEqual(order, sorted(order))
+            self.assertNotIn("Other search", search)
+            self.assertEqual(self.client.get("/notes/energy-markets/").status_code, 200)
             self.assertIn("Started for a round; kept for the next.", listed)
             self.assertIn(f'href="/applications/{app.num}/"', listed)
-            page = self.client.get("/notes/graph-basics/")
-            self.assertEqual(page.status_code, 200)
-            self.assertIn("Used in", page.content.decode())
+            page = self.client.get("/notes/graph-basics/").content.decode()
+            self.assertIn("First written for", page)
+            head = page[page.index("First written for"):page.index("</p>", page.index("First written for"))]
+            self.assertIn('href="/applications/1/"', head)
+            self.assertNotIn('href="/applications/2/"', head)
+            self.assertNotIn("First written for", self.client.get("/notes/energy-markets/").content.decode())
             self.assertIn('href="/notes/graph-basics/"',
                           markdownify_path("`jobs/notes/topics/graph-basics.md`"))
             self.assertIn('href="/notes/graph-basics/"', markdownify_path("`graph-basics.md`"))
+
+    def test_note_images_are_served_from_the_notes_image_folder_and_nowhere_else(self):
+        """`img/…` in a note resolves against jobs/notes/, so every note's images live in
+        jobs/notes/img/ and moving the note never breaks one. A file still beside its note
+        is found as a fallback. Only images, and only inside jobs/notes/: no markdown, no
+        climbing out with `..`."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "img").mkdir(parents=True)
+        (notes / "topics" / "deep" / "img").mkdir(parents=True)
+        (notes / "topics" / "deep" / "graph-basics.md").write_text(
+            "# Graph basics\n\n![diagram](img/arch.png)\n![old](img/beside.png)\n")
+        (notes / "img" / "arch.png").write_bytes(b"\x89PNG\r\n")
+        (notes / "topics" / "deep" / "img" / "beside.png").write_bytes(b"\x89PNG\r\n")
+        (root / "secret.png").write_bytes(b"\x89PNG\r\n")
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            page = self.client.get("/notes/graph-basics/").content.decode()
+            self.assertIn('src="img/arch.png"', page)
+            self.assertEqual(self.client.get("/notes/graph-basics/img/arch.png").status_code, 200)
+            self.assertEqual(self.client.get("/notes/graph-basics/img/beside.png").status_code, 200)
+            self.assertEqual(self.client.get("/notes/graph-basics/graph-basics.md").status_code, 404)
+            self.assertEqual(self.client.get("/notes/graph-basics/../../../secret.png").status_code, 404)
+            self.assertEqual(self.client.get("/notes/graph-basics/img/missing.png").status_code, 404)
+            # An image folder holds no notes, so it is not a tab on the Notes page.
+            self.assertNotIn('data-tab="img"', self.client.get("/notes/").content.decode())
 
     def test_note_titles_come_from_the_file_not_the_filename(self):
         """`ai-safety-pivot`.title() is "Ai Safety Pivot". The file says what it is called;
@@ -2728,19 +2833,49 @@ class TabsTests(TestCase):
         whole page must still be there — the published site is a plain file mirror."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
-        for panel in ("record", "notes", "letters", "job", "cv", "history"):
+        for panel in ("record", "notes", "letters", "job", "cv"):
             with self.subTest(panel=panel):
                 self.assertIn(f'data-panel="{panel}"', html)
                 self.assertIn(f'data-tab="{panel}"', html)
         # no panel is server-side hidden
         self.assertNotIn("tabpanel\" data-panel=\"record\" role=\"tabpanel\" hidden", html)
 
-    def test_history_tab_is_never_omitted(self):
-        """Unlike the other tabs, History always has something to show — every
-        application gets at least a "logged as" entry, backfilled or signal-written."""
+    def test_record_tab_is_never_omitted_and_ends_with_the_status_history(self):
+        """Record always has something to show since it took over from the History tab
+        (2026-11-11): every application gets at least a "logged as" entry, backfilled
+        or signal-written. There is no History tab any more."""
         for app in Application.objects.all()[:5]:
-            html = self.client.get(f"/applications/{app.num}/").content.decode()
-            self.assertIn('data-tab="history"', html)
+            with self.subTest(num=app.num):
+                html = self.client.get(f"/applications/{app.num}/").content.decode()
+                self.assertIn('data-tab="record"', html)
+                self.assertNotIn('data-tab="history"', html)
+                record = html[html.index('data-panel="record"'):]
+                record = record[:record.index("</section>")]
+                self.assertIn('id="status-history"', record)
+
+    def test_timeline_moves_from_my_notes_to_record(self):
+        """`## Timeline` is shown once, on Record, ahead of the status history; My notes
+        keeps everything else, and the old `#notes--timeline` anchor still lands."""
+        app = Application.objects.get(num=1)
+        self.assertIn("## Timeline", app.notes_md, "fixture app #1 needs a Timeline")
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        record = html[html.index('data-panel="record"'):]
+        record = record[:record.index("</section>")]
+        notes = html[html.index('data-panel="notes"'):]
+        notes = notes[:notes.index("</section>")]
+        self.assertIn('id="timeline"', record)
+        self.assertIn('id="notes--timeline"', record)
+        self.assertLess(record.index('id="timeline"'), record.index('id="status-history"'))
+        self.assertNotIn(">Timeline<", notes)
+
+    def test_timeline_of_leaves_notes_alone_without_a_section(self):
+        from .parsers import timeline_of
+
+        self.assertIsNone(timeline_of("## My notes\n\nNothing dated.\n"))
+        self.assertIsNone(timeline_of("## Timeline\n\n## Next\n"))
+        t = timeline_of("## A\n\nx\n\n## Timeline\n\n- **2026-01-01:** logged\n\n## B\n\ny\n")
+        self.assertEqual(t["timeline_md"], "- **2026-01-01:** logged")
+        self.assertEqual(t["notes_md"], "## A\n\nx\n\n## B\n\ny\n")
 
     def test_tabs_are_omitted_when_a_section_is_empty(self):
         app = Application.objects.filter(folder="").first()
@@ -2899,6 +3034,58 @@ class DefaultActiveListTests(TestCase):
         a = [x.pk for x in self.client.get("/applications/").context["applications"]]
         b = [x.pk for x in self.client.get("/applications/active/").context["applications"]]
         self.assertEqual(a, b)
+
+    def test_sidebar_groups_fold_and_open_where_the_page_is(self):
+        """`#94`: Applications, Notes and Portal scans are <details> groups, not links.
+        The group the page is in renders open; the others start closed. Applications lists
+        only the three working statuses (2026-10-21)."""
+        html = self.client.get("/companies/").content.decode()
+        for name in ("applications", "notes", "scans"):
+            with self.subTest(group=name):
+                self.assertIn(f'<details class="nav-fold" data-fold="{name}">', html)
+        self.assertNotIn('<a href="/notes/" class=', html)
+        group = html[html.index('data-fold="applications"'):html.index('data-fold="notes"')]
+        self.assertEqual(re.findall(r'href="(/applications/[^"]*)"', group),
+                         ["/applications/status/interviewing/", "/applications/status/reviewing/",
+                          "/applications/status/saved/"])
+
+        listing = self.client.get("/applications/").content.decode()
+        self.assertIn('<details class="nav-fold" data-fold="applications" open data-inside>',
+                      listing)
+
+    def test_notes_sub_items_are_the_notes_tabs(self):
+        html = self.client.get("/").content.decode()
+        group = html[html.index('data-fold="notes"'):html.index('data-fold="scans"')]
+        # One per folder under jobs/notes/ — example-data has only search/ — and no
+        # entry for a folder that is not there (2026-11-06).
+        self.assertIn('href="/notes/#search"', group)
+        self.assertNotIn('href="/notes/#topics"', group)
+        # Each carries its count, matching the Notes page's own tab counts.
+        notes_page = self.client.get("/notes/").content.decode()
+        for slug, count in re.findall(
+                r'data-tab="([\w-]+)"[^>]*>[^<]*<span class="tab-count">(\d+)</span>', notes_page):
+            with self.subTest(tab=slug):
+                self.assertRegex(group, rf'data-tab-link="{slug}"[^>]*>\s*[^<]*'
+                                        rf'<span class="nav-count">{count}</span>')
+
+    def test_the_sidebar_can_collapse_to_an_icon_rail(self):
+        """`#96`: a toggle collapses the sidebar to icons. It starts `hidden`, since it only
+        works with nav.js; the saved choice is applied in <head>, before first paint; and
+        every top-level entry has an icon plus a <span> label, which nav.js turns into the
+        entry's tooltip in the rail."""
+        html = self.client.get("/companies/").content.decode()
+        self.assertRegex(html, r'<button type="button" class="side-toggle" hidden')
+        head = html[:html.index("<body>")]
+        self.assertIn('localStorage.getItem("jobstudio.nav.collapsed")', head)
+        nav = html[html.index('<nav class="sidebar">'):html.index("</nav>")]
+        entries = re.findall(r'<a href="[^"]*" class="(?!nav-sub)[^"]*"[^>]*>\s*(.*?)</a>'
+                             r'|<summary class="nav-head[^"]*">\s*(.*?)</summary>', nav, re.S)
+        self.assertGreater(len(entries), 5)
+        for link, summary in entries:
+            body = link or summary
+            with self.subTest(entry=body[:60]):
+                self.assertRegex(body, r'^<svg class="ico"[^>]*><use href="#i-[\w-]+"/></svg>'
+                                       r'<span>[^<]+</span>')
 
     def test_sidebar_has_reviewing_link_not_active(self):
         html = self.client.get("/").content.decode()
@@ -3364,6 +3551,24 @@ class HighlightTests(TestCase):
                     self.assertNotIn("data-hl-source", self.client.get(url).content.decode())
 
 
+class NestedListTests(TestCase):
+    """A list nested by two spaces keeps its second level (2026-11-09). Python-Markdown wants
+    four, and read two as more items of the same list, so the page lost the nesting."""
+
+    def test_two_and_four_space_nesting_both_render_as_a_second_level(self):
+        from tracker.templatetags.jobs_extras import markdownify
+        for indent in ("  ", "    "):
+            with self.subTest(indent=len(indent)):
+                html = markdownify(f"- **Before.** Two examples:\n{indent}- Honda\n{indent}- Springer\n- After\n")
+                self.assertRegex(html, r"Two examples:\s*<ul>\s*<li>Honda</li>\s*<li>Springer</li>\s*</ul>\s*</li>\s*<li>After")
+
+    def test_three_levels_ordered_lists_and_fences(self):
+        from tracker.templatetags.jobs_extras import markdownify
+        html = markdownify("1. One\n   - sub\n     - subsub\n2. Two\n\n```\n- a\n  - b\n```\n")
+        self.assertRegex(html, r"<li>One\s*<ul>\s*<li>sub\s*<ul>\s*<li>subsub</li>")
+        self.assertIn("- a\n  - b", html, "a code fence is left exactly as written")
+
+
 class UnwrapTests(TestCase):
     """Hard-wrapped prose renders as one paragraph, not a `<br />` at every wrap (`nl2br`
     stays on for the line breaks that are layout)."""
@@ -3652,13 +3857,12 @@ class InterviewRoundTests(TestCase):
     # wrote about it, what you sent, then who you spoke to — with History closing it
     # (`#67`). Interviews sat third until 2026-10-01, on the argument that live rounds
     # are what gets reread; that is served by linking to a round, not by tab position.
-    TAB_ORDER = ("record", "job", "notes", "cv", "letters", "files",
-                 "interviews", "history", "siblings")
+    TAB_ORDER = ("record", "job", "todo", "interviews", "notes", "cv", "letters", "files",
+                 "history", "siblings")
 
-    def test_interviews_tab_sits_last_before_history(self):
-        """Interviews comes after everything you produced for the application and
-        immediately before History. Asserted on the panel order too: with JS off the
-        panels are the reading order."""
+    def test_to_do_and_interviews_tabs_follow_the_job_description(self):
+        """Tasks and rounds are what gets reread once a process is live. Asserted on the
+        panel order too: with JS off the panels are the reading order."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         for attr in ("data-tab", "data-panel"):
@@ -3666,8 +3870,9 @@ class InterviewRoundTests(TestCase):
                 positions = {t: html.index(f'{attr}="{t}"')
                              for t in self.TAB_ORDER if f'{attr}="{t}"' in html}
                 self.assertIn("interviews", positions)
-                self.assertLess(positions["files"], positions["interviews"])
-                self.assertLess(positions["interviews"], positions["history"])
+                self.assertLess(positions["job"], positions["todo"])
+                self.assertLess(positions["todo"], positions["interviews"])
+                self.assertLess(positions["interviews"], positions["notes"])
 
     def test_tab_order_and_panel_order_agree(self):
         """The one invariant that makes moving a tab a two-part edit: tabs.js hides
@@ -3790,19 +3995,20 @@ class InterviewRoundTests(TestCase):
         self.assertIsNone(P.subsection_md(block, "panel-2026-10-10"))
 
     def test_focus_view_shows_the_rounds_tasks_from_notes(self):
-        """`#84`: an application's tasks live in notes.md's `## To do`, one `###` per
+        """`#84`: an application's tasks live in todo.md, in this older layout one `##` per
         round, and the round's focus view — the page open during prep — shows its own.
         Checked for a stage whose label slugs back to the stage (Hiring manager) and one
-        that does not (`final` → "Final round"). Ticks must still point at notes.md."""
+        that does not (`final` → "Final round"). Ticks must still point at todo.md."""
         from django.test import override_settings
 
         root = Path(tempfile.mkdtemp())
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
-        (folder / "notes.md").write_text(
-            "# Test Co\n\n## To do\n\n### Application\n\n- [x] read the posting\n\n"
-            "### Hiring manager — 2026-09-24\n\n- [ ] HM-TASK-ONE\n- [ ] HM-TASK-TWO\n\n"
-            "### Final round — 2026-10-10\n\n- [ ] FINAL-TASK\n\n## My notes\n\nPlain.\n")
+        (folder / "notes.md").write_text("# Test Co\n\n## My notes\n\nPlain.\n")
+        (folder / "todo.md").write_text(
+            "# To do\n\n## Application\n\n- [x] read the posting\n\n"
+            "## Hiring manager — 2026-09-24\n\n- [ ] HM-TASK-ONE\n- [ ] HM-TASK-TWO\n\n"
+            "## Final round — 2026-10-10\n\n- [ ] FINAL-TASK\n")
         for stage, date in (("hiring-manager", "2026-09-24"), ("final", "2026-10-10"),
                             ("panel", "2026-10-01")):
             (folder / f"900-test-co-alex-rivera-interview-{stage}-{date}.md").write_text(
@@ -3817,20 +4023,108 @@ class InterviewRoundTests(TestCase):
                     f"/applications/{app.num}/rounds/{anchor}/").content.decode()
 
             hm = page("round-hiring-manager-2026-09-24")
-            self.assertIn('id="notes--hiring-manager-2026-09-24"', hm)
+            self.assertIn('id="todo--hiring-manager-2026-09-24"', hm)
             self.assertIn("HM-TASK-TWO", hm)
             self.assertNotIn("FINAL-TASK", hm)
             self.assertNotIn("read the posting", hm, "Application tasks are not a round's")
-            # File-wide index: HM-TASK-ONE is notes.md's second task, so data-task="1".
+            # File-wide index: HM-TASK-ONE is todo.md's second task, so data-task="1".
             self.assertRegex(hm, r'data-task="1"[^>]*>\s*HM-TASK-ONE')
-            self.assertIn('data-source="jobs/applications/900-test-co/notes.md"', hm)
+            self.assertIn('data-source="jobs/applications/900-test-co/todo.md"', hm)
 
             final = page("round-final-2026-10-10")
-            self.assertIn('id="notes--final-round-2026-10-10"', final)
+            self.assertIn('id="todo--final-round-2026-10-10"', final)
             self.assertIn("FINAL-TASK", final)
 
             self.assertNotIn("To do for this round", page("round-panel-2026-10-01"),
                              "a round with no subsection shows no empty panel")
+
+    def test_repeated_subheadings_get_distinct_anchors(self):
+        """The same `###` under two `##` sections must not share an id: the first keeps
+        the bare slug, the repeat is scoped by its section. A repeat inside one section
+        is still indexed, so ids stamped by position stay in step with the headings."""
+        from tracker.parsers import split_sections
+
+        md = ("## Orgs\n\n### Stack\n\nA\n\n### Scale\n\nB\n\n"
+              "## People\n\n### Stack\n\nC\n\n### Stack\n\nD\n")
+        blocks = split_sections(md)["blocks"]
+        anchors = [s["anchor"] for b in blocks for s in b["subsections"]]
+        self.assertEqual(anchors, ["stack", "scale", "people-stack", "people-stack-2"])
+
+    def test_tagged_md_keeps_tagged_items_under_their_themes(self):
+        block = ("### Domain\n\n- [ ] DOM-HM long task\n  continued @hiring-manager\n"
+                 "- [ ] DOM-UNTAGGED\n\n### Tech & Data\n\n- [x] TECH-HR @hr-screen\n"
+                 "- [ ] TECH-HM @Hiring-Manager\n```\n- [ ] FENCED @hiring-manager\n```\n"
+                 "- [ ] TECH-HM2 @hiring-managers\n")
+        hm = P.tagged_md(block, "hiring-manager")
+        self.assertIn("### Domain", hm)
+        self.assertIn("continued @hiring-manager", hm, "an item's continuation lines go with it")
+        self.assertIn("TECH-HM @Hiring-Manager", hm)
+        for absent in ("DOM-UNTAGGED", "TECH-HR", "FENCED", "TECH-HM2"):
+            self.assertNotIn(absent, hm)
+        self.assertNotIn("### Tech & Data", P.tagged_md(block, "hr-screen").split("TECH-HR")[1])
+        self.assertIsNone(P.tagged_md(block, "final"))
+
+    def test_split_todo_files_moves_the_section_and_its_links(self):
+        """The one-off: the section's text moves unchanged bar its heading levels, the rest
+        of notes.md stays byte for byte, and links to a moved heading follow it, while a
+        link to a heading that stayed does not."""
+        from tracker.management.commands.split_todo_files import (
+            plan_folder, retarget_round, rewrite_links)
+
+        folder = Path(tempfile.mkdtemp())
+        (folder / "notes.md").write_text(
+            "# Co\n\n## To do\n\n*How this list works.* Hi.\n\n### Domain\n\n"
+            "- [x] DONE ==marked==\n    - => see [fit](#notes--fit-check)\n```\n### fenced\n```\n\n"
+            "## My notes\n\n### Fit check\n\nText.\n\n## Timeline\n")
+        plan = plan_folder(folder)
+        self.assertEqual(plan["notes"], "# Co\n\n## My notes\n\n### Fit check\n\nText.\n\n## Timeline\n")
+        self.assertEqual(plan["todo"],
+            "# To do\n\n*How this list works.* Hi.\n\n## Domain\n\n"
+            "- [x] DONE ==marked==\n    - => see [fit](#notes--fit-check)\n```\n### fenced\n```\n")
+        self.assertFalse(plan["drifted"])
+        self.assertEqual(rewrite_links("[a](#notes--domain) [b](#notes--fit-check) [c](#notes--to-do)",
+                                       plan["mapping"], ""),
+                         "[a](#todo--domain) [b](#notes--fit-check) [c](#todo)")
+        self.assertEqual(retarget_round(
+            "## To do\n\n→ [This round's tasks, in My notes](#notes--hr-2026-01-01) — tagged in\n"
+            "notes.md, on My notes.\n\n## Outcome\n\nMy notes.\n"),
+            "## To do\n\n→ [This round's tasks](#todo--hr-2026-01-01) — tagged in\n"
+            "todo.md, on To do.\n\n## Outcome\n\nMy notes.\n")
+        (folder / "todo.md").write_text("x")
+        self.assertIsNone(plan_folder(folder), "already split: left alone")
+
+    def test_focus_view_collects_tagged_tasks_when_headings_are_themes(self):
+        """`##` headings in todo.md are themes, a task names its round with `@<label>`. The
+        round page gathers them, one checkbox per todo.md line."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text("# Test Co\n\n## My notes\n\nPlain.\n")
+        (folder / "todo.md").write_text(
+            "# To do\n\n## Domain\n\n- [ ] GENERAL\n- [ ] HM-ONE @hiring-manager\n\n"
+            "## Questions & Practicalities\n\n- [ ] HM-TWO @hiring-manager\n")
+        (folder / "900-test-co-alex-rivera-interview-hiring-manager-2026-09-24.md").write_text(
+            "# HM\n\n## To do\n\n→ [This round's tasks](#todo--hiring-manager-2026-09-24)\n\n"
+            "## Prep\n\n- **Q:** why?\n  **A:** because.\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root)):
+            hm = self.client.get(
+                f"/applications/{app.num}/rounds/round-hiring-manager-2026-09-24/").content.decode()
+            full = self.client.get(f"/applications/{app.num}/").content.decode()
+        # No such section on the To do tab, so the round file's link goes to the focus page.
+        self.assertIn(f'href="/applications/{app.num}/rounds/round-hiring-manager-2026-09-24/'
+                      f'#todo--hiring-manager-2026-09-24"', full)
+        self.assertIn('id="todo--hiring-manager-2026-09-24"', hm)
+        self.assertIn("Questions &amp; Practicalities", hm)
+        self.assertNotIn("GENERAL", hm)
+        self.assertRegex(hm, r'data-task="1"[^>]*>\s*HM-ONE')
+        self.assertRegex(hm, r'data-task="2"[^>]*>\s*HM-TWO')
+        self.assertIn('<span class="task-tag">@hiring-manager</span>', hm,
+                      "a round tag is shown as a badge")
 
     def test_focus_view_removes_a_private_section_from_the_page_source(self):
         """Removed, not hidden. A page open during a call can be visible to someone
@@ -4059,7 +4353,7 @@ class InterviewRoundTests(TestCase):
         from tracker.templatetags.jobs_extras import markdownify
         a = "001-grafana-labs-alex-rivera"
         cases = {
-            "`jobs/notes/search/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
+            "`jobs/notes/search/direction/ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
             "`ideal-job-notes.md`": '<a href="/notes/ideal-job-notes/"><code>',
             "see <DATA>/jobs/companies/grafana-labs.md now": 'href="/companies/grafana-labs/"',
             "`stocktake.md` §7": '<a href="/profile/"><code>stocktake.md</code></a>',
@@ -4071,7 +4365,7 @@ class InterviewRoundTests(TestCase):
                 'href="/applications/1/#cv-developer-advocacy-2026-09-15"',
             f"`{a}-study-plugin-architecture-2026-09-19.md`":
                 f'href="/applications/1/#file-{a}-study-plugin-architecture-2026-09-19-md"',
-            "[the note](jobs/notes/search/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
+            "[the note](jobs/notes/search/direction/ideal-job-notes.md)": '<a href="/notes/ideal-job-notes/">the note',
         }
         for md, expected in cases.items():
             with self.subTest(md=md):
@@ -4109,19 +4403,184 @@ class InterviewRoundTests(TestCase):
         with self.assertRaises(IndexError):
             set_task(text, 3, True)
 
-    def test_the_to_do_section_in_application_notes_is_checkboxes(self):
-        """An application's tasks are `- [ ]` lists in notes.md's `## To do` (SKILL.md,
-        "Lists of things to do are checklists"; `#84`, which replaced the gap analysis's
-        `### Preparation steps`), so they reach the page as checkboxes — and the section
-        comes first, so the first box on the page is the file's first task."""
+    def test_the_to_do_file_reaches_its_tab_as_checkboxes(self):
+        """An application's tasks are `- [ ]` lists in todo.md (SKILL.md, "Lists of things
+        to do are checklists"), so they reach the To do tab as checkboxes, and My notes no
+        longer carries them."""
         app = Application.objects.get(num=1)
-        self.assertEqual(app.notes_doc["blocks"][0]["anchor"], "notes--to-do")
+        self.assertEqual(app.todo_doc["blocks"][0]["anchor"], "todo--domain")
+        self.assertNotIn("notes--to-do", [b["anchor"] for b in app.notes_doc["blocks"]])
+        self.assertNotIn("todo.md", [f["name"] for f in app.extra_files])
+        self.assertGreater(app.open_tasks, 0)
         html = self.client.get("/applications/1/").content.decode()
-        todo = html[html.index('data-section="notes--to-do"'):]
+        self.assertRegex(html, rf'To do <span class="tab-n">{app.open_tasks}</span>')
+        todo = html[html.index('data-panel="todo"'):html.index('data-panel="interviews"')]
         self.assertIn('class="task-box" data-task="0"', todo)
         self.assertIn('data-task="1"', todo)
-        self.assertIn('id="notes--hr-screen-2026-09-18"', todo,
-                      "a round's subsection carries the id its round file links to")
+        self.assertIn('<span class="task-tag">@hr-screen</span>', todo,
+                      "a task's round tag is drawn as a pill (#91)")
+        # The round file's link has no section to land on in the To do tab, so it goes to
+        # the round's page, where the tagged tasks are gathered.
+        self.assertIn('href="/applications/1/rounds/round-hr-screen-2026-09-18/'
+                      '#todo--hr-screen-2026-09-18"', html)
+
+    def test_documents_index_lists_every_document_of_the_application(self):
+        """#97: the application's files, rounds and company, on the page and in the static
+        build's terms: page links and tab anchors, every one of them landing somewhere. It sits
+        after the last tab panel, so it shows whichever tab is open."""
+        html = self.client.get("/applications/1/").content.decode()
+        record = html[html.index('class="index-box"'):html.index('class="company-cta"')]
+        self.assertGreater(html.index('class="index-box"'), html.rindex('class="tabpanel"'))
+        self.assertIn(">Documents index</h2>", record)
+        self.assertIn('href="#job"', record)
+        self.assertIn('href="#todo"', record)
+        self.assertIn('href="#notes"', record)
+        self.assertIn('href="#letters"', record)
+        self.assertIn('href="#cv-developer-advocacy-2026-09-15"', record)
+        self.assertIn('href="#file-001-grafana-labs-alex-rivera-study-plugin-architecture-2026-09-19-md"', record)
+        self.assertIn('href="/applications/1/rounds/round-hr-screen-2026-09-18/"', record)
+        self.assertIn('href="/companies/grafana-labs/"', record)
+        self.assertEqual(self.client.get("/applications/1/rounds/round-hr-screen-2026-09-18/").status_code, 200)
+        self.assertEqual(self.client.get("/companies/grafana-labs/").status_code, 200)
+
+    def test_documents_list_the_notes_the_folder_links_once_by_title(self):
+        """#97: a note counts if a file in the folder links it, as a page link or a file
+        reference. Folder names in a path, external URLs and dead links are not notes."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "topics" / "other").mkdir(parents=True)
+        (notes / "topics" / "other" / "graph-basics.md").write_text("# Graph basics\n\nX.\n")
+        (notes / "topics" / "other" / "api-security.md").write_text("# API security\n\nX.\n")
+        (notes / "topics" / "other" / "unlinked.md").write_text("# Unlinked\n\nX.\n")
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "notes.md").write_text(
+            "# Test\n\nSee [basics](/notes/graph-basics/#one) and [again](/notes/graph-basics/).\n"
+            "Also [gone](/notes/no-such-note/), [elsewhere](https://example.org/notes/unlinked/)\n"
+            "<!-- [hidden](/notes/unlinked/) -->\n")
+        (folder / "900-test-co-alex-rivera-interview-panel-2026-11-02.md").write_text(
+            "# Panel\n\nRead `jobs/notes/topics/other/api-security.md`.\n")
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            self.assertEqual(app.linked_notes, [
+                {"label": "API security", "href": "/notes/api-security/"},
+                {"label": "Graph basics", "href": "/notes/graph-basics/"},
+            ])
+
+    def test_the_dossier_holds_every_document_in_reading_order(self):
+        """#98: one .docx with a page-broken section per document, the markdown written
+        as Word headings, lists and task boxes rather than as raw text."""
+        from docx import Document
+        from tracker import dossier
+
+        app = Application.objects.get(num=1)
+        out = Path(tempfile.mkdtemp()) / "dossier.docx"
+        titles = dossier.build(app, out)
+        self.assertEqual(titles[:2], ["Overview", "Job description"])
+        self.assertTrue(titles[2].startswith("CV as sent: "))
+        self.assertIn("My notes", titles)
+        self.assertTrue(any(t.startswith("Interview: ") for t in titles))
+        self.assertEqual(titles[-1], "Company: Grafana Labs")
+        doc = Document(out)
+        h1 = [p for p in doc.paragraphs if p.style.name == "Heading 1"]
+        self.assertEqual([p.text for p in h1], titles)
+        self.assertTrue(doc.styles["Heading 1"].paragraph_format.page_break_before)
+        texts = {p.text: p.style.name for p in doc.paragraphs}
+        # A file's own `#` title gives way to the section's; its `##` stay as they are.
+        self.assertNotIn("Senior Developer Advocate — Grafana Labs", texts)
+        self.assertEqual(texts["Contacts"], "Heading 2")
+        self.assertIn("List Bullet", {s for t, s in texts.items() if "observability" in t})
+        self.assertTrue(any(t.startswith("☐ Know the LGTM stack.") for t in texts))
+
+    def test_the_dossier_links_its_contents_and_its_documents_inside_the_file(self):
+        """#98: the contents list, and a link from one document to another, are jumps to a
+        bookmark, which Google Docs keeps where it would drop a Word TOC field. A link that
+        leads out of the dossier's documents stays a web link or plain text, never broken."""
+        from docx import Document
+        from docx.oxml.ns import qn
+        from tracker import dossier
+
+        app = Application.objects.get(num=1)
+        out = Path(tempfile.mkdtemp()) / "dossier.docx"
+        titles = dossier.build(app, out)
+        body = Document(out).element.body
+        marks = {b.get(qn("w:name")) for b in body.iter(qn("w:bookmarkStart"))}
+        anchors = [h.get(qn("w:anchor")) for h in body.iter(qn("w:hyperlink")) if h.get(qn("w:anchor"))]
+        self.assertEqual(anchors[:len(titles)], [f"s{i:02d}" for i in range(1, len(titles) + 1)])
+        self.assertTrue(all(a in marks for a in anchors))
+        # notes.md links the HR-screen round by its anchor on the application page.
+        hr = next(i for i, t in enumerate(titles, 1) if t.startswith("Interview: HR screen"))
+        self.assertIn(f"s{hr:02d}", anchors[len(titles):])
+
+    def test_the_dossier_command_names_the_file_to_the_minute(self):
+        """#98: the export time ends the filename, so a second run never overwrites the first."""
+        out = Path(tempfile.mkdtemp())
+        call_command("dossier", "#1", "--out", str(out), stdout=StringIO())
+        [made] = out.iterdir()
+        self.assertRegex(made.name, r"^001-grafana-labs-.+-dossier-\d{4}-\d{2}-\d{2}-\d{4}\.docx$")
+
+    def test_the_dossier_copies_a_sent_docx_with_its_links_and_styles(self):
+        """#98: the CV and cover letter go in as sent. A hyperlink's relationship has to be
+        re-made in the dossier's own package or Word reports the file as damaged, and the
+        styles come under a prefix so the CV keeps its look without restyling the rest."""
+        from docx import Document
+        from docx.oxml.ns import qn
+        from cv_docx import _add_hyperlink
+        from tracker.dossier import _Dossier
+
+        tmp = Path(tempfile.mkdtemp())
+        sent = Document()
+        sent.add_paragraph("Summary", style="Heading 2")
+        _add_hyperlink(sent.add_paragraph("See "), "https://example.org/cv", "my site")
+        sent.save(tmp / "sent.docx")
+        dossier = _Dossier(Application.objects.get(num=1), [])
+        dossier._import_docx(tmp / "sent.docx")
+        dossier.doc.save(tmp / "out.docx")
+        doc = Document(tmp / "out.docx")
+        self.assertEqual(doc.paragraphs[-2].style.name, "D1_Heading2")
+        self.assertEqual(doc.paragraphs[-1].text, "See my site")
+        rid = doc.paragraphs[-1]._p.findall(qn("w:hyperlink"))[0].get(qn("r:id"))
+        self.assertEqual(doc.part.rels[rid].target_ref, "https://example.org/cv")
+
+    def test_a_note_page_ends_with_an_index_of_all_the_notes(self):
+        """Grouped as on the Notes page; the note being read is named but not linked."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "search" / "direction").mkdir(parents=True)
+        (notes / "topics" / "product").mkdir(parents=True)
+        (notes / "search" / "direction" / "aims.md").write_text("# Aims\n\nX.\n")
+        (notes / "topics" / "product" / "discovery.md").write_text("# Discovery\n\nX.\n")
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            html = self.client.get("/notes/aims/").content.decode()
+        box = html[html.index('class="index-box"'):]
+        self.assertIn(">Search</h3>", box)
+        self.assertIn(">Topics</h3>", box)
+        self.assertIn(">Product</h4>", box)
+        self.assertIn('<a href="/notes/discovery/">Discovery</a>', box)
+        self.assertIn('aria-current="page">Aims</span>', box)
+        self.assertNotIn('href="/notes/aims/"', box)
+
+    def test_a_note_page_opens_its_folder_with_the_note_selected(self):
+        """Like a company page's "Open folder": Finder shows the note's .md, ready to edit."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        notes = root / "jobs" / "notes"
+        (notes / "topics" / "product").mkdir(parents=True)
+        (notes / "topics" / "product" / "discovery.md").write_text("# Discovery\n\nX.\n")
+        with override_settings(DATA_ROOT=str(root), NOTES_DIR=str(notes)):
+            html = self.client.get("/notes/discovery/").content.decode()
+            self.assertIn('href="/actions/reveal-note/discovery/">Open folder</a>', html)
+            with mock.patch("tracker.views._open_locally") as opened:
+                self.assertEqual(self.client.get("/actions/reveal-note/discovery/").status_code, 302)
+                self.assertEqual(self.client.get("/actions/reveal-note/no-such-note/").status_code, 404)
+            opened.assert_called_once_with(notes / "topics" / "product" / "discovery.md", reveal=True)
 
     def test_toggle_task_endpoint_edits_the_file_and_refuses_outside_the_data_root(self):
         import tempfile
@@ -4195,15 +4654,72 @@ class InterviewRoundTests(TestCase):
                     if m:
                         self.assertNotIn("open", m.group(1))
 
-    def test_mark_qa_is_off_outside_interview_rounds(self):
-        """`**Q:**` is the interview files' convention, not the site's — a note that
-        happens to use it is somebody's prose. The flag exists so `_doc_body.html` stays
-        one template with one filter chain; two chains are how the two copies drift.
-        """
+    def test_mark_qa_marks_questions_everywhere_but_headings_strictly_outside_rounds(self):
+        """`**Q:**` is marked in every document since 2026-10-15 — the answer bank, study
+        files and topic notes use it too, and the contents lists questions wherever they
+        are. What differs outside a round is the heading rule: a note's headings are
+        topics, so only one that opens with a quote or ends with "?" is a question."""
         from tracker.templatetags.jobs_extras import mark_qa
         text = "- **Q:** what is it?"
         self.assertIn("qa-q", mark_qa(text, True))
-        self.assertEqual(mark_qa(text, False), text)
+        self.assertIn("qa-q", mark_qa(text, False))
+        topic = '### Why the "AI-ready" label matters'
+        self.assertIn("qa-q", mark_qa(topic, True))
+        self.assertNotIn("qa-q", mark_qa(topic, False))
+        for asked in ['### "Tell me about yourself" — the 45-second version',
+                      "### When is a graph the wrong answer?"]:
+            with self.subTest(heading=asked):
+                self.assertIn("qa-q", mark_qa(asked, False))
+
+    def test_questions_are_numbered_under_their_heading_and_listed(self):
+        """Each `**Q:**` is numbered under the heading it sits beneath — 1.1.1, 1.1.2 — with
+        an anchor extending the heading's, and appears in the contents under it. One
+        before the first `###` takes `n.0.k`, so it can't be read as the `n.1` below it."""
+        src = (
+            "# Round\n\n## Prep\n\n- **Q:** Before any subsection?\n  **A:** Yes.\n\n"
+            "### Role / technical\n\n- **Q:** First question,\n  wrapped over two lines?\n"
+            "  **A:** One.\n\n- **Q:** Second?\n  **A:** Two.\n\n"
+            "### Why this role\n\n**Q:** A bare one?\n**A:** Three.\n"
+        )
+        doc = P.sectioned(src, "r")
+        qs = doc["blocks"][0]["questions"]
+        self.assertEqual([q["number"] for q in qs], ["1.0.1", "1.1.1", "1.1.2", "1.2.1"])
+        self.assertEqual(qs[1]["label"], "First question, wrapped over two lines?")
+        self.assertEqual(qs[1]["anchor"], "r--role-technical--q1")
+        index = [(s["level"], s["number"]) for s in doc["sections"]]
+        self.assertEqual(index, [(2, "1"), (4, "1.0.1"), (3, "1.1"), (4, "1.1.1"),
+                                 (4, "1.1.2"), (3, "1.2"), (4, "1.2.1")])
+
+    def test_each_question_folds_with_its_answer(self):
+        """`qa_items` turns every question into a `<details>` that opens and closes, the
+        question as its summary and the whole answer inside — including an answer's own
+        bullets, which must stay bullets inside it rather than escape the block."""
+        from tracker.templatetags.jobs_extras import mark_qa, markdownify, number_sections, qa_items
+        src = (
+            "# Round\n\n## Prep\n\n### Role / technical\n\n"
+            "- **Q:** A bulleted question?\n  **A:**\n\n    **Phase one.**\n"
+            "    - first step\n    - second step\n\n"
+            "- **Q:** Another?\n  **A:** Short.\n\n"
+            "### Why this role\n\n**Q:** A bare one?\n**A:** Its answer.\n\nMore of it.\n\n"
+            '### "Tell me about yourself"\n\nThe heading is the question.\n'
+        )
+        doc = P.sectioned(src, "r")
+        block = doc["blocks"][0]
+        html = str(qa_items(number_sections(markdownify(mark_qa(block["body_md"], False)), block),
+                            block))
+        self.assertEqual(html.count('<details class="qa" id='), 3)
+        self.assertIn('<details class="qa" id="r--role-technical--q1" open>', html)
+        self.assertIn('data-n="1.1.1"', html)
+        self.assertIn('data-n="1.2.1"', html)
+        # The answer's bullets are inside the first question's block, before the second.
+        first = html[html.index('id="r--role-technical--q1"'):html.index('id="r--role-technical--q2"')]
+        self.assertIn("<li>second step</li>", first)
+        # A bare-paragraph answer runs on to the next heading, and no further.
+        bare = html[html.index('id="r--why-this-role--q1"'):]
+        self.assertLess(bare.index("More of it."), bare.index("Tell me about yourself"))
+        # The heading that asks folds too, keeping its own number and id.
+        self.assertIn('<details class="qa qa-h" open><summary class="qa-sum"><h3', html)
+        self.assertEqual(html.count("<details"), html.count("</details>"))
 
     def test_extra_files_carry_unique_anchors_rendered_as_ids(self):
         """Prose in a folder needs a target for a specific file. Without an id the only
@@ -4248,6 +4764,34 @@ class InterviewRoundTests(TestCase):
                     self.assertIn(f'href="#{f["anchor"]}"', index)
             self.assertIn("2 KB", index, "a non-markdown file shows its size")
 
+    def test_other_files_run_newest_first_and_every_one_shows_its_date(self):
+        """By modification time, newest first, not alphabetical: a subfolder's files sank to
+        the bottom however recent. Every line shows its date, and a size only where the
+        file is not rendered below."""
+        import os
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        (folder / "export").mkdir(parents=True)
+        old = folder / "a-old-note.md"
+        new = folder / "export" / "z-new-report.pdf"
+        old.write_text("# Old\n")
+        new.write_bytes(b"x" * 2048)
+        os.utime(old, (1_700_000_000, 1_700_000_000))   # 14 Nov 2023
+        os.utime(new, (1_760_000_000, 1_760_000_000))   # 9 Oct 2025
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        label = 'aria-label="Files in this folder"'
+        with override_settings(DATA_ROOT=str(root)):
+            self.assertEqual([f["rel"] for f in app.extra_files], ["export/z-new-report.pdf", "a-old-note.md"])
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+        index = html[html.index(label):html.index("</nav>", html.index(label))]
+        self.assertIn("14 Nov 2023</span>", index, "a markdown file shows its date, no size")
+        self.assertIn("9 Oct 2025 · 2 KB", index)
+
     def test_no_folder_markdown_links_a_bare_md_file(self):
         """Regression, twice over. A relative `.md` link inside an application folder
         resolves to nothing in the web view and fails build_static's link checker — the
@@ -4283,8 +4827,92 @@ class InterviewRoundTests(TestCase):
 
         stub = appfolder.notes_stub({"company": "Test Co", "role": "Architect"})
         self.assertNotIn("## Interview prep", stub)
-        for heading in ("## To do", "### Application", "## My notes", "## Contacts", "## Timeline"):
+        self.assertNotIn("## To do", stub)
+        for heading in ("## My notes", "## Contacts", "## Timeline"):
             self.assertIn(heading, stub)
+
+    def test_todo_stub_explains_itself_then_gives_the_themes_in_order(self):
+        """`#91`: the file says how to use it, then the four themes."""
+        import appfolder
+
+        stub = appfolder.todo_stub()
+        self.assertIn(appfolder.TODO_GUIDE, stub)
+        positions = [stub.index(f"## {t}\n") for t in appfolder.TODO_THEMES]
+        self.assertEqual(positions, sorted(positions))
+        from tracker.parsers import _TASK_TAG
+        self.assertIsNone(_TASK_TAG.search(appfolder.TODO_GUIDE),
+                          "no line of the guide may end in something drawn as a tag")
+
+    def test_todo_guide_is_classed_as_a_how_to_note(self):
+        """The guide is for whoever edits todo.md by hand: on the page it is styled
+        apart from the tasks, and the paragraph after it is left alone."""
+        import appfolder
+        from tracker.templatetags.jobs_extras import markdownify
+
+        doc = P.sectioned(f"# To do\n\n{appfolder.TODO_GUIDE}\n\nPlain para.\n", "todo")
+        html = markdownify(doc["body_md"])
+        self.assertIn('<p class="howto-note"><em>How this list works.</em>', html)
+        self.assertIn("<p>Plain para.</p>", html)
+
+    def test_answer_bank_intro_is_boxed_as_a_how_to_note(self):
+        """`#95`: under a heading that asks, the plain paragraphs before the quoted answer
+        are a note on using it, boxed like the to-do guide. A bold-led paragraph is the
+        answer starting, and an entry with no quoted answer is left alone."""
+        from tracker.templatetags.jobs_extras import markdownify, mark_qa, qa_items
+
+        def render(body):
+            doc = P.sectioned(f"## About me\n\n{body}", "n")
+            block = doc["blocks"][0]
+            return str(qa_items(markdownify(mark_qa(block["body_md"], False)), block))
+
+        html = render('### "Tell me about yourself"\n\n*Tested: worked.*\n\nKeep it short.\n\n'
+                      '> "I build data foundations."\n')
+        self.assertRegex(html, r'<div class="howto-note">\s*<p><em>Tested: worked\.</em></p>')
+        self.assertRegex(html, r'Keep it short\.(<br />)?</p>\s*</div>\s*<blockquote>')
+
+        bold = render('### "What are the trends?"\n\n**Trend 1 — delivery.** More text.\n\n'
+                      '> "The question changed."\n')
+        self.assertNotIn("howto-note", bold)
+
+        unquoted = render('### "Why this role?"\n\nA plain answer, no quote.\n')
+        self.assertNotIn("howto-note", unquoted)
+
+    def test_a_quoted_answer_sits_beside_its_advice_with_the_bank_source_marked(self):
+        """In a round, the quote under `**A:**` is the answer proper and the rest is advice
+        (site.css styles the two apart). The quote stays a direct child of the answer box,
+        where the CSS looks for it; a copied bank answer's source line gets its class; and
+        an `A:` left on its own line, with nothing but the quote after it, goes."""
+        from tracker.templatetags.jobs_extras import markdownify, mark_qa, qa_items
+
+        def render(body):
+            doc = P.sectioned(f"## Prep\n\n{body}", "r")
+            block = doc["blocks"][0]
+            return str(qa_items(markdownify(mark_qa(block["body_md"], True)), block))
+
+        html = render("- **Q:** Tell me about yourself.\n"
+                      "  **A:** Forty-five seconds; stop on the last line.\n\n"
+                      "    > My career has run along three threads.\n"
+                      "    >\n"
+                      "    > *From the bank: [Tell me about yourself](/notes/interview-technique/), "
+                      "copied 2026-11-09*\n")
+        self.assertRegex(html, r'<div class="qa-a"><p><strong>A:</strong> Forty-five seconds;'
+                               r'[^<]*</p>\s*<blockquote>')
+        self.assertIn('<p class="from-bank"><em>From the bank: <a href="/notes/interview-technique/">',
+                      html)
+
+        bare = render("- **Q:** Why us?\n  **A:**\n\n    > Because of the data.\n")
+        self.assertRegex(bare, r'<div class="qa-a">\s*<blockquote>')
+
+        # Talking points: a quoted sentence straight into quoted bullets is a list.
+        points = render("- **Q:** Data entry?\n  **A:** Then ask.\n\n"
+                        "    > Start at entry:\n    > - *Identifiers*\n    > - Pre-fill\n")
+        self.assertRegex(points, r"<blockquote>\s*<p>Start at entry:</p>\s*<ul>\s*<li><em>Identifiers")
+
+        # A continuation paragraph inside a quoted item, then the next item: still a list.
+        cont = render("- **Q:** Product?\n  **A:** Brainstorm.\n\n"
+                      "    > - One\n    >     - sub\n    >\n    >     More on one.\n"
+                      "    > - Two\n")
+        self.assertNotIn("- Two", cont)
 
     def test_filename_is_built_from_the_shared_convention(self):
         """app_filename() stays the single implementation — and the date is the date of
@@ -4360,7 +4988,54 @@ class InterviewRoundTests(TestCase):
         app = Application.objects.get(num="1")
         r = self.client.get(f"/applications/{app.num}/")
         self.assertEqual(r.status_code, 200)
-        self.assertIn('<span class="qa-q">', r.content.decode())
+        self.assertIn('class="qa-q"', r.content.decode())
+
+
+class PeopleTabTests(TestCase):
+    """The People tab: everyone in `## Contacts`, one card each, with the rounds that
+    name them. The section stays the source and leaves My notes when the tab shows it."""
+
+    fixtures = FIXTURE
+
+    def test_each_way_of_writing_a_name_is_a_person(self):
+        md = ("# Notes\n\n## Contacts\n\n"
+              "- **Ana Lima** — recruiter. [LinkedIn](https://www.linkedin.com/in/ana/)\n"
+              "- **[Bo Chen](https://example.org/bo):** hiring manager,\n"
+              "  on two lines.\n"
+              "- [**Cy Dee**](https://example.org/cy): panel.\n"
+              "- [Di Ek](https://example.org/di): referred me.\n"
+              "- **Ed (surname not given):** HR.\n"
+              "  - Ran the screen.\n"
+              "- ⚠️ **Application email: me@example.org**\n\n"
+              "## Timeline\n\n- 2026-09-12 — saved\n")
+        out = P.people_of(md)
+        self.assertEqual([p["name"] for p in out["people"]],
+                         ["Ana Lima", "Bo Chen", "Cy Dee", "Di Ek", "Ed (surname not given)"])
+        self.assertEqual([p["url"] for p in out["people"]],
+                         ["https://www.linkedin.com/in/ana/", "https://example.org/bo",
+                          "https://example.org/cy", "https://example.org/di", None])
+        self.assertEqual(out["people"][1]["body_md"], "hiring manager,\non two lines.")
+        self.assertEqual(out["people"][4]["body_md"], "HR.\n\n- Ran the screen.")
+        self.assertEqual(out["people"][4]["key"], "")      # one word: never matched
+        self.assertIn("Application email", out["other_md"])  # not a person, still shown
+        self.assertNotIn("## Contacts", out["notes_md"])
+        self.assertIn("## Timeline", out["notes_md"])
+
+    def test_no_people_no_tab(self):
+        self.assertIsNone(P.people_of("## Contacts\n\nNone yet.\n\n## Timeline\n"))
+        self.assertIsNone(P.people_of("## Timeline\n"))
+
+    def test_the_tab_follows_interviews_and_links_each_person_to_their_rounds(self):
+        html = self.client.get("/applications/1/").content.decode()
+        self.assertIn('People <span class="tab-n">2</span>', html)
+        self.assertLess(html.index('data-tab="interviews"'), html.index('data-tab="people"'))
+        self.assertLess(html.index('data-tab="people"'), html.index('data-tab="notes"'))
+        app = Application.objects.get(num=1)
+        dana = next(p for p in app.people(app.interview_files) if p["name"] == "Dana Okonkwo")
+        self.assertEqual(len(dana["rounds"]), 1)
+        self.assertIn(f'href="#{dana["rounds"][0]["anchor"]}"', html)
+        self.assertIn('href="https://www.linkedin.com/in/example-sam-ortiz/"', html)
+        self.assertNotIn("notes--contacts", [b["anchor"] for b in app.notes_doc["blocks"]])
 
 
 class CreateFolderActionTests(TestCase):
@@ -4680,7 +5355,8 @@ class ScanConfigTests(TestCase):
 
 class PlatformFetcherTests(TestCase):
     """The fetchers added for `#10` on 2026-10-08 — Pinpoint, SuccessFactors career-site
-    RSS, Hireserve, UKG, Radancy, and the sitemap + JSON-LD fallback.
+    RSS, Hireserve, UKG, Radancy, and the sitemap + JSON-LD fallback — plus Jibe, added
+    for `#99` on 2026-11-10.
 
     Each response below is trimmed from a live board, keeping only the fields the
     fetcher reads, plus one row it must skip rather than fail on (`#63`). No network.
@@ -4852,6 +5528,22 @@ class PlatformFetcherTests(TestCase):
         self.assertEqual(jobs[0]["location"], "London, England")
         self.assertEqual(len(client.calls), 2, "stops at the reported total, not on an empty page")
         self.assertEqual(client.calls[0][2]["Keywords"], "Head")
+
+    def test_jibe_pages_the_api_and_links_the_careers_site(self):
+        sp = self._scan_portals()
+        def row(slug, title, where):
+            return {"data": {"slug": slug, "language": "en-us", "title": title, "full_location": where,
+                             "apply_url": f"https://careers-acme.icims.com/jobs/{slug}/login"}}
+        pages = {1: [row("101", "Head of Data", "London, United Kingdom"), row("102", None, "India")],
+                 2: [row("103", "Product Lead", "India; Brazil")]}
+        client = self._client(lambda url, p, j, R: R({"totalCount": 3, "jobs": pages.get(p["page"], [])}))
+        jobs, _ = sp.fetch_jobs({"platform": "jibe", "domain": "jobs.acme.example"}, "Head of Data", client)
+        self.assertEqual([j["title"] for j in jobs], ["Head of Data", "Product Lead"])
+        self.assertEqual(jobs[0]["url"], "https://jobs.acme.example/jobs/101?lang=en-us",
+                         "the posting page, not the iCIMS login the apply link goes to")
+        self.assertEqual(jobs[0]["location"], "London, United Kingdom")
+        self.assertEqual(sp._normalize(jobs[0]["url"]), "101")
+        self.assertEqual(len(client.calls), 2, "stops at totalCount, counting the skipped row")
 
     def test_sitemap_reads_each_postings_json_ld(self):
         sp = self._scan_portals()
