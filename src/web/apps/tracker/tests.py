@@ -2792,19 +2792,49 @@ class TabsTests(TestCase):
         whole page must still be there — the published site is a plain file mirror."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
-        for panel in ("record", "notes", "letters", "job", "cv", "history"):
+        for panel in ("record", "notes", "letters", "job", "cv"):
             with self.subTest(panel=panel):
                 self.assertIn(f'data-panel="{panel}"', html)
                 self.assertIn(f'data-tab="{panel}"', html)
         # no panel is server-side hidden
         self.assertNotIn("tabpanel\" data-panel=\"record\" role=\"tabpanel\" hidden", html)
 
-    def test_history_tab_is_never_omitted(self):
-        """Unlike the other tabs, History always has something to show — every
-        application gets at least a "logged as" entry, backfilled or signal-written."""
+    def test_record_tab_is_never_omitted_and_ends_with_the_status_history(self):
+        """Record always has something to show since it took over from the History tab
+        (2026-11-11): every application gets at least a "logged as" entry, backfilled
+        or signal-written. There is no History tab any more."""
         for app in Application.objects.all()[:5]:
-            html = self.client.get(f"/applications/{app.num}/").content.decode()
-            self.assertIn('data-tab="history"', html)
+            with self.subTest(num=app.num):
+                html = self.client.get(f"/applications/{app.num}/").content.decode()
+                self.assertIn('data-tab="record"', html)
+                self.assertNotIn('data-tab="history"', html)
+                record = html[html.index('data-panel="record"'):]
+                record = record[:record.index("</section>")]
+                self.assertIn('id="status-history"', record)
+
+    def test_timeline_moves_from_my_notes_to_record(self):
+        """`## Timeline` is shown once, on Record, ahead of the status history; My notes
+        keeps everything else, and the old `#notes--timeline` anchor still lands."""
+        app = Application.objects.get(num=1)
+        self.assertIn("## Timeline", app.notes_md, "fixture app #1 needs a Timeline")
+        html = self.client.get(f"/applications/{app.num}/").content.decode()
+        record = html[html.index('data-panel="record"'):]
+        record = record[:record.index("</section>")]
+        notes = html[html.index('data-panel="notes"'):]
+        notes = notes[:notes.index("</section>")]
+        self.assertIn('id="timeline"', record)
+        self.assertIn('id="notes--timeline"', record)
+        self.assertLess(record.index('id="timeline"'), record.index('id="status-history"'))
+        self.assertNotIn(">Timeline<", notes)
+
+    def test_timeline_of_leaves_notes_alone_without_a_section(self):
+        from .parsers import timeline_of
+
+        self.assertIsNone(timeline_of("## My notes\n\nNothing dated.\n"))
+        self.assertIsNone(timeline_of("## Timeline\n\n## Next\n"))
+        t = timeline_of("## A\n\nx\n\n## Timeline\n\n- **2026-01-01:** logged\n\n## B\n\ny\n")
+        self.assertEqual(t["timeline_md"], "- **2026-01-01:** logged")
+        self.assertEqual(t["notes_md"], "## A\n\nx\n\n## B\n\ny\n")
 
     def test_tabs_are_omitted_when_a_section_is_empty(self):
         app = Application.objects.filter(folder="").first()

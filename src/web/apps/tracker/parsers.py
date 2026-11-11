@@ -941,6 +941,24 @@ def people_of(notes_md: str) -> dict | None:
     }
 
 
+
+def timeline_of(notes_md: str) -> dict | None:
+    """`notes.md`'s `## Timeline`, for the Record tab: `timeline_md`, the section's body, and
+    `notes_md` with the section removed, since Record shows it instead of My notes. The
+    skill appends a dated line here at every step, so it is the application's history in
+    prose, and it reads best beside the status changes rather than among working notes.
+    None when there is no section, or it is empty: then My notes is left alone."""
+    m = re.search(r"(?m)^## Timeline[ \t]*\n", notes_md or "")
+    if not m:
+        return None
+    end = re.search(r"(?m)^## ", notes_md[m.end():])
+    stop = m.end() + end.start() if end else len(notes_md)
+    body = notes_md[m.end():stop].strip()
+    if not body:
+        return None
+    return {"timeline_md": body,
+            "notes_md": (notes_md[:m.start()] + notes_md[stop:]).rstrip() + "\n"}
+
 # "### Company" or "### Company (12)" — the per-company subheadings scan-portals.py
 # emits for Strong/Other matches and the two before-scoring exclusion buckets.
 _COMPANY_HEADING_RE = re.compile(r"(?m)^### (?P<name>.+?)(?:\s+\((?P<count>\d+)\))?\s*$")

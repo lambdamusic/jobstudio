@@ -550,6 +550,17 @@ tr.is-stale td { background: #fffdf5; }
 .file-index a { overflow-wrap: anywhere; }
 .file-index .round-index-date { white-space: nowrap; }
 
+/* ---------- Record tab: Timeline and Status history ---------- */
+
+/* The two sections that replaced the History tab: a rule and a small-caps label, so they
+   read as their own parts of the record rather than more of the notes above. */
+.record-heading {
+  margin: 26px 0 10px; padding-top: 14px; border-top: 1px solid var(--line);
+  font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted);
+}
+.record-timeline li + li { margin-top: 6px; }
+
 /* ---------- People tab ---------- */
 
 .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 14px; }

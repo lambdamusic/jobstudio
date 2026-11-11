@@ -194,5 +194,5 @@ to `applied` automatically the moment one of its applications reaches `applied`,
 `interviewing`, or `rejected` (`refresh_company_status()`,
 `src/web/apps/tracker/models.py`) — a `saved`/`reviewing` placeholder doesn't count, and
 neither does `closed` or `discarded`. Every status change is also logged to
-`ApplicationStatusChange`, which powers the application page's History tab and the
+`ApplicationStatusChange`, which powers the Status history section of the application page's Record tab and the
 dashboard's weekly activity timeline — nothing to maintain by hand.

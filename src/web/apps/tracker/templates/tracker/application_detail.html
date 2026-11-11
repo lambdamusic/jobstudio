@@ -55,9 +55,7 @@
 {# Sections become tabs when tabs.js loads; without it they stack as a plain document. #}
 <div data-tabs>
   <div class="tablist" role="tablist" aria-label="Application sections">
-    {% if app.notes or app.has_fit_summary %}
-      <button class="tab" data-tab="record" role="tab" type="button">Record</button>
-    {% endif %}
+    <button class="tab" data-tab="record" role="tab" type="button">Record</button>
     {% if app.job_md %}
       <button class="tab" data-tab="job" role="tab" type="button">Job description</button>
     {% endif %}
@@ -88,15 +86,19 @@
       <button class="tab" data-tab="files" role="tab" type="button">
         Other files <span class="tab-n">{{ app.extra_files|length }}</span></button>
     {% endif %}
-    <button class="tab" data-tab="history" role="tab" type="button">History</button>
     {% if siblings %}
       <button class="tab" data-tab="siblings" role="tab" type="button">
         Also at {{ app.company_name }} <span class="tab-n">{{ siblings|length }}</span></button>
     {% endif %}
   </div>
 
-  {% if app.notes or app.has_fit_summary %}
-    <section class="tabpanel" data-panel="record" role="tabpanel">
+  {% comment %}
+  Always present: the status history at the bottom has at least a "logged as" entry for
+  every application. Timeline (from notes.md) and status history moved here on 2026-11-11,
+  replacing the History tab: both are the application's story over time, and they read
+  best together, after what the record says now.
+  {% endcomment %}
+  <section class="tabpanel" data-panel="record" role="tabpanel">
       <h2 class="panel-heading">Record</h2>
       {% if app.has_fit_summary %}
         {% with fit=app.fit_summary %}
@@ -128,8 +130,30 @@
         {% endwith %}
       {% endif %}
       {% if app.notes %}<div class="panel prose">{{ app.notes|markdown|blank_links }}</div>{% endif %}
-    </section>
-  {% endif %}
+
+      {% if app.timeline_md %}
+        {# `notes--timeline` is where the section lived on My notes; old links still land. #}
+        <h3 class="record-heading" id="timeline"><span id="notes--timeline"></span>Timeline</h3>
+        <div class="panel prose record-timeline">{{ app.timeline_md|markdown|blank_links }}</div>
+      {% endif %}
+
+      <h3 class="record-heading" id="status-history">Status history</h3>
+      <div class="panel">
+        {% for change in app.status_changes.all %}
+          <div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--line){% endif %}">
+            <span style="color:var(--faint);font-size:12.5px;white-space:nowrap">{{ change.changed_at|date:"j M Y" }}</span>
+            {% if change.from_status %}
+              {% include "tracker/_status.html" with status=change.from_status %} →
+            {% else %}
+              <span style="color:var(--faint)">logged as</span>
+            {% endif %}
+            {% include "tracker/_status.html" with status=change.to_status %}
+          </div>
+        {% empty %}
+          <p style="color:var(--faint);margin:0">No status history recorded yet.</p>
+        {% endfor %}
+      </div>
+  </section>
 
   {% if app.job_md %}
     <section class="tabpanel" data-panel="job" role="tabpanel">
@@ -360,24 +384,6 @@
     </section>
   {% endif %}
 
-  <section class="tabpanel" data-panel="history" role="tabpanel">
-    <h2 class="panel-heading">History</h2>
-    <div class="panel">
-      {% for change in app.status_changes.all %}
-        <div style="display:flex;align-items:baseline;gap:10px;padding:6px 0;{% if not forloop.last %}border-bottom:1px solid var(--line){% endif %}">
-          <span style="color:var(--faint);font-size:12.5px;white-space:nowrap">{{ change.changed_at|date:"j M Y" }}</span>
-          {% if change.from_status %}
-            {% include "tracker/_status.html" with status=change.from_status %} →
-          {% else %}
-            <span style="color:var(--faint)">logged as</span>
-          {% endif %}
-          {% include "tracker/_status.html" with status=change.to_status %}
-        </div>
-      {% empty %}
-        <p style="color:var(--faint);margin:0">No status history recorded yet.</p>
-      {% endfor %}
-    </div>
-  </section>
 
   {% if siblings %}
     <section class="tabpanel" data-panel="siblings" role="tabpanel">

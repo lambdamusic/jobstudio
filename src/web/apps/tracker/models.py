@@ -563,13 +563,26 @@ class Application(models.Model):
         Cached because the template reads it twice — once for the pill index, once for the
         body — and each read would otherwise re-parse the file.
         """
-        from .parsers import sectioned
+        from .parsers import sectioned, timeline_of
 
-        # Contacts moves to the People tab when it names anyone; shown once, there.
+        # Contacts moves to the People tab when it names anyone, and Timeline to Record;
+        # each is shown once, there.
         body = self.contacts["notes_md"] if self.contacts else self.notes_md
+        timeline = timeline_of(body)
+        if timeline:
+            body = timeline["notes_md"]
         return (sectioned(body, "notes", self.glossary,
                           source=_task_source(self._folder_file("notes.md")))
                 if body and body.strip() else None)
+
+    @cached_property
+    def timeline_md(self) -> str:
+        """`notes.md`'s `## Timeline` body, shown on the Record tab — see
+        `parsers.timeline_of()`. Empty when there is none."""
+        from .parsers import timeline_of
+
+        timeline = timeline_of(self.notes_md)
+        return timeline["timeline_md"] if timeline else ""
 
     @cached_property
     def contacts(self) -> dict | None:
@@ -794,7 +807,7 @@ class Application(models.Model):
 
 
 class ApplicationStatusChange(models.Model):
-    """One recorded status transition for an Application — powers the History tab.
+    """One recorded status transition for an Application — powers Record's Status history.
 
     Written automatically by the post_save signal below (compares against the most
     recent row, if any); never created by hand. `changed_at` is a plain field rather

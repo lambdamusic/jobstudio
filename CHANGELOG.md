@@ -4,6 +4,13 @@ Dated entries, newest first.
 
 ## 2026-11-11
 
+- **The History tab is gone: Record now ends with the Timeline and the status history.**
+  `notes.md`'s `## Timeline` moves from My notes to Record, as Contacts moved to People: it
+  stays written in notes.md and is shown once, on Record. Both are the application's story
+  over time, so they sit together, each under its own labelled rule. Record is now always
+  present, since every application has a status history. Old `#notes--timeline` links
+  still land.
+
 - **Other files lists one file per line.** The index at the top of the tab ran the paths
   together inline, and long, similar names read as one string. Two columns were tried and
   broke most names mid-word.
