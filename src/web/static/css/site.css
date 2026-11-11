@@ -1084,7 +1084,7 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
 
 
 /* The chat panel (prototype, branch `chat-panel`): a right-hand drawer over the page,
-   opened from "Ask Claude" in the sidebar. When open, the content leaves room for it on wide
+   opened from "Ask Claude" at the top of the sidebar, or with ⌘K. When open, the content leaves room for it on wide
    screens instead of sitting underneath. */
 /* The highlighter's corner button and its note move clear of the open panel. */
 .chat-open .hl-toggle, .chat-open .hl-note { right: calc(min(440px, 100vw) + 18px); }
@@ -1158,3 +1158,15 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
 .chat-usage[hidden] { display: none; }
 .chat-meter b { font-weight: 600; color: var(--faint); }
 .chat-meter.high, .chat-meter.high b { color: var(--scan-no-url-ink); }
+/* "Ask Claude" at the top of the sidebar: a filled button, not one more grey link, since
+   it opens a panel rather than going to a page. The ⌘K hint goes with the label when the
+   rail collapses (`.nav-group a > span`), leaving a navy icon. */
+.nav-ask { margin-bottom: 16px; }
+.nav-group.nav-ask a, .nav-group.nav-ask a.active { background: var(--navy); color: #fff; font-weight: 500; }
+.nav-group.nav-ask a:hover { background: var(--navy-soft); }
+.nav-group.nav-ask .ico { opacity: 1; }
+.nav-kbd {
+  margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 4px;
+  background: rgba(255,255,255,.14); color: rgba(255,255,255,.85);
+  font-variant-numeric: tabular-nums;
+}

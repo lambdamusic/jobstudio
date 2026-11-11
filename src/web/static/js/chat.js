@@ -4,6 +4,8 @@
  * streams NDJSON back (event types in apps/tracker/chat.py). The reply streams in as
  * plain text and is swapped for the server's rendered markdown when the turn ends.
  *
+ * Opened from "Ask Claude" at the top of the sidebar, or ⌘K / Ctrl+K anywhere.
+ *
  * A bar under the header shows how full the context is, the plan's five-hour and weekly
  * usage, and the conversation's API-price equivalent, updated after every turn.
  *
@@ -159,6 +161,17 @@
   }
   toggle.addEventListener("click", function (e) { e.preventDefault(); setOpen(!state.open); });
   panel.querySelector(".chat-close").addEventListener("click", function () { setOpen(false); });
+  // ⌘K (Ctrl+K off a Mac) opens and closes the panel from anywhere, inputs included;
+  // Escape closes it while focus is inside.
+  document.addEventListener("keydown", function (e) {
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      setOpen(!state.open);
+    } else if (e.key === "Escape" && state.open && panel.contains(document.activeElement)) {
+      setOpen(false);
+      toggle.focus();
+    }
+  });
   panel.querySelector(".chat-new").addEventListener("click", function () {
     if (busy) return;
     // The plan limits belong to the account, not the conversation, so they stay.

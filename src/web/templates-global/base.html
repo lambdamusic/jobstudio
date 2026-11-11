@@ -155,6 +155,20 @@ one — the head, the stylesheet and the title convention all stay shared.
       <span>{{ owner_name }}{% if owner_name %} · {% endif %}{% now 'Y' %}</span>
     </div>
 
+    {% comment %}
+    The chat panel's toggle: first under the brand and drawn as a button, since it opens
+    a panel rather than going to a page — and the bottom-right corner, the usual spot,
+    already belongs to the highlighter's button (highlight.js). A link inside a
+    nav-group, so the collapsed rail treats it like any nav item; chat.js stops the jump
+    and adds the ⌘K shortcut the hint advertises.
+    {% endcomment %}
+    <div class="nav-group nav-ask">
+      <a href="#chat" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel"
+         title="Ask Claude (⌘K)">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chat"/></svg><span>Ask Claude</span>
+        <span class="nav-kbd" aria-hidden="true">⌘K</span></a>
+    </div>
+
     <div class="nav-group">
       <div class="nav-label">Tracker</div>
       <a href="/" class="{% if page == 'home' %}active{% endif %}">
@@ -215,17 +229,6 @@ one — the head, the stylesheet and the title convention all stay shared.
         <a href="/scans/all/" class="nav-sub {% if nav_scans == 'all' %}active{% endif %}">
           All <span class="nav-count">{{ nav_counts.scans }}</span></a>
       </details>
-    </div>
-
-    {% comment %}
-    The chat panel's toggle lives in the nav, not floating in a corner: the bottom-right
-    corner already belongs to the highlighter's button (highlight.js). A link, so it
-    takes the nav's styles and the collapsed rail for free; chat.js stops the jump.
-    {% endcomment %}
-    <div class="nav-group">
-      <div class="nav-label">Claude</div>
-      <a href="#chat" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel">
-        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chat"/></svg><span>Ask Claude</span></a>
     </div>
 
     <div class="nav-group">
