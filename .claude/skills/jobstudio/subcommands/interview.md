@@ -332,8 +332,8 @@ folder still reads as one process:
 
 The link target is the round's anchor on the page — `#round-<stage>-<date>` — **not** the
 file. Round files are rendered into the Interviews tab, never published as raw `.md`, so
-a relative file link is a broken link on the published site and `build_static`'s link
-checker fails the build on it. `tabs.js` resolves a hash naming an element inside a panel
+a relative file link is a broken link, and `test_every_internal_link_resolves` would
+fail on one in the example data. `tabs.js` resolves a hash naming an element inside a panel
 by opening that panel, so the anchor works on a fresh load too, not just in-session.
 
 `notes.md` itself keeps only what is true of the **role** rather than of a meeting —

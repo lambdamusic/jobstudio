@@ -86,7 +86,9 @@ the real path everywhere.** In order:
    root, or with the full path to that file. It prints the resolved root and nothing
    else. Prefer this whenever it is available.
 2. **Only if no repo is reachable**, read `~/.jobstudio.ini` and take `data_root` from
-   the `[jobstudio]` section.
+   the `[jobstudio]` section. In practice that is a session started in the data root
+   with no checkout to hand. The same file's other keys (`open_command`, job-board API
+   keys) are settings, not a data-root layer, and never stand in for one.
 3. If neither works, stop and tell the user to run `/jobstudio init` — do **not**
    guess, and do **not** fall back to the current directory.
 

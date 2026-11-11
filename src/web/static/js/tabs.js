@@ -3,8 +3,7 @@
  * Progressive enhancement: the markup renders every panel visible. This script adds the
  * `js-tabs` class, which is what actually hides the inactive ones — so with JavaScript
  * off, or if this file fails to load, the page is still complete and readable rather than
- * showing only the first section. That matters because the published static site is a
- * plain file mirror with no server behind it.
+ * showing only the first section.
  *
  * The active tab is reflected in the URL hash, so a section can be linked to directly.
  */

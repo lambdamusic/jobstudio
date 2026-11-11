@@ -13,10 +13,10 @@ a command; none of them require reading any Python.
 - **[screenshots.md](screenshots.md)** — **start here if you just want to see it.** A
   captioned tour of every page of the web app, shot against the example data. No setup
   required to read it.
-- **[getting-started.md](getting-started.md)** — installing it, signing in, the web
-  app, the configuration files, and the checks to run if you are changing the code. The
-  [README](../README.md#quick-start)'s quick start is the short version; this is
-  everything around it.
+- **[installation.md](installation.md)** — installing it, signing in, the web app,
+  the configuration files, and the checks to run if you are changing the code. The
+  [README](../README.md#installing-it) has the three-line version; the README's
+  [quick start](../README.md#quick-start) is the tour of what you do once it's in.
 - **[workflow.md](workflow.md)** — **then here.** The typical daily/weekly cadence:
   what to run, in what order, across a working session. Prepare a CV → scan for
   postings → log and work applications.
@@ -55,8 +55,6 @@ means, where a profile gets used downstream.
   scripts the commands drive, in one place. You never need this to *use* the toolkit.
   It is for running a single step to see what it did, for extending the code, and for
   automating a piece of it where there is no session to talk to.
-- **[publishing.md](publishing.md)** — *legacy:* rendering the web app to a static
-  `site/` folder with `tools/site-build`. Not part of the normal workflow.
 
 ---
 

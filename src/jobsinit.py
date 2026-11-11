@@ -184,26 +184,34 @@ def wire_checkout(root: Path, venv_python: Path, force: bool) -> None:
 
 
 def write_global_settings(root: Path, force: bool) -> None:
-    """~/.jobstudio.ini (§3.6) — the layer that works when cwd is not the repo.
+    """~/.jobstudio.ini — the data-root layer that works when cwd is not the repo, plus
+    the per-machine settings that have no other home (see config.py's docstring).
 
     Writing into $HOME is more invasive than writing inside the project, so this never
     overwrites silently: an existing file is kept unless --force.
     """
-    _write(config.GLOBAL_SETTINGS_FILE, f"""# jobstudio — machine-level settings (plan §3.6).
-#
-# The per-shell $JOBSTUDIO_DATA and the per-checkout .jobstudio-data both win over
-# this, so a sandbox checkout can point elsewhere without editing this file.
+    _write(config.GLOBAL_SETTINGS_FILE, f"""# jobstudio — machine-level settings. Two unrelated jobs in one file.
 #
 # Identity does NOT belong here — that lives in <data-root>/config.yaml and travels
-# with the data. This file is for where things are.
+# with the data. Docs: docs/under-the-hood.md, "Which settings do I need?".
 
 [{config.GLOBAL_SECTION}]
+
+# 1. Where the data root is, for anything run outside a checkout. A checkout's own
+#    .jobstudio-data and the per-shell $JOBSTUDIO_DATA both win over this line, so a
+#    sandbox checkout can point elsewhere without editing this file.
 {config.GLOBAL_DATA_ROOT_KEY} = {root}
 
-# Optional, all per-machine. Supported platforms are macOS and Linux; setting these
-# is also how a platform the toolkit does not know about is made to work.
+# 2. Per-machine settings, all optional. They live only here.
 #
 # open_command = xdg-open    # "Open folder", "Open .docx"; `open` on macOS, `xdg-open` elsewhere
+#
+# Job-board search for `scan` (Adzuna and/or Reed). Here, not in the data root, because
+# the data root may be a git repo with a remote. Free keys: developer.adzuna.com,
+# reed.co.uk/developers/jobseeker.
+# adzuna_app_id  =
+# adzuna_app_key =
+# reed_api_key   =
 """, force)
 
 

@@ -512,7 +512,7 @@ tr.is-stale td { background: #fffdf5; }
 .numbers[open] > summary { margin-bottom: 6px; }
 
 /* The §3 view switch. Buttons rather than links: it changes what is drawn, not where you
-   are, and a querystring cannot be published (see build_static). */
+   are, and the app links real paths rather than querystrings (see src/web/README.md). */
 .chart-toggle { margin: 0 0 10px; }
 .chart-toggle .chip { appearance: none; font: inherit; cursor: pointer; }
 

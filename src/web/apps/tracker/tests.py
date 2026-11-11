@@ -731,6 +731,32 @@ class StatusActionTests(TestCase):
                 self.assertIn(f'name="status" value="{status}"{checked}>', html)
 
 
+def site_urls() -> list[str]:
+    """Every page the app has, for the tests that walk them all. Was `build_static`'s
+    enumeration until the static export went (2026-11-11). Interview rounds are
+    enumerated from the folder scan, since a round is a file with no database row."""
+    from appfolder import STATUS_SORT_ORDER
+    from cvs.models import BaseCv
+    from tracker.models import Application, Area, Company, Scan
+    from tracker.views import _notes_files
+
+    urls = ["/", "/applications/", "/applications/all/", "/applications/active/",
+            "/companies/", "/areas/", "/stats/",
+            "/cvs/", "/profile/", "/notes/", "/scans/", "/scans/all/",
+            "/help/"]
+    urls += [f"/applications/status/{s}/" for s in STATUS_SORT_ORDER]
+    urls += [f"/applications/area/{a}/" for a in Area.objects.values_list("slug", flat=True)]
+    urls += [f"/applications/{n}/" for n in Application.objects.values_list("num", flat=True)]
+    urls += [f"/applications/{app.num}/rounds/{r['anchor']}/"
+             for app in Application.objects.exclude(folder="")
+             for r in app.interview_files]
+    urls += [f"/companies/{s}/" for s in Company.objects.values_list("slug", flat=True)]
+    urls += [f"/cvs/base/{s}/" for s in BaseCv.objects.values_list("slug", flat=True)]
+    urls += [f"/scans/{label}/" for label in Scan.objects.values_list("label", flat=True)]
+    urls += [f"/notes/{p.stem}/" for p in _notes_files()]
+    return urls
+
+
 def markdownify_path(md):
     from tracker.templatetags.jobs_extras import markdownify
     return markdownify(md)
@@ -954,9 +980,8 @@ class ViewTests(TestCase):
                 self.assertTrue(re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single))
 
     def test_the_per_note_pages_survive(self):
-        """`build_static` publishes one page per note: they are where a note is read, and
-        the honest target for a link from outside the app."""
-        from tracker.management.commands.build_static import site_urls
+        """One page per note: they are where a note is read, and the honest target for a
+        link from outside the app."""
         from tracker.views import _notes_files
 
         urls = site_urls()
@@ -1018,13 +1043,9 @@ class ViewTests(TestCase):
         of nine URLs that never gained `/notes/`, `/profile/`, `/help/`, an application
         page or a round focus view.
 
-        It now walks `build_static.site_urls()` — the enumeration the published site is
-        built from, so a page that ships is a page this checks. Same reasoning as `#51`'s
-        help page reading its command list from `SKILL.md`: a second copy of a list drifts,
-        and the copy that drifts is the one nobody is looking at.
+        It now walks `site_urls()`, every page the app has, which until 2026-11-11 was the
+        static export's enumeration too.
         """
-        from tracker.management.commands.build_static import site_urls
-
         urls = site_urls()
         self.assertGreater(len(urls), 20, "site_urls() returned implausibly few pages")
         for url in urls:
@@ -1578,8 +1599,8 @@ class ChartDataTests(TestCase):
     # -------------------------------------------------------------- the page
     def test_the_flow_toggle_needs_no_page_load(self):
         """§3's "done when". Both views ship in the payload the page already carries, so
-        the switch is a redraw. It could not be a link either way: a querystring cannot be
-        published as a static page (see build_static)."""
+        the switch is a redraw, not a link to a querystring the app's real-path links
+        avoid (see src/web/README.md)."""
         import json
 
         self.history(9220, ["saved", "reviewing", "applied"])
@@ -2887,22 +2908,30 @@ class TabsTests(TestCase):
         html = self.client.get("/applications/1/").content.decode()
         self.assertIn("js/tabs.js", html)
 
-    def test_static_build_accepts_cross_page_tab_links(self):
-        """Regression: /areas/ folded its per-area detail pages into tabs (2026-09-14),
-        so other pages now link a specific area as /areas/#<slug> (tabs.js reads
-        location.hash on load) rather than a real /areas/<slug>/ path. build_static's
-        link checker used to resolve the href literally, including the "#slug" — which
-        is never a file on disk — and failed the whole build. It must strip the
-        fragment and check only the path.
-        """
-        self.assertTrue(Area.objects.filter(applications__isnull=False).exists(),
-                         "fixture needs at least one area with an application, to " +
-                         "produce a /areas/#<slug> link somewhere in the built site")
-        # build_static.handle() sets settings.ENVIRONMENT = "publish" directly (not via
-        # override_settings) and never resets it — self.settings() still restores
-        # whatever it was before this block on exit, regardless of how it changed inside.
-        with tempfile.TemporaryDirectory() as tmp, self.settings(ENVIRONMENT="local"):
-            call_command("build_static", output=tmp, clean=True, stdout=StringIO())
+    def test_every_internal_link_resolves(self):
+        """Every internal href on every page answers 200: the link check the static export
+        ran at the end of each build, kept as a test when the export went (2026-11-11).
+        A fragment deep-links a tab (`/areas/#<slug>`, read by tabs.js), so only the path
+        has to resolve. Local-only actions and the admin are skipped: they are endpoints,
+        not pages, and some of them act on a GET."""
+        from urllib.parse import urlparse
+
+        seen: dict[str, int] = {}
+        broken = set()
+        for url in site_urls():
+            html = self.client.get(url).content.decode()
+            for href in re.findall(r'(?:href|src)="([^"]+)"', html):
+                parsed = urlparse(href)
+                path = parsed.path
+                if (parsed.scheme or parsed.netloc or not path.startswith("/")
+                        or path.startswith(("/actions/", "/admin/", settings.STATIC_URL))):
+                    continue
+                if path not in seen:
+                    seen[path] = self.client.get(path).status_code
+                if seen[path] != 200:
+                    broken.add((url, href, seen[path]))
+        self.assertGreater(len(seen), 20, "implausibly few links followed")
+        self.assertEqual(broken, set())
 
 
 class SidebarTests(TestCase):
@@ -4794,11 +4823,10 @@ class InterviewRoundTests(TestCase):
 
     def test_no_folder_markdown_links_a_bare_md_file(self):
         """Regression, twice over. A relative `.md` link inside an application folder
-        resolves to nothing in the web view and fails build_static's link checker — the
-        file is rendered into a tab, not published. Link the anchor instead.
+        resolves to nothing in the web view: the file is rendered into a tab, not served.
+        Link the anchor instead.
 
-        Note this only covers the example data the suite runs against; the real guard for
-        a user's own data root is running build_static before publishing.
+        Note this only covers the example data the suite runs against.
         """
         bad_link = re.compile(r"\]\((?!https?://|#|mailto:)([^)]*\.md)\)")
         for app in Application.objects.exclude(folder=""):

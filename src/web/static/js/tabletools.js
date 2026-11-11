@@ -1,11 +1,10 @@
 /* Search, filter, sort and paging for a long table, done in the browser.
  *
- * Why client-side. Every filtered view this site publishes has to be a real path — a
- * querystring cannot be mirrored into a static file tree (see build_static). Status and
+ * Why client-side. Every filtered view is a real path, not a querystring (see
+ * src/web/README.md, a habit from the static export removed 2026-11-11). Status and
  * target area already have real paths and keep them; what this adds is the combining and
- * the narrowing, which would need a URL per combination to exist server-side and would
- * publish a page for each. A table of a few hundred rows filters instantly here, works the
- * same in the published mirror as it does locally, and needs no URL at all.
+ * the narrowing, which would need a URL per combination server-side. A table of a few
+ * hundred rows filters instantly here, and needs no URL at all.
  *
  * Progressive enhancement, like tabs.js and charts.js: the toolbar is hidden until this
  * script adds `js-tools`, so with JavaScript off the page is a complete, readable table

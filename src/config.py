@@ -1,25 +1,30 @@
-"""Where this user's job-search data lives.
+"""Where this user's job-search data lives, and the per-machine settings.
 
 Single source of truth for the **data root** — the directory holding `jobs/`,
-`db.sqlite3`, `exports/` and `backups/`. Everything that used to compute
-`ROOT = Path(__file__).parent.parent` and hang data paths off it asks here instead.
-
-The distinction this module exists to enforce:
+`db.sqlite3`, `exports/` and `backups/`. The distinction this module exists to enforce:
 
     REPO_ROOT   the code — src/, tools/, .claude/, docs/, example-data/
     data_root() this person's job search — jobs/, db.sqlite3, exports/, backups/
 
-Today they are the same directory, and `data_root()` returns `REPO_ROOT` when nothing
-says otherwise, so behaviour is unchanged. The point is that every *data* path now
-goes through one function, so pointing them elsewhere is a one-line change rather than
-an archaeology exercise. See `backlog/plans/002-share-as-toolkit.md` §3.1.
+They are always different directories. Every data path goes through `data_root()`.
 
-Resolution order:
+Resolution order, first one set wins:
 
 1. ``$JOBSTUDIO_DATA`` — per shell, most specific
 2. ``.jobstudio-data`` in the repo root — per checkout, a single line holding the path
-3. ``~/.jobstudio.ini`` — per machine (§3.6)
-4. ``REPO_ROOT`` — the undivided layout, and only if it still holds data
+3. ``~/.jobstudio.ini``'s ``data_root`` — per machine
+
+Nothing set is an error that says to run ``/jobstudio init``. Until 2026-11-11 there was a
+fourth layer, the repo itself, for the layout from before code and data were split; no
+checkout has data in it any more, so it only made the ladder longer (TODO `#75`).
+
+``~/.jobstudio.ini`` does two unrelated jobs, and only the first is one of the layers:
+
+- ``data_root`` — layer 3 above. Not needed where a checkout has its own pointer.
+- per-machine settings, read through `setting()`: ``open_command`` (how to open a file
+  or folder) and the job-board API keys (``adzuna_app_id``, ``adzuna_app_key``,
+  ``reed_api_key``). These have no other layer, and stay out of the data root because
+  that is often a git repo with a remote.
 
 Layer 2 sits above layer 3 deliberately: a machine can have several checkouts pointing
 at different data roots (a real one and a sandbox), so the per-checkout pointer has to
@@ -49,7 +54,7 @@ from pathlib import Path
 ENV_VAR = "JOBSTUDIO_DATA"
 POINTER_FILENAME = ".jobstudio-data"
 
-#: Machine-level settings (§3.6). Written by `init`; hand-written until that exists.
+#: Machine-level settings: layer 3's `data_root`, plus `setting()`'s keys. Written by `init`.
 GLOBAL_SETTINGS_FILE = Path.home() / ".jobstudio.ini"
 GLOBAL_SECTION = "jobstudio"
 GLOBAL_DATA_ROOT_KEY = "data_root"
@@ -96,12 +101,11 @@ def _from_global_settings() -> Path | None:
 
 
 def setting(key: str, default: str = "") -> str:
-    """Any machine-level setting from ~/.jobstudio.ini's [jobstudio] section (§3.6).
+    """Any machine-level setting from ~/.jobstudio.ini's [jobstudio] section.
 
-    For the things that are genuinely per-machine rather than per-person: where Chrome
-    is, which editor URL scheme to use, how to open a file. Kept as settings rather
-    than `sys.platform` branches so that supporting another platform later is data,
-    not a code change in ten places (§1 blocker 10).
+    For the things that are per-machine rather than per-search: `open_command`, kept as
+    a setting rather than a `sys.platform` branch so another platform is data, not code;
+    and the job-board API keys, kept out of the data root because it may be pushed.
     """
     if not GLOBAL_SETTINGS_FILE.is_file():
         return default
@@ -160,21 +164,15 @@ def looks_like_data_root(path: Path) -> bool:
 def data_root() -> Path:
     """The directory holding this user's job-search data.
 
-    Falls back to the repo root — the pre-split layout, where code and data shared a
-    directory. That fallback is only honoured if the repo actually still holds data:
-    otherwise the caller is a fresh clone with nothing configured, and the useful answer
-    is a clear error rather than an empty sqlite file and `no such table:
-    tracker_application` three frames deep in Django.
+    Nothing configured is an error, not a guess: a fresh clone that fell through to some
+    default would get an empty sqlite file and `no such table: tracker_application` three
+    frames deep in Django, where the useful answer is "run init".
     """
     configured = _configured()
 
     if configured is None:
-        if looks_like_data_root(REPO_ROOT):
-            return REPO_ROOT
         raise DataRootError(
-            "No job-search data found, and no data root configured.\n"
-            f"  looked in: {REPO_ROOT}\n"
-            f"  for:       {' or '.join(MARKERS)}\n"
+            "No data root configured.\n"
             "\n"
             "If you have a data root already, point at it:\n"
             f"    echo /path/to/your-data > {POINTER_FILE}\n"
@@ -192,7 +190,7 @@ def data_root() -> Path:
         raise DataRootError(
             f"Data root does not exist: {root}\n"
             f"  configured by: {source}\n"
-            "Fix that path, or remove it to fall back to the repo itself."
+            "Fix that path, or remove it to fall back to the next layer."
         )
     if not looks_like_data_root(root):
         raise DataRootError(
@@ -204,19 +202,10 @@ def data_root() -> Path:
     return root
 
 
-def is_split() -> bool:
-    """True once data lives somewhere other than the repo."""
-    return data_root() != REPO_ROOT
-
-
 def describe() -> str:
     """One-line summary, for diagnostics and `status`."""
     root = data_root()
-    if not is_split():
-        return f"data root: {root} (same as repo — not split)"
-    source = _configured()
-    origin = source[1] if source else "?"
-    return f"data root: {root} (via {origin})"
+    return f"data root: {root} (via {_configured()[1]})"
 
 
 def resolution_chain() -> str:
@@ -243,8 +232,6 @@ def resolution_chain() -> str:
         (f"${ENV_VAR}", env),
         (str(POINTER_FILE), pointer),
         (f"{GLOBAL_SETTINGS_FILE} [{GLOBAL_SECTION}] {GLOBAL_DATA_ROOT_KEY}", glob or ""),
-        (f"{REPO_ROOT} (repo fallback)",
-         str(REPO_ROOT) if looks_like_data_root(REPO_ROOT) else ""),
     ]
 
     won = False
@@ -262,7 +249,7 @@ if __name__ == "__main__":
     import sys
 
     if "--path" in sys.argv:
-        # Bare path, for anything that needs to consume it — the skill's $DATA (§3.6),
+        # Bare path, for anything that needs to consume it — the skill's <DATA>,
         # shell scripts, `cd $(...)`. Never decorate this output.
         print(data_root())
     elif "--chain" in sys.argv:

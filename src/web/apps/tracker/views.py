@@ -785,7 +785,7 @@ def stats(request):
 
 
 def application_list(request, status=None, area=None, active=False, show_all=False):
-    """Filtered views are real paths, not querystrings — wget/`build_static` can only
+    """Filtered views are real paths, not querystrings — the static export could only
     publish a URL that exists as a path (plan §4).
 
     /applications/                     active by default (applied + interviewing)
@@ -1179,7 +1179,7 @@ def note_list(request):
     Until then this was one tab per note (`#73`), which stopped scaling at a dozen: the
     notes started to include study material carried over from applications, one per round
     prepared. Each index line links the note's own page at `/notes/<slug>/`, which carries
-    the note's Contents and is what `build_static` publishes.
+    the note's Contents, and the page a link from outside the app should target.
     """
     return render(request, "tracker/note_list.html",
                   {"page": "notes", "groups": _note_groups(), "coach": _coach()})

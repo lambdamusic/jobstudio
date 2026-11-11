@@ -1,9 +1,9 @@
 """
 Django settings — job-search front end.
 
-Pattern: Django-as-static-site-generator (see the init-django-static-site skill's
-reference/METHODOLOGY.md). The app is browsed locally; the static export (legacy,
-docs/publishing.md) is rendered in-process into site/ by `manage.py build_static`.
+Started from the Django-as-static-site-generator pattern (the init-django-static-site
+skill's reference/METHODOLOGY.md). The app is browsed locally; the static export went on
+2026-11-11, so nothing renders it to files any more.
 
 Layout deviation from the skill: the project lives at src/web/, not src/, because src/
 already holds the pipeline scripts (render.py, appfolder.py, ...). src/ itself is

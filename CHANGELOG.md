@@ -4,6 +4,28 @@ Dated entries, newest first.
 
 ## 2026-11-11
 
+- **The README's Quick start is a tour of using it, not installing it (`#68`).** Seven
+  steps, each a `/jobstudio` command and what comes back: stocktake, company, scan,
+  application, cv and cover-letter, interview and dossier, status. Installation is its
+  own section after it, with the prerequisites. `docs/getting-started.md` is renamed
+  `docs/installation.md`, which is what it is. The commands table gains `render` and
+  `dossier`.
+
+- **The static-site export is gone.** `manage.py build_static`, `tools/site-build`,
+  `tools/site-preview` and `docs/publishing.md` are removed: nothing had deployed the
+  build since `#69`, and the app is browsed locally. Its one lasting use, the link check,
+  is now a test: `test_every_internal_link_resolves` walks every page of the example data
+  and fails on any internal link that does not answer 200. The list of pages it walks,
+  `site_urls()`, moved into the tests too.
+
+- **Config: three layers, and one table saying which you need (`#75`).** The data root
+  resolves from `$JOBSTUDIO_DATA`, then the checkout's `.jobstudio-data`, then
+  `~/.jobstudio.ini`; the fourth fallback, the repo itself, is gone, since no checkout
+  has held data since the split. `docs/under-the-hood.md` has a "Which settings do I
+  need?" table, and the `.ini` that `init` writes now labels its two jobs: the data-root
+  layer, and per-machine settings with no other home (`open_command`, the job-board API
+  keys). `config.py`'s docstrings no longer mention Chrome or editor URL schemes.
+
 - **Set status takes a note.** The menu on an application page is now a small form: pick
   a status, optionally say why. The note becomes a dated line in `notes.md`'s
   `## Timeline` (`status → closed. <note>`), which Record shows just above the status
