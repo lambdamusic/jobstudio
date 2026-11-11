@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+#
+# Re-record docs/images/quick-intro.gif, the README's tour of the web app.
+#
+# Brings up the demo app (tools/run-demo, in a throwaway data root — your real one is
+# never opened), steps headless Chrome through the tour in tools/recording/intro.mjs a
+# frame at a time, encodes the frames as a GIF, and takes the app down again. To change
+# the tour — another page, a longer pause — edit that script; the README's caption lists
+# the stops, so keep it in step.
+#
+# Needs Google Chrome ($CHROME overrides its path), Node 22 or later, gifsicle, and
+# macOS's `sips`.
+#
+# Usage:
+#   tools/record-intro                            # writes docs/images/quick-intro.gif
+#   tools/record-intro /tmp/try.gif               # somewhere else, to compare first
+#   RECORD_PORT=8016 tools/record-intro           # if 8015 is busy
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+case "${1:-}" in -h|--help) sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+
+OUT="${1:-docs/images/quick-intro.gif}"
+
+source tools/recording/demo-server.sh
+check_node
+need gifsicle "Install it with: brew install gifsicle"
+need sips "It ships with macOS; on another OS, convert the frames another way."
+start_demo
+echo "recording the tour from $BASE"
+node tools/recording/intro.mjs "$BASE" "$OUT"

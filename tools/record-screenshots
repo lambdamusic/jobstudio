@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#
+# Retake the stills in docs/images/ against the example data, after a UI change.
+#
+# Brings up the demo app (tools/run-demo, in a throwaway data root — your real one is
+# never opened), drives headless Chrome through each page in tools/recording/
+# screenshots.mjs, writes one PNG per shot over the old one, and takes the app down
+# again. Same window sizes and framing every time, so a diff of two runs is the change
+# in the UI and nothing else.
+#
+# The captions in docs/screenshots.md are prose: reread the ones whose picture changed.
+#
+# Needs Google Chrome ($CHROME overrides its path) and Node 22 or later.
+#
+# Usage:
+#   tools/record-screenshots                      # all of them
+#   tools/record-screenshots dashboard cvs        # just these, by file name
+#   RECORD_PORT=8016 tools/record-screenshots     # if 8015 is busy
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+case "${1:-}" in -h|--help) sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+
+source tools/recording/demo-server.sh
+check_node
+start_demo
+echo "recording from $BASE into docs/images/"
+node tools/recording/screenshots.mjs "$BASE" docs/images "$@"

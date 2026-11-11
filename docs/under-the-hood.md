@@ -148,6 +148,8 @@ Depth: **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)**.
 tools/run-dev-local-db            # http://127.0.0.1:8010, foreground until Ctrl-C
 tools/run-dev-local-db 8020       # if 8010 is busy
 tools/run-demo                    # the same app on example data, http://127.0.0.1:8011
+tools/record-screenshots          # retake docs/images/*.png from the demo app
+tools/record-intro                # re-record docs/images/quick-intro.gif
 ```
 
 `run-demo` is the one to reach for when the app is going to be *seen* — a screen
@@ -161,6 +163,18 @@ Note what it does *not* do: `/jobstudio init --from-example` also gets you an ap
 of example data, but it does it by repointing the checkout — so it replaces whatever
 data root you were using. `run-demo` passes `$JOBSTUDIO_DATA` for one process and leaves
 the pointer file alone, which is why it is safe to run mid-session on a real setup.
+
+The two `record-` tools are `run-demo` with a camera. Each brings the demo app up on its
+own port (8015, `$RECORD_PORT` to change it) in its own throwaway root, drives headless
+Chrome through it, and takes it down again. `record-screenshots` writes every still in
+`docs/images/` at a fixed window size and framing, so two runs differ only where the UI
+did; name shots to retake just those (`tools/record-screenshots dashboard cvs`).
+`record-intro` steps through the README's tour a frame at a time and encodes it as the
+GIF, which keeps every frame sharp and the file under 2 MB. The pages and the tour are
+plain lists in `tools/recording/screenshots.mjs` and `tools/recording/intro.mjs`; the
+captions in `docs/screenshots.md` and the README are prose, so reread them after a
+retake. They need Google Chrome and Node 22 or later, plus `gifsicle` and macOS's `sips`
+for the GIF. They are for whoever maintains the docs, not for using the toolkit.
 
 ### The interview focus view
 

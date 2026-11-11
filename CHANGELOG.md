@@ -4,6 +4,21 @@ Dated entries, newest first.
 
 ## 2026-11-11
 
+- **The screenshots and the intro GIF are retaken, and can be again in one command.**
+  `tools/record-screenshots` brings up the demo app (`run-demo`, on its own port and in
+  its own throwaway root) and drives headless Chrome through each page in
+  `tools/recording/screenshots.mjs`. It writes every still in `docs/images/` at a fixed
+  window size and framing, then takes the app down. `tools/record-intro` does the same
+  for `quick-intro.gif`, stepping through the README's tour a frame at a time instead of
+  screen-recording it. Every frame is sharp, there is no browser chrome or pointer, and
+  at 128 colours the charts keep theirs (the old 64-colour recording turned the
+  Activity chart's green bars grey). The GIF is 1.9 MB and 48s, against 5.3 MB and 80s.
+  No Puppeteer or Playwright: Node 22's built-in WebSocket talks to Chrome's DevTools
+  protocol directly (`tools/recording/cdp.mjs`). The companies shot is now wide enough
+  that its last columns are no longer cut off. Two captions in `docs/screenshots.md`
+  described the old pictures and are rewritten: the interviews tab now opens with a
+  contents index, and status-over-time runs past September.
+
 - **Ask Claude: a chat panel in the web app.** A button at the top of the sidebar (or
   ⌘K / Ctrl+K) opens a drawer that talks to Claude Code with the same context as a
   terminal session in the repo: the `jobstudio` skill, `CLAUDE.md`, the global
