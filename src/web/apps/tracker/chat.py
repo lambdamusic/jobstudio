@@ -17,6 +17,8 @@ and passes on as NDJSON, one object per line:
     {"t": "tool", "name": "...", "d": "..."} a tool call, with a one-line summary
     {"t": "html", "d": "..."}                the whole reply, rendered like the site's markdown
     {"t": "denied", "items": [...]}          tool calls refused for want of a permission
+    {"t": "usage", "context": n, "window": n, "cost": 0.12}   context size after the turn
+    {"t": "limits", "five_hour": {...}, "seven_day": {...}}  plan usage, as `/usage` shows it
     {"t": "done", "cost": 0.12, "ms": 3400}  the turn finished
     {"t": "error", "d": "..."}               something went wrong
 
@@ -82,6 +84,22 @@ def _tool_summary(name: str, args: dict) -> str:
     return ""
 
 
+def _usage(result: dict) -> dict:
+    """how full the context is after this turn, and what the turn would cost on the API.
+
+    The context is the size of the turn's last API call (input, cache read and cache
+    written, plus what it wrote): that is what the next turn starts from. The cost is
+    `total_cost_usd`, an API-price equivalent, not a charge on a subscription.
+    """
+    usage = result.get("usage") or {}
+    last = (usage.get("iterations") or [usage])[-1]
+    context = sum(last.get(k) or 0 for k in ("input_tokens", "cache_read_input_tokens",
+                                             "cache_creation_input_tokens", "output_tokens"))
+    windows = [m.get("contextWindow") for m in (result.get("modelUsage") or {}).values()]
+    return {"t": "usage", "context": context, "window": max(filter(None, windows), default=None),
+            "cost": result.get("total_cost_usd")}
+
+
 def _events(proc):
     """translate Claude Code's stream-json into the panel's event lines."""
     sent_session = False
@@ -112,7 +130,13 @@ def _events(proc):
                 if block.get("type") == "tool_use":
                     yield {"t": "tool", "name": block["name"],
                            "d": _tool_summary(block["name"], block.get("input", {}))}
+        elif kind == "rate_limit_event":
+            windows = msg.get("rate_limit_info", {}).get("unifiedWindows") or {}
+            yield {"t": "limits", **{
+                name: {"pct": round(w.get("utilization", 0) * 100), "resets": w.get("resetsAt")}
+                for name, w in windows.items()}}
         elif kind == "result":
+            yield _usage(msg)
             text = "".join(reply).strip()
             if text:
                 yield {"t": "html", "d": str(markdownify(text))}

@@ -1154,3 +1154,12 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
   border-radius: 5px; background: var(--gold); color: #fff; cursor: pointer; font: inherit;
 }
 .chat-denied-note { color: var(--muted); font-size: 12px; }
+/* The usage bar: context, plan limits, cost so far. Gold once a figure passes 80%. */
+.chat-usage {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 6px 14px;
+  border-bottom: 1px solid var(--line); background: var(--bg-sunk);
+  font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.chat-usage[hidden] { display: none; }
+.chat-meter b { font-weight: 600; color: var(--faint); }
+.chat-meter.high, .chat-meter.high b { color: var(--scan-no-url-ink); }

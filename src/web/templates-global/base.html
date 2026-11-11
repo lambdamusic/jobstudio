@@ -251,6 +251,8 @@ one — the head, the stylesheet and the title convention all stay shared.
     <button type="button" class="chat-new" title="Start a new conversation">New</button>
     <button type="button" class="chat-close" aria-label="Close">×</button>
   </header>
+  {# Filled by chat.js after the first turn: context size, plan limits, cost so far. #}
+  <div class="chat-usage" hidden></div>
   <div class="chat-log" aria-live="polite"></div>
   <form class="chat-form">
     <textarea rows="3" placeholder="Ask about this page, or run a /jobstudio subcommand…  (Enter to send, Shift+Enter for a new line)"></textarea>
