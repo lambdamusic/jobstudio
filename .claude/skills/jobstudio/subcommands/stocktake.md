@@ -227,5 +227,4 @@ the next role (type, level, sector, working style). Show it, refine, write it.
    Both are cold-start steps, not recurring ones — skip the offer when areas or
    companies already exist.
 6. Note the second-pass wiring that's still pending (not for this command to do):
-   feeding `<DATA>/jobs/profile/` into scan scoring, gap analysis, cover letters, and the
-   static site.
+   feeding `<DATA>/jobs/profile/` into scan scoring, gap analysis and cover letters.

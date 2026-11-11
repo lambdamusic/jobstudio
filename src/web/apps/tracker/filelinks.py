@@ -18,8 +18,8 @@ A bare filename (`stocktake.md`, `interview-technique.md`, a file named by the f
 convention) resolves when exactly one of those places holds it. `notes.md` and `job.md`
 exist in every application folder, so bare they stay text.
 
-Every target is a page the static build also writes, so the same links hold on the
-published site; its link check is what proves it.
+Every target is a page of the app, and `test_every_internal_link_resolves` proves the
+links hold on the example data.
 """
 
 from __future__ import annotations

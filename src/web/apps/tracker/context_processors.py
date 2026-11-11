@@ -11,8 +11,7 @@ from .models import ACTIVE_STATUSES, Application, Area, Company, Scan
 
 
 def site_context(request):
-    """Environment flag (so templates can hide local-only UI from the published mirror)
-    plus the sidebar counts — the reference UI puts a live count against every section.
+    """The sidebar counts — the reference UI puts a live count against every section.
 
     `owner_name` comes from the data root's identity (config.yaml, or the base CV's
     heading), not from the template: the sidebar used to render one person's name on
@@ -23,8 +22,6 @@ def site_context(request):
         "nav_notes": _nav_notes(),
         "owner_name": who.full_name if who else "",
         "APP_NAME": settings.APP_NAME,
-        "ENVIRONMENT": settings.ENVIRONMENT,
-        "IS_LOCAL": settings.ENVIRONMENT == "local",
         "nav_counts": {
             "applications": Application.objects.count(),
             "active": Application.objects.filter(status__in=ACTIVE_STATUSES).count(),

@@ -52,11 +52,9 @@ to the reader, on /, /applications/, /applications/all/ and /areas/.
               {% if a.area %}<a href="/areas/#{{ a.area.slug }}" class="pill">{{ a.area.abbr }}</a>{% endif %}
             </td>
             <td class="nowrap">
-              {% if IS_LOCAL %}
-                <a href="/admin/tracker/application/{{ a.pk }}/change/" title="Change status"
-                   target="_blank" rel="noopener">
-                  {% include "tracker/_status.html" with status=a.status %}</a>
-              {% else %}{% include "tracker/_status.html" with status=a.status %}{% endif %}
+              <a href="/admin/tracker/application/{{ a.pk }}/change/" title="Change status"
+                 target="_blank" rel="noopener">
+                {% include "tracker/_status.html" with status=a.status %}</a>
             </td>
             <td>{{ a.next_action|default:"—"|truncatechars:80 }}</td>
             <td class="num nowrap">{{ a.last_change|ago }}</td>

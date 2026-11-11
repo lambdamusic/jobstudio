@@ -15,11 +15,9 @@
     </p>
   {% endif %}
 </div>
-{% if IS_LOCAL %}
-  <div class="actions">
-    <a class="btn local-only" href="/actions/reveal-note/{{ note.slug }}/">Open folder</a>
-  </div>
-{% endif %}
+<div class="actions">
+  <a class="btn" href="/actions/reveal-note/{{ note.slug }}/">Open folder</a>
+</div>
 {% comment %}
 One note on its own page, with its Contents list. Anchors are slug-prefixed, so a section
 link stays unique wherever the note is shown.

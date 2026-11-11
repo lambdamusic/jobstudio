@@ -284,7 +284,7 @@ Every application page has a **History** tab, tracking status changes only (adde
 2026-09-08) — one entry per transition, written automatically whenever `status` changes,
 so there's nothing to maintain by hand.
 
-Application and company pages both have a local-only **Open folder** link next to the
+Application and company pages both have an **Open folder** link next to the
 page title (added 2026-09-09) for jumping straight to the underlying files. (An **Open in
 VS Code** link sat beside it until `#81` removed it: a `vscode://` URL can replace the
 workspace of a VS Code window that is already open, and the Claude sessions in it.) A company page shows them once `jobs/companies/<slug>.md` exists; an

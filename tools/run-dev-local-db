@@ -14,7 +14,6 @@ if [ ! -x "$PY" ]; then
     exit 1
 fi
 
-export ENVIRONMENT=local
 PORT="${1:-8010}"
 
 cd "$(dirname "$0")/../src/web"

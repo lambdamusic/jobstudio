@@ -110,7 +110,7 @@ one — the same bargain `tabs.js` makes everywhere.
                     <span>{{ f.name }}</span>
                     <span>
                       <span style="color:var(--faint)">{{ f.size_kb }} KB</span>
-                      {% if IS_LOCAL %}<a href="/actions/open-file/?path={{ f.path|data_rel|urlencode }}">Open</a>{% endif %}
+                      <a href="/actions/open-file/?path={{ f.path|data_rel|urlencode }}">Open</a>
                     </span>
                   </li>
                 {% endfor %}

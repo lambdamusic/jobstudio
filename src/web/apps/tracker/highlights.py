@@ -2,7 +2,7 @@
 
 A highlight is `==text==` in the file — the de facto markdown highlight (Obsidian, Typora,
 iA Writer), readable as plain text and rendered here as `<mark>`. The file is the record:
-a highlight survives a reload, an editor, and a publish, exactly as a ticked task does.
+a highlight survives a reload and an editor, exactly as a ticked task does.
 
 Adding one starts from a browser selection, which is text as *rendered* — no `**`, no
 `[...](url)`, no list markers. `add()` finds that text in the markdown by building a

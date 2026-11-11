@@ -16,16 +16,16 @@
 {% comment %}
   The boxed status header is shared with the dashboard (tracker/_statbar.html) so every
   tracker list page reads the same. Its links point at real paths
-  (/applications/status/<s>/), not querystrings, so every filtered view is publishable.
+  (/applications/status/<s>/), not querystrings, so every filtered view is linkable.
 {% endcomment %}
 {% include "tracker/_statbar.html" %}
 
 {% comment %}
   The toolbar replaced a row of target-area chips (2026-09-28). The chips could only ever
   do one thing — swap the page for a single area — and each one was a page load. Search,
-  area and sort combine, apply instantly, and cost nothing to publish, because they filter
-  the rows already here rather than asking for a new URL. The per-area pages they linked to
-  still exist and are still published; /areas/ is where they are reached from.
+  area and sort combine and apply instantly, because they filter the rows already here
+  rather than asking for a new URL. The per-area pages they linked to still exist; /areas/
+  is where they are reached from.
 
   It filters what this page is showing, which for the bare /applications/ is the active
   set. That is said out loud below rather than left to be discovered.

@@ -1,10 +1,11 @@
-# Getting started
+# Installation
 
 Part of the **[docs/](README.md)** guide collection. The
-[README](../README.md#quick-start)'s quick start is the short version — clone, run
+[README](../README.md#installing-it) has the short version: clone, run
 `/jobstudio init`, answer its questions. This file is everything around it: doing the
 same setup by hand, signing in, what to do once it is running, the web app, the
-configuration files, and the checks to run if you are changing the code.
+configuration files, and the checks to run if you are changing the code. For what you
+do with it day to day, the README's [quick start](../README.md#quick-start) is the tour.
 
 Once you are set up, **[workflow.md](workflow.md)** is where to go next.
 
@@ -116,9 +117,6 @@ Runs on `127.0.0.1` only, in the foreground, until Ctrl-C. Browsing needs no log
 *editing* happens in the Django admin at `/admin/` (see **Signing in** above). If 8010
 is busy, pass another port: `tools/run-dev-local-db 8020`.
 
-`tools/site-build` renders the same content as a static site you can host or keep as a
-snapshot.
-
 ## Configuration
 
 Five files, and each one lives next to what it configures rather than in a single
@@ -130,7 +128,7 @@ Five files, and each one lives next to what it configures rather than in a singl
 | `<data>/jobs/targets/<area>.yaml` | One **target area**: a CV positioning, with the emphasis bullets and key terms that tailor a CV and score a scan | Whenever you add or rethink a kind of role you're going after |
 | `<data>/jobs/profile/criteria.yaml` | What you'll accept — dealbreakers, salary floor, weighted motivators, sectors. Pairs with `stocktake.md` | After `/jobstudio stocktake`, or when your bar moves |
 | `<data>/jobs/scan-config.yaml` | Scanning: ATS overrides for companies whose careers URL hides the real board, category → area mapping, and why a company isn't scanned | When a tracked company shows up "not scanned" but does have an ATS |
-| `~/.jobstudio.ini` | Per-machine, not per-search: where the data root is, plus optional `open_command` (`open` / `xdg-open`) | Moving the data root |
+| `~/.jobstudio.ini` | Per-machine, not per-search: where the data root is, plus optional `open_command` (`open` / `xdg-open`) and the job-board API keys for `scan`. Which of these you need: [under-the-hood.md](under-the-hood.md#which-settings-do-i-need) | Moving the data root, or adding a job-board key |
 
 **None of them is strictly required, but your name has to come from somewhere.** If
 `config.yaml` is absent, identity falls back to the `# Name` heading of your base

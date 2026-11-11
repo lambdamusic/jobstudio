@@ -17,10 +17,8 @@ does not belong in every page's `<head>`.
 
 ## Why the file is here rather than on a CDN
 
-The published site is a plain file mirror and is meant to work offline. A CDN would also
-mean a third-party request every time someone browses their own job search, which is not a
-trade anyone asked for. `build_static._copy_static()` already copies every
-`STATICFILES_DIRS` tree into `site/`, so a file here ships with the export for free.
+The app is meant to work offline, and a CDN would mean a third-party request every time
+someone browses their own job search, which is not a trade anyone asked for.
 
 ## Why ECharts
 

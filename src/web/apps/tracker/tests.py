@@ -648,7 +648,7 @@ class ScanCoverageTests(TestCase):
 
 
 class StatusActionTests(TestCase):
-    """The local-only status menu on the application detail page (`#28`, 2026-09-23; a
+    """The status menu on the application detail page (`#28`, 2026-09-23; a
     form with a note since 2026-11-11).
 
     These guard accepting a status the rest of the app doesn't know, losing the status
@@ -729,6 +729,32 @@ class StatusActionTests(TestCase):
             with self.subTest(status=status):
                 checked = " checked" if status == self.app.status else ""
                 self.assertIn(f'name="status" value="{status}"{checked}>', html)
+
+
+def site_urls() -> list[str]:
+    """Every page the app has, for the tests that walk them all. Was `build_static`'s
+    enumeration until the static export went (2026-11-11). Interview rounds are
+    enumerated from the folder scan, since a round is a file with no database row."""
+    from appfolder import STATUS_SORT_ORDER
+    from cvs.models import BaseCv
+    from tracker.models import Application, Area, Company, Scan
+    from tracker.views import _notes_files
+
+    urls = ["/", "/applications/", "/applications/all/", "/applications/active/",
+            "/companies/", "/areas/", "/stats/",
+            "/cvs/", "/profile/", "/notes/", "/scans/", "/scans/all/",
+            "/help/"]
+    urls += [f"/applications/status/{s}/" for s in STATUS_SORT_ORDER]
+    urls += [f"/applications/area/{a}/" for a in Area.objects.values_list("slug", flat=True)]
+    urls += [f"/applications/{n}/" for n in Application.objects.values_list("num", flat=True)]
+    urls += [f"/applications/{app.num}/rounds/{r['anchor']}/"
+             for app in Application.objects.exclude(folder="")
+             for r in app.interview_files]
+    urls += [f"/companies/{s}/" for s in Company.objects.values_list("slug", flat=True)]
+    urls += [f"/cvs/base/{s}/" for s in BaseCv.objects.values_list("slug", flat=True)]
+    urls += [f"/scans/{label}/" for label in Scan.objects.values_list("label", flat=True)]
+    urls += [f"/notes/{p.stem}/" for p in _notes_files()]
+    return urls
 
 
 def markdownify_path(md):
@@ -954,9 +980,8 @@ class ViewTests(TestCase):
                 self.assertTrue(re.findall(r'id="(%s--[^"]+)"' % re.escape(path.stem), single))
 
     def test_the_per_note_pages_survive(self):
-        """`build_static` publishes one page per note: they are where a note is read, and
-        the honest target for a link from outside the app."""
-        from tracker.management.commands.build_static import site_urls
+        """One page per note: they are where a note is read, and the honest target for a
+        link from outside the app."""
         from tracker.views import _notes_files
 
         urls = site_urls()
@@ -1018,13 +1043,9 @@ class ViewTests(TestCase):
         of nine URLs that never gained `/notes/`, `/profile/`, `/help/`, an application
         page or a round focus view.
 
-        It now walks `build_static.site_urls()` — the enumeration the published site is
-        built from, so a page that ships is a page this checks. Same reasoning as `#51`'s
-        help page reading its command list from `SKILL.md`: a second copy of a list drifts,
-        and the copy that drifts is the one nobody is looking at.
+        It now walks `site_urls()`, every page the app has, which until 2026-11-11 was the
+        static export's enumeration too.
         """
-        from tracker.management.commands.build_static import site_urls
-
         urls = site_urls()
         self.assertGreater(len(urls), 20, "site_urls() returned implausibly few pages")
         for url in urls:
@@ -1049,20 +1070,12 @@ class ViewTests(TestCase):
             with self.subTest(file=md.name):
                 self.assertIn(md.stem, slugs, f"{md.name} matches no company slug")
 
-    def test_the_repo_link_survives_publishing(self):
-        """`#33`. Every other sidebar link is local-only; this one is the exception, and
-        the published mirror is precisely where it earns its place — a reader who likes
-        the site has no other way to find out what built it. A future tidy-up that sweeps
-        the footer behind {% if IS_LOCAL %} should fail here."""
+    def test_the_sidebar_links_the_repo(self):
+        """`#33`: the footer says what built the app."""
         repo = "https://github.com/lambdamusic/jobstudio"
-        with self.settings(ENVIRONMENT="publish"):
-            self.assertIn(repo, self.client.get("/applications/").content.decode())
         self.assertIn(repo, self.client.get("/applications/").content.decode())
 
-    def test_admin_links_hidden_when_publishing(self):
-        with self.settings(ENVIRONMENT="publish"):
-            html = self.client.get("/applications/").content.decode()
-            self.assertNotIn("/admin/", html)
+    def test_status_badges_link_to_the_admin(self):
         html = self.client.get("/applications/").content.decode()
         self.assertIn("/admin/tracker/application/", html)
 
@@ -1578,8 +1591,8 @@ class ChartDataTests(TestCase):
     # -------------------------------------------------------------- the page
     def test_the_flow_toggle_needs_no_page_load(self):
         """§3's "done when". Both views ship in the payload the page already carries, so
-        the switch is a redraw. It could not be a link either way: a querystring cannot be
-        published as a static page (see build_static)."""
+        the switch is a redraw, not a link to a querystring the app's real-path links
+        avoid (see src/web/README.md)."""
         import json
 
         self.history(9220, ["saved", "reviewing", "applied"])
@@ -1750,9 +1763,8 @@ class TableToolbarTests(TestCase):
         self.assertNotIn("?", lede)
 
     def test_the_per_company_chart_links_into_the_companies_list(self):
-        """A fragment, not a querystring: the static build can publish the one page the
-        link lands on, and `tabletools.js` reads the fragment to preselect the filter. A
-        `?apps=2` would fail the build's link check instead."""
+        """A fragment, not a querystring: the link lands on the real companies page, and
+        `tabletools.js` reads the fragment to preselect the filter."""
         html = self.client.get("/stats/").content.decode()
         self.assertIn('href="/companies/#apps=', html)
         self.assertNotIn("/companies/?", html)
@@ -2830,7 +2842,7 @@ class TabsTests(TestCase):
 
     def test_all_panels_are_present_in_the_html(self):
         """Panels are rendered visible; tabs.js hides the inactive ones. Without JS the
-        whole page must still be there — the published site is a plain file mirror."""
+        whole page must still be there."""
         app = Application.objects.get(num=1)
         html = self.client.get(f"/applications/{app.num}/").content.decode()
         for panel in ("record", "notes", "letters", "job", "cv"):
@@ -2887,22 +2899,30 @@ class TabsTests(TestCase):
         html = self.client.get("/applications/1/").content.decode()
         self.assertIn("js/tabs.js", html)
 
-    def test_static_build_accepts_cross_page_tab_links(self):
-        """Regression: /areas/ folded its per-area detail pages into tabs (2026-09-14),
-        so other pages now link a specific area as /areas/#<slug> (tabs.js reads
-        location.hash on load) rather than a real /areas/<slug>/ path. build_static's
-        link checker used to resolve the href literally, including the "#slug" — which
-        is never a file on disk — and failed the whole build. It must strip the
-        fragment and check only the path.
-        """
-        self.assertTrue(Area.objects.filter(applications__isnull=False).exists(),
-                         "fixture needs at least one area with an application, to " +
-                         "produce a /areas/#<slug> link somewhere in the built site")
-        # build_static.handle() sets settings.ENVIRONMENT = "publish" directly (not via
-        # override_settings) and never resets it — self.settings() still restores
-        # whatever it was before this block on exit, regardless of how it changed inside.
-        with tempfile.TemporaryDirectory() as tmp, self.settings(ENVIRONMENT="local"):
-            call_command("build_static", output=tmp, clean=True, stdout=StringIO())
+    def test_every_internal_link_resolves(self):
+        """Every internal href on every page answers 200: the link check the static export
+        ran at the end of each build, kept as a test when the export went (2026-11-11).
+        A fragment deep-links a tab (`/areas/#<slug>`, read by tabs.js), so only the path
+        has to resolve. Local-only actions and the admin are skipped: they are endpoints,
+        not pages, and some of them act on a GET."""
+        from urllib.parse import urlparse
+
+        seen: dict[str, int] = {}
+        broken = set()
+        for url in site_urls():
+            html = self.client.get(url).content.decode()
+            for href in re.findall(r'(?:href|src)="([^"]+)"', html):
+                parsed = urlparse(href)
+                path = parsed.path
+                if (parsed.scheme or parsed.netloc or not path.startswith("/")
+                        or path.startswith(("/actions/", "/admin/", settings.STATIC_URL))):
+                    continue
+                if path not in seen:
+                    seen[path] = self.client.get(path).status_code
+                if seen[path] != 200:
+                    broken.add((url, href, seen[path]))
+        self.assertGreater(len(seen), 20, "implausibly few links followed")
+        self.assertEqual(broken, set())
 
 
 class SidebarTests(TestCase):
@@ -3504,7 +3524,7 @@ class HighlightTests(TestCase):
         self.assertEqual(mark_spans("`==code==` and ==real==\n```\n==fenced==\n```\n"), [(15, 23)])
         self.assertEqual(mark_spans("Title\n=====\n"), [])
 
-    def test_marks_render_live_locally_and_read_only_when_published(self):
+    def test_marks_render_live_with_a_source_and_read_only_without(self):
         from tracker.parsers import sectioned
         from tracker.templatetags.jobs_extras import markdownify
         live = sectioned("## A\n\nSome ==key line== here.\n", "n", source="jobs/x.md")
@@ -3519,7 +3539,7 @@ class HighlightTests(TestCase):
             f = Path(root) / "jobs" / "r.md"
             f.parent.mkdir()
             f.write_text("One line to keep.\n")
-            with override_settings(DATA_ROOT=root, ENVIRONMENT="local"):
+            with override_settings(DATA_ROOT=root):
                 post = lambda **d: self.client.post("/actions/highlight/", {"source": "jobs/r.md", **d})
                 self.assertEqual(post(text="line to keep", before="One ").status_code, 200)
                 self.assertEqual(f.read_text(), "One ==line to keep==.\n")
@@ -3531,12 +3551,8 @@ class HighlightTests(TestCase):
                 self.assertEqual(post(remove="0").status_code, 409)
                 r = self.client.post("/actions/highlight/", {"source": "../x.md", "text": "a"})
                 self.assertEqual(r.status_code, 404)
-            with override_settings(DATA_ROOT=root, ENVIRONMENT="publish"):
-                r = self.client.post("/actions/highlight/", {"source": "jobs/r.md", "text": "One"})
-                self.assertEqual(r.status_code, 404)
 
-    def test_the_job_description_and_profile_take_highlights_locally(self):
-        from django.test import override_settings
+    def test_the_job_description_and_profile_take_highlights(self):
         from tracker.templatetags.jobs_extras import hl_marks
         self.assertEqual(hl_marks("# T\n\n==a b==\n", "jobs/x.md"),
                          '# T\n\n<mark class="hl" data-mark="0">a b</mark>\n')
@@ -3545,10 +3561,7 @@ class HighlightTests(TestCase):
                  "/profile/": 'data-hl-source="jobs/profile/stocktake.md"'}
         for url, attr in pages.items():
             with self.subTest(url=url):
-                with override_settings(ENVIRONMENT="local"):
-                    self.assertIn(attr, self.client.get(url).content.decode())
-                with override_settings(ENVIRONMENT="publish"):
-                    self.assertNotIn("data-hl-source", self.client.get(url).content.decode())
+                self.assertIn(attr, self.client.get(url).content.decode())
 
 
 class NestedListTests(TestCase):
@@ -4395,7 +4408,7 @@ class InterviewRoundTests(TestCase):
         self.assertIn('data-task="1" data-source="jobs/x.md" checked> Read', live)
         self.assertIn("- [ ] not a task, in a fence", live)
         self.assertIn('data-task="2"', live)
-        self.assertIn(" disabled", render_tasks(text, None))          # published: read-only
+        self.assertIn(" disabled", render_tasks(text, None))          # no file: read-only
         ticked = set_task(text, 2, True)
         self.assertIn("1. [x] Numbered task", ticked)
         self.assertIn("- [ ] not a task, in a fence", ticked)       # the fence is untouched
@@ -4590,7 +4603,7 @@ class InterviewRoundTests(TestCase):
             f = Path(root) / "jobs" / "r.md"
             f.parent.mkdir()
             f.write_text("- [ ] one\n- [ ] two\n")
-            with override_settings(DATA_ROOT=root, ENVIRONMENT="local"):
+            with override_settings(DATA_ROOT=root):
                 r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "1",
                                                         "checked": "true"})
                 self.assertEqual(r.status_code, 200)
@@ -4601,10 +4614,6 @@ class InterviewRoundTests(TestCase):
                 r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "9",
                                                         "checked": "true"})
                 self.assertEqual(r.status_code, 409)
-            with override_settings(DATA_ROOT=root, ENVIRONMENT="publish"):
-                r = self.client.post("/actions/task/", {"source": "jobs/r.md", "index": "0",
-                                                        "checked": "true"})
-                self.assertEqual(r.status_code, 404)
 
     def test_a_document_without_a_glossary_is_unchanged(self):
         from tracker.parsers import sectioned
@@ -4723,8 +4732,8 @@ class InterviewRoundTests(TestCase):
 
     def test_extra_files_carry_unique_anchors_rendered_as_ids(self):
         """Prose in a folder needs a target for a specific file. Without an id the only
-        honest link is the tab, and a bare `<name>.md` link is broken on the published
-        site — these render into the page, they are not shipped as files."""
+        honest link is the tab, and a bare `<name>.md` link is broken: these render into
+        the page, they are not served as files."""
         app = Application.objects.get(num=1)
         files = app.extra_files
         self.assertTrue(files, "fixture app #1 needs a file under Other files")
@@ -4794,11 +4803,10 @@ class InterviewRoundTests(TestCase):
 
     def test_no_folder_markdown_links_a_bare_md_file(self):
         """Regression, twice over. A relative `.md` link inside an application folder
-        resolves to nothing in the web view and fails build_static's link checker — the
-        file is rendered into a tab, not published. Link the anchor instead.
+        resolves to nothing in the web view: the file is rendered into a tab, not served.
+        Link the anchor instead.
 
-        Note this only covers the example data the suite runs against; the real guard for
-        a user's own data root is running build_static before publishing.
+        Note this only covers the example data the suite runs against.
         """
         bad_link = re.compile(r"\]\((?!https?://|#|mailto:)([^)]*\.md)\)")
         for app in Application.objects.exclude(folder=""):
@@ -5058,8 +5066,7 @@ class CreateFolderActionTests(TestCase):
                 shutil.rmtree(folder)
 
     def test_creates_folder_with_a_cv_copy_and_an_empty_cover_letter(self):
-        with self.settings(ENVIRONMENT="local"):
-            resp = self.client.get(f"/actions/create-folder/{self.app.num}/")
+        resp = self.client.get(f"/actions/create-folder/{self.app.num}/")
         self.assertEqual(resp.status_code, 302)
 
         self.app.refresh_from_db()
@@ -5076,13 +5083,6 @@ class CreateFolderActionTests(TestCase):
         self.assertEqual(len(cover_letters), 1)
         self.assertEqual(cover_letters[0].stat().st_size, 0,
                          "cover-letter stub should be empty — content is a follow-up step")
-
-    def test_local_only(self):
-        with self.settings(ENVIRONMENT="publish"):
-            resp = self.client.get(f"/actions/create-folder/{self.app.num}/")
-        self.assertEqual(resp.status_code, 404)
-        self.app.refresh_from_db()
-        self.assertEqual(self.app.folder, "")
 
 
 class ScanConfigTests(TestCase):
@@ -5891,7 +5891,7 @@ class HelpPageTests(TestCase):
         self.assertNotIn('href="/help/"', material)
 
     def test_a_missing_skill_leaves_a_usable_page(self):
-        """A published mirror or a checkout without the skill still gets a page."""
+        """A checkout without the skill still gets a page."""
         from django.test import override_settings
         with override_settings(SITE_ROOT="/nonexistent/for/this/test"):
             r = self.client.get("/help/")
@@ -5901,8 +5901,7 @@ class HelpPageTests(TestCase):
 
 class CareerCoachTabTests(TestCase):
     """The career-coach folder as a tab on /notes/: dictated session notes render, the
-    material the coach hands over is listed, and opening it is local-only and limited to
-    documents."""
+    material the coach hands over is listed, and opening it is limited to documents."""
 
     fixtures = FIXTURE
 

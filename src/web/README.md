@@ -1,8 +1,7 @@
 # Web front end
 
 Django app for browsing the job search — applications, companies, target areas, CVs,
-notes and portal scans. It can also render the same content as a static site (legacy,
-see `docs/publishing.md`).
+notes and portal scans. Browsed locally only: the static export was removed on 2026-11-11.
 
 Design decisions, data model and phase history: **`log/2026-09-07-django-frontend-plan.md`**.
 
@@ -30,7 +29,7 @@ per-application CV carries the same kind of name (TODO `#55`).
 itself at the end of every run (`refresh_web_db()`, 2026-09-13), so a new report shows
 up at `/scans/` immediately — no manual `import_jobs` step needed after running
 `/jobstudio scan`. `Area`/`BaseCv` still only refresh when `import_jobs` is run
-explicitly (e.g. via `tools/site-build`, or by hand).
+explicitly, by hand or by `tools/run-dev-local-db` at start-up.
 
 **Cover letters and per-application CV snapshots have no model.** Both are scanned from
 each application folder by naming convention at request time — `*cover-letter*.md` via
@@ -62,8 +61,6 @@ It includes the admin account and its edit history, so a restore gives you a wor
 
 ```bash
 tools/run-dev-local-db          # http://127.0.0.1:8010/   (8000 is taken by another project)
-tools/site-build --clean        # legacy: render every page to site/
-tools/site-preview              # browse site/ at http://127.0.0.1:9111/
 tools/db-dump                   # <data-root>/backups/django/dump-<ts>.json — the portable backup, not the .sqlite3
 tools/db-load <file.json>       # restore from a dump
 ```
@@ -109,9 +106,10 @@ definition, used by the skills and the web app alike.
 Long-form prose is never copied into the database — only its path is stored, and it is
 rendered from disk at request time (plan §2.2).
 
-## Local-only bits
+## Actions on the local machine
 
-Rendered only when `ENVIRONMENT=local`, and never present in the published mirror:
+The app runs only on its owner's machine, so a few links act on it. Until 2026-11-11
+they were hidden from a static export; with the export gone they always show:
 
 - the **Admin** link in the sidebar, and the status badges on every list, which link into
   the admin change form (new tab) where `status` and `next action` are editable inline
@@ -140,22 +138,13 @@ linking back to the public page.
 different places the old markdown kept them and are genuinely different prose — don't
 collapse them.
 
-## Static export (legacy)
+## Links are real paths
 
-`manage.py build_static` renders every page in-process with Django's test client: no
-server, no wget, ~2s for 150 pages. It replaced `src/make-docs.py`, now in
-the owner's private archive.
-
-Two things to know:
-
-- **`site/` is generated.** `site-build --clean` deletes everything in it except `CNAME`
-  and `.nojekyll`. Never keep hand-written files there.
-- **Filters must be real paths**, not querystrings — a static build cannot publish
-  `?status=applied`. The build fails if any internal link is a querystring or does not
-  resolve to a file, which is what replaces wget's crawl-based discovery.
-
-Everything goes into the build, including gap-analysis notes — if it is ever hosted,
-treat the URL as a secret.
+**Filters are real paths**, not querystrings (`/applications/status/applied/`, not
+`?status=applied`). That began as a constraint of the static export, removed on
+2026-11-11, and stays because the paths are linkable and tested:
+`test_every_internal_link_resolves` walks every page of the example data and fails on
+any internal link that does not answer 200, the check the export used to run.
 
 ## Tests
 

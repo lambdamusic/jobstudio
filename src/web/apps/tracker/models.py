@@ -66,9 +66,9 @@ COMPANY_STATUS_CHOICES = [(s, s.title()) for s in COMPANY_STATUSES]
 
 
 def _task_source(path: Path | None) -> str | None:
-    """A markdown file's path under the data root, for live checkboxes — or None off the
-    local app, so the published mirror renders them read-only."""
-    if path is None or settings.ENVIRONMENT != "local":
+    """A markdown file's path under the data root, for live checkboxes, or None when there
+    is no file (or it sits outside the data root), so they render read-only."""
+    if path is None:
         return None
     try:
         return str(path.resolve().relative_to(Path(settings.DATA_ROOT).resolve()))
@@ -717,9 +717,8 @@ class Application(models.Model):
 
         # An id per file, so prose elsewhere in the folder can link a specific one —
         # `#file-<slug>`, resolved by tabs.js the same way a round anchor is. Without it
-        # the only honest target is the tab, and a bare `<name>.md` link is a broken link
-        # on the published site, where these render into the page rather than ship as
-        # files.
+        # the only honest target is the tab, and a bare `<name>.md` link is a broken link,
+        # since these render into the page rather than being served as files.
         for f in out:
             f["anchor"] = file_anchor(f["rel"])
 
@@ -774,8 +773,8 @@ class Application(models.Model):
     def documents(self) -> list[dict]:
         """Every page that belongs to this application, grouped, for the Record tab (`#97`).
 
-        An item's `href` is a page or a tab anchor, so it holds on the published site.
-        `open_path` is a file to open locally, which the template shows only there.
+        An item's `href` is a page or a tab anchor. `open_path` is a file to open in its
+        desktop app.
         Empty groups are left out.
         """
         own = []

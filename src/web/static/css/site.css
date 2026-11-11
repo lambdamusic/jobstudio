@@ -162,8 +162,8 @@ a:hover { text-decoration: underline; }
 .nav-count { margin-left: auto; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .nav-group a.active .nav-count { color: var(--navy-soft); }
 
-/* Nav glyphs: line art that inherits the link's colour, so the active item's navy and
-   the muted local-only grey both come for free. */
+/* Nav glyphs: line art that inherits the link's colour, so the active item's navy comes
+   for free. */
 .ico {
   flex: none; width: 16px; height: 16px;
   fill: none; stroke: currentColor; stroke-width: 1.7;
@@ -207,7 +207,6 @@ a:hover { text-decoration: underline; }
 .side-collapsed .nav-fold > summary > span,
 .side-collapsed .nav-fold > summary::after,
 .side-collapsed .nav-sub,
-.side-collapsed .nav-group a.local-only::after,
 .side-collapsed .sidebar-foot { display: none; }
 .side-collapsed .nav-group { padding: 0 8px; margin-bottom: 10px; }
 .side-collapsed .nav-group + .nav-group { border-top: 1px solid var(--line); padding-top: 10px; }
@@ -343,18 +342,6 @@ a.badge:hover { text-decoration: none; filter: brightness(0.96); }
 .chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
 .chip.active .chip-n { color: #c9d2e6; }
 .chip-n { font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
-
-/* Local-only affordances: dashed outline on buttons, a small marker in the sidebar.
-   Neither appears in the published mirror — the nav group is wrapped in {% if IS_LOCAL %}. */
-.btn.local-only { border-style: dashed; }
-.nav-group a.local-only { color: var(--muted); }
-.nav-group a.local-only::after {
-  /* Pushed right like .nav-count — the row is justify-content: flex-start now, so it no
-     longer drifts to the edge on its own. */
-  margin-left: auto;
-  content: "local"; font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--faint); border: 1px dashed #ccccd4; border-radius: 4px; padding: 0 4px;
-}
 
 /* ---------- prose (rendered markdown) ---------- */
 
@@ -499,7 +486,7 @@ tr.is-stale td { background: #fffdf5; }
 
 /* A chart is only shown once charts.js has said it can draw one — same arrangement as
    .js-tabs. Until then (and forever, with JavaScript off) the numbers below it are the
-   chart, which is also what a screen reader and the published mirror get. */
+   chart, which is also what a screen reader gets. */
 .chart { display: none; width: 100%; }
 .js-charts .chart { display: block; }
 
@@ -512,7 +499,7 @@ tr.is-stale td { background: #fffdf5; }
 .numbers[open] > summary { margin-bottom: 6px; }
 
 /* The §3 view switch. Buttons rather than links: it changes what is drawn, not where you
-   are, and a querystring cannot be published (see build_static). */
+   are, and the app links real paths rather than querystrings (see src/web/README.md). */
 .chart-toggle { margin: 0 0 10px; }
 .chart-toggle .chip { appearance: none; font: inherit; cursor: pointer; }
 

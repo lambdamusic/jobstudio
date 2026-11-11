@@ -33,8 +33,26 @@ tools/py src/config.py --chain    # every layer, and which one won
 ```
 
 Resolution order: `$JOBSTUDIO_DATA`, then the checkout's `.jobstudio-data` pointer,
-then `~/.jobstudio.ini`. `--chain` is the first thing to run when something writes to a
-place you did not expect.
+then `~/.jobstudio.ini`; the first one set wins, and none set is an error saying to run
+`/jobstudio init`. `--chain` is the first thing to run when something writes to a place
+you did not expect.
+
+### Which settings do I need?
+
+Three places can name the data root, and one of them also holds per-machine settings.
+Most people need the two that `init` writes and never touch them again.
+
+| Setting | What it's for | Do I need it? |
+|---|---|---|
+| `.jobstudio-data` in the checkout | Points this checkout at a data root. Beats `~/.jobstudio.ini` | Yes, unless the `.ini` already names the right root. `init` writes it |
+| `~/.jobstudio.ini`: `data_root` | The data root for anything run **outside** a checkout, such as a script run from the data root | Only if you run things from outside the repo, or keep one checkout per machine and no pointer. `init` writes it; `--skip-global` skips it |
+| `~/.jobstudio.ini`: `open_command`, `adzuna_app_id`, `adzuna_app_key`, `reed_api_key` | Per-machine: how "Open folder" opens things, and the job-board keys `scan` uses | Only if the default (`open` on macOS) is wrong, or you want job-board search. These live nowhere else |
+| `$JOBSTUDIO_DATA` | One shell or one command, for testing against a scratch root | No. The test suite sets it for itself |
+
+The `.ini` mixes two jobs: `data_root` is one of the three layers, and the rest are
+settings with no other home. Two checkouts on one machine (a real search and a
+sandbox) is the case the order exists for: each checkout's pointer wins, so neither
+can act on the other's data.
 
 ## Setup
 
@@ -130,8 +148,6 @@ Depth: **[portal-scan-and-scoring.md](portal-scan-and-scoring.md)**.
 tools/run-dev-local-db            # http://127.0.0.1:8010, foreground until Ctrl-C
 tools/run-dev-local-db 8020       # if 8010 is busy
 tools/run-demo                    # the same app on example data, http://127.0.0.1:8011
-tools/site-build --clean          # legacy: render the whole site to <DATA>/site/
-tools/site-preview                # browse that build locally
 ```
 
 `run-demo` is the one to reach for when the app is going to be *seen* — a screen
@@ -150,8 +166,7 @@ the pointer file alone, which is why it is safe to run mid-session on a real set
 
 `/applications/<n>/rounds/<anchor>/` renders one interview round on its own page, with
 no sidebar, no tab strip and no metadata — the reading view for during a call (`#66`).
-Every round links to it from the Interviews tab, and `build_static` publishes one page
-per round, so the link survives into the static mirror.
+Every round links to it from the Interviews tab.
 
 Two details are deliberate. **"Private — not for the call" is removed from the markdown
 before rendering**, not hidden with CSS: a page open during a call may be visible to
@@ -185,7 +200,6 @@ Django management commands, run as `tools/py src/web/manage.py <name>`:
 | Command | What it does |
 |---|---|
 | `import_jobs` | Refresh the rows derived from files — areas, base CVs, scans |
-| `build_static` | Render every page to `site/` |
 | `refresh_company_status` | Recompute each company's derived status |
 | `migrate_exports` / `prune_exports` | One-off tidies from the 2026-09-24 export move |
 | `backfill_saved_entry` / `backfill_status_history` | One-off history backfills |

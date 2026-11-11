@@ -43,7 +43,37 @@ brings up this same thing in one command, without touching a data root of your o
 - **Plain files all the way down.** Markdown and sqlite, no proprietary format. If you
   stop using this tomorrow, everything you wrote is still readable.
 
-## Prerequisites
+## Quick start
+
+Everything is a `/jobstudio` command in a Claude Code session opened in the clone.
+Everything it writes lands in your data root, where the web app picks it up. A first
+week with it looks something like this:
+
+1. **Say what you're after.** `/jobstudio stocktake` is a guided interview about what
+   you have done and what you want next. It writes your career profile: dealbreakers,
+   salary floor, what motivates you. Every later score, CV and letter reads it.
+2. **Track the companies you'd work for.** `/jobstudio company Grafana Labs` adds it to
+   the tracker with researched notes: what they sell, to whom, and who pays.
+3. **Scan their job boards.** `/jobstudio scan` reads every tracked company's ATS
+   board, drops roles that fail your location rules, scores the rest against your
+   target areas, and writes a report. Nothing goes into the tracker until you say so.
+4. **Log a role you want.** `/jobstudio application <posting URL>` gives it a folder:
+   the job description, a gap analysis with pros, cons and unknowns, a copy of your CV,
+   and a short draft cover letter.
+5. **Tailor for the roles that earn it.** `/jobstudio cv #12` rewrites the CV against
+   the job description, and `/jobstudio cover-letter #12` writes the full letter.
+   `/jobstudio render #12` turns both into `.docx`.
+6. **Prepare for the interview.** `/jobstudio interview #12 --stage hiring-manager`
+   writes the likely questions, answers drawn from your own stories, and questions to
+   ask them. `/jobstudio dossier #12` puts the whole application into one Word file to
+   read the evening before.
+7. **See where it all stands.** `/jobstudio status` in the terminal, or the web app's
+   dashboard: what's outstanding, what went quiet, what's next.
+
+To see all of it before putting in any data of your own, `tools/run-demo` serves the
+web app on the bundled example search. `/jobstudio help` lists every command.
+
+## Installing it
 
 | | |
 |---|---|
@@ -52,40 +82,25 @@ brings up this same thing in one command, without touching a data root of your o
 | **git** | To clone it |
 | **macOS or Linux** | Windows is out of scope: the `tools/` scripts are bash. It may work under WSL; nothing is built or tested for it |
 
-## Quick start
-
 ```bash
 git clone https://github.com/lambdamusic/jobstudio.git && cd jobstudio
 claude                      # then: /jobstudio init
+tools/run-dev-local-db      # the web app, at http://127.0.0.1:8010, in its own terminal
 ```
 
-**That is the whole thing.** The skill ships in the repo, so a Claude Code session
-opened in the clone can already run `/jobstudio init` — it finds or creates the
-virtualenv (asking first), sets up a data root wherever you want it, wires the two
-together, and checks the result. It also asks *how* you want to start: from the example
-job search, from a CV you have, from what it can find about you online, or from a blank
-interview.
+The skill ships in the repo, so a session opened in the clone can run `/jobstudio init`
+straight away. It finds or creates the virtualenv (asking first), sets up a data root
+wherever you want it, wires the two together, and checks the result. It also asks how
+you want to start: from the example job search, from a CV you have, from what it can
+find about you online, or from a blank interview.
 
-**It is worth taking your time over.** What you tell `init` is written into your data
-root and then drives every tailored CV, every cover letter and every scan score after
-it — so a thin answer here doesn't fail, it just quietly makes everything downstream
-less targeted. Tell it as much as you can about what you have done and what you want
-next. (`/jobstudio stocktake` is where the rest gets captured, and `init` will point
-you at it.)
+**Take your time over `init`.** What you tell it drives every tailored CV, cover letter
+and scan score after it, so a thin answer doesn't fail, it just makes everything
+downstream less targeted.
 
-**Then start the web app** — it is how you actually look at any of this:
-
-```bash
-tools/run-dev-local-db          # http://127.0.0.1:8010
-```
-
-Leave it running in its own terminal; it serves until you stop it with Ctrl-C. Browsing
-needs no login. The agent can start it for you too, but it holds that session until you
-interrupt it, so a separate terminal is usually what you want.
-
-**[docs/getting-started.md](docs/getting-started.md)** covers the rest: doing the same
-setup by hand, signing in and changing the admin password, what to do once it is
-running, the configuration files, and the checks to run if you are changing the code.
+**[docs/installation.md](docs/installation.md)** covers the rest: the same setup by
+hand, signing in and changing the admin password, the configuration files, and the
+checks to run if you are changing the code.
 
 ## The commands
 
@@ -96,8 +111,10 @@ running, the configuration files, and the checks to run if you are changing the 
 | `/jobstudio application` | Log an application: folder, gap analysis, CV copy, draft cover letter |
 | `/jobstudio cv` | Tailor a CV to a role, or rebuild/import your base CVs |
 | `/jobstudio cover-letter` | Draft a cover letter from the application, CV and company notes |
+| `/jobstudio render` | Turn an application's CV and cover letter into `.docx` |
 | `/jobstudio stocktake` | Guided interview that builds your career profile |
 | `/jobstudio interview` | Prep for a real interview: likely questions, STAR-grounded answers |
+| `/jobstudio dossier` | Everything an application has gathered, in one Word file to read |
 | `/jobstudio scan` | Scan tracked companies' ATS boards for new postings and score them |
 | `/jobstudio status` | Where everything stands |
 
@@ -108,7 +125,7 @@ the full index.
 
 | | |
 |---|---|
-| **[docs/getting-started.md](docs/getting-started.md)** | Setup by hand, signing in, the web app, the configuration files, and the checks for anyone changing the code |
+| **[docs/installation.md](docs/installation.md)** | Setup by hand, signing in, the web app, the configuration files, and the checks for anyone changing the code |
 | **[docs/workflow.md](docs/workflow.md)** | Then here. The daily/weekly cadence: what to run, in what order. Every step is a Claude command |
 | **The deep dives** | One guide per piece, for how something actually works rather than how to invoke it — [scanning and scoring](docs/portal-scan-and-scoring.md), [applications and gap analysis](docs/applications-and-gap-analysis.md), [the CV pipeline](docs/cv-pipeline.md), [cover letters](docs/cover-letters.md), [the career stocktake](docs/career-stocktake-profile.md), [interview prep](docs/interview-prep.md), [companies](docs/companies.md), [the dashboard](docs/dashboard-status.md) |
 | **[docs/under-the-hood.md](docs/under-the-hood.md)** | The Python entry points and shell scripts the commands drive. You never need this to *use* the toolkit — only to debug a step, extend it, or automate it |

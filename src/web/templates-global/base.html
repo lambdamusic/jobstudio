@@ -28,19 +28,16 @@
   {% endcomment %}
   {% comment %}
   Live `- [ ]` checkboxes in rendered markdown write their tick back to the file, and the
-  highlighter (#77) writes `==…==` the same way. Local only: the token is what the POST
-  carries, and the published site has no endpoint.
+  highlighter (#77) writes `==…==` the same way. The token is what the POST carries.
   {% endcomment %}
-  {% if IS_LOCAL %}
-    <meta name="csrf-token" content="{{ csrf_token }}">
-    <script src="{% static 'js/tasks.js' %}" defer></script>
-    <script src="{% static 'js/highlight.js' %}" defer></script>
-  {% endif %}
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <script src="{% static 'js/tasks.js' %}" defer></script>
+  <script src="{% static 'js/highlight.js' %}" defer></script>
   <script src="{% static 'js/diagrams.js' %}" data-mermaid="{% static 'vendor/mermaid-12.1.0.min.js' %}" defer></script>
   {% comment %}
   The charts on /stats/ and the library they need. Both are deferred and both are
   enhancements: the page renders its numbers as tables first and charts.js swaps in the
-  drawings, so no-JavaScript and the published mirror both stay readable. ECharts is
+  drawings, so the page stays readable without JavaScript. ECharts is
   vendored — see static/vendor/README.md for version, licence and why it is not a CDN.
   {% endcomment %}
   {% if page == 'stats' %}
@@ -59,8 +56,7 @@ one — the head, the stylesheet and the title convention all stay shared.
 
   {% comment %}
   Icon sprite: every nav glyph defined once, drawn with <use>. Same-document symbols, so
-  it still works in the published mirror — an external sprite file would be one more
-  thing the static build has to copy and one more way for the icons to vanish.
+  there is no external sprite file to serve, and one fewer way for the icons to vanish.
   `stroke="currentColor"` is what lets a glyph pick up the active item's navy.
   {% endcomment %}
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -120,9 +116,8 @@ one — the head, the stylesheet and the title convention all stay shared.
       {% comment %}
       One lockup: glyph and wordmark are a single inline SVG, so they stay fixed relative
       to each other instead of being two elements that drift apart at different zooms.
-      Inline rather than an icon file because the published site is a plain file mirror —
-      a mark that lives in the markup cannot go missing from it. Drawn at its exact pixel
-      size and never scaled, so the text stays crisp.
+      Inline rather than an icon file, so a mark that lives in the markup cannot go
+      missing. Drawn at its exact pixel size and never scaled, so the text stays crisp.
 
       The words are drawn, not interpolated from APP_NAME: a lockup is a fixed-width
       drawing, and a longer name would silently overrun the viewBox. `test_the_wordmark_
@@ -160,8 +155,7 @@ one — the head, the stylesheet and the title convention all stay shared.
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dashboard"/></svg><span>Dashboard</span></a>
       {% comment %}
       A group that opens and closes rather than a link (`#94`): the heading is a native
-      <summary>, so it folds with no script, works from the keyboard, and the published
-      mirror needs nothing extra. Open whenever the page is inside the group; `nav.js`
+      <summary>, so it folds with no script and works from the keyboard. Open whenever the page is inside the group; `nav.js`
       remembers the rest. The heading carries no count, since each sub-item has its own.
       Only the three working statuses (2026-10-21): the active list and the full list are
       still at /applications/ and /applications/all/, reached from the applications pages
@@ -223,22 +217,14 @@ one — the head, the stylesheet and the title convention all stay shared.
         <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-help"/></svg><span>How to use this</span></a>
     </div>
 
-    {% if IS_LOCAL %}
-      {# Local-only: not linked from the published mirror (plan §2.3). #}
-      <div class="nav-group">
-        <div class="nav-label">Local</div>
-        <a href="/admin/" class="local-only" target="_blank" rel="noopener">
-          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-admin"/></svg><span>Admin</span></a>
-      </div>
-    {% endif %}
+    <div class="nav-group">
+      <div class="nav-label">Edit</div>
+      <a href="/admin/" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-admin"/></svg><span>Admin</span></a>
+    </div>
 
-    {% comment %}
-    The repo link renders in BOTH environments, unlike everything else marked local-only:
-    it is most useful on the published mirror, where a reader who likes the site has no
-    other way to find out what built it.
-    {% endcomment %}
     <div class="sidebar-foot">
-      <span>{% if IS_LOCAL %}Local · sqlite{% else %}Published{% endif %}</span>
+      <span>Local · sqlite</span>
       <a href="https://github.com/lambdamusic/jobstudio"
          target="_blank" rel="noopener">GitHub ↗</a>
     </div>
