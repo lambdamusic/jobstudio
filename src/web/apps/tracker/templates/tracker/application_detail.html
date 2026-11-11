@@ -16,38 +16,36 @@
 
 <div class="actions">
   {% if app.job_url %}<a class="btn btn-primary" href="{{ app.job_url }}" target="_blank" rel="noopener">Job posting ↗</a>{% endif %}
-  {% if IS_LOCAL %}
-    {% if app.folder %}
-      <a class="btn local-only" href="/actions/reveal/{{ app.num }}/">Open folder</a>
-    {% else %}
-      <a class="btn local-only" href="/actions/create-folder/{{ app.num }}/">Create folder</a>
-    {% endif %}
-    {% comment %}
-    Status menu. <details> rather than a scripted dropdown: it opens and closes natively,
-    so it still works with JavaScript off — same progressive-enhancement bargain tabs.js
-    makes. A form since 2026-11-11: pick a status, optionally say why. The note becomes a
-    dated line in notes.md's Timeline (and, ticked, the Next action); see update_status.
-    The current status is offered too, preselected, so a note needs no change of status.
-    {% endcomment %}
-    <details class="menu local-only">
-      <summary class="btn local-only">Set status ▾</summary>
-      <form class="menu-body status-form" method="post" action="/actions/set-status/{{ app.num }}/">
-        {% csrf_token %}
-        <div class="status-choices">
-          {% for s in all_statuses %}
-            <label><input type="radio" name="status" value="{{ s }}"{% if s == app.status %} checked{% endif %}>
-              {% include "tracker/_status.html" with status=s %}</label>
-          {% endfor %}
-        </div>
-        <textarea name="note" rows="3" placeholder="Note (optional): why, what happened…"></textarea>
-        <p class="status-hint">{% if app.folder %}Added to the Timeline in notes.md, dated today.{% else %}No folder, so the note can only become the Next action.{% endif %}</p>
-        <label class="status-next"><input type="checkbox" name="as_next" checked> Also set it as the Next action</label>
-        <button class="btn btn-primary" type="submit">Save</button>
-      </form>
-    </details>
-    <a class="btn local-only" href="/admin/tracker/application/{{ app.pk }}/change/"
-       target="_blank" rel="noopener">Edit in admin</a>
+  {% if app.folder %}
+    <a class="btn" href="/actions/reveal/{{ app.num }}/">Open folder</a>
+  {% else %}
+    <a class="btn" href="/actions/create-folder/{{ app.num }}/">Create folder</a>
   {% endif %}
+  {% comment %}
+  Status menu. <details> rather than a scripted dropdown: it opens and closes natively,
+  so it still works with JavaScript off — same progressive-enhancement bargain tabs.js
+  makes. A form since 2026-11-11: pick a status, optionally say why. The note becomes a
+  dated line in notes.md's Timeline (and, ticked, the Next action); see update_status.
+  The current status is offered too, preselected, so a note needs no change of status.
+  {% endcomment %}
+  <details class="menu">
+    <summary class="btn">Set status ▾</summary>
+    <form class="menu-body status-form" method="post" action="/actions/set-status/{{ app.num }}/">
+      {% csrf_token %}
+      <div class="status-choices">
+        {% for s in all_statuses %}
+          <label><input type="radio" name="status" value="{{ s }}"{% if s == app.status %} checked{% endif %}>
+            {% include "tracker/_status.html" with status=s %}</label>
+        {% endfor %}
+      </div>
+      <textarea name="note" rows="3" placeholder="Note (optional): why, what happened…"></textarea>
+      <p class="status-hint">{% if app.folder %}Added to the Timeline in notes.md, dated today.{% else %}No folder, so the note can only become the Next action.{% endif %}</p>
+      <label class="status-next"><input type="checkbox" name="as_next" checked> Also set it as the Next action</label>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </form>
+  </details>
+  <a class="btn" href="/admin/tracker/application/{{ app.pk }}/change/"
+     target="_blank" rel="noopener">Edit in admin</a>
 </div>
 
 <div class="panel">
@@ -316,9 +314,7 @@
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
             <span><code id="{{ cv.anchor }}" style="font-size:12.5px">{{ cv.name }}</code>{% if cv.untouched %}
               <span class="pill" title="A mechanical copy of the base CV — the roles in brackets stripped from the competencies, nothing else changed">unedited copy</span>{% endif %}</span>
-            {% if IS_LOCAL %}
-              {% if cv.docx %}<a href="/actions/open-file/?path={{ cv.docx|data_rel|urlencode }}">Open .docx</a>{% endif %}
-            {% endif %}
+            {% if cv.docx %}<a href="/actions/open-file/?path={{ cv.docx|data_rel|urlencode }}">Open .docx</a>{% endif %}
           </div>
           {{ cv.body_md|strip_h1|markdown|blank_links }}
         </div>
@@ -333,7 +329,7 @@
         <div class="panel prose">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
             <h3 style="margin-top:0">{{ letter.label }}{% if letter.date %} · {{ letter.date|date:"j M Y" }}{% endif %}</h3>
-            {% if IS_LOCAL and letter.docx_path %}
+            {% if letter.docx_path %}
               <a href="/actions/open-file/?path={{ letter.docx_path|data_rel|urlencode }}">Open .docx</a>
             {% endif %}
           </div>
@@ -417,7 +413,7 @@ under it, so it is there whichever tab is open.
             {% for doc in group.items %}
               <li><a href="{{ doc.href }}">{{ doc.label }}</a>
                 {% if doc.date %}<span class="index-box-date">{{ doc.date|date:"j M Y" }}</span>{% endif %}
-                {% if IS_LOCAL and doc.open_path %}<a class="index-box-open" href="/actions/open-file/?path={{ doc.open_path|data_rel|urlencode }}">Open file</a>{% endif %}
+                {% if doc.open_path %}<a class="index-box-open" href="/actions/open-file/?path={{ doc.open_path|data_rel|urlencode }}">Open file</a>{% endif %}
               </li>
             {% endfor %}
           </ul>

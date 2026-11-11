@@ -737,8 +737,8 @@ def task_spans(text: str) -> list[tuple[int, int, bool]]:
 
 def render_tasks(text: str, source: str | None) -> str:
     """Swap each task marker for a checkbox. With `source` (the file's path under the
-    data root, local app only) the box is live and `js/tasks.js` writes a tick back to the
-    file; without it — the published site — it is shown but disabled."""
+    data root) the box is live and `js/tasks.js` writes a tick back to the file; without
+    it, when there is no file to write to, it is shown but disabled."""
     out, last = [], 0
     for i, (start, end, checked) in enumerate(task_spans(text)):
         attrs = f'type="checkbox" class="task-box" data-task="{i}"'
@@ -1216,8 +1216,8 @@ def parse_skill_commands(skill_md: Path) -> list[dict]:
     silently, and they already have — `render-html-pdf` became `render` on 2026-09-29.
     A renamed or retired subcommand now changes the page by changing one file.
 
-    Returns [] if the skill isn't reachable (a published mirror, a checkout without
-    it) — the page has a sensible thing to show either way.
+    Returns [] if the skill isn't reachable (a checkout without it); the page has a
+    sensible thing to show either way.
     """
     if not skill_md.is_file():
         return []

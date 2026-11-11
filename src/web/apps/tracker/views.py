@@ -1,8 +1,9 @@
 """Views.
 
-Every page is a plain URL reachable by an <a> from somewhere else, because `wget --mirror`
-only finds what it can follow. Filtering by querystring is a local-only convenience — the
-default (unfiltered) view is the one that gets mirrored. See plan §4.
+Every page is a plain URL reachable by an <a> from somewhere else, and filtered views
+are real paths rather than querystrings (see src/web/README.md, "Links are real paths").
+That began with the static export, removed 2026-11-11, and stays because the paths are
+linkable and `test_every_internal_link_resolves` checks them.
 """
 
 import datetime as dt
@@ -785,8 +786,7 @@ def stats(request):
 
 
 def application_list(request, status=None, area=None, active=False, show_all=False):
-    """Filtered views are real paths, not querystrings — the static export could only
-    publish a URL that exists as a path (plan §4).
+    """Filtered views are real paths, not querystrings (see the module docstring).
 
     /applications/                     active by default (applied + interviewing)
     /applications/all/                 every application
@@ -794,8 +794,7 @@ def application_list(request, status=None, area=None, active=False, show_all=Fal
     /applications/status/<status>/     one status
     /applications/area/<slug>/         one target area
 
-    `?q=` search stays querystring-only: it is a local convenience and cannot be
-    meaningfully published as static pages.
+    `?q=` search stays querystring-only: a search is not a page anything links to.
     """
     applications = _with_last_change(
         Application.objects.select_related("company", "area")).order_by(*BROWSE_ORDER)
@@ -1367,12 +1366,11 @@ def scan_detail(request, slug=None):
 
 
 # ---------------------------------------------------------------------------
-# Local-only actions
+# Actions on the local machine
 #
 # Chrome blocks file:// navigation from an http:// page, so the old "Open folder"
 # link silently did nothing. The dev server runs on the user's own machine, so it can just
-# run `open` itself. Gated on ENVIRONMENT=local and never linked from the published
-# mirror, which is built with ENVIRONMENT=publish.
+# run `open` itself.
 # ---------------------------------------------------------------------------
 
 def _file_opener() -> list[str]:
@@ -1418,8 +1416,6 @@ def _open_locally(path: Path, reveal: bool = False) -> None:
 
 
 def reveal_folder(request, num):
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
 
     app = get_object_or_404(Application, num=num)
     folder = app.folder_path
@@ -1431,12 +1427,10 @@ def reveal_folder(request, num):
 
 
 def _local_md_file(request):
-    """The markdown file a local-only write endpoint was asked to edit, or the error
+    """The markdown file a write endpoint was asked to edit, or the error
     response to send instead. The rules every such endpoint shares: local app only, POST
     only (CSRF-protected like any POST), and `source` must resolve to an existing `.md`
     file inside the data root."""
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "POST only"}, status=405)
     root = Path(settings.DATA_ROOT).resolve()
@@ -1450,12 +1444,12 @@ def _local_md_file(request):
 
 
 def toggle_task(request):
-    """Local-only: tick or untick one `- [ ]` task in a markdown file under the data root.
+    """tick or untick one `- [ ]` task in a markdown file under the data root.
 
     POST `source` (the path `_task_source` rendered into the checkbox), `index` (its order
     in the file, as `parsers.task_spans` counts it) and `checked`. The write is the whole
     point — the box is a view of a line in a file, so ticking it edits the file, and the
-    tick survives a reload, an editor, and a publish. CSRF-protected like any POST; the
+    tick survives a reload and an editor. CSRF-protected like any POST; the
     path must resolve inside the data root and be a `.md` file that exists.
     """
     path = _local_md_file(request)
@@ -1475,7 +1469,7 @@ def toggle_task(request):
 
 
 def highlight(request):
-    """Local-only: add or remove a highlight (`==text==`) in a markdown file (TODO `#77`).
+    """add or remove a highlight (`==text==`) in a markdown file (TODO `#77`).
 
     POST `source` plus either `text` (the selection as the page rendered it) with
     `before` / `after` (the text either side, to tell repeated passages apart), or
@@ -1507,11 +1501,9 @@ def highlight(request):
 
 
 def create_folder(request, num):
-    """Local-only: an application with no folder yet shows a "Create folder" action
+    """an application with no folder yet shows a "Create folder" action
     instead of Open folder. Runs the same appfolder.ensure_folder()
     the jobstudio skill uses, then redirects back."""
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
 
     app = get_object_or_404(Application, num=num)
     if not app.folder:
@@ -1524,7 +1516,7 @@ def create_folder(request, num):
 
 
 def update_status(request, num):
-    """Local-only: the status menu's form. POST `status`, an optional `note` and `as_next`.
+    """the status menu's form. POST `status`, an optional `note` and `as_next`.
 
     The note is written where the reason for a status change already lives: a dated line in
     `notes.md`'s `## Timeline`, which the Record tab shows just above the status history.
@@ -1536,8 +1528,6 @@ def update_status(request, num):
     status but not say why.
     The current status is a valid choice, so a note can be added without a change.
     """
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     status = request.POST.get("status", "")
@@ -1576,7 +1566,7 @@ OPENABLE_SUFFIXES = {".docx", ".doc", ".pdf", ".xlsx", ".xls", ".csv", ".pptx",
 
 
 def open_file(request):
-    """Local-only: open a document in the desktop's default app (Word, Preview, Pages).
+    """open a document in the desktop's default app (Word, Preview, Pages).
 
     `?path=` is relative to the data root. Documents only — an exported `.docx`, or a PDF
     a career coach handed over — never a script or an app, since this is a GET that
@@ -1584,8 +1574,6 @@ def open_file(request):
     this used to be `vscode://file/` URLs, which open in whatever VS Code window is
     already up and can replace its workspace (TODO `#81`).
     """
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
     path = Path(settings.DATA_ROOT) / request.GET.get("path", "")
     exists = path.is_file() or (path.suffix in PACKAGE_SUFFIXES and path.is_dir())
     if path.suffix.lower() not in OPENABLE_SUFFIXES or not exists:
@@ -1595,9 +1583,7 @@ def open_file(request):
 
 
 def reveal_company_notes(request, slug):
-    """Local-only: reveal jobs/companies/<slug>.md, selected, in Finder."""
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
+    """reveal jobs/companies/<slug>.md, selected, in Finder."""
 
     company = get_object_or_404(Company, slug=slug)
     path = company.notes_path
@@ -1609,9 +1595,7 @@ def reveal_company_notes(request, slug):
 
 
 def reveal_note(request, slug):
-    """Local-only: reveal a note's .md, selected, in Finder, to edit it — as a company page does."""
-    if settings.ENVIRONMENT != "local":
-        raise Http404("Local only")
+    """reveal a note's .md, selected, in Finder, to edit it — as a company page does."""
 
     match = next((p for p in _notes_files() if p.stem == slug), None)
     if match is None:

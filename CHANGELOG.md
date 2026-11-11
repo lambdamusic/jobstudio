@@ -4,6 +4,15 @@ Dated entries, newest first.
 
 ## 2026-11-11
 
+- **No more local-versus-published split.** With the static export gone, the app only runs
+  on its owner's machine, so the machinery for hiding things from a published copy goes
+  too: the `ENVIRONMENT` setting and its seven "Local only" guards on the action views,
+  the `IS_LOCAL` template flag, the `local-only` class with its dashed buttons and
+  "local" sidebar marker, and the `ENVIRONMENT` exports in `tools/run-dev-local-db` and
+  `jobsdb.py`. `DEBUG` is simply on. The sidebar's Admin group is labelled Edit.
+  `local_settings.py` no longer sets `ENVIRONMENT`; an existing copy that still does is
+  harmless.
+
 - **The README's Quick start is a tour of using it, not installing it (`#68`).** Seven
   steps, each a `/jobstudio` command and what comes back: stocktake, company, scan,
   application, cv and cover-letter, interview and dossier, status. Installation is its

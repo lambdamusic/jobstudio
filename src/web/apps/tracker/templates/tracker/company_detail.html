@@ -33,18 +33,14 @@
   </p>
 </div>
 
-{% if company.url or company.notes_path or IS_LOCAL %}
-  <div class="actions">
-    {% if company.url %}<a class="btn btn-primary" href="{{ company.url }}" target="_blank" rel="noopener">Careers page ↗</a>{% endif %}
-    {% if IS_LOCAL %}
-      {% if company.notes_path %}
-        <a class="btn local-only" href="/actions/reveal-company/{{ company.slug }}/">Open folder</a>
-      {% endif %}
-      <a class="btn local-only" href="/admin/tracker/company/{{ company.pk }}/change/"
-         target="_blank" rel="noopener">Edit in admin</a>
-    {% endif %}
-  </div>
-{% endif %}
+<div class="actions">
+  {% if company.url %}<a class="btn btn-primary" href="{{ company.url }}" target="_blank" rel="noopener">Careers page ↗</a>{% endif %}
+  {% if company.notes_path %}
+    <a class="btn" href="/actions/reveal-company/{{ company.slug }}/">Open folder</a>
+  {% endif %}
+  <a class="btn" href="/admin/tracker/company/{{ company.pk }}/change/"
+     target="_blank" rel="noopener">Edit in admin</a>
+</div>
 
 <div class="panel">
   <dl class="dl-inline">

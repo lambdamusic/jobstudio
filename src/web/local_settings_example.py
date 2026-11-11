@@ -25,12 +25,6 @@ sys.path.insert(0, os.path.join(SITE_ROOT, "src"))
 import config  # noqa: E402
 DATA_ROOT = str(config.data_root())
 
-ENVIRONMENT = "local"
-
-# stderr, not stdout — `manage.py dumpdata > file.json` redirects stdout, and a
-# banner printed there corrupts the fixture.
-print("Environment: %s" % ENVIRONMENT, file=sys.stderr)
-
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 # Static files — sourced from src/web/static, collected into collectstatic/ for local use

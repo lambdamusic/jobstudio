@@ -44,7 +44,8 @@ sys.path.append(os.path.join(SITE_ROOT, "src", "web", "apps"))
 # existing markdown parsers and CV renderer.
 sys.path.append(os.path.join(SITE_ROOT, "src"))
 
-DEBUG = ENVIRONMENT != "production"
+# The app only ever runs on its owner's machine (the static export went 2026-11-11).
+DEBUG = True
 
 INSTALLED_APPS = [
     "django_extensions",

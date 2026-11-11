@@ -8,7 +8,7 @@ urlpatterns = [
     path("", views.home, name="home"),
     # The bare list is the active set (applied + interviewing) — the day-to-day view.
     path("applications/", views.application_list, name="application_list"),
-    # Real paths, not querystrings, so the static build can publish them.
+    # Real paths, not querystrings (see src/web/README.md, "Links are real paths").
     path("applications/all/", views.application_list, {"show_all": True}, name="application_all"),
     path("applications/active/", views.application_list, {"active": True}, name="application_active"),
     path("applications/status/<str:status>/", views.application_list, name="application_by_status"),
@@ -38,7 +38,7 @@ urlpatterns = [
     # <str:> not <slug:> — some scan filenames carry a version suffix with a dot
     # (2026-07-10-portal-scan-v0.0.md).
     path("scans/<str:slug>/", views.scan_detail, name="scan_detail"),
-    # Local-only; not reachable from the published mirror.
+    # Actions on the local machine: open a folder or file, write back to a file.
     path("actions/reveal/<int:num>/", views.reveal_folder, name="reveal_folder"),
     path("actions/task/", views.toggle_task, name="toggle_task"),
     path("actions/highlight/", views.highlight, name="highlight"),

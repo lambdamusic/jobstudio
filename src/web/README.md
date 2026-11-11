@@ -106,9 +106,10 @@ definition, used by the skills and the web app alike.
 Long-form prose is never copied into the database — only its path is stored, and it is
 rendered from disk at request time (plan §2.2).
 
-## Local-only bits
+## Actions on the local machine
 
-Rendered only when `ENVIRONMENT=local`, and never present in the published mirror:
+The app runs only on its owner's machine, so a few links act on it. Until 2026-11-11
+they were hidden from a static export; with the export gone they always show:
 
 - the **Admin** link in the sidebar, and the status badges on every list, which link into
   the admin change form (new tab) where `status` and `next action` are editable inline

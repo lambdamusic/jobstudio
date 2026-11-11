@@ -262,7 +262,7 @@ def data_rel(path):
 def hl_marks(text, source):
     """`==text==` as numbered `<mark>`s the highlighter can remove (`#77`), for a whole
     file rendered without `sectioned()`. Before `strip_h1`, so the numbering counts the
-    file as it is on disk. With no `source` (published site) `markdown` does it unnumbered."""
+    file as it is on disk. With no `source` (no file to write to) `markdown` does it unnumbered."""
     return render_marks(text, source) if source else text
 
 

@@ -36,7 +36,6 @@ def setup() -> None:
     if web not in sys.path:
         sys.path.insert(0, web)
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
-    os.environ.setdefault("ENVIRONMENT", "local")
     import django
     django.setup()
     _ready = True

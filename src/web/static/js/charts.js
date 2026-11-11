@@ -313,7 +313,7 @@
     var build = BUILDERS[key];
     if (!build) return;
     // SVG rather than canvas: the marks end up in the DOM, so they print, scale and can be
-    // inspected — and the published mirror is a file tree someone may well open offline.
+    // inspected.
     var chart = echarts.init(el, null, { renderer: "svg" });
     chart.setOption(build());
     drawn[key] = chart;
