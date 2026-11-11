@@ -1158,15 +1158,19 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
 .chat-usage[hidden] { display: none; }
 .chat-meter b { font-weight: 600; color: var(--faint); }
 .chat-meter.high, .chat-meter.high b { color: var(--scan-no-url-ink); }
-/* "Ask Claude" at the top of the sidebar: a filled button, not one more grey link, since
-   it opens a panel rather than going to a page. The ⌘K hint goes with the label when the
-   rail collapses (`.nav-group a > span`), leaving a navy icon. */
+/* "Ask Claude" at the top of the sidebar: drawn as a button, not one more plain link,
+   since it opens a panel rather than going to a page — in a pale tint of the logo's
+   gold, so it stays apart from the active link's navy tint without pulling the eye. The ⌘K hint goes
+   with the label when the rail collapses (`.nav-group a > span`). */
 .nav-ask { margin-bottom: 16px; }
-.nav-group.nav-ask a, .nav-group.nav-ask a.active { background: var(--navy); color: #fff; font-weight: 500; }
-.nav-group.nav-ask a:hover { background: var(--navy-soft); }
-.nav-group.nav-ask .ico { opacity: 1; }
+.nav-group.nav-ask a, .nav-group.nav-ask a.active {
+  background: #fbf6e8; color: var(--navy); font-weight: 500;
+  box-shadow: inset 0 0 0 1px #ecdcb0;
+}
+.nav-group.nav-ask a:hover { background: #f6edd4; }
+.nav-group.nav-ask .ico { opacity: 1; color: var(--gold); }
 .nav-kbd {
   margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 4px;
-  background: rgba(255,255,255,.14); color: rgba(255,255,255,.85);
+  background: #fff; color: var(--scan-no-url-ink); box-shadow: inset 0 0 0 1px #ecdcb0;
   font-variant-numeric: tabular-nums;
 }
