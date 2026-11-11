@@ -15,12 +15,17 @@ and passes on as NDJSON, one object per line:
     {"t": "session", "id": "..."}            once, as soon as the session is known
     {"t": "text", "d": "..."}                a chunk of the reply
     {"t": "tool", "name": "...", "d": "..."} a tool call, with a one-line summary
+    {"t": "html", "d": "..."}                the whole reply, rendered like the site's markdown
+    {"t": "denied", "items": [...]}          tool calls refused for want of a permission
     {"t": "done", "cost": 0.12, "ms": 3400}  the turn finished
     {"t": "error", "d": "..."}               something went wrong
 
 Headless Claude cannot ask for permission, so anything not already allowed by the
 settings files is refused rather than prompted. `CHAT_PERMISSION_MODE` (default
-`acceptEdits`) decides how much it may do without asking.
+`acceptEdits`) decides how much it may do without asking. What it was refused comes
+back as `denied`, each with the rule that would allow it; the panel offers to allow
+it, and sends the rules it has collected with every later turn as `allow` — they last
+as long as the conversation in the panel, and are never written to a settings file.
 """
 
 import json
@@ -32,8 +37,41 @@ from pathlib import Path
 from django.conf import settings
 from django.http import HttpResponseNotAllowed, JsonResponse, StreamingHttpResponse
 
+from .templatetags.jobs_extras import markdownify
+
 REPO_ROOT = Path(__file__).resolve().parents[4]
 PERMISSION_MODE = getattr(settings, "CHAT_PERMISSION_MODE", "acceptEdits")
+
+# Appended to Claude Code's system prompt on every turn. The URL guide is there because
+# the page path is all the panel sends, and without it Claude read /applications/66/ as
+# database id 66 rather than application number 66.
+SYSTEM_NOTE = """\
+This session is driven from the Job Studio web app's chat panel. <DATA> is already
+resolved: {data}. There is no terminal: nobody can approve a permission prompt, so
+prefer tools that are already allowed; if one is refused, say what you needed and stop,
+and the user can allow it from the panel.
+
+Each message says which page of the app the user is viewing. The app's URLs:
+/applications/<num>/ is the application with that number (Application.num, the NNN-
+prefix of its folder under <DATA>/jobs/applications/), never the database id;
+/applications/<num>/rounds/<anchor>/ is one interview round in it;
+/companies/<slug>/ is <DATA>/jobs/companies/<slug>.md; /notes/<slug>/ a file under
+<DATA>/jobs/notes/; /scans/<slug>/ a report under <DATA>/jobs/scans/; /cvs/ the CVs
+under <DATA>/jobs/cv/; /profile/ <DATA>/jobs/profile/."""
+
+
+def _rule(name: str, args: dict) -> str:
+    """the narrowest permission rule that allows this one call."""
+    if name == "Bash" and args.get("command"):
+        return f"Bash({args['command']})"
+    if name in ("Read", "Edit", "Write") and args.get("file_path"):
+        # `//` marks an absolute path in a permission rule; a single `/` would be read
+        # relative to the settings file.
+        return f"{name}(/{args['file_path']})"
+    if name == "WebFetch" and args.get("url"):
+        host = args["url"].split("//", 1)[-1].split("/", 1)[0]
+        return f"WebFetch(domain:{host})"
+    return name
 
 
 def _tool_summary(name: str, args: dict) -> str:
@@ -47,6 +85,7 @@ def _tool_summary(name: str, args: dict) -> str:
 def _events(proc):
     """translate Claude Code's stream-json into the panel's event lines."""
     sent_session = False
+    reply = []
     for raw in proc.stdout:
         try:
             msg = json.loads(raw)
@@ -62,9 +101,11 @@ def _events(proc):
             ev = msg["event"]
             delta = ev.get("delta", {})
             if ev.get("type") == "content_block_delta" and delta.get("type") == "text_delta":
+                reply.append(delta["text"])
                 yield {"t": "text", "d": delta["text"]}
             elif ev.get("type") == "message_start":
                 # Each new assistant message after a tool call starts on a fresh paragraph.
+                reply.append("\n\n")
                 yield {"t": "text", "d": "\n\n"}
         elif kind == "assistant":
             for block in msg["message"].get("content", []):
@@ -72,6 +113,15 @@ def _events(proc):
                     yield {"t": "tool", "name": block["name"],
                            "d": _tool_summary(block["name"], block.get("input", {}))}
         elif kind == "result":
+            text = "".join(reply).strip()
+            if text:
+                yield {"t": "html", "d": str(markdownify(text))}
+            denied = [{"name": d["tool_name"],
+                       "d": _tool_summary(d["tool_name"], d.get("tool_input", {})),
+                       "rule": _rule(d["tool_name"], d.get("tool_input", {}))}
+                      for d in msg.get("permission_denials") or []]
+            if denied:
+                yield {"t": "denied", "items": denied}
             if msg.get("is_error"):
                 yield {"t": "error", "d": msg.get("result") or msg.get("subtype", "error")}
             yield {"t": "done", "cost": msg.get("total_cost_usd"), "ms": msg.get("duration_ms")}
@@ -97,7 +147,8 @@ def _stream(cmd, prompt, env):
 
 
 def chat_send(request):
-    """POST `message`, optional `session` (to continue) and `page` (the URL being viewed)."""
+    """POST `message`, optional `session` (to continue), `page` (the URL being viewed)
+    and any number of `allow` (permission rules the user granted from the panel)."""
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     # This hands a shell-capable agent to whoever can reach the server: loopback only.
@@ -121,11 +172,8 @@ def chat_send(request):
            "--add-dir", str(settings.DATA_ROOT),
            # The server has already resolved <DATA>; saying so spares a lookup that a
            # headless run would need a permission for and cannot ask for.
-           "--append-system-prompt",
-           f"This session is driven from the Job Studio web app's chat panel. <DATA> is "
-           f"already resolved: {settings.DATA_ROOT}. There is no terminal: nobody can "
-           f"approve a permission prompt, so prefer tools that are already allowed.",
-           "--allowedTools", "Bash(tools/py:*)"]
+           "--append-system-prompt", SYSTEM_NOTE.format(data=settings.DATA_ROOT),
+           "--allowedTools", "Bash(tools/py:*)", *request.POST.getlist("allow")]
     if session:
         cmd += ["--resume", session]
     # Same data root as the app, whatever the layering resolved it to — so pointing the

@@ -1126,11 +1126,31 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
 }
 .chat-form { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
 .chat-form textarea {
-  flex: 1; resize: none; font: inherit; font-size: 14px; padding: 7px 9px;
+  flex: 1; min-width: 0; resize: none; font: inherit; font-size: 14px; padding: 7px 9px;
   border: 1px solid var(--line); border-radius: var(--radius);
 }
 .chat-form button {
-  align-self: flex-end; padding: 7px 14px; border: 0; border-radius: var(--radius);
+  flex: none; align-self: flex-end; padding: 7px 14px; border: 0; border-radius: var(--radius);
   background: var(--navy); color: #fff; cursor: pointer; font: inherit;
 }
 .chat-form button:disabled { opacity: .5; cursor: wait; }
+/* Rendered replies keep the site's prose styles, at the panel's smaller size. */
+.chat-msg.prose { white-space: normal; font-size: 14px; line-height: 1.55; }
+.chat-msg.prose > :first-child { margin-top: 0; }
+.chat-msg.prose > :last-child { margin-bottom: 0; }
+.chat-msg.prose h1, .chat-msg.prose h2, .chat-msg.prose h3 { font-size: 15px; margin: .9em 0 .4em; }
+.chat-msg.prose ul, .chat-msg.prose ol { padding-left: 1.3em; margin: .4em 0 .8em; }
+.chat-msg.prose pre { overflow-x: auto; font-size: 12.5px; }
+.chat-msg.prose table { font-size: 13px; display: block; overflow-x: auto; }
+/* A turn's refused tool calls, with the button that allows them. */
+.chat-denied {
+  align-self: stretch; display: flex; flex-direction: column; gap: 5px;
+  padding: 9px 11px; border: 1px solid var(--gold); border-radius: var(--radius);
+  background: #fdf8ea; font-size: 13px;
+}
+.chat-denied code { font-size: 12px; overflow-wrap: anywhere; }
+.chat-denied button {
+  align-self: flex-start; margin-top: 3px; padding: 4px 11px; border: 0;
+  border-radius: 5px; background: var(--gold); color: #fff; cursor: pointer; font: inherit;
+}
+.chat-denied-note { color: var(--muted); font-size: 12px; }
