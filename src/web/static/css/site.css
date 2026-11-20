@@ -414,6 +414,13 @@ a.badge:hover { text-decoration: none; filter: brightness(0.96); }
 
 /* The status form inside the menu: statuses as a radio list, then the note. */
 .status-form { width: 320px; gap: 8px; padding: 10px; }
+.dossier-form { width: 300px; gap: 6px; padding: 10px; }
+.dossier-form .status-hint { margin: 0 0 2px; }
+.dossier-form .btn { text-align: left; cursor: pointer; }
+.flash {
+  margin: 0 0 16px; padding: 8px 14px; border-radius: 6px; font-size: 13.5px;
+  background: #eef5ec; border: 1px solid #cfe3ca; color: #2d4a28;
+}
 .status-choices { display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .status-choices label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .status-form textarea {
@@ -1187,4 +1194,58 @@ body.hl-on mark.hl[data-mark]:hover { text-decoration: line-through; text-decora
   margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 4px;
   background: #fff; color: var(--scan-no-url-ink); box-shadow: inset 0 0 0 1px #ecdcb0;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Other files: the non-markdown files as one line ---------- */
+
+.other-files { padding: 10px 16px; }
+.other-files > summary { cursor: pointer; font-weight: 500; font-size: 14px; }
+.other-files-types { margin-left: 8px; color: var(--faint); font-weight: 400; font-size: 13px; }
+.other-files ul { margin: 10px 0 4px; padding-left: 18px; font-size: 13px; }
+.other-files li { margin: 2px 0; }
+.other-files li .round-index-date { margin-left: 8px; }
+.other-files-foot { margin: 6px 0 0; font-size: 13px; color: var(--faint); }
+
+/* ---------- print (print.js) ---------- */
+
+.print-btn {
+  padding: 2px 10px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer;
+}
+.print-btn:hover { color: var(--navy); border-color: var(--navy); }
+/* Beside a tab's heading, which is outside the panel the button sits next to. */
+.print-btn-head { float: right; margin-top: 2px; }
+.print-head { display: none; }
+
+@media print {
+  @page { margin: 16mm 15mm; }
+  html, body { background: #fff; }
+  body { font-size: 10.5pt; }
+  .sidebar, .chat-panel, .actions, .tablist, .section-index, .section-mini,
+  .print-btn, .qa-toggle, .section-toggle-all, .hl-toggle, .hl-note, .index-box, .round-focus-foot, .round-focus-back,
+  .print-hide { display: none !important; }
+  .content { padding: 0; }
+  .content-inner { max-width: none; }
+  .panel { border: 0; padding: 0; background: none; box-shadow: none; }
+  /* The header print.js adds names the document, so the tab's own heading would repeat it. */
+  .printing-one .panel-heading { display: none; }
+  .print-head {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    border-bottom: 1px solid #999; padding-bottom: 6px; margin-bottom: 14px;
+  }
+  .print-head h1 { margin: 0; font-size: 15pt; }
+  .print-head span { color: #666; font-size: 9pt; white-space: nowrap; }
+  /* Sections print open (print.js); the fold markers mean nothing on paper. */
+  .doc-section > summary::before, .doc-section[open] > summary::before,
+  details.qa > summary::before, details.qa[open] > summary::before { content: none; }
+  .doc-section > summary, details.qa > summary { display: flex; list-style: none; }
+  .doc-section > summary::marker, details.qa > summary::marker { content: ""; }
+  .doc-section { border: 0; }
+  .doc-section-body { padding-left: 0; }
+  h1, h2, h3, h4, summary { break-after: avoid; }
+  li, blockquote, pre, table, tr, .qa { break-inside: avoid; }
+  a { color: inherit; text-decoration: none; }
+  /* Keep highlights and the red Q markers: they carry meaning, and browsers drop
+     backgrounds by default. */
+  mark, .qa-q { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }

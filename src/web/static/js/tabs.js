@@ -65,6 +65,9 @@
       var panel = target.closest ? target.closest("[data-panel]") : null;
       if (!panel || !group.contains(panel)) return false;
       if (!activate(panel.getAttribute("data-panel"), false)) return false;
+      // A non-markdown file under Other files sits in a folded list.
+      var folded = target.closest("details.other-files:not([open])");
+      if (folded) folded.open = true;
       // The panel was hidden until a moment ago, so the browser's own jump missed it.
       if (target.scrollIntoView) target.scrollIntoView();
       return true;

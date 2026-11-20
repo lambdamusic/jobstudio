@@ -7,6 +7,7 @@ linkable and `test_every_internal_link_resolves` checks them.
 """
 
 import datetime as dt
+import io
 import json
 import re
 import shlex
@@ -36,6 +37,7 @@ from .models import (
     Category,
     Company,
     Scan,
+    count_by_type,
 )
 
 # Browse surfaces sort newest-first: recency is the best proxy for what still matters.
@@ -849,14 +851,25 @@ def application_detail(request, num):
     # Both are computed by scanning the folder, so resolve each once here
     # rather than letting the template re-walk it per access.
     interviews = app.interview_files
+    extra_files = app.extra_files
+    other_files = [f for f in extra_files if not f["is_md"]]
     return render(request, "tracker/application_detail.html", {
         "page": "applications",
         "nav_apps": "applications",
         "app": app,
         "cover_letters": app.cover_letter_files,
         "interviews": interviews,
+        "extra_files": extra_files,
+        # Other files renders the markdown and only counts the rest: an offer pack or a
+        # pile of attachments listed one panel per file buried the documents among them.
+        "md_files": [f for f in extra_files if f["is_md"]],
+        "other_files": other_files,
+        "other_file_types": count_by_type(other_files),
         "people": app.people(interviews),
         "documents": app.documents,
+        "dossier_dir": dossier_dir(),
+        # The folder's last two parts: a bare "jobstudio/" said too little.
+        "dossier_dir_label": "/".join(dossier_dir().parts[-2:]) if dossier_dir() else "",
         # The status menu offers every status except the one it is already in.
         "all_statuses": STATUS_SORT_ORDER,
         "siblings": (Application.objects.filter(company_name=app.company_name)
@@ -1397,15 +1410,16 @@ def _file_opener() -> list[str]:
     return ["open"] if sys.platform == "darwin" else ["xdg-open"]
 
 
-def _open_locally(path: Path, reveal: bool = False) -> None:
+def _open_locally(path: Path, reveal: bool = False, root: Path | None = None) -> None:
     """Open a path in the desktop, refusing anything outside the data root.
 
     `reveal` means "show it in the file manager" rather than "open it". macOS has a
     flag for that; nothing else does, so elsewhere we open the containing folder, which
     is the same intent. Passing a raw `-R` through here used to make this call
-    macOS-only by construction.
+    macOS-only by construction. `root` widens the fence to one other folder the
+    caller has a setting for, such as `dossier_dir`.
     """
-    root = Path(settings.DATA_ROOT).resolve()
+    root = (root or Path(settings.DATA_ROOT)).resolve()
     target = path.resolve()
     if not target.is_relative_to(root):
         raise Http404("Refusing to open a path outside the data root")
@@ -1435,6 +1449,41 @@ def reveal_folder(request, num):
 
     _open_locally(folder)
     return HttpResponseRedirect(request.META.get("HTTP_REFERER", f"/applications/{num}/"))
+
+
+def dossier_dir() -> Path | None:
+    """`dossier_dir` from ~/.jobstudio.ini: a second place to save dossiers, such as a
+    synced folder to read them from on a phone. None when unset."""
+    configured = config.setting("dossier_dir")
+    return Path(configured).expanduser() if configured else None
+
+
+def export_dossier(request, num):
+    """Build the application's dossier (`#98`, the `dossier` command) and show it in Finder.
+
+    POST, since it writes a file. `to` picks where: the application's `export/` folder,
+    or `dossier_dir` when one is set — the page asks each time rather than remembering,
+    because which one depends on whether it is for reading away from the desk.
+    """
+    from django.contrib import messages
+    from django.core.management import call_command
+
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    app = get_object_or_404(Application, num=num)
+    if app.folder_path is None:
+        raise Http404("No folder on disk for this application")
+    out_dir = dossier_dir() if request.POST.get("to") == "dir" else None
+    if request.POST.get("to") == "dir" and out_dir is None:
+        raise Http404("No dossier_dir set in ~/.jobstudio.ini")
+
+    out = io.StringIO()
+    call_command("dossier", str(num), *(["--out", str(out_dir)] if out_dir else []), stdout=out)
+    # The command's first line is the file it wrote, then " (N sections)".
+    path = Path(out.getvalue().splitlines()[0].rsplit(" (", 1)[0])
+    _open_locally(path, reveal=True, root=out_dir)
+    messages.success(request, f"Dossier saved: {path.name}, in {path.parent}")
+    return HttpResponseRedirect(f"/applications/{num}/")
 
 
 def _local_md_file(request):

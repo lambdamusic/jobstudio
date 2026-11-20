@@ -4512,6 +4512,24 @@ class InterviewRoundTests(TestCase):
         self.assertIn("List Bullet", {s for t, s in texts.items() if "observability" in t})
         self.assertTrue(any(t.startswith("☐ Know the LGTM stack.") for t in texts))
 
+    def test_the_dossier_button_saves_where_asked_and_shows_the_file(self):
+        """The `dossier` command from the application page: the export/ folder, or
+        `dossier_dir` when set, with Finder opened on the file and a line saying where."""
+        out_dir = Path(tempfile.mkdtemp())
+        app = Application.objects.get(num=1)
+        page = f"/applications/{app.num}/"
+        with mock.patch("tracker.views.config.setting", return_value=""):
+            self.assertNotContains(self.client.get(page), 'value="dir"')
+            self.assertEqual(self.client.get(f"/actions/dossier/{app.num}/").status_code, 405)
+        with mock.patch("tracker.views.config.setting", return_value=str(out_dir)):
+            self.assertContains(self.client.get(page), 'value="dir"')
+            with mock.patch("tracker.views._open_locally") as opened:
+                r = self.client.post(f"/actions/dossier/{app.num}/", {"to": "dir"}, follow=True)
+        written = list(out_dir.glob("*-dossier-*.docx"))
+        self.assertEqual(len(written), 1)
+        self.assertEqual(opened.call_args.args[0], written[0])
+        self.assertContains(r, f"Dossier saved: {written[0].name}")
+
     def test_the_dossier_links_its_contents_and_its_documents_inside_the_file(self):
         """#98: the contents list, and a link from one document to another, are jumps to a
         bookmark, which Google Docs keeps where it would drop a Word TOC field. A link that
@@ -4751,13 +4769,15 @@ class InterviewRoundTests(TestCase):
 
     def test_other_files_index_appears_from_two_files_up_and_links_each_one(self):
         """`#87`: the Interviews and CV tabs' index, on Other files — a list of one is
-        noise, and from two up every file, markdown or not, gets a line linking its id."""
+        noise, and from two markdown files up each gets a line linking its id. Only the
+        markdown: the rest is counted on one line, so a pile of PDFs cannot crowd it."""
         from django.test import override_settings
 
         root = Path(tempfile.mkdtemp())
         folder = root / "jobs" / "applications" / "900-test-co"
         folder.mkdir(parents=True)
         (folder / "900-test-co-alex-rivera-study-sql-2026-10-08.md").write_text("# SQL\n\nJoins.\n")
+        (folder / "salary-benchmarks.xlsx").write_bytes(b"x" * 2048)
 
         app = Application.objects.get(num=1)
         app.folder = "jobs/applications/900-test-co"
@@ -4765,16 +4785,39 @@ class InterviewRoundTests(TestCase):
         label = 'aria-label="Files in this folder"'
         with override_settings(DATA_ROOT=str(root)):
             one = self.client.get(f"/applications/{app.num}/").content.decode()
-            self.assertNotIn(label, one)
+            self.assertNotIn(label, one, "one markdown file and a spreadsheet are not two to index")
 
-            (folder / "salary-benchmarks.xlsx").write_bytes(b"x" * 2048)
+            (folder / "900-test-co-alex-rivera-study-python-2026-10-09.md").write_text("# Python\n")
             html = self.client.get(f"/applications/{app.num}/").content.decode()
             self.assertIn(label, html)
             index = html[html.index(label):html.index("</nav>", html.index(label))]
             for f in app.extra_files:
                 with self.subTest(rel=f["rel"]):
-                    self.assertIn(f'href="#{f["anchor"]}"', index)
-            self.assertIn("2 KB", index, "a non-markdown file shows its size")
+                    if f["is_md"]:
+                        self.assertIn(f'href="#{f["anchor"]}"', index)
+                    else:
+                        self.assertNotIn(f["rel"], index)
+                        self.assertIn(f'id="{f["anchor"]}"', html, "still listed, folded")
+
+    def test_other_files_count_the_non_markdown_by_type(self):
+        """An offer pack of PDFs is one summary line — "3 other files · 2 PDF · 1 EML" —
+        commonest type first, not a panel per file."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        (folder / "offer-pack").mkdir(parents=True)
+        for name in ("offer-pack/contract.pdf", "offer-pack/benefits.pdf", "recruiter.eml"):
+            (folder / name).write_bytes(b"x")
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root)):
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertIn("3 other files", html)
+        self.assertIn("2 PDF · 1 EML", html)
+        self.assertNotIn('aria-label="Files in this folder"', html, "no markdown, no index")
 
     def test_other_files_run_newest_first_and_every_one_shows_its_date(self):
         """By modification time, newest first, not alphabetical: a subfolder's files sank to
@@ -4787,10 +4830,13 @@ class InterviewRoundTests(TestCase):
         folder = root / "jobs" / "applications" / "900-test-co"
         (folder / "export").mkdir(parents=True)
         old = folder / "a-old-note.md"
+        mid = folder / "b-mid-note.md"
         new = folder / "export" / "z-new-report.pdf"
         old.write_text("# Old\n")
+        mid.write_text("# Mid\n")
         new.write_bytes(b"x" * 2048)
         os.utime(old, (1_700_000_000, 1_700_000_000))   # 14 Nov 2023
+        os.utime(mid, (1_730_000_000, 1_730_000_000))   # 27 Oct 2024
         os.utime(new, (1_760_000_000, 1_760_000_000))   # 9 Oct 2025
 
         app = Application.objects.get(num=1)
@@ -4798,11 +4844,13 @@ class InterviewRoundTests(TestCase):
         app.save()
         label = 'aria-label="Files in this folder"'
         with override_settings(DATA_ROOT=str(root)):
-            self.assertEqual([f["rel"] for f in app.extra_files], ["export/z-new-report.pdf", "a-old-note.md"])
+            self.assertEqual([f["rel"] for f in app.extra_files],
+                             ["export/z-new-report.pdf", "b-mid-note.md", "a-old-note.md"])
             html = self.client.get(f"/applications/{app.num}/").content.decode()
         index = html[html.index(label):html.index("</nav>", html.index(label))]
+        self.assertLess(index.index("b-mid-note.md"), index.index("a-old-note.md"))
         self.assertIn("14 Nov 2023</span>", index, "a markdown file shows its date, no size")
-        self.assertIn("9 Oct 2025 · 2 KB", index)
+        self.assertIn("9 Oct 2025 · 2 KB", html, "the folded list shows date and size")
 
     def test_no_folder_markdown_links_a_bare_md_file(self):
         """Regression, twice over. A relative `.md` link inside an application folder

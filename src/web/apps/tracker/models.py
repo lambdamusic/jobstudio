@@ -109,6 +109,15 @@ def file_anchor(rel: str) -> str:
     """`file-<slug>` for a file on the Other files tab, from its path in the folder."""
     return "file-" + re.sub(r"[^a-z0-9]+", "-", rel.lower()).strip("-")
 
+
+def count_by_type(files: list[dict]) -> list[dict]:
+    """`[{"label": "PDF", "n": 12}, ...]`, commonest first: how Other files and the
+    Documents index summarise the files they do not render."""
+    from collections import Counter
+    counts = Counter(Path(f["name"]).suffix.lstrip(".").upper() or "other" for f in files)
+    return [{"label": label, "n": n}
+            for label, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
 class Area(models.Model):
     """A target area — one jobs/targets/<slug>.yaml, optionally described in jobs/areas.md."""
 
@@ -774,7 +783,7 @@ class Application(models.Model):
         """Every page that belongs to this application, grouped, for the Record tab (`#97`).
 
         An item's `href` is a page or a tab anchor. `open_path` is a file to open in its
-        desktop app.
+        desktop app, and `note` a muted aside (the other files' counts by type).
         Empty groups are left out.
         """
         own = []
@@ -790,9 +799,16 @@ class Application(models.Model):
         for letter in self.cover_letter_files:
             own.append({"label": "Cover letter", "href": "#letters",
                         "date": letter["date"], "open_path": letter["docx_path"]})
-        for f in self.extra_files:
-            own.append({"label": f["rel"], "href": f"#{f['anchor']}",
-                        "open_path": None if f["is_md"] else f["path"]})
+        # Markdown one per line; the rest as one line counting it, as on Other files.
+        extra = self.extra_files
+        for f in extra:
+            if f["is_md"]:
+                own.append({"label": f["rel"], "href": f"#{f['anchor']}"})
+        other = [f for f in extra if not f["is_md"]]
+        if other:
+            types = " · ".join(f"{t['n']} {t['label']}" for t in count_by_type(other))
+            own.append({"label": f"{len(other)} other file{'s' if len(other) > 1 else ''}",
+                        "href": "#files", "note": types})
 
         rounds = [{"label": r["label"], "date": r["date"],
                    "href": reverse("tracker:interview_round", args=[self.num, r["anchor"]])}

@@ -2,6 +2,24 @@
 
 Dated entries, newest first.
 
+## 2026-11-20
+
+- **Other files counts what it cannot show.** Files other than markdown (an offer pack of
+  PDFs, a saved email) are one line, "15 other files · 12 PDF · 1 DOCX · 1 EML · 1 HTML",
+  with the list folded under it, on the tab and in the Documents index alike. The index at
+  the top of the tab lists only the markdown files rendered below it.
+
+- **Print a document on its own.** A Print button on Job description, To do, My notes,
+  each interview round and its focus view, each markdown file under Other files, and a
+  note page prints that document alone: sections and answers open, the rest of the page
+  gone, a header naming it and the date. The page title becomes that name, so "Save as
+  PDF" offers it as the file name. A plain ⌘P prints the page with its sections open.
+
+- **Export dossier from the application page.** A menu beside Set status runs the
+  `dossier` command and opens Finder on the file. It asks where each time: the
+  application's `export/` folder, or the folder named by a new `dossier_dir` setting in
+  `~/.jobstudio.ini` (a synced folder, to read the dossier away from the desk).
+
 ## 2026-11-11
 
 - **The screenshots and the intro GIF are retaken, and can be again in one command.**

@@ -44,6 +44,24 @@
       <button class="btn btn-primary" type="submit">Save</button>
     </form>
   </details>
+  {% comment %}
+  Every document as one .docx to read (`#98`), the `dossier` command from a button.
+  Where it goes is asked each time, the same menu shape as Set status: the export/ folder,
+  or the `dossier_dir` setting when there is one. Finder opens on the file once it exists.
+  {% endcomment %}
+  {% if app.folder %}
+    <details class="menu">
+      <summary class="btn">Export dossier ▾</summary>
+      <form class="menu-body dossier-form" method="post" action="/actions/dossier/{{ app.num }}/">
+        {% csrf_token %}
+        <p class="status-hint">Every document in one .docx, to read. Save to:</p>
+        <button class="btn" type="submit" name="to" value="export">This application's export/ folder</button>
+        {% if dossier_dir %}
+          <button class="btn" type="submit" name="to" value="dir" title="{{ dossier_dir }}">{{ dossier_dir_label }}/</button>
+        {% endif %}
+      </form>
+    </details>
+  {% endif %}
   <a class="btn" href="/admin/tracker/application/{{ app.pk }}/change/"
      target="_blank" rel="noopener">Edit in admin</a>
 </div>
@@ -89,9 +107,9 @@
       <button class="tab" data-tab="letters" role="tab" type="button">
         Cover letters <span class="tab-n">{{ cover_letters|length }}</span></button>
     {% endif %}
-    {% if app.extra_files %}
+    {% if extra_files %}
       <button class="tab" data-tab="files" role="tab" type="button">
-        Other files <span class="tab-n">{{ app.extra_files|length }}</span></button>
+        Other files <span class="tab-n">{{ extra_files|length }}</span></button>
     {% endif %}
     {% if siblings %}
       <button class="tab" data-tab="siblings" role="tab" type="button">
@@ -163,7 +181,8 @@
   </section>
 
   {% if app.job_md %}
-    <section class="tabpanel" data-panel="job" role="tabpanel">
+    <section class="tabpanel" data-panel="job" role="tabpanel" data-printable data-print-title="{{ app.company_name }} · {{ app.role }} · Job description">
+      <button type="button" class="print-btn print-btn-head" data-print>Print</button>
       <h2 class="panel-heading">Job description</h2>
       <div class="panel prose panel-sunk hl-doc"{% if app.job_source %} data-hl-source="{{ app.job_source }}"{% endif %}>{{ app.job_md|hl_marks:app.job_source|strip_h1|markdown|blank_links }}</div>
     </section>
@@ -176,7 +195,8 @@
   highlights write back to todo.md, as on a round's page.
   {% endcomment %}
   {% if app.todo_md %}
-    <section class="tabpanel" data-panel="todo" role="tabpanel">
+    <section class="tabpanel" data-panel="todo" role="tabpanel" data-printable data-print-title="{{ app.company_name }} · {{ app.role }} · To do">
+      <button type="button" class="print-btn print-btn-head" data-print>Print</button>
       <h2 class="panel-heading">To do</h2>
       <div class="panel prose">
         {% include "tracker/_doc_sections.html" with sections=app.todo_doc.sections %}
@@ -219,11 +239,12 @@
         </nav>
       {% endif %}
       {% for round in interviews %}
-        <div class="panel prose">
+        <div class="panel prose" data-printable data-print-title="{{ app.company_name }} · {{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}">
           <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
             <h3 id="{{ round.anchor }}" style="margin-top:0">{{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}</h3>
             <span>
               <a href="/applications/{{ app.num }}/rounds/{{ round.anchor }}/">Focus view ↗</a>
+              <button type="button" class="print-btn" data-print>Print</button>
             </span>
           </div>
           {% comment %}
@@ -267,7 +288,8 @@
   {% endif %}
 
   {% if app.notes_md %}
-    <section class="tabpanel" data-panel="notes" role="tabpanel">
+    <section class="tabpanel" data-panel="notes" role="tabpanel" data-printable data-print-title="{{ app.company_name }} · {{ app.role }} · My notes">
+      <button type="button" class="print-btn print-btn-head" data-print>Print</button>
       <h2 class="panel-heading">My notes</h2>
       {% comment %}
       Jump index and sections (`#72`), the same partials the Interviews tab uses.
@@ -339,52 +361,65 @@
     </section>
   {% endif %}
 
-  {% if app.extra_files %}
+  {% if extra_files %}
     <section class="tabpanel" data-panel="files" role="tabpanel">
       <h2 class="panel-heading">Other files</h2>
       {% comment %}
       The same index the Interviews and CV tabs open with (TODO `#87`), from two files up:
       the files below stack whole, so reaching the fourth meant scrolling past three. The
       anchors are the real ids on each path, which tabs.js resolves back to this panel.
+
+      Markdown only. Everything else is one summary line with its count by type, the list
+      folded under it: an offer pack of ten PDFs, one panel each, buried the few files
+      that render here. Still listed rather than dropped, so nothing in the folder goes
+      invisible and a `#file-...` link to a PDF still has its id to land on.
       {% endcomment %}
-      {% if app.extra_files|length > 1 %}
+      {% if md_files|length > 1 %}
         <nav class="panel round-index file-index" aria-label="Files in this folder">
           <ol>
-            {% for f in app.extra_files %}
+            {% for f in md_files %}
               <li><a href="#{{ f.anchor }}">{{ f.rel }}</a>
-                <span class="round-index-date">{{ f.modified|date:"j M Y" }}{% if not f.is_md %} · {{ f.size_kb }} KB{% endif %}</span>
+                <span class="round-index-date">{{ f.modified|date:"j M Y" }}</span>
               </li>
             {% endfor %}
           </ol>
         </nav>
       {% endif %}
-      {% for f in app.extra_files %}
-        {% if f.is_md %}
-          <div class="panel prose panel-sunk" style="margin-bottom:16px">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-              <code id="{{ f.anchor }}" style="font-size:12.5px">{{ f.rel }}</code>
-            </div>
-            {% comment %}
-            Collapsed, unlike My notes (`#72`). This tab stacks whole files one after
-            another with nothing but a path between them, which is the Interviews tab's
-            problem rather than My notes' — the fastest thing it can do is open as a
-            short menu of what is in the folder.
-            {% endcomment %}
-            {% if f.doc %}
-              {% include "tracker/_doc_sections.html" with sections=f.doc.sections %}
-              {% include "tracker/_doc_body.html" with doc=f.doc qa=False %}
-            {% else %}
-              {{ f.body_md|strip_h1|markdown|blank_links }}
-            {% endif %}
-          </div>
-        {% else %}
-          <div class="panel" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 16px">
+      {% if other_files %}
+        <details class="panel other-files">
+          <summary>
+            {{ other_files|length }} other file{{ other_files|pluralize }}
+            <span class="other-files-types">{% for t in other_file_types %}{% if not forloop.first %} · {% endif %}{{ t.n }} {{ t.label }}{% endfor %}</span>
+          </summary>
+          <ul>
+            {% for f in other_files %}
+              <li id="{{ f.anchor }}"><code>{{ f.rel }}</code>
+                <span class="round-index-date">{{ f.modified|date:"j M Y" }} · {{ f.size_kb }} KB</span>
+              </li>
+            {% endfor %}
+          </ul>
+          <p class="other-files-foot"><a href="/actions/reveal/{{ app.num }}/">Open folder</a> to read them.</p>
+        </details>
+      {% endif %}
+      {% for f in md_files %}
+        <div class="panel prose panel-sunk" style="margin-bottom:16px" data-printable data-print-title="{{ app.company_name }} · {{ f.name|cut:".md" }}">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px">
             <code id="{{ f.anchor }}" style="font-size:12.5px">{{ f.rel }}</code>
-            <span>
-              <span style="color:var(--faint)">{{ f.size_kb }} KB</span>
-            </span>
+            <button type="button" class="print-btn" data-print>Print</button>
           </div>
-        {% endif %}
+          {% comment %}
+          Collapsed, unlike My notes (`#72`). This tab stacks whole files one after
+          another with nothing but a path between them, which is the Interviews tab's
+          problem rather than My notes' — the fastest thing it can do is open as a
+          short menu of what is in the folder.
+          {% endcomment %}
+          {% if f.doc %}
+            {% include "tracker/_doc_sections.html" with sections=f.doc.sections %}
+            {% include "tracker/_doc_body.html" with doc=f.doc qa=False %}
+          {% else %}
+            {{ f.body_md|strip_h1|markdown|blank_links }}
+          {% endif %}
+        </div>
       {% endfor %}
     </section>
   {% endif %}
@@ -413,6 +448,7 @@ under it, so it is there whichever tab is open.
             {% for doc in group.items %}
               <li><a href="{{ doc.href }}">{{ doc.label }}</a>
                 {% if doc.date %}<span class="index-box-date">{{ doc.date|date:"j M Y" }}</span>{% endif %}
+                {% if doc.note %}<span class="index-box-date">{{ doc.note }}</span>{% endif %}
                 {% if doc.open_path %}<a class="index-box-open" href="/actions/open-file/?path={{ doc.open_path|data_rel|urlencode }}">Open file</a>{% endif %}
               </li>
             {% endfor %}

@@ -47,6 +47,7 @@ Most people need the two that `init` writes and never touch them again.
 | `.jobstudio-data` in the checkout | Points this checkout at a data root. Beats `~/.jobstudio.ini` | Yes, unless the `.ini` already names the right root. `init` writes it |
 | `~/.jobstudio.ini`: `data_root` | The data root for anything run **outside** a checkout, such as a script run from the data root | Only if you run things from outside the repo, or keep one checkout per machine and no pointer. `init` writes it; `--skip-global` skips it |
 | `~/.jobstudio.ini`: `open_command`, `adzuna_app_id`, `adzuna_app_key`, `reed_api_key` | Per-machine: how "Open folder" opens things, and the job-board keys `scan` uses | Only if the default (`open` on macOS) is wrong, or you want job-board search. These live nowhere else |
+| `~/.jobstudio.ini`: `dossier_dir` | A second place the application page's **Export dossier** menu offers, next to the application's `export/` folder | Only if you read dossiers elsewhere, such as a synced cloud folder |
 | `$JOBSTUDIO_DATA` | One shell or one command, for testing against a scratch root | No. The test suite sets it for itself |
 
 The `.ini` mixes two jobs: `data_root` is one of the three layers, and the rest are

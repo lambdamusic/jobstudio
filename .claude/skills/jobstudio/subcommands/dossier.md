@@ -28,6 +28,10 @@ Arguments:
 
 3. Report each output path with its section list, as the command prints it.
 
+The application page's **Export dossier ▾** menu runs the same command and opens Finder on
+the file. It offers the `export/` folder, and `dossier_dir` from `~/.jobstudio.ini` when
+that is set.
+
 ## What goes in
 
 A title page with a contents list, each entry a link to its section. Then the same

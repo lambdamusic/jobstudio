@@ -16,9 +16,14 @@ would undo.
 {% block sidebar %}{% endblock %}
 
 {% block content %}
-<div class="round-focus">
+<div class="round-focus" data-printable data-print-title="{{ app.company_name }} · {{ round.label }}{% if round.date %} · {{ round.date|date:"j M Y" }}{% endif %}">
 
   <div class="round-focus-head">
+    {% comment %}
+    Print gives the same page on paper, private sections still left out: a call sheet to
+    have on the desk when the screen is taken by the video call.
+    {% endcomment %}
+    <button type="button" class="print-btn print-btn-head" data-print>Print</button>
     <div>
       <a class="round-focus-back" href="/applications/{{ app.num }}/#{{ round.anchor }}">← {{ app.company_name }} · {{ app.role }}</a>
       <h1>{{ round.label }}{% if round.date %} <span class="round-focus-date">{{ round.date|date:"j M Y" }}</span>{% endif %}</h1>

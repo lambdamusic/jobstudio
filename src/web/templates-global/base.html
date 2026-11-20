@@ -22,6 +22,8 @@
   every page without one. Pure enhancement — the index works without it.
   {% endcomment %}
   <script src="{% static 'js/section-nav.js' %}" defer></script>
+  {# A Print button on a document prints that document alone, sections open. #}
+  <script src="{% static 'js/print.js' %}" defer></script>
   {% comment %}
   Draws ```mermaid blocks in rendered markdown. Inert on pages without one; on pages with
   one it fetches the vendored Mermaid (static/vendor/README.md) on demand.
@@ -255,6 +257,8 @@ one — the head, the stylesheet and the title convention all stay shared.
 
   <main class="content">
     <div class="content-inner">
+      {# One-off confirmations from an action that redirects back, such as a dossier export. #}
+      {% for message in messages %}<p class="flash">{{ message }}</p>{% endfor %}
       {% block content %}{% endblock %}
     </div>
   </main>
