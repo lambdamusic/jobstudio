@@ -4799,6 +4799,24 @@ class InterviewRoundTests(TestCase):
                         self.assertNotIn(f["rel"], index)
                         self.assertIn(f'id="{f["anchor"]}"', html, "still listed, folded")
 
+    def test_a_file_without_sections_renders_once(self):
+        """A drafted email has no `##` headings, so all of it is preamble — and the
+        no-sections fallback rendered it a second time underneath."""
+        from django.test import override_settings
+
+        root = Path(tempfile.mkdtemp())
+        folder = root / "jobs" / "applications" / "900-test-co"
+        folder.mkdir(parents=True)
+        (folder / "900-test-co-alex-rivera-email-recruiter-2026-10-08.md").write_text(
+            "# Email to the recruiter\n\nHi Sam,\n\nThanks for the call today.\n")
+
+        app = Application.objects.get(num=1)
+        app.folder = "jobs/applications/900-test-co"
+        app.save()
+        with override_settings(DATA_ROOT=str(root)):
+            html = self.client.get(f"/applications/{app.num}/").content.decode()
+        self.assertEqual(html.count("Thanks for the call today."), 1)
+
     def test_other_files_count_the_non_markdown_by_type(self):
         """An offer pack of PDFs is one summary line — "3 other files · 2 PDF · 1 EML" —
         commonest type first, not a panel per file."""

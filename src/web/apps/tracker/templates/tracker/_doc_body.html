@@ -27,7 +27,11 @@ Arguments:
 to. Set on the local app only, like the task checkboxes' `data-source`.
 {% endcomment %}
 <div class="hl-doc"{% if doc.source %} data-hl-source="{{ doc.source }}"{% endif %}>
-{% if doc.preamble_md %}
+{% comment %}
+With no `##` headings the whole document is "before the first heading", so the preamble
+would be the document itself — and the fallback below renders it in full. Show it once.
+{% endcomment %}
+{% if doc.preamble_md and doc.blocks %}
   <div class="doc-preamble">{{ doc.preamble_md|mark_qa:qa|markdown|blank_links }}</div>
 {% endif %}
 
