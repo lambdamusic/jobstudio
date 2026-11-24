@@ -2,6 +2,18 @@
 
 Dated entries, newest first.
 
+## 2026-11-24
+
+- **An `offer` status.** It comes after `interviewing` in the funnel and on the stats
+  charts, sorts first when listing by status, counts as active, and makes a company
+  `applied`. Its badge and chart colour is teal (gold already means "gone quiet"). Migration
+  0015 adds the choice and recomputes each application's stored status rank, since `offer`
+  now leads the sort. The example data gains #11 PostHog, which ends in an offer, so the
+  funnel still shows every status.
+
+- **Applications sidebar: furthest along first.** Offer, Interviewing, Applied, Reviewing,
+  Saved, each with its count. Applied has its own entry for the first time.
+
 ## 2026-11-20
 
 - **Other files counts what it cannot show.** Files other than markdown (an offer pack of

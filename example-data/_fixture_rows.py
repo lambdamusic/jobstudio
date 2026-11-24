@@ -220,6 +220,22 @@ APPLICATIONS = [
          next_action="",
          history=[(date(2026, 9, 9), time(11, 30), "saved"),
                   (date(2026, 9, 16), time(9, 20), "discarded")]),
+    # ---- added 2026-11-24 with the `offer` status ---------------------------
+    # The one that came through. Without it no example application reaches `offer`, and
+    # the funnel test (every FUNNEL_ORDER status reached) fails on the new status.
+    dict(num=11, date=date(2026, 8, 18), company_name="PostHog",
+         role="Developer Advocate",
+         job_url="https://posthog.com/careers", area_slug="developer-advocacy",
+         status="offer", cv_base="functional", fit_level="strong", folder="",
+         summary="Product analytics, written in public: the advocacy switch with a data product behind it.",
+         fit_pros="Writing culture is public by default\nThe product is the data work I already do",
+         fit_cons="Fully remote across time zones",
+         fit_unknowns="Package not discussed yet",
+         next_action="Offer in — talk package, then decide by 2026-10-02",
+         history=[(date(2026, 8, 13), time(10, 10), "saved"),
+                  (date(2026, 8, 18), time(16, 5), "applied"),
+                  (date(2026, 9, 3), time(11, 0), "interviewing"),
+                  (date(2026, 9, 25), time(17, 20), "offer")]),
 ]
 
 from django.utils import timezone

@@ -49,7 +49,7 @@ STATUS_CHOICES = [(s, s.title()) for s in STATUS_SORT_ORDER]
 # "Active" = applications actually in play — submitted and not yet closed out. `reviewing`
 # (a placeholder still being sized up before applying) is deliberately excluded; it lives
 # behind its own /applications/status/reviewing/ view and sidebar link instead.
-ACTIVE_STATUSES = ["applied", "interviewing"]
+ACTIVE_STATUSES = ["applied", "interviewing", "offer"]
 FIT_LEVEL_CHOICES = [
     ("strong", "Strong match"),
     ("moderate", "Moderate match"),

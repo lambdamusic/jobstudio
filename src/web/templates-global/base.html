@@ -181,16 +181,20 @@ one — the head, the stylesheet and the title convention all stay shared.
       A group that opens and closes rather than a link (`#94`): the heading is a native
       <summary>, so it folds with no script and works from the keyboard. Open whenever the page is inside the group; `nav.js`
       remembers the rest. The heading carries no count, since each sub-item has its own.
-      Only the three working statuses (2026-10-21): the active list and the full list are
+      Only the five working statuses: the active list and the full list are
       still at /applications/ and /applications/all/, reached from the applications pages
-      and the dashboard. Interviewing comes first: the sub-nav runs down the funnel, and it
-      is the one status where something is already in motion.
+      and the dashboard. Since 2026-11-24 the order is Offer, Interviewing, Applied, Reviewing, Saved:
+      furthest along first.
       {% endcomment %}
       <details class="nav-fold" data-fold="applications"{% if page == 'applications' %} open data-inside{% endif %}>
         <summary class="nav-head{% if page == 'applications' %} inside{% endif %}">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-applications"/></svg><span>Applications</span></summary>
+        <a href="/applications/status/offer/" class="nav-sub {% if nav_apps == 'offer' %}active{% endif %}">
+          Offer <span class="nav-count">{{ nav_counts.offer }}</span></a>
         <a href="/applications/status/interviewing/" class="nav-sub {% if nav_apps == 'interviewing' %}active{% endif %}">
           Interviewing <span class="nav-count">{{ nav_counts.interviewing }}</span></a>
+        <a href="/applications/status/applied/" class="nav-sub {% if nav_apps == 'applied' %}active{% endif %}">
+          Applied <span class="nav-count">{{ nav_counts.applied }}</span></a>
         <a href="/applications/status/reviewing/" class="nav-sub {% if nav_apps == 'reviewing' %}active{% endif %}">
           Reviewing <span class="nav-count">{{ nav_counts.reviewing }}</span></a>
         <a href="/applications/status/saved/" class="nav-sub {% if nav_apps == 'saved' %}active{% endif %}">

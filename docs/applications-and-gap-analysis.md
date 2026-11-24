@@ -191,7 +191,7 @@ The status vocabulary (`saved` → `applied` → `interviewing` → …) and wha
 are documented once, in [workflow.md](workflow.md) "Application statuses" — this is
 where to look them up. Worth knowing at the model level: a company flips from `watching`
 to `applied` automatically the moment one of its applications reaches `applied`,
-`interviewing`, or `rejected` (`refresh_company_status()`,
+`interviewing`, `offer`, or `rejected` (`refresh_company_status()`,
 `src/web/apps/tracker/models.py`) — a `saved`/`reviewing` placeholder doesn't count, and
 neither does `closed` or `discarded`. Every status change is also logged to
 `ApplicationStatusChange`, which powers the Status history section of the application page's Record tab and the

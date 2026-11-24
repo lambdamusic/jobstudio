@@ -2933,11 +2933,12 @@ class SidebarTests(TestCase):
 
     fixtures = FIXTURE
 
-    def test_interviewing_is_listed_first_under_applications(self):
-        """The sub-nav runs down the funnel, and Interviewing is the status where
-        something is already in motion and needs preparing for."""
+    def test_applications_sub_nav_order(self):
+        """Offer, Interviewing, Applied, Reviewing, Saved (2026-11-24): furthest along first."""
         html = self.client.get("/").content.decode()
-        order = ["/applications/status/interviewing/",
+        order = ["/applications/status/offer/",
+                 "/applications/status/interviewing/",
+                 "/applications/status/applied/",
                  "/applications/status/reviewing/",
                  "/applications/status/saved/",
                  "/applications/all/"]
@@ -3038,7 +3039,7 @@ class DefaultActiveListTests(TestCase):
     """/applications/ defaults to the active set; /applications/all/ is the full list."""
 
     fixtures = FIXTURE
-    ACTIVE = ["applied", "interviewing"]
+    ACTIVE = ["applied", "interviewing", "offer"]
 
     def test_bare_list_shows_only_active(self):
         apps = self.client.get("/applications/").context["applications"]
@@ -3061,7 +3062,7 @@ class DefaultActiveListTests(TestCase):
     def test_sidebar_groups_fold_and_open_where_the_page_is(self):
         """`#94`: Applications, Notes and Portal scans are <details> groups, not links.
         The group the page is in renders open; the others start closed. Applications lists
-        only the three working statuses (2026-10-21)."""
+        only the working statuses (five since 2026-11-24)."""
         html = self.client.get("/companies/").content.decode()
         for name in ("applications", "notes", "scans"):
             with self.subTest(group=name):
@@ -3069,7 +3070,8 @@ class DefaultActiveListTests(TestCase):
         self.assertNotIn('<a href="/notes/" class=', html)
         group = html[html.index('data-fold="applications"'):html.index('data-fold="notes"')]
         self.assertEqual(re.findall(r'href="(/applications/[^"]*)"', group),
-                         ["/applications/status/interviewing/", "/applications/status/reviewing/",
+                         ["/applications/status/offer/", "/applications/status/interviewing/",
+                          "/applications/status/applied/", "/applications/status/reviewing/",
                           "/applications/status/saved/"])
 
         listing = self.client.get("/applications/").content.decode()

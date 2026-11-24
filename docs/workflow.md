@@ -165,11 +165,12 @@ when to run it and what to do with the result.
 | `reviewing` | Actively working on the application materials — not yet submitted |
 | `applied` | Application submitted |
 | `interviewing` | In the interview process |
+| `offer` | An offer has been made — still to accept or decline |
 | `rejected` | Applied, then turned down by the employer |
 | `closed` | The deadline passed before I could apply |
 | `discarded` | I decided I'm no longer interested in the role |
 
-A company's derived status on the companies page is `applied` if it has any application in `{applied, interviewing, rejected}` — i.e. one that was actually submitted, whatever happened next — `reviewing` if nothing was submitted but something is still live (`saved`/`reviewing`), and `watching` otherwise. `closed` and `discarded` leave a company `watching`: neither implies an application was ever sent, and neither is still live.
+A company's derived status on the companies page is `applied` if it has any application in `{applied, interviewing, offer, rejected}` — i.e. one that was actually submitted, whatever happened next — `reviewing` if nothing was submitted but something is still live (`saved`/`reviewing`), and `watching` otherwise. `closed` and `discarded` leave a company `watching`: neither implies an application was ever sent, and neither is still live.
 
 ### Add a new application or job post
 

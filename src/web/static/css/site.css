@@ -35,7 +35,8 @@
      darker ink; a chart mark is the colour itself.
 
      Hues follow what the badges already said — green applied, purple interviewing, blue
-     reviewing, grey saved, red rejected — with two deliberate departures. `closed` moved
+     reviewing, grey saved, red rejected, teal offer (added 2026-11-24, teal because gold already marks attention, not yet run
+     through the CVD validation below) — with two deliberate departures. `closed` moved
      from dusty red to amber: it was a near-twin of `rejected` under normal vision and
      indistinguishable under protanopia, and the two mean different things (the employer
      closed it vs. they said no) — which is the whole reason the plan refuses to merge
@@ -51,6 +52,7 @@
   --st-reviewing:    #2b74ad;
   --st-applied:      #2f7d46;
   --st-interviewing: #7040a8;
+  --st-offer:        #13807d;
   --st-discarded:    #6b7180;
   --st-closed:       #cf7b23;
   --st-rejected:     #b32d2d;
@@ -60,6 +62,7 @@
   --st-reviewing-ink:    #1d5580;
   --st-applied-ink:      #1e5c33;
   --st-interviewing-ink: #542e7d;
+  --st-offer-ink:        #0c5654;
   --st-discarded-ink:    #4c515c;
   --st-closed-ink:       #8a4f10;
   --st-rejected-ink:     #8a2222;
@@ -307,6 +310,7 @@ td.col-scan, th.col-scan { max-width: 230px; }
    keep the strikethrough: both are over, and that is a second channel saying so. */
 .st-applied      { background: color-mix(in srgb, var(--st-applied) 20%, #fff); color: var(--st-applied-ink); }
 .st-interviewing { background: color-mix(in srgb, var(--st-interviewing) 20%, #fff); color: var(--st-interviewing-ink); }
+.st-offer        { background: color-mix(in srgb, var(--st-offer) 22%, #fff); color: var(--st-offer-ink); }
 .st-reviewing    { background: color-mix(in srgb, var(--st-reviewing) 20%, #fff); color: var(--st-reviewing-ink); }
 .st-saved        { background: color-mix(in srgb, var(--st-saved) 34%, #fff); color: var(--st-saved-ink); }
 .st-discarded    { background: color-mix(in srgb, var(--st-discarded) 22%, #fff); color: var(--st-discarded-ink); text-decoration: line-through; }

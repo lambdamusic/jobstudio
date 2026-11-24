@@ -47,14 +47,14 @@ COMPANY_STATUSES = [COMPANY_STATUS_APPLIED, COMPANY_STATUS_REVIEWING, COMPANY_ST
 # next) — these are what flip a company to COMPANY_STATUS_APPLIED. `saved` and `reviewing`
 # are pre-submission; `closed` means the deadline passed before applying; `discarded`
 # means the role was dropped before applying. See docs/workflow.md "Application statuses".
-COMPANY_APPLIED_TRIGGER_STATUSES = {"applied", "interviewing", "rejected"}
+COMPANY_APPLIED_TRIGGER_STATUSES = {"applied", "interviewing", "offer", "rejected"}
 
 # ...and the ones that mean an application is live but not yet submitted, which is what
 # makes a company `reviewing` rather than merely watched.
 COMPANY_REVIEWING_TRIGGER_STATUSES = {"saved", "reviewing"}
 
 # Single source of truth for the "by status" sort, shared with the web app.
-STATUS_SORT_ORDER = ["applied", "interviewing", "reviewing", "saved", "discarded", "closed", "rejected"]
+STATUS_SORT_ORDER = ["offer", "applied", "interviewing", "reviewing", "saved", "discarded", "closed", "rejected"]
 
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 

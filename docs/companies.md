@@ -56,7 +56,7 @@ A company has exactly three states, maintained by `refresh_company_status()` off
 
 | State | When |
 |---|---|
-| `applied` | any application reached `applied`, `interviewing` or `rejected` — i.e. was actually submitted, whatever happened next |
+| `applied` | any application reached `applied`, `interviewing`, `offer` or `rejected` — i.e. was actually submitted, whatever happened next |
 | `reviewing` | nothing submitted, but at least one application is still live (`saved` or `reviewing`) |
 | `watching` | nothing live at all |
 

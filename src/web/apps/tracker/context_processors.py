@@ -27,8 +27,10 @@ def site_context(request):
         "nav_counts": {
             "applications": Application.objects.count(),
             "active": Application.objects.filter(status__in=ACTIVE_STATUSES).count(),
+            "offer": Application.objects.filter(status="offer").count(),
             "interviewing": Application.objects.filter(status="interviewing").count(),
             "reviewing": Application.objects.filter(status="reviewing").count(),
+            "applied": Application.objects.filter(status="applied").count(),
             "saved": Application.objects.filter(status="saved").count(),
             "companies": Company.objects.count(),
             "areas": Area.objects.count(),
