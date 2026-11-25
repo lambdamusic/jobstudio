@@ -2,6 +2,12 @@
 
 Dated entries, newest first.
 
+## 2026-11-25
+
+- **Print a company's notes.** A Print button on a company page prints its notes alone,
+  sections open, under a header with the company name and the date, the same way a note
+  page prints. No notes, no button.
+
 ## 2026-11-24
 
 - **An `offer` status.** It comes after `interviewing` in the funnel and on the stats

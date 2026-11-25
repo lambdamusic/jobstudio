@@ -6031,3 +6031,20 @@ class CareerCoachTabTests(TestCase):
         html = self.client.get("/notes/").content.decode()
         ids = re.findall(r'id="([^"]+)"', html)
         self.assertEqual({i for i in ids if ids.count(i) > 1}, set())
+
+
+class CompanyPrintTests(TestCase):
+    """A company page with notes has a Print button for them (2026-11-25), as a note page
+    does: it names the notes panel, which carries the company name as its print title."""
+
+    fixtures = FIXTURE
+
+    def test_company_notes_are_printable(self):
+        html = self.client.get("/companies/grafana-labs/").content.decode()
+        self.assertIn('data-print="#company-doc"', html)
+        self.assertIn('id="company-doc" data-printable data-print-title="Grafana Labs"', html)
+
+    def test_no_print_button_without_notes(self):
+        company = Company.objects.exclude(slug__in=["grafana-labs", "dbt-labs", "monzo"]).first()
+        html = self.client.get(f"/companies/{company.slug}/").content.decode()
+        self.assertNotIn('data-print="#company-doc"', html)
