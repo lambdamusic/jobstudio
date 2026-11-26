@@ -17,6 +17,7 @@ STATUS_COLOURS = {
     "applied": "#1a7f37",
     "interviewing": "#8250df",
     "offer": "#13807d",
+    "accepted": "#a3367f",
     "reviewing": "#0969da",
     "saved": "#57606a",
     "discarded": "#8c959f",

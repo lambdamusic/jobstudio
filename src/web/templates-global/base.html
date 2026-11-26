@@ -183,12 +183,14 @@ one — the head, the stylesheet and the title convention all stay shared.
       remembers the rest. The heading carries no count, since each sub-item has its own.
       Only the five working statuses: the active list and the full list are
       still at /applications/ and /applications/all/, reached from the applications pages
-      and the dashboard. Since 2026-11-24 the order is Offer, Interviewing, Applied, Reviewing, Saved:
+      and the dashboard. Since 2026-11-24 the order is (Accepted, since 2026-11-26,) Offer, Interviewing, Applied, Reviewing, Saved:
       furthest along first.
       {% endcomment %}
       <details class="nav-fold" data-fold="applications"{% if page == 'applications' %} open data-inside{% endif %}>
         <summary class="nav-head{% if page == 'applications' %} inside{% endif %}">
           <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-applications"/></svg><span>Applications</span></summary>
+        <a href="/applications/status/accepted/" class="nav-sub {% if nav_apps == 'accepted' %}active{% endif %}">
+          Accepted <span class="nav-count">{{ nav_counts.accepted }}</span></a>
         <a href="/applications/status/offer/" class="nav-sub {% if nav_apps == 'offer' %}active{% endif %}">
           Offer <span class="nav-count">{{ nav_counts.offer }}</span></a>
         <a href="/applications/status/interviewing/" class="nav-sub {% if nav_apps == 'interviewing' %}active{% endif %}">

@@ -84,7 +84,7 @@ read from there at draw time, so the palette has one home.
 | Section | Query | Notes |
 |---|---|---|
 | **Status counts** | `_status_summary()` | One row per status in `STATUS_SORT_ORDER` (`appfolder.py`), zeroes included, so a status with nothing in it still shows |
-| **Active** | `Application.objects.filter(status__in=ACTIVE_STATUSES)` count | `ACTIVE_STATUSES = ["applied", "interviewing", "offer"]` — submitted and still in play; `reviewing` (a placeholder, not yet applied) deliberately excluded |
+| **Active** | `Application.objects.filter(status__in=ACTIVE_STATUSES)` count | `ACTIVE_STATUSES = ["applied", "interviewing", "offer", "accepted"]` — submitted and still in play; `reviewing` (a placeholder, not yet applied) deliberately excluded |
 | **Activity** | `_activity_weeks()` | Weekly counts of three event types — `added` (`Application.date`), `applied` and `rejected` (from `ApplicationStatusChange`) — bucketed by ISO week (Monday-starting), empty weeks kept so the range stays continuous. The CLI report only prints the last 8 weeks and skips all-zero weeks; the web chart renders every week since the first event, as stacked bars |
 | **Recently logged** | `Application.objects.order_by("-date")[:6]` | Most recently *dated* applications, not most recently *edited* |
 | **Recently applied** | `_recently_applied()` | Most recent `ApplicationStatusChange` row with `to_status="applied"`, deduped per application (a re-applied role only shows its latest transition) |

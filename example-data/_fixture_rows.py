@@ -236,6 +236,22 @@ APPLICATIONS = [
                   (date(2026, 8, 18), time(16, 5), "applied"),
                   (date(2026, 9, 3), time(11, 0), "interviewing"),
                   (date(2026, 9, 25), time(17, 20), "offer")]),
+    # ---- added 2026-11-26 with the `accepted` status ------------------------
+    # The same reason as #11: the funnel test needs every FUNNEL_ORDER status reached.
+    dict(num=12, date=date(2026, 8, 25), company_name="Temporal",
+         role="Developer Educator",
+         job_url="https://temporal.io/careers", area_slug="developer-advocacy",
+         status="accepted", cv_base="functional", fit_level="strong", folder="",
+         summary="Durable execution, taught through writing: the offer taken.",
+         fit_pros="Teaching is the whole job\nNo conference circuit, unlike the advocacy role (#6)",
+         fit_cons="Small team, so a wide remit",
+         fit_unknowns="",
+         next_action="Accepted — signed contract sent; start 2026-11-02",
+         history=[(date(2026, 8, 20), time(9, 30), "saved"),
+                  (date(2026, 8, 25), time(14, 0), "applied"),
+                  (date(2026, 9, 8), time(10, 30), "interviewing"),
+                  (date(2026, 9, 29), time(16, 0), "offer"),
+                  (date(2026, 10, 2), time(11, 15), "accepted")]),
 ]
 
 from django.utils import timezone

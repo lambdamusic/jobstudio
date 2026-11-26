@@ -36,7 +36,7 @@ from django.utils.timezone import localtime
 from tracker.models import Application, ApplicationStatusChange
 
 # Statuses that cannot be reached without having applied first.
-IMPLIES_APPLIED = ("interviewing", "offer", "rejected")
+IMPLIES_APPLIED = ("interviewing", "offer", "accepted", "rejected")
 
 
 class Command(BaseCommand):

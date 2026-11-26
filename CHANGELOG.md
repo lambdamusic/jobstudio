@@ -2,6 +2,14 @@
 
 Dated entries, newest first.
 
+## 2026-11-26
+
+- **An `accepted` status,** for an offer taken. It follows `offer` in the funnel and on the
+  stats charts, sorts first when listing by status, counts as active, makes a company
+  `applied`, and heads the Applications sidebar. Its colour is magenta, since both greens
+  are taken. Migration 0016 adds the choice and re-ranks stored status order again. The
+  example data gains #12 Temporal, which ends accepted.
+
 ## 2026-11-25
 
 - **Print a company's notes.** A Print button on a company page prints its notes alone,

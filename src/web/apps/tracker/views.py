@@ -323,18 +323,18 @@ def _headline_metrics():
 # `saved -> applied` run backwards, so the DAG rule in R-S3 would drop the commonest
 # transition in any tracker. This is the order §3's "full funnel" spells out; the three
 # terminal statuses keep their `STATUS_SORT_ORDER` sequence relative to each other.
-FUNNEL_ORDER = ["saved", "reviewing", "applied", "interviewing", "offer",
+FUNNEL_ORDER = ["saved", "reviewing", "applied", "interviewing", "offer", "accepted",
                 "discarded", "closed", "rejected"]
 
 # Over, one way or another: dropped by the candidate, closed by the employer, or refused.
 # Everything else is still live, whether or not it has been submitted — which is a wider
-# reading than ACTIVE_STATUSES (applied + interviewing + offer), the one the stat bar counts.
+# reading than ACTIVE_STATUSES (applied + interviewing + offer + accepted), the one the stat bar counts.
 ENDED_STATUSES = ["discarded", "closed", "rejected"]
 
 # §3's second view: what happens from submission onward, without the pre-application
 # attrition. Drawn with `population_from="applied"`, so it is about applications that were
 # actually applied to — one discarded straight from `saved` is not in it at all (#56).
-POST_APPLICATION_ORDER = ["applied", "interviewing", "offer", "discarded", "closed", "rejected"]
+POST_APPLICATION_ORDER = ["applied", "interviewing", "offer", "accepted", "discarded", "closed", "rejected"]
 
 # Age bands for the ageing chart (§7). The boundary between the third and fourth band is
 # STALE_AFTER_DAYS, so "past this line is quiet" is a property of the bands themselves
@@ -822,7 +822,7 @@ def application_list(request, status=None, area=None, active=False, show_all=Fal
 
     if show_all:
         nav_apps = "all"
-    elif status in ("offer", "interviewing", "applied", "reviewing", "saved"):
+    elif status in ("accepted", "offer", "interviewing", "applied", "reviewing", "saved"):
         # The statuses with their own sidebar entry; the name matches the
         # template's check, so adding another is a one-line change in both places.
         nav_apps = status

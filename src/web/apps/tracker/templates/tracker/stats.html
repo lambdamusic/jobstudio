@@ -182,7 +182,7 @@
     {% include "tracker/_chart.html" with key="coverage" height=280 label="Donut: companies applied to, companies with an application still being worked on, and companies only being watched" %}
     <p class="chart-note muted">
       <strong>Applied to</strong> means <em>submitted</em> — an application at
-      <code>applied</code>, <code>interviewing</code>, <code>offer</code> or <code>rejected</code>.
+      <code>applied</code>, <code>interviewing</code>, <code>offer</code>, <code>accepted</code> or <code>rejected</code>.
       <strong>Reviewing</strong> is nothing sent yet but something still being worked on.
       <strong>Watching</strong> is everything else, and it covers two histories:
       {{ coverage.never }} compan{{ coverage.never|pluralize:"y,ies" }} never applied to,
